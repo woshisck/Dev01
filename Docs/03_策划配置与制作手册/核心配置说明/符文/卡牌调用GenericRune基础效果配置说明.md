@@ -2,7 +2,7 @@
 
 ## 作用
 
-把已有 Generic Rune 基础效果接入 512 战斗卡牌。核心卡牌只负责出牌、消耗和调用 FA；流血、中毒、燃烧等状态的具体规则，统一在 Generic Rune 的 GA/GE 内维护。
+把已有 Generic Rune 基础效果接入战斗卡牌。核心卡牌只负责按动作槽/顺序结算并调用 FA；流血、中毒、燃烧等状态的具体规则，统一在 Generic Rune 的 GA/GE 内维护。
 
 ## 生成位置
 
@@ -34,6 +34,8 @@
 | `Is Combat Card` | 勾选 |
 | `Card Type` | `Normal` |
 | `Required Action` | `Any` |
+| `Required Action Slot` | `Attack` |
+| `Required Flow Role` | `Any` 或按构筑需求填 `Starter/Catalyst` |
 | `Trigger Timing` | `On Hit` |
 | `Link Recipes` | 空 |
 
@@ -63,6 +65,6 @@
 ## 测试
 
 1. 把目标卡加入武器 `InitialCombatDeck`。
-2. 攻击命中 `AN_MeleeDamage` 后卡牌才消耗。
+2. 攻击命中 `AN_MeleeDamage` 后卡牌结算并调用对应 FA。
 3. 命中敌人后检查目标身上是否获得对应状态 Tag 或 GA/GE。
 4. 针对护甲、霸体、移动距离等特殊条件分别做单项测试。

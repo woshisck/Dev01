@@ -96,12 +96,12 @@ GA_Dead
 
 ---
 
-### 情景 7：GA 激活期间，广播"玩家正在普攻第 2 连"
+### 情景 7：GA 激活期间，广播"玩家正在 Attack"
 
 ```
-GA_LightAtk_Combo2
-    Ability Tags:          PlayerState.AbilityCast.LightAtk.Combo2
-    Activation Owned Tags: PlayerState.AbilityCast.LightAtk.Combo2
+GA_Attack
+    Ability Tags:          PlayerState.AbilityCast.Attack
+    Activation Owned Tags: PlayerState.AbilityCast.Attack
 ```
 
 **两个字段填同一个 Tag 的原因**：
@@ -181,11 +181,11 @@ DA_Base_StateConflict_Initial → BlockCategoryMap
 
 ---
 
-### 情景 12：玩家普攻期间无法闪避
+### 情景 12：玩家 Attack 期间无法闪避
 
 ```
 DA_Base_StateConflict_Initial → Rules
-    ActiveTag:  PlayerState.AbilityCast.LightAtk.Combo1
+    ActiveTag:  PlayerState.AbilityCast.Attack
     Block Tags: PlayerState.AbilityCast.Dash
 ```
 
@@ -193,8 +193,7 @@ DA_Base_StateConflict_Initial → Rules
 
 ```
 GA_Dash
-    Activation Blocked Tags: PlayerState.AbilityCast.LightAtk
-    ← 用父 Tag 匹配所有连招段
+    Activation Blocked Tags: PlayerState.AbilityCast.Attack
 ```
 
 ---

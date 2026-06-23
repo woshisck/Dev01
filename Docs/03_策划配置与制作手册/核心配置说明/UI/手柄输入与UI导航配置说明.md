@@ -10,8 +10,8 @@
 | --- | --- | --- | --- |
 | 移动 | Left Stick | WASD | 玩家移动 |
 | 镜头偏移 | Right Stick | 无 | 相机偏移输入 |
-| 轻攻击 | X / FaceButton_Left | Left Mouse | 普通攻击 |
-| 重攻击 | Y / FaceButton_Top | Right Mouse | 重击/蓄力释放 |
+| 攻击 | X / FaceButton_Left | Left Mouse | 普通攻击，触发 Attack 卡组槽顺序结算 |
+| 战技 | Y / FaceButton_Top | Right Mouse | 跟随武器的 WeaponSkill；火绳枪为蓄力释放 |
 | 交互 / UI 确认 | A / FaceButton_Bottom | E / Enter | 拾取、进入、确认 |
 | 冲刺 / UI 返回 | B / FaceButton_Right | Space / Esc | 游戏中冲刺，UI 中返回 |
 | 背包 | View / SpecialLeft | Tab | 仅 Gameplay 中打开 |

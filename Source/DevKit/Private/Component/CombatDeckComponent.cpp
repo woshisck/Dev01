@@ -31,9 +31,7 @@ namespace
 			return nullptr;
 		}
 
-		return WeaponDefinition->InitialCombatDeck.IsEmpty()
-			? &WeaponDefinition->InitialRunes
-			: &WeaponDefinition->InitialCombatDeck;
+		return &WeaponDefinition->InitialCombatDeck;
 	}
 
 	void CopyDeckSourceAssets(const TArray<TObjectPtr<URuneDataAsset>>* SourceCards, TArray<URuneDataAsset*>& OutSourceAssets)
@@ -172,6 +170,7 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCard(ECardRequiredAc
 	Context.FlowRole = bIsComboFinisher ? ECombatDeckFlowRole::Finisher : ECombatDeckFlowRole::Starter;
 	Context.bFromDashSave = bFromDashSave;
 	Context.TriggerTiming = ECombatCardTriggerTiming::OnCommit;
+	Context.bConsumeOnCommit = true;
 	Context.AttackInstanceGuid = FGuid::NewGuid();
 	return ResolveAttackCardWithContext(Context);
 }
@@ -224,11 +223,16 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCardWithContext(cons
 
 	Result.bReleaseModeMatched = DoesReleaseModeMatch(Card.Config, Result.ActionContext);
 	Result.bActionSlotMatched = DoesActionSlotMatch(Card.Config.RequiredActionSlot, Result.ActionContext.ActionSlot);
+	if (Result.ActionContext.FlowRole == ECombatDeckFlowRole::Any
+		&& Card.Config.RequiredFlowRole != ECombatDeckFlowRole::Any)
+	{
+		Result.ActionContext.FlowRole = Card.Config.RequiredFlowRole;
+	}
 	Result.bFlowRoleMatched = DoesFlowRoleMatch(Card.Config.RequiredFlowRole, Result.ActionContext.FlowRole);
 
-	// OnCommit path: runs PreCommitFlow (e.g. trail setup) without consuming the card.
+	// OnCommit path: runs PreCommitFlow (e.g. trail setup) before the card resolves.
 	// CurrentIndex is NOT advanced so the same card is still available for OnHit resolution.
-	if (Context.TriggerTiming == ECombatCardTriggerTiming::OnCommit && !Context.bConsumeOnCommit)
+	if (Result.ActionContext.TriggerTiming == ECombatCardTriggerTiming::OnCommit && !Result.ActionContext.bConsumeOnCommit)
 	{
 		if (!Result.bReleaseModeMatched || !Result.bActionSlotMatched || !Result.bFlowRoleMatched)
 		{
@@ -241,28 +245,24 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCardWithContext(cons
 			// or overwrites this flow when bRestartExistingFlow fires at OnHit time.
 			FCombatCardInstance PreCommitCard = Card;
 			PreCommitCard.InstanceGuid = CombatDeck_PreCommitGuid(Card.InstanceGuid);
-			ExecuteFlow(Card.Config.PreCommitFlow, PreCommitCard, Context, Result);
-			// Do not set Result.bHadCard: this is a pre-montage setup step, not a consumption.
+			ExecuteFlow(Card.Config.PreCommitFlow, PreCommitCard, Result.ActionContext, Result);
+			// Do not set Result.bHadCard: this is pre-montage setup, not a card resolve.
 			Result.bHadCard = false;
 		}
 		return Result;
 	}
 
 	const bool bAllowOnCommitCardAtHitNotify =
-		Context.TriggerTiming == ECombatCardTriggerTiming::OnHit
+		Result.ActionContext.TriggerTiming == ECombatCardTriggerTiming::OnHit
 		&& Card.Config.TriggerTiming == ECombatCardTriggerTiming::OnCommit;
-	if (Card.Config.TriggerTiming != Context.TriggerTiming && !bAllowOnCommitCardAtHitNotify)
+	if (Card.Config.TriggerTiming != Result.ActionContext.TriggerTiming && !bAllowOnCommitCardAtHitNotify)
 	{
 		return Result;
 	}
 
-	if (PendingLinkContext.IsValidCard() && !Context.bComboContinued)
-	{
-		BreakPendingLink(ECombatLinkBreakReason::ComboStateExited, &Context);
-	}
-
-	const float CurrentCardComboMultiplier = GetComboEffectMultiplier(Card.Config, Context);
+	const float CurrentCardComboMultiplier = GetComboEffectMultiplier(Card.Config, Result.ActionContext);
 	Result.bHadCard = true;
+	Result.ResolvedCard = Card;
 	Result.ConsumedCard = Card;
 	if (!Result.bReleaseModeMatched)
 	{
@@ -271,9 +271,9 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCardWithContext(cons
 			BreakPendingLink(ECombatLinkBreakReason::ConditionFailed, &Result.ActionContext);
 		}
 
-		if (Context.AttackInstanceGuid.IsValid())
+		if (Result.ActionContext.AttackInstanceGuid.IsValid())
 		{
-			ResolvedAttackGuids.Add(Context.AttackInstanceGuid);
+			ResolvedAttackGuids.Add(Result.ActionContext.AttackInstanceGuid);
 		}
 
 		return Result;
@@ -281,7 +281,7 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCardWithContext(cons
 
 	const bool bLegacyActionMatched = !IsLinkCardType(Card.Config.CardType)
 		? true
-		: DoesActionMatch(Card.Config.RequiredAction, Context.ActionType);
+		: DoesActionMatch(Card.Config.RequiredAction, Result.ActionContext.ActionType);
 	Result.bActionMatched = bLegacyActionMatched && Result.bActionSlotMatched && Result.bFlowRoleMatched;
 	SetAppliedMultiplier(Result, 1.0f, CurrentCardComboMultiplier);
 	Result.ReasonText = Card.Config.HUDReasonText;
@@ -300,16 +300,16 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCardWithContext(cons
 	int32 CurrentBattles = 0;
 	if (IsTemporaryFinisherLocked(Card, RequiredBattles, CurrentBattles))
 	{
-		BreakPendingLink(ECombatLinkBreakReason::ConditionFailed, &Context);
+		BreakPendingLink(ECombatLinkBreakReason::ConditionFailed, &Result.ActionContext);
 		Result.bActionMatched = false;
 		Result.bCardTemporarilyLocked = true;
 		Result.TemporaryUnlockRequiredCompletedBattles = RequiredBattles;
 		Result.TemporaryUnlockCurrentCompletedBattles = CurrentBattles;
 		Result.ReasonText = TemporaryFinisherLockedReasonText;
 
-		if (Context.AttackInstanceGuid.IsValid())
+		if (Result.ActionContext.AttackInstanceGuid.IsValid())
 		{
-			ResolvedAttackGuids.Add(Context.AttackInstanceGuid);
+			ResolvedAttackGuids.Add(Result.ActionContext.AttackInstanceGuid);
 		}
 
 		if (!bUseSingleActionSlot)
@@ -318,6 +318,7 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCardWithContext(cons
 			Result.bStartedShuffle = CurrentIndex >= ActiveSequence.Num();
 		}
 
+		OnCardResolved.Broadcast(Card, Result);
 		OnCardConsumed.Broadcast(Card, Result);
 		if (Result.bStartedShuffle && !bUseSingleActionSlot)
 		{
@@ -325,15 +326,15 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCardWithContext(cons
 			OnShuffleStarted.Broadcast(Result);
 		}
 
-		PushCombatCardConsumeLog(Result);
+		PushCombatCardResolveLog(Result);
 		return Result;
 	}
 
 	if (PendingLinkContext.IsValidCard())
 	{
-		const FCombatCardLinkRecipe* ReversedRecipe = FindMatchingLinkRecipe(PendingLinkContext, ECombatCardLinkOrientation::Reversed, Card, Context);
+		const FCombatCardLinkRecipe* ReversedRecipe = FindMatchingLinkRecipe(PendingLinkContext, ECombatCardLinkOrientation::Reversed, Card, Result.ActionContext);
 		const bool bLegacyBackwardMatched = !ReversedRecipe && PendingLinkContext.Config.LinkRecipes.IsEmpty()
-			&& DoesLinkConditionMatch(PendingLinkContext.Config.LinkConfig.BackwardEffect.Condition, Card, Context);
+			&& DoesLinkConditionMatch(PendingLinkContext.Config.LinkConfig.BackwardEffect.Condition, Card, Result.ActionContext);
 		if (ReversedRecipe || bLegacyBackwardMatched)
 		{
 			Result.bTriggeredLink = true;
@@ -347,17 +348,17 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCardWithContext(cons
 			Result.ReasonText = LinkReasonText.IsEmpty()
 				? PendingLinkContext.Config.HUDReasonText
 				: LinkReasonText;
-			ExecuteFlow(ReversedRecipe ? ReversedRecipe->LinkFlow : PendingLinkContext.Config.LinkConfig.BackwardEffect.Flow, PendingLinkContext, Context, Result);
+			ExecuteFlow(ReversedRecipe ? ReversedRecipe->LinkFlow : PendingLinkContext.Config.LinkConfig.BackwardEffect.Flow, PendingLinkContext, Result.ActionContext, Result);
 			PendingLinkContext = FCombatCardInstance();
 			PendingLinkActionContext = FCombatDeckActionContext();
 		}
 		else
 		{
-			BreakPendingLink(ECombatLinkBreakReason::ConditionFailed, &Context);
+			BreakPendingLink(ECombatLinkBreakReason::ConditionFailed, &Result.ActionContext);
 		}
 	}
 
-	const bool bIsFinisherRelease = Result.ActionContext.ReleaseMode == ECombatCardReleaseMode::Finisher || Context.bIsComboFinisher;
+	const bool bIsFinisherRelease = Result.ActionContext.ReleaseMode == ECombatCardReleaseMode::Finisher || Result.ActionContext.bIsComboFinisher;
 	const bool bComboRequirementSatisfied = !Card.Config.bRequiresComboFinisher || bIsFinisherRelease;
 	const bool bCardUsesFinisherRelease = Card.Config.CardType == ECombatCardType::Finisher || Card.Config.bRequiresComboFinisher;
 	Result.bTriggeredFinisher = Result.bActionMatched
@@ -386,17 +387,17 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCardWithContext(cons
 					Result.bPendingBackwardLink = true;
 					Result.LinkedSourceCard = Card;
 					PendingLinkContext = Card;
-					PendingLinkActionContext = Context;
+					PendingLinkActionContext = Result.ActionContext;
 				}
 				else
 				{
 					Result.bTriggeredBaseFlow = true;
-					ExecuteFlow(Card.Config.BaseFlow, Card, Context, Result);
+					ExecuteFlow(Card.Config.BaseFlow, Card, Result.ActionContext, Result);
 				}
 			}
 			else
 			{
-				const FCombatCardLinkRecipe* ForwardRecipe = FindMatchingLinkRecipe(Card, ECombatCardLinkOrientation::Forward, LastResolvedCard, Context);
+				const FCombatCardLinkRecipe* ForwardRecipe = FindMatchingLinkRecipe(Card, ECombatCardLinkOrientation::Forward, LastResolvedCard, Result.ActionContext);
 
 				if (ForwardRecipe)
 				{
@@ -409,12 +410,12 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCardWithContext(cons
 					Result.ReasonText = ForwardRecipe->ReasonText.IsEmpty()
 						? Card.Config.HUDReasonText
 						: ForwardRecipe->ReasonText;
-					ExecuteFlow(ForwardRecipe->LinkFlow, Card, Context, Result);
+					ExecuteFlow(ForwardRecipe->LinkFlow, Card, Result.ActionContext, Result);
 				}
 				else
 				{
 					Result.bTriggeredBaseFlow = true;
-					ExecuteFlow(Card.Config.BaseFlow, Card, Context, Result);
+					ExecuteFlow(Card.Config.BaseFlow, Card, Result.ActionContext, Result);
 				}
 			}
 		}
@@ -423,7 +424,7 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCardWithContext(cons
 			const bool bForwardMatched = WantsForwardLink(Card.Config)
 				&& Card.Config.LinkConfig.ForwardEffect.Flow
 				&& LastResolvedCard.IsValidCard()
-				&& DoesLinkConditionMatch(Card.Config.LinkConfig.ForwardEffect.Condition, LastResolvedCard, Context);
+				&& DoesLinkConditionMatch(Card.Config.LinkConfig.ForwardEffect.Condition, LastResolvedCard, Result.ActionContext);
 
 			if (bForwardMatched)
 			{
@@ -436,12 +437,12 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCardWithContext(cons
 				Result.ReasonText = Card.Config.LinkConfig.ForwardEffect.ReasonText.IsEmpty()
 					? Card.Config.HUDReasonText
 					: Card.Config.LinkConfig.ForwardEffect.ReasonText;
-				ExecuteFlow(Card.Config.LinkConfig.ForwardEffect.Flow, Card, Context, Result);
+				ExecuteFlow(Card.Config.LinkConfig.ForwardEffect.Flow, Card, Result.ActionContext, Result);
 			}
 			else
 			{
 				Result.bTriggeredBaseFlow = true;
-				ExecuteFlow(Card.Config.BaseFlow, Card, Context, Result);
+				ExecuteFlow(Card.Config.BaseFlow, Card, Result.ActionContext, Result);
 			}
 
 			if (!bForwardMatched && WantsBackwardLink(Card.Config) && Card.Config.LinkConfig.BackwardEffect.Flow)
@@ -450,16 +451,16 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCardWithContext(cons
 				Result.bPendingBackwardLink = true;
 				Result.LinkedSourceCard = Card;
 				PendingLinkContext = Card;
-				PendingLinkActionContext = Context;
+				PendingLinkActionContext = Result.ActionContext;
 			}
 		}
 		else
 		{
 			Result.bTriggeredBaseFlow = true;
-			ExecuteFlow(Card.Config.BaseFlow, Card, Context, Result);
+			ExecuteFlow(Card.Config.BaseFlow, Card, Result.ActionContext, Result);
 
 			Result.bTriggeredMatchedFlow = true;
-			ExecuteFlow(Card.Config.MatchedFlow, Card, Context, Result);
+			ExecuteFlow(Card.Config.MatchedFlow, Card, Result.ActionContext, Result);
 
 			if (Card.Config.LinkMode == ECardLinkMode::PassToNext)
 			{
@@ -467,7 +468,7 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCardWithContext(cons
 				Result.bPendingBackwardLink = true;
 				Result.LinkedSourceCard = Card;
 				PendingLinkContext = Card;
-				PendingLinkActionContext = Context;
+				PendingLinkActionContext = Result.ActionContext;
 			}
 			else if (Card.Config.LinkMode == ECardLinkMode::ReadPrevious)
 			{
@@ -483,13 +484,13 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCardWithContext(cons
 	else
 	{
 		Result.bTriggeredBaseFlow = true;
-		ExecuteFlow(Card.Config.BaseFlow, Card, Context, Result);
+		ExecuteFlow(Card.Config.BaseFlow, Card, Result.ActionContext, Result);
 	}
 
 	LastResolvedCard = Card;
-	if (Context.AttackInstanceGuid.IsValid())
+	if (Result.ActionContext.AttackInstanceGuid.IsValid())
 	{
-		ResolvedAttackGuids.Add(Context.AttackInstanceGuid);
+		ResolvedAttackGuids.Add(Result.ActionContext.AttackInstanceGuid);
 	}
 
 	if (!bUseSingleActionSlot)
@@ -498,6 +499,7 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCardWithContext(cons
 		Result.bStartedShuffle = CurrentIndex >= ActiveSequence.Num();
 	}
 
+	OnCardResolved.Broadcast(Card, Result);
 	OnCardConsumed.Broadcast(Card, Result);
 	if (Result.bTriggeredBaseFlow)
 	{
@@ -539,8 +541,8 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCardWithContext(cons
 		OnShuffleStarted.Broadcast(Result);
 	}
 
-	// ── 512版本：推卡牌消耗行到战斗日志 ────────────────────────────────
-	PushCombatCardConsumeLog(Result);
+	// Push a pure card resolve row to the combat log.
+	PushCombatCardResolveLog(Result);
 
 	return Result;
 }
@@ -598,7 +600,7 @@ void UCombatDeckComponent::LoadDeckFromWeapon(const UWeaponDefinition* WeaponDef
 	{
 		TArray<URuneDataAsset*> SourceAssets;
 		BuildDefaultWeaponDeckSourceAssets(WeaponDefinition, SourceAssets);
-		LoadDeckFromSourceAssetsInternal(SourceAssets, WeaponDefinition->ShuffleCooldownDuration, WeaponDefinition->MaxActiveSequenceSize, false);
+		LoadDeckFromSourceAssetsInternal(SourceAssets, 0.0f, 0, false);
 		return;
 	}
 
@@ -647,8 +649,10 @@ void UCombatDeckComponent::LoadDeckFromSourceAssetsInternal(const TArray<URuneDa
 
 	DeckList.Reset();
 	ClearSingleActionSlotCards();
-	ShuffleCooldownDuration = FMath::Max(0.0f, InShuffleCooldownDuration);
-	MaxActiveSequenceSize = FMath::Max(0, InMaxActiveSequenceSize);
+	// Current combat cards are not consumed and do not use shuffle downtime or active-subset limits.
+	// The parameters remain on the API so older saves/Blueprint calls still load safely.
+	ShuffleCooldownDuration = 0.0f;
+	MaxActiveSequenceSize = 0;
 
 	TArray<URuneDataAsset*> EffectiveSourceAssets = SourceAssets;
 	if (bAppendTemporaryFinisherCard)
@@ -889,7 +893,8 @@ bool UCombatDeckComponent::RemoveCardAtIndex(int32 CardIndex)
 
 void UCombatDeckComponent::SetShuffleCooldownDuration(float InDuration)
 {
-	ShuffleCooldownDuration = FMath::Max(0.0f, InDuration);
+	(void)InDuration;
+	ShuffleCooldownDuration = 0.0f;
 }
 
 void UCombatDeckComponent::SetDeckListForTest(const TArray<FCombatCardConfig>& InCards)
@@ -1126,33 +1131,35 @@ TArray<FCombatCardInstance> UCombatDeckComponent::BuildTemporaryLockViewCards(co
 	return ViewCards;
 }
 
-void UCombatDeckComponent::PushCombatCardConsumeLog(const FCombatCardResolveResult& Result) const
+void UCombatDeckComponent::PushCombatCardResolveLog(const FCombatCardResolveResult& Result) const
 {
-	if (!Result.ConsumedCard.IsValidCard())
+	if (!Result.ResolvedCard.IsValidCard())
 	{
 		return;
 	}
 
-	FDamageBreakdown Consume;
-	Consume.bIsCardEventOnly = true;
-	Consume.bHadCard = true;
-	Consume.bConsumedCard = true;
-	Consume.bActionMatched = Result.bActionMatched;
-	Consume.bTriggeredMatchedFlow = Result.bTriggeredMatchedFlow;
-	Consume.bTriggeredLink = Result.bTriggeredLink || Result.bTriggeredForwardLink || Result.bTriggeredBackwardLink;
-	Consume.bTriggeredFinisher = Result.bTriggeredFinisher;
-	Consume.bStartedShuffle = Result.bStartedShuffle;
-	Consume.CardDisplayName = Result.ConsumedCard.SourceData
-		? Result.ConsumedCard.SourceData->GetRuneName()
-		: Result.ConsumedCard.Config.CardIdTag.GetTagName();
-	Consume.CardConsumeTiming = Result.ConsumedCard.Config.TriggerTiming == ECombatCardTriggerTiming::OnCommit
+	FDamageBreakdown Resolve;
+	Resolve.bIsCardEventOnly = true;
+	Resolve.bHadCard = true;
+	Resolve.bResolvedCard = true;
+	Resolve.bConsumedCard = false;
+	Resolve.bActionMatched = Result.bActionMatched;
+	Resolve.bTriggeredMatchedFlow = Result.bTriggeredMatchedFlow;
+	Resolve.bTriggeredLink = Result.bTriggeredLink || Result.bTriggeredForwardLink || Result.bTriggeredBackwardLink;
+	Resolve.bTriggeredFinisher = Result.bTriggeredFinisher;
+	Resolve.bStartedShuffle = Result.bStartedShuffle;
+	Resolve.CardDisplayName = Result.ResolvedCard.SourceData
+		? Result.ResolvedCard.SourceData->GetRuneName()
+		: Result.ResolvedCard.Config.CardIdTag.GetTagName();
+	Resolve.CardResolveTiming = Result.ResolvedCard.Config.TriggerTiming == ECombatCardTriggerTiming::OnCommit
 		? FName("OnCommit") : FName("OnHit");
-	Consume.SourceName = GetNameSafe(GetOwner());
-	Consume.GameTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
-	Consume.DamageType = Result.bCardTemporarilyLocked
+	Resolve.CardConsumeTiming = Resolve.CardResolveTiming;
+	Resolve.SourceName = GetNameSafe(GetOwner());
+	Resolve.GameTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
+	Resolve.DamageType = Result.bCardTemporarilyLocked
 		? FName("Card_Locked")
-		: (Result.bStartedShuffle ? FName("Card_Shuffle") : FName("Card_Consume"));
-	UCombatLogStatics::PushEntry(Consume);
+		: (Result.bStartedShuffle ? FName("Card_Shuffle") : FName("Card_Resolve"));
+	UCombatLogStatics::PushEntry(Resolve);
 }
 
 void UCombatDeckComponent::RefillActiveSequence()
@@ -1457,21 +1464,18 @@ void UCombatDeckComponent::ExecuteFlow(
 
 int32 UCombatDeckComponent::GetComboBonusStacks(const FCombatDeckActionContext& Context) const
 {
-	return FMath::Max(0, Context.ComboIndex - 1);
+	(void)Context;
+	// Deprecated combat-card combo scaling is disabled for the current
+	// Attack/Skill/WeaponSkill/Dash model. Card order, FlowRole, and Link
+	// recipes now express build sequencing.
+	return 0;
 }
 
 float UCombatDeckComponent::GetComboEffectMultiplier(const FCombatCardConfig& Config, const FCombatDeckActionContext& Context) const
 {
-	if (!Config.bUseComboEffectScaling)
-	{
-		return 1.0f;
-	}
-
-	const int32 ComboBonusStacks = GetComboBonusStacks(Context);
-	const float AdditiveScalar = FMath::Min(
-		FMath::Max(0.0f, Config.MaxComboScalar),
-		static_cast<float>(ComboBonusStacks) * FMath::Max(0.0f, Config.ComboScalarPerIndex));
-	return 1.0f + AdditiveScalar;
+	(void)Config;
+	(void)Context;
+	return 1.0f;
 }
 
 void UCombatDeckComponent::SetAppliedMultiplier(FCombatCardResolveResult& Result, float LinkMultiplier, float ComboMultiplier) const
@@ -1519,6 +1523,7 @@ void UCombatDeckComponent::BreakPendingLink(ECombatLinkBreakReason Reason, const
 	Result.ActionContext = ResolvedBreakContext;
 	Result.bLinkBroken = true;
 	Result.LinkBreakReason = Reason;
+	Result.ResolvedCard = BrokenCard;
 	Result.ConsumedCard = BrokenCard;
 	Result.LinkedSourceCard = BrokenCard;
 	Result.ReasonText = BrokenCard.Config.HUDReasonText;
@@ -1556,7 +1561,9 @@ void UCombatDeckComponent::BreakPendingLink(ECombatLinkBreakReason Reason, const
 
 bool UCombatDeckComponent::DoesActionMatch(ECardRequiredAction RequiredAction, ECardRequiredAction ActionType) const
 {
-	return RequiredAction == ECardRequiredAction::Any || RequiredAction == ActionType;
+	return RequiredAction == ECardRequiredAction::Any
+		|| ActionType == ECardRequiredAction::Any
+		|| RequiredAction == ActionType;
 }
 
 bool UCombatDeckComponent::DoesActionSlotMatch(ECombatDeckActionSlot RequiredSlot, ECombatDeckActionSlot ActionSlot) const

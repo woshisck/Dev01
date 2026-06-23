@@ -9,6 +9,7 @@
 #include "Component/CombatDeckComponent.h"
 #include "Component/BackpackGridComponent.h"
 #include "Component/PlayerActiveSkillComponent.h"
+#include "Combat/FinisherDeprecation.h"
 #include "Character/EnemyCharacterBase.h"
 #include "Data/LevelInfoPopupDA.h"
 #include "Data/RoomDataAsset.h"
@@ -725,7 +726,7 @@ void AYogGameMode::EnterArrangementPhase()
 	OnPhaseChanged.Broadcast(CurrentPhase);
 
 	bool bRefreshTemporaryFinisherLockView = false;
-	if (bCountCombatClearsForTemporaryFinisherUnlock)
+	if (!DevKit::Combat::IsFinisherAbilityDeprecated() && bCountCombatClearsForTemporaryFinisherUnlock)
 	{
 		++CompletedCombatBattleCount;
 		bRefreshTemporaryFinisherLockView = true;

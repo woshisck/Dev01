@@ -307,9 +307,7 @@ void UWeaponFloatWidget::SetWeaponDefinition(const UWeaponDefinition* Def)
 	BuildZonePanel(ZoneGrid3, Zone3Image, GetZoneImg(2), GetShape(2), GW, GH);
 
 	// ── 512 初始战斗卡牌列表 ───────────────────
-	const TArray<TObjectPtr<URuneDataAsset>>& SourceCards = Def->InitialCombatDeck.IsEmpty()
-		? Def->InitialRunes
-		: Def->InitialCombatDeck;
+	const TArray<TObjectPtr<URuneDataAsset>>& SourceCards = Def->InitialCombatDeck;
 	BuildCombatCardList(SourceCards);
 	RefreshOperationHints();
 }

@@ -10,7 +10,19 @@ UGA_WeaponSkill::UGA_WeaponSkill(const FObjectInitializer& ObjectInitializer)
 	AbilityTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.WeaponSkill.Combo1")));
 	ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.WeaponSkill")));
 	ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.WeaponSkill.Combo1")));
+	const FGameplayTag SharedSkillCooldownTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.Cooldown.SkillShared"), false);
+	if (SharedSkillCooldownTag.IsValid())
+	{
+		ActivationBlockedTags.AddTag(SharedSkillCooldownTag);
+	}
 	bHoldMontageUntilInputRelease = true;
+	bResolveCombatDeck = true;
+	CombatDeckActionSlot = ECombatDeckActionSlot::WeaponSkill;
+	CombatDeckFlowRole = ECombatDeckFlowRole::Finisher;
+	CombatDeckCommitTiming = ECombatCardTriggerTiming::OnCommit;
+	bConsumeCombatDeckOnCommit = true;
+	bStartsSharedSkillCooldown = true;
+	SharedSkillCooldownFallbackDuration = 3.0f;
 }
 
 void UGA_WeaponSkill::ConfigureWeaponSkillComboTag(const TCHAR* ComboTagName)
@@ -21,9 +33,17 @@ void UGA_WeaponSkill::ConfigureWeaponSkillComboTag(const TCHAR* ComboTagName)
 
 	AbilityTags.RemoveTag(Combo1Tag);
 	ActivationOwnedTags.RemoveTag(Combo1Tag);
-	AbilityTags.AddTag(BroadTag);
+	if (ComboTag == Combo1Tag)
+	{
+		AbilityTags.AddTag(BroadTag);
+		ActivationOwnedTags.AddTag(BroadTag);
+	}
+	else
+	{
+		AbilityTags.RemoveTag(BroadTag);
+		ActivationOwnedTags.RemoveTag(BroadTag);
+	}
 	AbilityTags.AddTag(ComboTag);
-	ActivationOwnedTags.AddTag(BroadTag);
 	ActivationOwnedTags.AddTag(ComboTag);
 }
 

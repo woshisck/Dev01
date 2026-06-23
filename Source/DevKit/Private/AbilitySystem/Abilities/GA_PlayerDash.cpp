@@ -226,59 +226,9 @@ bool UGA_PlayerDash::CanActivateAbility(
 		}
 	}
 
-	// ── 连招桥接检测 ─────────────────────────────────────────────────────
-	// 蒙太奇在"桥接窗口"用 AnimNotifyState 授予 ComboSavePoint Tag。
-	// 此时 CancelAbilitiesWithTag 尚未执行，ActivationOwnedTags 仍在 ASC 上，
-	// 直接收集当前所有连招进度 Tag 写入 PendingSaveComboTags。
+	// Current dash behavior resolves the Dash action slot and recovery-cancel
+	// rules. Deprecated DashSave combo-tag injection is no longer collected.
 	PendingSaveComboTags.Reset();
-	if (UAbilitySystemComponent* ASC = ActorInfo->AbilitySystemComponent.Get())
-	{
-		static const FGameplayTag SavePoint =
-			FGameplayTag::RequestGameplayTag(TEXT("Action.Combo.DashSavePoint"), false);
-
-		if (SavePoint.IsValid() && ASC->HasMatchingGameplayTag(SavePoint))
-		{
-			static const FGameplayTag CanCombo =
-				FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"), false);
-
-			// 所有已知连招进度 Tag（ActivationOwnedTags 已注入到 ASC，直接查）
-			static const FName KnownComboTagNames[] = {
-				TEXT("PlayerState.AbilityCast.Attack.Combo1"),
-				TEXT("PlayerState.AbilityCast.Attack.Combo2"),
-				TEXT("PlayerState.AbilityCast.Attack.Combo3"),
-				TEXT("PlayerState.AbilityCast.Attack.Combo4"),
-				TEXT("PlayerState.AbilityCast.WeaponSkill.Combo1"),
-				TEXT("PlayerState.AbilityCast.WeaponSkill.Combo2"),
-				TEXT("PlayerState.AbilityCast.WeaponSkill.Combo3"),
-				TEXT("PlayerState.AbilityCast.WeaponSkill.Combo4"),
-				TEXT("PlayerState.AbilityCast.Dash.Combo1"),
-				TEXT("PlayerState.AbilityCast.Dash.Combo2"),
-				TEXT("PlayerState.AbilityCast.Dash.Combo3"),
-				TEXT("PlayerState.AbilityCast.Dash.Combo4"),
-				TEXT("PlayerState.AbilityCast.Special.Combo1"),
-				TEXT("PlayerState.AbilityCast.Special.Combo2"),
-				TEXT("PlayerState.AbilityCast.Special.Combo3"),
-				TEXT("PlayerState.AbilityCast.Special.Combo4"),
-				TEXT("PlayerState.AbilityCast.LightAtk.Combo1"),
-				TEXT("PlayerState.AbilityCast.LightAtk.Combo2"),
-				TEXT("PlayerState.AbilityCast.LightAtk.Combo3"),
-				TEXT("PlayerState.AbilityCast.HeavyAtk.Combo1"),
-				TEXT("PlayerState.AbilityCast.HeavyAtk.Combo2"),
-				TEXT("PlayerState.AbilityCast.HeavyAtk.Combo3"),
-			};
-
-			PendingSaveComboTags.AddTag(CanCombo);
-			for (const FName& TagName : KnownComboTagNames)
-			{
-				FGameplayTag Tag = FGameplayTag::RequestGameplayTag(TagName, false);
-				if (Tag.IsValid() && ASC->HasMatchingGameplayTag(Tag))
-					PendingSaveComboTags.AddTag(Tag);
-			}
-
-			UE_LOG(LogTemp, Log, TEXT("[DashSave] ComboSavePoint detected, cached %d tags"),
-				PendingSaveComboTags.Num());
-		}
-	}
 
 	return true;
 }
@@ -299,6 +249,9 @@ void UGA_PlayerDash::ActivateAbility(
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
 		return;
 	}
+
+	ActiveCombatCardResult = FCombatCardResolveResult();
+	ActiveCombatDeckGuid = FGuid::NewGuid();
 
 	// ── 1. 消耗充能次数（替代 CommitAbility，走 SkillChargeComponent）────────
 	if (Player && Player->SkillChargeComponent)
@@ -364,6 +317,27 @@ void UGA_PlayerDash::ActivateAbility(
 
 	Task->ReadyForActivation();
 
+	if (bResolveCombatDeck && Player && Player->CombatDeckComponent)
+	{
+		FCombatDeckActionContext Context;
+		Context.ActionType = ECardRequiredAction::Any;
+		Context.ActionSlot = CombatDeckActionSlot;
+		Context.FlowRole = CombatDeckFlowRole;
+		Context.WeaponDef = Player->EquippedWeaponDef;
+		Context.bIsComboFinisher = CombatDeckFlowRole == ECombatDeckFlowRole::Finisher;
+		Context.ReleaseMode = Context.bIsComboFinisher ? ECombatCardReleaseMode::Finisher : ECombatCardReleaseMode::Normal;
+		Context.TriggerTiming = CombatDeckTriggerTiming;
+		Context.bConsumeOnCommit = CombatDeckTriggerTiming == ECombatCardTriggerTiming::OnCommit;
+		Context.AttackInstanceGuid = ActiveCombatDeckGuid;
+		Context.AbilityTag = FirstTag;
+
+		const FCombatCardResolveResult Result = Player->CombatDeckComponent->ResolveAttackCardWithContext(Context);
+		if (Result.bHadCard)
+		{
+			ActiveCombatCardResult = Result;
+		}
+	}
+
 	// 广播 Ability.Event.Dash 给玩家（BGC 事件驱动型符文监听此事件）
 	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
 	{
@@ -397,6 +371,20 @@ void UGA_PlayerDash::EndAbility(
 	bool bWasCancelled)
 {
 	ACharacter* Character = Cast<ACharacter>(ActorInfo ? ActorInfo->AvatarActor.Get() : nullptr);
+	if (ActiveCombatCardResult.bHadCard)
+	{
+		if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(Character))
+		{
+			if (Player->CombatDeckComponent)
+			{
+				Player->CombatDeckComponent->StopCardFlow(ActiveCombatCardResult.ResolvedCard);
+				Player->CombatDeckComponent->StopCardFlow(ActiveCombatCardResult.LinkedSourceCard);
+				Player->CombatDeckComponent->StopCardFlow(ActiveCombatCardResult.LinkedTargetCard);
+			}
+		}
+	}
+	ActiveCombatCardResult = FCombatCardResolveResult();
+	ActiveCombatDeckGuid = FGuid();
 
 	// 恢复碰撞（必须在 Super 之前，此时 ActorInfo 仍有效）
 	if (Character)
@@ -481,19 +469,8 @@ void UGA_PlayerDash::EndAbility(
 	}
 	LastDashDirection = FVector::ZeroVector;
 
-	// ── 连招保存：从桥接位冲刺时为下一击注入 LooseGameplayTags ─────────────
-	if (!bWasCancelled && !PendingSaveComboTags.IsEmpty())
-	{
-		if (UYogAbilitySystemComponent* YASC = Cast<UYogAbilitySystemComponent>(
-			ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr))
-		{
-			YASC->ApplyDashSave(PendingSaveComboTags);
-		}
-		PendingSaveComboTags.Reset();
-	}
+	PendingSaveComboTags.Reset();
 
-	// Reset the combo graph state so the next attack searches from root, not from
-	// the dash node that was set during TryActivateDash → TryActivateComboFromGraph.
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 

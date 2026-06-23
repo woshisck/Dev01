@@ -286,7 +286,7 @@ TArray<FFlowSpec> MakeTutorialFlows()
 			TEXT("EM_MemoryTutorial_PreRun"),
 			TEXT("EG_MemoryTutorial_PreRun"),
 			TEXT("第一局前：记忆碎片基础教学"),
-			TEXT("玩家作为教宗的灵魂碎片体验基础操作。这里弱引导移动、攻击、闪避和卡牌消耗预告，最后以骑士团成员剧情杀切到正式第一局。"),
+			TEXT("玩家作为教宗的灵魂碎片体验基础操作。这里弱引导移动、攻击、闪避和卡牌结算预告，最后以骑士团成员剧情杀切到正式第一局。"),
 			TEXT("MemoryPreRun"),
 			{
 				{
@@ -307,10 +307,10 @@ TArray<FFlowSpec> MakeTutorialFlows()
 				},
 				{
 					TEXT("basic_attack"),
-					TEXT("轻重攻击"),
+					TEXT("攻击与战技"),
 					EStoryEncounterNodeKind::Feature,
-					TEXT("玩家面对低威胁残影，尝试轻攻击和重攻击的节奏差异。"),
-					{ WeakHint(TEXT("攻击残影"), TEXT("轻攻击更快，重攻击更重。")),
+					TEXT("玩家面对低威胁残影，尝试普通攻击和武器战技的节奏差异。"),
+					{ WeakHint(TEXT("攻击残影"), TEXT("攻击负责稳定推进卡组，战技负责引爆终结。")),
 						RecordProgress(TEXT("basic_attack_done"), TEXT("已体验基础攻击")) }
 				},
 				{
@@ -323,11 +323,11 @@ TArray<FFlowSpec> MakeTutorialFlows()
 				},
 				{
 					TEXT("card_consumption_hint"),
-					TEXT("卡牌消耗预告"),
+					TEXT("卡牌结算预告"),
 					EStoryEncounterNodeKind::Feature,
 					TEXT("攻击时下方卡牌顺序发生变化，但不在记忆碎片里完整解释符文系统。"),
 					{ WeakHint(TEXT("卡牌在燃尽"), TEXT("攻击会推动身上的符文卡顺序。现在只需要观察它变化。")),
-						RecordProgress(TEXT("card_consumption_seen"), TEXT("已看到攻击消耗卡牌")) }
+						RecordProgress(TEXT("card_consumption_seen"), TEXT("已看到攻击推进卡牌")) }
 				},
 				{
 					TEXT("boss_execution"),
@@ -351,7 +351,7 @@ TArray<FFlowSpec> MakeTutorialFlows()
 			TEXT("EM_FirstRun_Tutorial"),
 			TEXT("EG_FirstRun_Tutorial"),
 			TEXT("第一局：正式玩法教学"),
-			TEXT("正式第一局按弱引导节奏解释武器、攻击消耗卡牌、洗牌、首枚符文、背包整理、连携和路线选择。"),
+			TEXT("正式第一局按弱引导节奏解释武器、攻击结算卡牌、洗牌、首枚符文、背包整理、连携和路线选择。"),
 			TEXT("FirstRun"),
 			{
 				{
@@ -372,11 +372,11 @@ TArray<FFlowSpec> MakeTutorialFlows()
 				},
 				{
 					TEXT("attack_card_consume"),
-					TEXT("攻击消耗当前卡"),
+					TEXT("攻击结算当前卡"),
 					EStoryEncounterNodeKind::Feature,
-					TEXT("玩家正式理解攻击会按顺序消耗卡牌能力。"),
-					{ WeakHint(TEXT("当前卡"), TEXT("每次攻击会尝试消耗当前卡牌能力，然后推进到下一张。")),
-						RecordProgress(TEXT("attack_card_consume_seen"), TEXT("已理解攻击消耗当前卡")) }
+					TEXT("玩家正式理解攻击会按顺序结算卡牌能力。"),
+					{ WeakHint(TEXT("当前卡"), TEXT("每次攻击会尝试结算当前卡牌能力，然后推进到下一张。")),
+						RecordProgress(TEXT("attack_card_consume_seen"), TEXT("已理解攻击结算当前卡")) }
 				},
 				{
 					TEXT("shuffle_observe"),

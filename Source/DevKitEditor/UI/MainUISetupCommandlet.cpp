@@ -410,7 +410,7 @@ namespace MainUISetup
 			WeaponComboListPanel->AddChild(WeaponComboListFrame);
 			WeaponComboListFrame->SetContent(WeaponComboListStack);
 
-			ConfigureText(WeaponComboListTitle, TEXT("\u6b66\u5668\u8fde\u62db"), FLinearColor(0.96f, 0.91f, 0.78f, 1.f), 16, false);
+			ConfigureText(WeaponComboListTitle, TEXT("动作槽"), FLinearColor(0.96f, 0.91f, 0.78f, 1.f), 16, false);
 			WeaponComboListTitle->SetJustification(ETextJustify::Right);
 			WeaponComboListTitle->SetShadowOffset(FVector2D(1.0f, 1.0f));
 			WeaponComboListTitle->SetShadowColorAndOpacity(FLinearColor(0.0f, 0.0f, 0.0f, 0.85f));
@@ -422,7 +422,7 @@ namespace MainUISetup
 
 			ConfigureComboRichText(
 				WeaponComboListText,
-				TEXT("\u8fde\u6bb5 01   <input action=\"Attack\"/> -> <input action=\"Attack\"/> -> <input action=\"WeaponSkill\"/>\n\u8fde\u6bb5 02   <input action=\"Attack\"/> -> <input action=\"WeaponSkill\"/>"),
+				TEXT("攻击   <input action=\"Attack\"/>  顺序结算攻击卡组\n战技   <input action=\"WeaponSkill\"/>  结算战技槽并引爆连携\n冲刺   <input action=\"Dash\"/>  结算冲刺槽\n技能   <input action=\"Skill\"/>  玩家选择的主动技能"),
 				FLinearColor(0.88f, 0.91f, 0.96f, 1.f),
 				13);
 			WeaponComboListText->SetVisibility(ESlateVisibility::HitTestInvisible);

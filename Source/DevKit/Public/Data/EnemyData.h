@@ -199,6 +199,12 @@ struct DEVKIT_API FEnemyAIAttackOption
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Attack")
 	bool bPreAttackFlash = true;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Attack|Condition", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float MinHealthPercent = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Attack|Condition", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float MaxHealthPercent = 1.0f;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Attack")
 	EEnemyAIAttackRole AttackRole = EEnemyAIAttackRole::CloseMelee;
 
@@ -222,6 +228,9 @@ struct DEVKIT_API FEnemyAIAttackOption
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Attack|Movement", meta = (ClampMin = "0.0"))
 	float MovementAttackCooldown = 10.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Attack|Reposition")
+	bool bRequestRepositionOnResolve = false;
 
 	// Reposition role only: the dash direction is the away-from-target vector rotated by
 	// a random angle (degrees) in [Min, Max] with a random left/right sign. Measured from

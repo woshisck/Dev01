@@ -693,11 +693,11 @@ SFX：
 
 ### 1009 弱点窥破
 
-> **触发：** 连招末击（Combo4）命中时额外造成 50% 伤害（等效强制暴击）。
+> **触发：** WeaponSkill / Finisher 结算时额外造成 50% 伤害（等效强制暴击）。
 
 #### 逻辑层（已实现）
 
-- FA：`On Damage Dealt` → `Has Tag(LightAtk.Combo4)` → 递归守卫 → `Do Damage(×0.5)`
+- FA：`On Damage Dealt` → `Combat Card Context(ActionSlot=WeaponSkill 或 FlowRole=Finisher)` → 递归守卫 → `Do Damage(×0.5)`
 - DA：RuneID=1009，Shape=1×1
 
 #### 表现层规格

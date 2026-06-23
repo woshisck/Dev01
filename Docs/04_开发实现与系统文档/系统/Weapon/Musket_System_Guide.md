@@ -118,8 +118,8 @@ float GetBaseAttack() const;   // BaseAttributeSet.Attack
 
 | Tag | 触发方式 | 激活哪个 GA |
 |-----|---------|------------|
-| `PlayerState.AbilityCast.LightAtk` | LMB 按下（Triggered） | `LightAttack`（无 DashInvincible）/ `SprintAttack`（有 DashInvincible） |
-| `PlayerState.AbilityCast.HeavyAtk` | RMB 按下（Triggered） | `HeavyAttack` |
+| `PlayerState.AbilityCast.Attack` | LMB 按下（Triggered） | Musket Attack（旧类名 `GA_Musket_LightAttack`；无 DashInvincible）/ `SprintAttack`（有 DashInvincible） |
+| `PlayerState.AbilityCast.WeaponSkill` | RMB 按下（Triggered） | Musket WeaponSkill（旧类名 `GA_Musket_HeavyAttack`） |
 | `PlayerState.AbilityCast.Reload` | R 键按下（Triggered） | `Reload_Single` / `Reload_All`（无 DashInvincible）/ `SprintReload`（有 DashInvincible） |
 | `PlayerState.AbilityCast.Dash` | Dash 键（已有） | 冲刺 GA |
 
@@ -127,7 +127,7 @@ float GetBaseAttack() const;   // BaseAttributeSet.Attack
 
 | Tag | 添加时机 | 效果 |
 |-----|---------|------|
-| `State.Musket.Aiming` | `HeavyAttack` 激活期间 | 阻断 `LightAttack` / 两个换弹 GA 的激活 |
+| `State.Musket.Aiming` | Musket WeaponSkill 激活期间 | 阻断 Attack / 两个换弹 GA 的激活 |
 | `State.Musket.Reloading` | `Reload_Single` / `Reload_All` 激活期间 | 阻断所有攻击类 GA |
 | `Buff.Status.DashInvincible` | 冲刺 GA 激活期间（已有） | 让 `SprintAttack` / `SprintReload` 能激活 |
 
@@ -135,7 +135,7 @@ float GetBaseAttack() const;   // BaseAttributeSet.Attack
 
 | Tag | 发出方 | 接收方 |
 |-----|--------|--------|
-| `GameplayEvent.Musket.HeavyRelease` | Controller `HeavyAttackReleased()` | `GA_Musket_HeavyAttack` 的 `WaitGameplayEvent` Task |
+| `GameplayEvent.WeaponSkill.Release` | Controller `WeaponSkillReleased()` | `GA_Musket_HeavyAttack` 的 `WaitGameplayEvent` Task |
 
 ### 3.5 GameplayCue Tag
 
@@ -143,7 +143,7 @@ float GetBaseAttack() const;   // BaseAttributeSet.Attack
 |-----|---------|
 | `GameplayCue.Musket.Fire` | 任意 GA 开枪瞬间 |
 | `GameplayCue.Musket.Reload` | 换弹每发上弹完成 |
-| `GameplayCue.Musket.ChargeFull` | 重攻击蓄力满时 |
+| `GameplayCue.Musket.ChargeFull` | 战技蓄力满时 |
 
 ---
 
@@ -153,19 +153,19 @@ float GetBaseAttack() const;   // BaseAttributeSet.Attack
 
 | GA | AbilityTags（含两组） | ActivationBlockedTags | ActivationRequiredTags | CancelAbilitiesWithTag |
 |----|----------------------|----------------------|----------------------|----------------------|
-| `LightAttack` | `Ability.Musket.Light`<br>`PlayerState.AbilityCast.LightAtk` | `State.Musket.Aiming`<br>`State.Musket.Reloading`<br>`Buff.Status.DashInvincible` | — | `Ability.Musket.Reload` |
-| `HeavyAttack` | `Ability.Musket.Heavy`<br>`PlayerState.AbilityCast.HeavyAtk` | `State.Musket.Reloading` | — | `Ability.Musket.Reload` |
+| Musket Attack（旧类名 `LightAttack`） | `Ability.Musket.Light`<br>`PlayerState.AbilityCast.Attack` | `State.Musket.Aiming`<br>`State.Musket.Reloading`<br>`Buff.Status.DashInvincible` | — | `Ability.Musket.Reload` |
+| Musket WeaponSkill（旧类名 `HeavyAttack`） | `Ability.Musket.Heavy`<br>`PlayerState.AbilityCast.WeaponSkill` | `State.Musket.Reloading` | — | `Ability.Musket.Reload` |
 | `Reload_Single` | `Ability.Musket.Reload`<br>`PlayerState.AbilityCast.Reload` | `State.Musket.Aiming` | — | — |
 | `Reload_All` | `Ability.Musket.Reload`<br>`PlayerState.AbilityCast.Reload` | `State.Musket.Aiming` | — | — |
-| `SprintAttack` | `Ability.Musket.SprintAtk`<br>`PlayerState.AbilityCast.LightAtk` | — | `Buff.Status.DashInvincible` | `PlayerState.AbilityCast.Dash` |
+| `SprintAttack` | `Ability.Musket.SprintAtk`<br>`PlayerState.AbilityCast.Attack` | — | `Buff.Status.DashInvincible` | `PlayerState.AbilityCast.Dash` |
 | `SprintReload` | `Ability.Musket.SprintReload`<br>`PlayerState.AbilityCast.Reload` | — | `Buff.Status.DashInvincible` | — |
 
-### 4.2 LightAtk 按键分支逻辑（`TryActivateAbilitiesByTag` 自动筛选）
+### 4.2 Attack 按键分支逻辑（`TryActivateAbilitiesByTag` 自动筛选）
 
 ```
-LightAtk 按键按下
-├── DashInvincible 存在 → SprintAttack 激活（LightAttack 被 BlockedTags 阻断）
-└── DashInvincible 不存在 → LightAttack 激活（SprintAttack 被 RequiredTags 拦截）
+Attack 按键按下
+├── DashInvincible 存在 → SprintAttack 激活（Musket Attack 被 BlockedTags 阻断）
+└── DashInvincible 不存在 → Musket Attack 激活（SprintAttack 被 RequiredTags 拦截）
 ```
 
 ### 4.3 Reload 按键分支逻辑
@@ -351,12 +351,12 @@ static float MusketAimArc_GetMask(float2 UV, float HalfAngleDeg, float Softness)
 
 > 如果当前没有动画资产，可以跳过蒙太奇相关字段，GA 会自动跳过蒙太奇直接完成逻辑。
 
-**GA_Musket_HeavyAttack（必须创建，因为需要填 AimArcClass）**：
+**GA_Musket_HeavyAttack（当前作为 Musket WeaponSkill；必须创建，因为需要填 AimArcClass）**：
 1. Content Browser 右键 → `Blueprint Class` → 父类 `GA_Musket_HeavyAttack`
 2. 命名 `BGA_Musket_HeavyAttack`（BP GA 前缀 BGA）
 3. Class Defaults 填写：
 
-| 字段（分类 Musket\|HeavyAtk） | 值 |
+| 字段（分类 Musket\|WeaponSkill；旧资产分类可能仍显示 HeavyAtk） | 值 |
 |-------------------------------|---|
 | **Aim Arc Class** | `BP_AimArcActor` |
 | Fire Montage | 留空（无动画时跳过） |
@@ -370,7 +370,7 @@ static float MusketAimArc_GetMask(float2 UV, float HalfAngleDeg, float Softness)
 | Normal Arc Color | `(1, 0.55, 0, 1)` 金色 |
 | Full Charge Arc Color | `(1, 1, 0.1, 1)` 亮黄 |
 
-其他 GA 如果需要 Blueprint 子类（主要是为了填蒙太奇），以同样方式创建，父类对应的 C++ 类即可。**无资产情况下直接用 C++ 类（不创建 BP 子类）也能测试**，但 HeavyAttack 必须用 BP 子类填 `AimArcClass`。
+其他 GA 如果需要 Blueprint 子类（主要是为了填蒙太奇），以同样方式创建，父类对应的 C++ 类即可。**无资产情况下直接用 C++ 类（不创建 BP 子类）也能测试**，但 Musket WeaponSkill（旧类名 `HeavyAttack`）必须用 BP 子类填 `AimArcClass`。
 
 ---
 
@@ -399,13 +399,13 @@ static float MusketAimArc_GetMask(float2 UV, float HalfAngleDeg, float Softness)
 2. Class Defaults → **Input** 分类 → **Input Reload** → 填入 `IA_Reload`
 3. Compile → Save
 
-> 其他输入（LightAttack/HeavyAttack/Dash）已有对应的 `IA_*` 资产，不需要修改。
+> 其他输入（Attack/WeaponSkill/Dash/Skill）已有对应的 `IA_*` 资产，不需要修改。旧 LightAttack/HeavyAttack 只作为资产兼容名存在。
 
 ---
 
-### Step 8 — 配置 BP_PlayerController 重攻击松键
+### Step 8 — 配置 BP_PlayerController 战技松键
 
-无需额外操作。`Input_HeavyAttack` 的 `Completed` 绑定已在 C++ `SetupInputComponent()` 里完成，使用已有的 `IA_HeavyAttack` 资产自动生效。
+无需额外操作。`Input_WeaponSkill` 的 `Completed` 绑定已在 C++ `SetupInputComponent()` 里完成，使用 `IA_WeaponSkill` 资产自动发送 `GameplayEvent.WeaponSkill.Release`。
 
 ---
 
@@ -513,13 +513,13 @@ WBP_AmmoCounter 的可调参数（Class Defaults）：
 
 ### Q2：按 RMB 松手后不开枪
 
-**根因**：`WaitGameplayEvent(GameplayEvent.Musket.HeavyRelease)` 没有收到事件。
+**根因**：`WaitGameplayEvent(GameplayEvent.WeaponSkill.Release)` 没有收到事件。
 
 **排查**：
-1. 确认 `BP_PlayerController` 的 `Input_HeavyAttack` 字段已填 `IA_HeavyAttack`
-2. 确认 `IA_HeavyAttack` 的触发器包含 `Completed`（Enhanced Input 默认行为：按下 = Started/Triggered，松手 = Completed）
-3. 在 `HeavyAttackReleased()` 里加 `UE_LOG` 确认 Completed 事件有触发
-4. 确认 `GameplayEvent.Musket.HeavyRelease` Tag 在 `DefaultGameplayTags.ini` 中存在
+1. 确认 `BP_PlayerController` 的 `Input_WeaponSkill` 字段已填 `IA_WeaponSkill`
+2. 确认 `IA_WeaponSkill` 的触发器包含 `Completed`（Enhanced Input 默认行为：按下 = Started/Triggered，松手 = Completed）
+3. 在 `WeaponSkillReleased()` 里加 `UE_LOG` 确认 Completed 事件有触发
+4. 确认 `GameplayEvent.WeaponSkill.Release` Tag 在 `DefaultGameplayTags.ini` 中存在
 
 ### Q3：弹药 HUD 不显示图标
 
@@ -542,7 +542,7 @@ WBP_AmmoCounter 的可调参数（Class Defaults）：
 ### Q6：瞄准弧不显示
 
 **排查**：
-1. 确认 `HeavyAttack` 用的是 BP 子类 `BGA_Musket_HeavyAttack`，且 `AimArcClass` 填了 `BP_AimArcActor`
+1. 确认 `WeaponSkill` 用的是 BP 子类 `BGA_Musket_HeavyAttack`，且 `AimArcClass` 填了 `BP_AimArcActor`
 2. 确认 `BP_AimArcActor` 的 `ArcMaterial` 已填 `M_AimArc`
 3. 确认 `M_AimArc` 编译无错误（Stats 面板显示绿色）
 4. 在 `BeginPlay` 中 `AimArcActor::BeginPlay()` 里 `ArcMaterial` 为 null 则不会创建 `DynMaterial`，`UpdateArc` 早返回
@@ -553,9 +553,9 @@ WBP_AmmoCounter 的可调参数（Class Defaults）：
 
 | 输入 | 资产 | 键位 | Controller 函数 | 激活 Tag |
 |------|------|------|----------------|---------|
-| 轻攻击（按下） | `IA_LightAttack` | LMB | `LightAtack()` | `PlayerState.AbilityCast.LightAtk` |
-| 重攻击（按下） | `IA_HeavyAttack` | RMB | `HeavyAtack()` | `PlayerState.AbilityCast.HeavyAtk` |
-| 重攻击（松手） | `IA_HeavyAttack` | RMB Completed | `HeavyAttackReleased()` | 发送 GameplayEvent |
+| 攻击（按下） | `IA_Attack` | LMB | `Attack()` | `PlayerState.AbilityCast.Attack` |
+| 战技（按下） | `IA_WeaponSkill` | RMB | `WeaponSkill()` | `PlayerState.AbilityCast.WeaponSkill` |
+| 战技（松手） | `IA_WeaponSkill` | RMB Completed | `WeaponSkillReleased()` | 发送 `GameplayEvent.WeaponSkill.Release` |
 | 换弹 | `IA_Reload` | R | `MusketReload()` | `PlayerState.AbilityCast.Reload` |
 | 冲刺 | `IA_Dash` | Space | `Dash()` | `PlayerState.AbilityCast.Dash` |
 

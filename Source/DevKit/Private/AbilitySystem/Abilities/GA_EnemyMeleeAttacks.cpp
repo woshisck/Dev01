@@ -59,3 +59,53 @@ UGA_Enemy_HAtk4::UGA_Enemy_HAtk4()
 	AbilityTags.AddTag(FGameplayTag::RequestGameplayTag(FName("Enemy.Melee.HAtk4")));
 	ActivationBlockedTags.AddTag(DeadStatusTag());
 }
+
+// Range Attacks --------------------------------------------------------------
+
+UGA_Enemy_Range_LAtk1::UGA_Enemy_Range_LAtk1()
+{
+	AbilityTags.AddTag(FGameplayTag::RequestGameplayTag(FName("Enemy.Range.LAtk1")));
+	ActivationBlockedTags.AddTag(DeadStatusTag());
+}
+
+UGA_Enemy_Range_LAtk2::UGA_Enemy_Range_LAtk2()
+{
+	AbilityTags.AddTag(FGameplayTag::RequestGameplayTag(FName("Enemy.Range.LAtk2")));
+	ActivationBlockedTags.AddTag(DeadStatusTag());
+}
+
+UGA_Enemy_Range_LAtk3::UGA_Enemy_Range_LAtk3()
+{
+	AbilityTags.AddTag(FGameplayTag::RequestGameplayTag(FName("Enemy.Range.LAtk3")));
+	ActivationBlockedTags.AddTag(DeadStatusTag());
+}
+
+UGA_Enemy_Range_LAtk4::UGA_Enemy_Range_LAtk4()
+{
+	AbilityTags.AddTag(FGameplayTag::RequestGameplayTag(FName("Enemy.Range.LAtk4")));
+	ActivationBlockedTags.AddTag(DeadStatusTag());
+}
+
+UGA_Enemy_Range_HAtk1::UGA_Enemy_Range_HAtk1()
+{
+	AbilityTags.AddTag(FGameplayTag::RequestGameplayTag(FName("Enemy.Range.HAtk1")));
+	ActivationBlockedTags.AddTag(DeadStatusTag());
+}
+
+UGA_Enemy_Range_HAtk2::UGA_Enemy_Range_HAtk2()
+{
+	AbilityTags.AddTag(FGameplayTag::RequestGameplayTag(FName("Enemy.Range.HAtk2")));
+	ActivationBlockedTags.AddTag(DeadStatusTag());
+}
+
+UGA_Enemy_Range_HAtk3::UGA_Enemy_Range_HAtk3()
+{
+	AbilityTags.AddTag(FGameplayTag::RequestGameplayTag(FName("Enemy.Range.HAtk3")));
+	ActivationBlockedTags.AddTag(DeadStatusTag());
+}
+
+UGA_Enemy_Range_HAtk4::UGA_Enemy_Range_HAtk4()
+{
+	AbilityTags.AddTag(FGameplayTag::RequestGameplayTag(FName("Enemy.Range.HAtk4")));
+	ActivationBlockedTags.AddTag(DeadStatusTag());
+}

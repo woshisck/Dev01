@@ -109,7 +109,7 @@ namespace
 				TEXT("终结技卡进入卡组后，会在合适的攻击节奏里提供一个终结技准备窗口。窗口出现时，画面会出现专属的终结技提示。")));
 			Pages.Add(MakeTutorialPage(
 				TEXT("协调需求"),
-				TEXT("终结技的协调需求是 <input action=\"WeaponSkill\"/>：在准备窗口出现时按武器技能完成确认连段，触发终结技额外伤害。"),
+				TEXT("终结技的协调需求是 <input action=\"WeaponSkill\"/>：在准备窗口出现时按武器技能完成引爆确认，触发终结技额外伤害。"),
 				TEXT("没有在窗口内确认会让窗口关闭，需要再次触发节奏才会重新开启。")));
 		}
 
@@ -376,7 +376,7 @@ void UTutorialManager::DoShowWeaponPopup(TWeakObjectPtr<AYogPlayerControllerBase
 			TEXT("靠近发光武器，按 <input action=\"Interact\"/> 拾取。武器会装备到角色身上，并把它自带的初始卡牌装入下方 1D 卡组。")));
 		PagesToShow.Add(MakeTutorialPage(
 			TEXT("武器自带初始卡牌"),
-			TEXT("每把武器都有一组起始卡。拾取后，卡组会按武器配置顺序显示；轻/重攻击不会被卡组阻止，但命中会按顺序消耗卡牌并触发效果。")));
+			TEXT("每把武器都有一组起始卡。拾取后，卡组会按武器配置顺序显示；攻击和武器技能不会被卡组阻止，但命中会按顺序结算卡牌并触发效果。")));
 		PagesToShow.Add(MakeTutorialPage(
 			TEXT("试试攻击木头人"),
 			TEXT("拾取武器后，走到木头人身边，尝试用 <input action=\"Attack\"/> 或 <input action=\"WeaponSkill\"/> 攻击它。击败后会掉落一张新卡牌，靠近掉落物再按 <input action=\"Interact\"/> 拾取。")));

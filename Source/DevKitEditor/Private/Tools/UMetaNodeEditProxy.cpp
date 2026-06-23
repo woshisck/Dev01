@@ -74,7 +74,7 @@ void UYogSaveSlotEditProxy::LoadFromSave(UYogSaveGame* Save, int32 InSlotIndex)
 		CurrentPhase = 0;
 		CurrentHeat = 0.f;
 		CompletedCombatBattleCount = 0;
-		CombatDeckShuffleCooldownDuration = 1.f;
+		CombatDeckShuffleCooldownDuration = 0.f;
 		CombatDeckMaxActiveSequenceSize = 0;
 		CombatDeckCards.Reset();
 		CombatDeckCardOrientations.Reset();

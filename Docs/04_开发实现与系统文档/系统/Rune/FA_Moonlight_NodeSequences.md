@@ -68,7 +68,7 @@
 | `bPreferCombatCardProjectileClass` | ✅ | 使用卡牌 DA 上配置的投射物类 |
 | `bPreferCombatCardDamageEffectClass` | ✅ | 使用卡牌 DA 上配置的伤害 GE |
 | `bUseCombatCardAttackDamage` | ✅ | 伤害值来自战斗卡攻击力 |
-| `bShareAttackInstanceGuid` | ✅ | 同一攻击实例，不额外消耗卡牌 |
+| `bShareAttackInstanceGuid` | ✅ | 同一攻击实例，不重复结算卡牌 |
 | `bRequireRangedWeaponTag` | ✅ | 需要装备远程武器（保留默认） |
 | `ProjectileCount` | 1 | 基础单发 |
 | `ProjectileConeAngleDegrees` | 0 | 无散射，直线飞行 |

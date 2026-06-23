@@ -10,16 +10,11 @@ namespace
 		return FString::Printf(TEXT("<input action=\"%s\"/>"), InputActionName);
 	}
 
-	bool HasAbilityInAnyData(TConstArrayView<const UAbilityData*> AbilityDataSources, const FGameplayTag& AbilityTag)
+	bool HasAnyAbilityData(TConstArrayView<const UAbilityData*> AbilityDataSources)
 	{
-		if (!AbilityTag.IsValid())
-		{
-			return false;
-		}
-
 		for (const UAbilityData* AbilityData : AbilityDataSources)
 		{
-			if (AbilityData && AbilityData->HasAbility(AbilityTag))
+			if (AbilityData)
 			{
 				return true;
 			}
@@ -27,49 +22,58 @@ namespace
 		return false;
 	}
 
-	int32 CountConfiguredComboSteps(TConstArrayView<const UAbilityData*> AbilityDataSources, const TCHAR* TagPrefix)
+	bool HasAbilityInAnyData(TConstArrayView<const UAbilityData*> AbilityDataSources, const FGameplayTag& AbilityTag)
 	{
-		int32 Count = 0;
+		for (const UAbilityData* AbilityData : AbilityDataSources)
+		{
+			if (AbilityData && AbilityTag.IsValid() && AbilityData->HasAbility(AbilityTag))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	bool HasConfiguredAction(TConstArrayView<const UAbilityData*> AbilityDataSources, const TCHAR* BroadTagName)
+	{
+		const FGameplayTag BroadTag = FGameplayTag::RequestGameplayTag(FName(BroadTagName), false);
+		if (HasAbilityInAnyData(AbilityDataSources, BroadTag))
+		{
+			return true;
+		}
+
 		for (int32 ComboIndex = 1; ComboIndex <= 4; ++ComboIndex)
 		{
-			const FString TagName = FString::Printf(TEXT("%s.Combo%d"), TagPrefix, ComboIndex);
+			const FString TagName = FString::Printf(TEXT("%s.Combo%d"), BroadTagName, ComboIndex);
 			const FGameplayTag ComboTag = FGameplayTag::RequestGameplayTag(FName(*TagName), false);
 			if (HasAbilityInAnyData(AbilityDataSources, ComboTag))
 			{
-				Count = ComboIndex;
+				return true;
 			}
 		}
-		return Count;
+
+		return false;
 	}
 
-	FString BuildRepeatedInputSequence(const TCHAR* InputActionName, int32 Count)
-	{
-		TArray<FString> Tokens;
-		Tokens.Reserve(Count);
-		for (int32 Index = 0; Index < Count; ++Index)
-		{
-			Tokens.Add(InputActionMarkup(InputActionName));
-		}
-		return FString::Join(Tokens, TEXT(" -> "));
-	}
-
-	void AddComboLine(
-		TArray<FString>& MoveListLines,
+	void AddActionSlotLine(
+		TArray<FString>& Lines,
 		TConstArrayView<const UAbilityData*> AbilityDataSources,
-		const TCHAR* TagPrefix,
+		const TCHAR* BroadTagName,
 		const TCHAR* InputActionName,
+		const TCHAR* Label,
+		const TCHAR* Description,
 		int32 MaxLines)
 	{
-		const int32 ComboStepCount = CountConfiguredComboSteps(AbilityDataSources, TagPrefix);
-		if (ComboStepCount <= 0 || (MaxLines > 0 && MoveListLines.Num() >= MaxLines))
+		if (!HasConfiguredAction(AbilityDataSources, BroadTagName) || (MaxLines > 0 && Lines.Num() >= MaxLines))
 		{
 			return;
 		}
 
-		MoveListLines.Add(FString::Printf(
-			TEXT("\u8fde\u6bb5 %02d   %s"),
-			MoveListLines.Num() + 1,
-			*BuildRepeatedInputSequence(InputActionName, ComboStepCount)));
+		Lines.Add(FString::Printf(
+			TEXT("%s   %s  %s"),
+			Label,
+			*InputActionMarkup(InputActionName),
+			Description));
 	}
 }
 
@@ -80,10 +84,10 @@ FText WeaponComboTextUtils::BuildComboHintText(
 {
 	if (!WeaponDefinition)
 	{
-		return FText::FromString(TEXT("\u62fe\u53d6\u6b66\u5668\u540e\u663e\u793a\u51fa\u62db\u8868\u3002"));
+		return FText::FromString(TEXT("拾取武器后显示动作槽。"));
 	}
 
-	TArray<FString> MoveListLines;
+	TArray<FString> ActionSlotLines;
 	const bool bLimitLines = MaxLines > 0;
 	const int32 EffectiveMaxLines = bLimitLines ? FMath::Max(1, MaxLines) : 0;
 
@@ -93,19 +97,24 @@ FText WeaponComboTextUtils::BuildComboHintText(
 	const UAbilityData* WeaponSkillSources[] = {
 		WeaponDefinition->WeaponSkillAbilityData.Get(),
 	};
-	const UAbilityData* SpecialSources[] = {
-		WeaponDefinition->SpecialAbilityData.Get(),
-	};
 
-	AddComboLine(MoveListLines, MakeArrayView(AttackSources), TEXT("PlayerState.AbilityCast.Attack"), TEXT("Attack"), EffectiveMaxLines);
-	AddComboLine(MoveListLines, MakeArrayView(AttackSources), TEXT("PlayerState.AbilityCast.Dash"), TEXT("Dash"), EffectiveMaxLines);
-	AddComboLine(MoveListLines, MakeArrayView(WeaponSkillSources), TEXT("PlayerState.AbilityCast.WeaponSkill"), TEXT("WeaponSkill"), EffectiveMaxLines);
-	AddComboLine(MoveListLines, MakeArrayView(SpecialSources), TEXT("PlayerState.AbilityCast.Special"), TEXT("Special"), EffectiveMaxLines);
+	AddActionSlotLine(ActionSlotLines, MakeArrayView(AttackSources), TEXT("PlayerState.AbilityCast.Attack"), TEXT("Attack"), TEXT("攻击"), TEXT("顺序结算攻击卡组"), EffectiveMaxLines);
+	AddActionSlotLine(ActionSlotLines, MakeArrayView(WeaponSkillSources), TEXT("PlayerState.AbilityCast.WeaponSkill"), TEXT("WeaponSkill"), TEXT("战技"), TEXT("结算战技槽并引爆连携"), EffectiveMaxLines);
+	AddActionSlotLine(ActionSlotLines, MakeArrayView(AttackSources), TEXT("PlayerState.AbilityCast.Dash"), TEXT("Dash"), TEXT("冲刺"), TEXT("结算冲刺槽"), EffectiveMaxLines);
 
-	if (MoveListLines.IsEmpty())
+	if ((EffectiveMaxLines == 0 || ActionSlotLines.Num() < EffectiveMaxLines) && HasAnyAbilityData(MakeArrayView(AttackSources)))
 	{
-		MoveListLines.Add(TEXT("\u672a\u914d\u7f6e\u62db\u5f0f\u6570\u636e\u3002"));
+		ActionSlotLines.Add(FString::Printf(
+			TEXT("%s   %s  %s"),
+			TEXT("技能"),
+			*InputActionMarkup(TEXT("Skill")),
+			TEXT("由玩家选择的主动技能槽")));
 	}
 
-	return FText::FromString(FString::Join(MoveListLines, bCompactSpacing ? TEXT("\n") : TEXT("\n\n")));
+	if (ActionSlotLines.IsEmpty())
+	{
+		ActionSlotLines.Add(TEXT("未配置动作槽数据。"));
+	}
+
+	return FText::FromString(FString::Join(ActionSlotLines, bCompactSpacing ? TEXT("\n") : TEXT("\n\n")));
 }

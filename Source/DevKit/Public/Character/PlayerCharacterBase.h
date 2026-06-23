@@ -77,7 +77,7 @@ struct DEVKIT_API FWeaponCombatDeckRuntimeState
 	TArray<ECombatCardLinkOrientation> AttackCardOrientations;
 
 	UPROPERTY()
-	float ShuffleCooldownDuration = 1.0f;
+	float ShuffleCooldownDuration = 0.0f;
 
 	UPROPERTY()
 	int32 MaxActiveSequenceSize = 0;
@@ -89,7 +89,7 @@ struct DEVKIT_API FWeaponCombatDeckRuntimeState
 	{
 		SourceAssets.Reset();
 		AttackCardOrientations.Reset();
-		ShuffleCooldownDuration = 1.0f;
+		ShuffleCooldownDuration = 0.0f;
 		MaxActiveSequenceSize = 0;
 		bInitialized = false;
 	}

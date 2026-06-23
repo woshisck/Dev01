@@ -91,6 +91,12 @@ public:
 	void ClearCooldowns();
 
 	UFUNCTION(BlueprintCallable, Category = "Active Skill")
+	void StartSharedSkillCooldown(float Duration);
+
+	UFUNCTION(BlueprintPure, Category = "Active Skill")
+	float GetSharedSkillCooldownRemaining() const { return SharedSkillCooldownRemaining; }
+
+	UFUNCTION(BlueprintCallable, Category = "Active Skill")
 	void SelectNextSkill();
 
 	UFUNCTION(BlueprintCallable, Category = "Active Skill")
@@ -116,11 +122,14 @@ private:
 	TArray<FActiveSkillRuntimeSlot> Slots;
 
 	int32 ActiveSlotIndex = 0;
+	float SharedSkillCooldownRemaining = 0.0f;
+	float SharedSkillCooldownDuration = 0.0f;
 
 	void InitializeDefaultSlots();
 	void RebuildSlotsFromAssets(const TArray<UActiveSkillDataAsset*>& InSkills);
 	void BroadcastSlotsChanged() const;
 	void GrantSkillAbilities();
+	void SetSharedSkillCooldownTag(bool bEnabled) const;
 	APlayerCharacterBase* GetPlayerOwner() const;
 	UYogAbilitySystemComponent* GetOwnerYogASC() const;
 };

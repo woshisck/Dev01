@@ -551,12 +551,12 @@ FA_Rune_KnockbackStagger（1007）监听到事件 → 对目标施加移速 -300
 
 ## 符文 9：弱点窥破（1009）⚡ 零资产（测试版）
 
-**设计：** 连招最后一击（Combo4）命中时，额外造成相当于暴击加成的伤害（等效强制暴击）。
+**设计：** WeaponSkill / Finisher 结算时，额外造成相当于暴击加成的伤害（等效强制暴击）。
 
 **需要创建：** FA + DA
 
-> **测试版 vs 正式版**  
-> 测试版：FA 层用 `Has Tag(PlayerState.AbilityCast.LightAtk.Combo4)` 检测末击，用 `Do Damage` 额外伤害模拟暴击。此方案不触发 `On Crit Hit` 事件，毒牙等暴击联动符文不会响应。  
+> **测试版 vs 正式版**
+> 测试版：FA 层用 Combat Card Context 的 `ActionSlot = WeaponSkill` 或 `FlowRole = Finisher` 检测引爆动作，用 `Do Damage` 额外伤害模拟暴击。此方案不触发 `On Crit Hit` 事件，毒牙等暴击联动符文不会响应。
 > 正式版：在 C++ 伤害管线中加入 `Buff.Status.NextHitCrit` Tag 检测，实现真实暴击（触发 `On Crit Hit`）。
 
 ### 9-1 FA：`FA_Rune_WeaknessUnveiled`
@@ -564,10 +564,10 @@ FA_Rune_KnockbackStagger（1007）监听到事件 → 对目标施加移速 -300
 ```
 [Start] ──→ [On Damage Dealt]
                 ↓
-            [Has Tag]
-                Tag    = PlayerState.AbilityCast.LightAtk.Combo4
-                Target = BuffOwner
-                ↓ Yes（末击命中）
+            [Combat Card Context]
+                ActionSlot = WeaponSkill
+                FlowRole   = Finisher
+                ↓ Yes（战技/终结结算）
 
             [Has Tag]
                 Tag    = Buff.Status.ExtraDamageApplied
@@ -586,7 +586,7 @@ FA_Rune_KnockbackStagger（1007）监听到事件 → 对目标施加移速 -300
             （Yes 分支 → 跳过，递归守卫）
 ```
 
-> 若武器连招为重击或其他组合，同样可添加 `HeavyAtk.Combo4` 分支。
+> 不再添加 LightAtk / HeavyAtk Combo 分支；需要变体时用 RequiredActionSlot、FlowRole 或 Link Recipe。
 
 ### 9-2 DA：`DA_Rune_WeaknessUnveiled`
 
@@ -1180,6 +1180,6 @@ Content/Game/Runes/
 [反馈] 符文1 - 实际属性名是 ___ 而不是 BaseAttributeSet.Attack
 [反馈] 符文2 - On Periodic 与 Has Tag 执行顺序：___
 [反馈] 符文12 - 基础 MoveSpeed 实际值确认为 ___
-[反馈] 符文9 - LightAtk.Combo4 Tag 确认可 Has Tag 查询：是/否
+[反馈] 符文9 - Combat Card Context 的 WeaponSkill / Finisher 条件确认：是/否
 [反馈] 符文11 - On Crit Hit 确认触发时机：___
 ```

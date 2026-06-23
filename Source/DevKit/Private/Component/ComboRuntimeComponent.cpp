@@ -36,14 +36,24 @@ bool UComboRuntimeComponent::TryActivateDash(APlayerCharacterBase* PlayerOwner)
 	return false;
 }
 
+bool UComboRuntimeComponent::TryActivateSkill(APlayerCharacterBase* PlayerOwner)
+{
+	return false;
+}
+
 bool UComboRuntimeComponent::TryActivateSpecial(APlayerCharacterBase* PlayerOwner)
+{
+	return TryActivateSkill(PlayerOwner);
+}
+
+bool UComboRuntimeComponent::TryActivateSkillCombo(TSubclassOf<UYogGameplayAbility> AbilityClass, APlayerCharacterBase* PlayerOwner)
 {
 	return false;
 }
 
 bool UComboRuntimeComponent::TryActivateSpecialCombo(TSubclassOf<UYogGameplayAbility> AbilityClass, APlayerCharacterBase* PlayerOwner)
 {
-	return false;
+	return TryActivateSkillCombo(AbilityClass, PlayerOwner);
 }
 
 void UComboRuntimeComponent::ResetCombo()

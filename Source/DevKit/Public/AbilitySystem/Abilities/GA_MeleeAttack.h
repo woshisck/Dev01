@@ -59,10 +59,16 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Melee")
 	TSubclassOf<UGameplayEffect> StatAfterATKEffect;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Deck")
+	ECombatDeckFlowRole CombatDeckFlowRole = ECombatDeckFlowRole::Any;
+
 	virtual FActionData GetAbilityActionData_Implementation() const override;
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Deck")
 	ECardRequiredAction GetCombatDeckActionType() const;
+
+	UFUNCTION(BlueprintPure, Category = "Combat|Deck")
+	ECombatDeckFlowRole GetCombatDeckFlowRole() const { return CombatDeckFlowRole; }
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Deck")
 	bool IsCombatDeckComboFinisher() const;

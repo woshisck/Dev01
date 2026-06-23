@@ -1184,27 +1184,27 @@ TSharedRef<SWidget> SCharacterBalanceWidget::BuildActDataPage()
 			]
 			+ SScrollBox::Slot().Padding(8.f, 0.f, 0.f, 4.f)
 			[
-				BuildActNumberRow(TEXT("LightDamageMultiplier"), TEXT("LightDamageMultiplier"), TEXT("Musket light attack damage multiplier."))
+				BuildActNumberRow(TEXT("LightDamageMultiplier"), TEXT("AttackDamageMultiplier"), TEXT("Musket attack damage multiplier."))
 			]
 			+ SScrollBox::Slot().Padding(8.f, 0.f, 0.f, 4.f)
 			[
-				BuildActNumberRow(TEXT("LightHalfAngleDeg"), TEXT("LightHalfAngleDeg"), TEXT("Musket light spread half angle."))
+				BuildActNumberRow(TEXT("LightHalfAngleDeg"), TEXT("AttackHalfAngleDeg"), TEXT("Musket attack spread half angle."))
 			]
 			+ SScrollBox::Slot().Padding(8.f, 0.f, 0.f, 4.f)
 			[
-				BuildActNumberRow(TEXT("HeavyChargeTime"), TEXT("HeavyChargeTime"), TEXT("Musket heavy charge time."))
+				BuildActNumberRow(TEXT("HeavyChargeTime"), TEXT("WeaponSkillChargeTime"), TEXT("Musket weapon skill charge time."))
 			]
 			+ SScrollBox::Slot().Padding(8.f, 0.f, 0.f, 4.f)
 			[
-				BuildActNumberRow(TEXT("HeavyBaseDamageMultiplier"), TEXT("HeavyBaseDamageMultiplier"), TEXT("Heavy attack base damage multiplier."))
+				BuildActNumberRow(TEXT("HeavyBaseDamageMultiplier"), TEXT("WeaponSkillBaseDamageMultiplier"), TEXT("Weapon skill base damage multiplier."))
 			]
 			+ SScrollBox::Slot().Padding(8.f, 0.f, 0.f, 4.f)
 			[
-				BuildActNumberRow(TEXT("HeavyFullChargeMultiplier"), TEXT("HeavyFullChargeMultiplier"), TEXT("Heavy attack full-charge damage multiplier."))
+				BuildActNumberRow(TEXT("HeavyFullChargeMultiplier"), TEXT("WeaponSkillFullChargeMultiplier"), TEXT("Weapon skill full-charge damage multiplier."))
 			]
 			+ SScrollBox::Slot().Padding(8.f, 0.f, 0.f, 4.f)
 			[
-				BuildActNumberRow(TEXT("HeavyEndRadius"), TEXT("HeavyEndRadius"), TEXT("Heavy attack final radius."))
+				BuildActNumberRow(TEXT("HeavyEndRadius"), TEXT("WeaponSkillEndRadius"), TEXT("Weapon skill final radius."))
 			]
 			+ SScrollBox::Slot().Padding(8.f, 0.f, 0.f, 4.f)
 			[
@@ -1688,12 +1688,12 @@ void SCharacterBalanceWidget::CollectMusketActRows()
 		if (Blueprint->GeneratedClass->IsChildOf(UGA_Musket_LightAttack::StaticClass()))
 		{
 			Kind = EActDataRowKind::MusketLight;
-			TypeLabel = TEXT("Musket Light");
+			TypeLabel = TEXT("Musket Attack");
 		}
 		else if (Blueprint->GeneratedClass->IsChildOf(UGA_Musket_HeavyAttack::StaticClass()))
 		{
 			Kind = EActDataRowKind::MusketHeavy;
-			TypeLabel = TEXT("Musket Heavy");
+			TypeLabel = TEXT("Musket WeaponSkill");
 		}
 		else if (Blueprint->GeneratedClass->IsChildOf(UGA_Musket_SprintAttack::StaticClass()))
 		{

@@ -10,6 +10,7 @@
 #include "BehaviorTree/Blackboard/BlackboardKeyType_Object.h"
 #include "Character/EnemyCharacterBase.h"
 #include "Character/YogCharacterBase.h"
+#include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "Component/CharacterDataComponent.h"
 #include "Controller/YogAIController.h"
 #include "Data/AbilityData.h"
@@ -50,6 +51,8 @@ namespace
 			return TEXT("SpecialMovement");
 		case EEnemyAIAttackRole::Skill:
 			return TEXT("Skill");
+		case EEnemyAIAttackRole::Reposition:
+			return TEXT("Reposition");
 		default:
 			return TEXT("Unknown");
 		}
@@ -65,6 +68,8 @@ namespace
 			return TEXT("SpecialMovementSelected");
 		case EEnemyAIAttackRole::Skill:
 			return TEXT("SkillSelected");
+		case EEnemyAIAttackRole::Reposition:
+			return TEXT("RepositionSelected");
 		default:
 			return TEXT("Selected");
 		}
@@ -80,6 +85,8 @@ namespace
 			return TEXT("SpecialMovementBlocked");
 		case EEnemyAIAttackRole::Skill:
 			return TEXT("SkillBlocked");
+		case EEnemyAIAttackRole::Reposition:
+			return TEXT("RepositionBlocked");
 		default:
 			return TEXT("NoCandidate");
 		}
@@ -121,6 +128,25 @@ namespace
 		const FGameplayTag InSmokeTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.InSmoke"), false);
 		return TargetASC && InSmokeTag.IsValid() && TargetASC->HasMatchingGameplayTag(InSmokeTag);
 	}
+
+	float ResolveHealthPercent(const UAbilitySystemComponent* ASC)
+	{
+		if (!ASC
+			|| !ASC->HasAttributeSetForAttribute(UBaseAttributeSet::GetHealthAttribute())
+			|| !ASC->HasAttributeSetForAttribute(UBaseAttributeSet::GetMaxHealthAttribute()))
+		{
+			return 1.0f;
+		}
+
+		const float MaxHealth = ASC->GetNumericAttribute(UBaseAttributeSet::GetMaxHealthAttribute());
+		if (MaxHealth <= KINDA_SMALL_NUMBER)
+		{
+			return 1.0f;
+		}
+
+		const float Health = ASC->GetNumericAttribute(UBaseAttributeSet::GetHealthAttribute());
+		return FMath::Clamp(Health / MaxHealth, 0.0f, 1.0f);
+	}
 }
 
 UBTTask_EnemyAttackByProfile::UBTTask_EnemyAttackByProfile()
@@ -154,7 +180,8 @@ EBTNodeResult::Type UBTTask_EnemyAttackByProfile::ExecuteTask(UBehaviorTreeCompo
 	UBlackboardComponent* Blackboard = OwnerComp.GetBlackboardComponent();
 	if (Blackboard)
 	{
-		if (!bInAttackRangeKey.SelectedKeyName.IsNone()
+		if (RequiredAttackRole != EEnemyAIAttackRole::Reposition
+			&& !bInAttackRangeKey.SelectedKeyName.IsNone()
 			&& Blackboard->GetKeyID(bInAttackRangeKey.SelectedKeyName) != FBlackboard::InvalidKey
 			&& !Blackboard->GetValueAsBool(bInAttackRangeKey.SelectedKeyName))
 		{
@@ -238,7 +265,9 @@ EBTNodeResult::Type UBTTask_EnemyAttackByProfile::ExecuteTask(UBehaviorTreeCompo
 	int32 RejectedMovementAttackCooldown = 0;
 	int32 RejectedNoValidAbilityTag = 0;
 	int32 RejectedWrongRole = 0;
+	int32 RejectedHealthCondition = 0;
 	int32 PenalizedRecentRepeat = 0;
+	const float HealthPercent = ResolveHealthPercent(ASC);
 	float CloseCombatRange = EnemyData->MovementTuning.AttackRange;
 	for (const FEnemyAIAttackOption& Attack : EnemyData->AttackProfile.Attacks)
 	{
@@ -260,6 +289,14 @@ EBTNodeResult::Type UBTTask_EnemyAttackByProfile::ExecuteTask(UBehaviorTreeCompo
 		if (Attack.Weight <= 0.0f || Attack.AbilityTags.IsEmpty())
 		{
 			++RejectedNoWeightOrTags;
+			continue;
+		}
+
+		const float MinHealthPercent = FMath::Clamp(Attack.MinHealthPercent, 0.0f, 1.0f);
+		const float MaxHealthPercent = FMath::Clamp(Attack.MaxHealthPercent, 0.0f, 1.0f);
+		if (HealthPercent < MinHealthPercent || HealthPercent > MaxHealthPercent)
+		{
+			++RejectedHealthCondition;
 			continue;
 		}
 
@@ -386,16 +423,18 @@ EBTNodeResult::Type UBTTask_EnemyAttackByProfile::ExecuteTask(UBehaviorTreeCompo
 		if (CVarEnemyAIAttackDecisionLog.GetValueOnGameThread() > 0)
 		{
 			UE_LOG(LogEnemyAIAttackDecision, Log,
-				TEXT("[EnemyAIAttack] Enemy=%s Result=%s Reason=NoCandidate Role=%s Target=%s Distance=%.1f CloseCombatRange=%.1f SetInRangeFalse=%d Rejected{WrongRole=%d,NoWeightOrTags=%d,MinRange=%d,MaxRange=%d,Cooldown=%d,MovementCooldown=%d,NoValidAbilityTag=%d,RecentRepeatPenalty=%d}"),
+				TEXT("[EnemyAIAttack] Enemy=%s Result=%s Reason=NoCandidate Role=%s Target=%s Distance=%.1f CloseCombatRange=%.1f Health=%.2f SetInRangeFalse=%d Rejected{WrongRole=%d,NoWeightOrTags=%d,Health=%d,MinRange=%d,MaxRange=%d,Cooldown=%d,MovementCooldown=%d,NoValidAbilityTag=%d,RecentRepeatPenalty=%d}"),
 				*GetNameSafe(Pawn),
 				AttackRoleBlockedResult(RequiredAttackRole),
 				AttackRoleToString(RequiredAttackRole),
 				*GetNameSafe(ResolveTargetActor(OwnerComp)),
 				DistanceToTarget,
 				CloseCombatRange,
+				HealthPercent,
 				bMayClearInRange ? 1 : 0,
 				RejectedWrongRole,
 				RejectedNoWeightOrTags,
+				RejectedHealthCondition,
 				RejectedMinRange,
 				RejectedMaxRange,
 				RejectedCooldown,
@@ -442,7 +481,7 @@ EBTNodeResult::Type UBTTask_EnemyAttackByProfile::ExecuteTask(UBehaviorTreeCompo
 	if (CVarEnemyAIAttackDecisionLog.GetValueOnGameThread() > 0)
 	{
 		UE_LOG(LogEnemyAIAttackDecision, Log,
-			TEXT("[EnemyAIAttack] Enemy=%s Result=%s Role=%s Attack=%s Tags=%s Distance=%.1f Min=%.1f Max=%.1f Weight=%.2f TotalWeight=%.2f Cooldown=%.2f MoveMode=%s LungeStart=%.1f FacedTarget=%d FaceYawDelta=%.1f RecentRepeatPenalty=%d"),
+			TEXT("[EnemyAIAttack] Enemy=%s Result=%s Role=%s Attack=%s Tags=%s Distance=%.1f Min=%.1f Max=%.1f Health=%.2f Weight=%.2f TotalWeight=%.2f Cooldown=%.2f MoveMode=%s LungeStart=%.1f FacedTarget=%d FaceYawDelta=%.1f RecentRepeatPenalty=%d"),
 			*GetNameSafe(Pawn),
 			AttackRoleSelectedResult(RequiredAttackRole),
 			AttackRoleToString(RequiredAttackRole),
@@ -451,6 +490,7 @@ EBTNodeResult::Type UBTTask_EnemyAttackByProfile::ExecuteTask(UBehaviorTreeCompo
 			DistanceToTarget,
 			ChosenAttack.MinRange,
 			ChosenAttack.MaxRange,
+			HealthPercent,
 			ChosenCandidate->Weight,
 			TotalWeight,
 			ChosenAttack.Cooldown,

@@ -377,7 +377,6 @@ void APlayerCharacterBase::ApplyAbilityDataFromWeapon(UWeaponDefinition* WeaponD
 
 		AddWeaponAbilityDataSource(WeaponDefinition->AttackAbilityData);
 		AddWeaponAbilityDataSource(WeaponDefinition->WeaponSkillAbilityData);
-		AddWeaponAbilityDataSource(WeaponDefinition->SpecialAbilityData);
 		AddWeaponAbilityDataSource(WeaponDefinition->PassiveAbilityData);
 	}
 
@@ -732,6 +731,11 @@ void APlayerCharacterBase::ApplyRecoveryCancelWeaponSwitchBonus()
 	if (ActiveSkillComponent)
 	{
 		ActiveSkillComponent->ClearCooldowns();
+	}
+
+	if (UYogAbilitySystemComponent* YogASC = Cast<UYogAbilitySystemComponent>(GetAbilitySystemComponent()))
+	{
+		YogASC->ClearWeaponSkillCooldowns();
 	}
 
 	const FGameplayTag BonusTag = GetRecoveryCancelBonusTag();
@@ -1259,8 +1263,8 @@ void APlayerCharacterBase::BeginPlay()
 		AcquireSacrificeGrace(ActiveSacrificeGrace);
 	}
 
-	// Grant the combat-driving abilities (attack, weapon skill, dash, special). These
-	// are player-only and weapon-agnostic; the current weapon supplies the montage data.
+	// Grant the combat-driving abilities (attack, weapon skill, dash, active skill support).
+	// These are player-only and weapon-agnostic; the current weapon supplies montage data.
 	// Granted once here so they are always available, regardless of which weapon is equipped.
 	if (DefaultCombatAbilitySet)
 	{
@@ -1296,20 +1300,14 @@ void APlayerCharacterBase::BeginPlay()
 		};
 
 		GrantIfMissing(UGA_PlayerAttack_Combo1::StaticClass());
-		GrantIfMissing(UGA_PlayerAttack_Combo2::StaticClass());
-		GrantIfMissing(UGA_PlayerAttack_Combo3::StaticClass());
-		GrantIfMissing(UGA_PlayerAttack_Combo4::StaticClass());
 		GrantIfMissing(UGA_WeaponSkill_Combo1::StaticClass());
-		GrantIfMissing(UGA_WeaponSkill_Combo2::StaticClass());
-		GrantIfMissing(UGA_WeaponSkill_Combo3::StaticClass());
-		GrantIfMissing(UGA_WeaponSkill_Combo4::StaticClass());
 		GrantIfMissing(UGA_SwitchWeapon::StaticClass());
 	}
 
 	ApplyCurrentEquipmentAbilityData();
 	RelinkWeaponAnimLayer();
 
-	// Initialize deck/special/weapon-type from the unarmed default without calling
+	// Initialize deck/weapon-type from the unarmed default without calling
 	// SetupWeaponToCharacter, which would set EquippedWeaponDef and cause TryPickupWeapon
 	// to route the first real weapon to the inactive slot instead of equipping it.
 	if (!EquippedWeaponDef && DefaultUnarmedWeaponDef)
@@ -1797,7 +1795,7 @@ void APlayerCharacterBase::OnDeckCardsEnteredForTutorial(const TArray<FCombatCar
 		}
 
 		const bool bIsHeavyCard =
-			Card.Config.RequiredAction == ECardRequiredAction::Heavy
+			Card.Config.RequiredFlowRole == ECombatDeckFlowRole::Finisher
 			|| (HeavyIdTag.IsValid() && Card.Config.CardIdTag == HeavyIdTag)
 			|| (HeavyEffectTag.IsValid() && Card.Config.CardEffectTags.HasTagExact(HeavyEffectTag));
 		const bool bIsMoonlightLinkCard =

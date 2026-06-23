@@ -66,11 +66,6 @@ namespace
 			TEXT("PlayerState.AbilityCast.Attack"),
 			TEXT("PlayerState.AbilityCast.WeaponSkill"),
 			TEXT("PlayerState.AbilityCast.Dash"),
-			TEXT("PlayerState.AbilityCast.Special"),
-			TEXT("PlayerState.AbilityCast.LightAtk"),
-			TEXT("PlayerState.AbilityCast.HeavyAtk"),
-			TEXT("PlayerState.AbilityCast.DashAtk"),
-			TEXT("PlayerState.AbilityCast.SpecialAttack"),
 		};
 
 		for (const FName& TagName : AttackStateTagNames)
@@ -109,49 +104,6 @@ namespace
 			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.WeaponSkill.Combo4"), false),
 		};
 		return MakeArrayView(WeaponSkillComboTags, UE_ARRAY_COUNT(WeaponSkillComboTags));
-	}
-
-	bool TryActivateNextComboAbilityFromTags(
-		UYogAbilitySystemComponent* ASC,
-		TConstArrayView<FGameplayTag> ComboTags,
-		bool bRequireComboWindow,
-		bool bAllowRemoteActivation)
-	{
-		if (!ASC || ComboTags.Num() <= 0)
-		{
-			return false;
-		}
-
-		static const FGameplayTag CanComboTag =
-			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"), false);
-
-		int32 ActiveComboIndex = INDEX_NONE;
-		for (int32 Index = ComboTags.Num() - 1; Index >= 0; --Index)
-		{
-			if (ComboTags[Index].IsValid() && ASC->GetTagCount(ComboTags[Index]) > 0)
-			{
-				ActiveComboIndex = Index;
-				break;
-			}
-		}
-
-		if (ActiveComboIndex != INDEX_NONE)
-		{
-			if (bRequireComboWindow && (!CanComboTag.IsValid() || ASC->GetTagCount(CanComboTag) <= 0))
-			{
-				return false;
-			}
-
-			const int32 NextComboIndex = ActiveComboIndex + 1;
-			if (NextComboIndex >= ComboTags.Num())
-			{
-				return false;
-			}
-
-			return ASC->TryActivateAbilityByExactTag(ComboTags[NextComboIndex], bAllowRemoteActivation);
-		}
-
-		return ASC->TryActivateAbilityByExactTag(ComboTags[0], bAllowRemoteActivation);
 	}
 
 	bool HasActiveComboAbilityTag(UYogAbilitySystemComponent* ASC, TConstArrayView<FGameplayTag> ComboTags)
@@ -977,7 +929,7 @@ void UYogAbilitySystemComponent::OnSuperArmorTimerEnd()
 }
 
 // =========================================================
-// 冲刺连招保存
+// Deprecated DashSave compatibility
 // =========================================================
 
 void UYogAbilitySystemComponent::ApplyDashSave(const FGameplayTagContainer& Tags)
@@ -994,7 +946,7 @@ void UYogAbilitySystemComponent::ApplyDashSave(const FGameplayTagContainer& Tags
 		W->GetTimerManager().SetTimer(
 			DashSaveExpireTimer, this, &UYogAbilitySystemComponent::DashSaveExpired, 2.f, false);
 
-	UE_LOG(LogTemp, Log, TEXT("[DashSave] Applied %d combo tags on %s (2s window)"),
+	UE_LOG(LogTemp, Log, TEXT("[DeprecatedDashSave] Applied %d action-window tags on %s (2s window)"),
 		Tags.Num(), *GetNameSafe(GetAvatarActor()));
 }
 
@@ -1010,13 +962,13 @@ bool UYogAbilitySystemComponent::ConsumeDashSave()
 		SetLooseGameplayTagCount(Tag, 0);
 
 	DashSaveComboTags.Reset();
-	UE_LOG(LogTemp, Log, TEXT("[DashSave] Consumed on %s"), *GetNameSafe(GetAvatarActor()));
+	UE_LOG(LogTemp, Log, TEXT("[DeprecatedDashSave] Consumed on %s"), *GetNameSafe(GetAvatarActor()));
 	return true;
 }
 
 void UYogAbilitySystemComponent::DashSaveExpired()
 {
-	UE_LOG(LogTemp, Log, TEXT("[DashSave] Expired (not consumed) on %s"), *GetNameSafe(GetAvatarActor()));
+	UE_LOG(LogTemp, Log, TEXT("[DeprecatedDashSave] Expired (not consumed) on %s"), *GetNameSafe(GetAvatarActor()));
 	ConsumeDashSave();
 }
 
@@ -1088,12 +1040,12 @@ bool UYogAbilitySystemComponent::TryActivateAbilityByExactTag(const FGameplayTag
 
 bool UYogAbilitySystemComponent::TryActivateNextAttackComboAbility(bool bRequireComboWindow, bool bAllowRemoteActivation)
 {
-	return TryActivateNextComboAbilityFromTags(this, GetPlayerAttackComboTags(), bRequireComboWindow, bAllowRemoteActivation);
+	return false;
 }
 
 bool UYogAbilitySystemComponent::TryActivateNextWeaponSkillComboAbility(bool bRequireComboWindow, bool bAllowRemoteActivation)
 {
-	return TryActivateNextComboAbilityFromTags(this, GetPlayerWeaponSkillComboTags(), bRequireComboWindow, bAllowRemoteActivation);
+	return false;
 }
 
 bool UYogAbilitySystemComponent::HasActiveAttackComboAbilityTag()
@@ -1113,8 +1065,6 @@ bool UYogAbilitySystemComponent::IsPlayerActionMontageLocked() const
 	static const FGameplayTag ActionTags[] = {
 		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Attack"), false),
 		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.WeaponSkill"), false),
-		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Special"), false),
-		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.SpecialAttack"), false),
 	};
 
 	if (CanComboTag.IsValid() && HasMatchingGameplayTag(CanComboTag))
@@ -1131,6 +1081,70 @@ bool UYogAbilitySystemComponent::IsPlayerActionMontageLocked() const
 	}
 
 	return false;
+}
+
+int32 UYogAbilitySystemComponent::ClearCooldownsForAbilitiesByTag(const FGameplayTagContainer& AbilityTags)
+{
+	if (AbilityTags.IsEmpty())
+	{
+		return 0;
+	}
+
+	FGameplayTagContainer CooldownTagsToClear;
+	auto AbilityHasMatchingTag = [&AbilityTags](const FGameplayTagContainer& CandidateTags)
+	{
+		for (const FGameplayTag& CandidateTag : CandidateTags)
+		{
+			for (const FGameplayTag& RequiredTag : AbilityTags)
+			{
+				if (CandidateTag.IsValid()
+					&& RequiredTag.IsValid()
+					&& (CandidateTag.MatchesTag(RequiredTag) || CandidateTag.MatchesTagExact(RequiredTag)))
+				{
+					return true;
+				}
+			}
+		}
+		return false;
+	};
+
+	for (const FGameplayAbilitySpec& Spec : GetActivatableAbilities())
+	{
+		const UGameplayAbility* Ability = Spec.Ability;
+		if (!Ability || !AbilityHasMatchingTag(Ability->AbilityTags))
+		{
+			continue;
+		}
+
+		if (const FGameplayTagContainer* CooldownTags = Ability->GetCooldownTags())
+		{
+			CooldownTagsToClear.AppendTags(*CooldownTags);
+		}
+	}
+
+	if (CooldownTagsToClear.IsEmpty())
+	{
+		return 0;
+	}
+
+	const FGameplayEffectQuery Query = FGameplayEffectQuery::MakeQuery_MatchAnyOwningTags(CooldownTagsToClear);
+	return RemoveActiveEffects(Query);
+}
+
+int32 UYogAbilitySystemComponent::ClearWeaponSkillCooldowns()
+{
+	FGameplayTagContainer WeaponSkillTags;
+	const FGameplayTag AbilityTag = FGameplayTag::RequestGameplayTag(TEXT("Ability.Player.WeaponSkill"), false);
+	const FGameplayTag ActionTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.WeaponSkill"), false);
+	if (AbilityTag.IsValid())
+	{
+		WeaponSkillTags.AddTag(AbilityTag);
+	}
+	if (ActionTag.IsValid())
+	{
+		WeaponSkillTags.AddTag(ActionTag);
+	}
+	return ClearCooldownsForAbilitiesByTag(WeaponSkillTags);
 }
 
 bool UYogAbilitySystemComponent::DebugHasAbilityClass(AActor* Actor, TSubclassOf<UGameplayAbility> AbilityClass)

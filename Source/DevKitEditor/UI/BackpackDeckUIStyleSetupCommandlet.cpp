@@ -78,7 +78,7 @@ namespace BackpackDeckUIStyleSetup
 	const FString AttackInputActionObjectPath = TEXT("/Game/Code/Core/Input/Actions/IA_Attack.IA_Attack");
 	const FString WeaponSkillInputActionObjectPath = TEXT("/Game/Code/Core/Input/Actions/IA_WeaponSkill.IA_WeaponSkill");
 	const FString DashInputActionObjectPath = TEXT("/Game/Code/Core/Input/Actions/IA_Dash.IA_Dash");
-	const FString SpecialInputActionObjectPath = TEXT("/Game/Code/Core/Input/Actions/IA_Special.IA_Special");
+	const FString UseActiveSkillInputActionObjectPath = TEXT("/Game/Code/Core/Input/Actions/IA_UseActiveSkill.IA_UseActiveSkill");
 
 	const FLinearColor SilverText(0.86f, 0.88f, 0.90f, 1.0f);
 	const FLinearColor MutedSilver(0.58f, 0.62f, 0.66f, 1.0f);
@@ -230,7 +230,9 @@ namespace BackpackDeckUIStyleSetup
 			bChanged |= EnsureActionMapping(TEXT("Attack"), AttackInputActionObjectPath);
 			bChanged |= EnsureActionMapping(TEXT("WeaponSkill"), WeaponSkillInputActionObjectPath);
 			bChanged |= EnsureActionMapping(TEXT("Dash"), DashInputActionObjectPath);
-			bChanged |= EnsureActionMapping(TEXT("Special"), SpecialInputActionObjectPath);
+			bChanged |= EnsureActionMapping(TEXT("Skill"), UseActiveSkillInputActionObjectPath);
+			bChanged |= EnsureActionMapping(TEXT("UseActiveSkill"), UseActiveSkillInputActionObjectPath);
+			bChanged |= EnsureActionMapping(TEXT("Special"), UseActiveSkillInputActionObjectPath);
 			bChanged |= EnsureActionMapping(TEXT("NormalAttack"), AttackInputActionObjectPath);
 			bChanged |= EnsureActionMapping(TEXT("SpecialAttack"), WeaponSkillInputActionObjectPath);
 			bChanged |= EnsureActionMapping(TEXT("Back"), DashInputActionObjectPath);
@@ -256,7 +258,7 @@ namespace BackpackDeckUIStyleSetup
 			}
 		}
 
-		ReportLines.Add(FString::Printf(TEXT("- BP_InputActionDecorator ActionMap includes Interact, Esc, MouseClick, ReverseCard, Attack, WeaponSkill, Dash, Special, and Back mappings%s."),
+		ReportLines.Add(FString::Printf(TEXT("- BP_InputActionDecorator ActionMap includes Interact, Esc, MouseClick, ReverseCard, Attack, WeaponSkill, Dash, Skill/UseActiveSkill, Special legacy alias, and Back mappings%s."),
 			bChanged ? TEXT(" (updated)") : TEXT("")));
 	}
 
@@ -820,9 +822,9 @@ namespace BackpackDeckUIStyleSetup
 		UBorder* ShuffleBack = ConstructNamedWidget<UBorder>(WidgetTree, TEXT("ShuffleBack"), false);
 		UProgressBar* ShuffleProgressBar = ConstructNamedWidget<UProgressBar>(WidgetTree, TEXT("ShuffleProgressBar"));
 		UTextBlock* ShuffleText = MakeLabel(WidgetTree, TEXT("ShuffleText"), TEXT("Reloading"), 13, SilverText);
-		UTextBlock* ConsumedToastText = MakeLabel(WidgetTree, TEXT("ConsumedToastText"), TEXT("Consumed"), 14, AccentGold);
+		UTextBlock* ResolvedToastText = MakeLabel(WidgetTree, TEXT("ResolvedToastText"), TEXT("Resolved"), 14, AccentGold);
 		UTextBlock* RewardToastText = MakeLabel(WidgetTree, TEXT("RewardToastText"), TEXT("Added"), 14, BrightSilver);
-		if (!RootSize || !Root || !Back || !DeckEntryHighlightPanel || !Stack || !HeaderRow || !TitleText || !StatusText || !CardRow || !ShufflePanel || !ShuffleBack || !ShuffleProgressBar || !ShuffleText || !ConsumedToastText || !RewardToastText)
+		if (!RootSize || !Root || !Back || !DeckEntryHighlightPanel || !Stack || !HeaderRow || !TitleText || !StatusText || !CardRow || !ShufflePanel || !ShuffleBack || !ShuffleProgressBar || !ShuffleText || !ResolvedToastText || !RewardToastText)
 		{
 			return;
 		}
@@ -861,11 +863,11 @@ namespace BackpackDeckUIStyleSetup
 		ShufflePanel->SetVisibility(ESlateVisibility::Collapsed);
 		AddOverlayChild(Root, ShufflePanel, HAlign_Fill, VAlign_Bottom, FMargin(16.0f, 0.0f, 16.0f, 8.0f));
 
-		ConsumedToastText->SetRenderOpacity(0.0f);
-		ConsumedToastText->SetVisibility(ESlateVisibility::Collapsed);
+		ResolvedToastText->SetRenderOpacity(0.0f);
+		ResolvedToastText->SetVisibility(ESlateVisibility::Collapsed);
 		RewardToastText->SetRenderOpacity(0.0f);
 		RewardToastText->SetVisibility(ESlateVisibility::Collapsed);
-		AddOverlayChild(Root, ConsumedToastText, HAlign_Left, VAlign_Top, FMargin(24.0f, 18.0f, 0.0f, 0.0f));
+		AddOverlayChild(Root, ResolvedToastText, HAlign_Left, VAlign_Top, FMargin(24.0f, 18.0f, 0.0f, 0.0f));
 		AddOverlayChild(Root, RewardToastText, HAlign_Right, VAlign_Top, FMargin(0.0f, 18.0f, 24.0f, 0.0f));
 
 		ReportLines.Add(TEXT("- Combat deck HUD conveyor rebuilt with 8 silver card slots, reload overlay, and code-driven entry highlight panel."));
@@ -1028,11 +1030,11 @@ namespace BackpackDeckUIStyleSetup
 		UYogCommonRichTextBlock* EndPreviewText = MakeComboRichLabel(WidgetTree, TEXT("EndPreviewText"), TEXT("<input action=\"Esc\"/> 结束预览"), 14, BrightSilver);
 		UBorder* ComboHintWidget = ConstructNamedWidget<UBorder>(WidgetTree, TEXT("ComboHintWidget"), false);
 		UVerticalBox* ComboHintStack = ConstructNamedWidget<UVerticalBox>(WidgetTree, TEXT("ComboHintStack"), false);
-		UTextBlock* ComboHintTitle = MakeLabel(WidgetTree, TEXT("ComboHintTitle"), TEXT("出招表"), 15, BrightSilver, ETextJustify::Left);
+		UTextBlock* ComboHintTitle = MakeLabel(WidgetTree, TEXT("ComboHintTitle"), TEXT("动作槽"), 15, BrightSilver, ETextJustify::Left);
 		UYogCommonRichTextBlock* ComboHintText = MakeComboRichLabel(
 			WidgetTree,
 			TEXT("ComboHintText"),
-			TEXT("连段 01   <input action=\"Attack\"/> -> <input action=\"Attack\"/> -> <input action=\"WeaponSkill\"/>"),
+			TEXT("攻击   <input action=\"Attack\"/>  顺序结算攻击卡组"),
 			13,
 			SilverText);
 		UImage* GrabbedRuneIcon = ConstructNamedWidget<UImage>(WidgetTree, TEXT("GrabbedRuneIcon"));
@@ -1072,10 +1074,10 @@ namespace BackpackDeckUIStyleSetup
 		AddHorizontalChild(WeaponInfoRow, WeaponTextStack, VAlign_Fill, FMargin(), ESlateSizeRule::Fill);
 		AddVerticalChild(WeaponInfoStack, WeaponInfoRow, HAlign_Fill, FMargin(0.0f, 0.0f, 0.0f, 10.0f));
 
-		ComboHintTitle->SetText(FText::FromString(TEXT("出招表")));
+		ComboHintTitle->SetText(FText::FromString(TEXT("动作槽")));
 		ConfigureComboRichText(
 			ComboHintText,
-			TEXT("连段 01   <input action=\"Attack\"/> -> <input action=\"Attack\"/> -> <input action=\"WeaponSkill\"/>\n连段 02   <input action=\"Attack\"/> -> <input action=\"WeaponSkill\"/>"),
+			TEXT("攻击   <input action=\"Attack\"/>  顺序结算攻击卡组\n战技   <input action=\"WeaponSkill\"/>  结算战技槽并引爆连携\n冲刺   <input action=\"Dash\"/>  结算冲刺槽\n技能   <input action=\"Skill\"/>  玩家选择的主动技能"),
 			SilverText,
 			13);
 		ConfigureBorder(ComboHintWidget, FLinearColor(0.038f, 0.050f, 0.075f, 0.90f), FMargin(10.0f, 8.0f));
@@ -1126,7 +1128,7 @@ namespace BackpackDeckUIStyleSetup
 		ConfigureCanvasSlot(Root->AddChildToCanvas(ShapePreviewCanvas), FAnchors(0.0f, 0.0f), FVector2D::ZeroVector, FVector2D(400.0f, 400.0f), FVector2D::ZeroVector, 21);
 
 		ReportLines.Add(TEXT("- Backpack screen rebuilt as a 16:9 inspect panel using live widgets only: 25% weapon inspection, 50% tarot deck conveyor, 25% card details; no full-screen art overlay."));
-		ReportLines.Add(TEXT("- Weapon combo list now uses YogCommonRichTextBlock with BP_InputActionDecorator/BP_KeywordDecorator for CommonUI adaptive input icons."));
+		ReportLines.Add(TEXT("- Weapon action-slot list now uses YogCommonRichTextBlock with BP_InputActionDecorator/BP_KeywordDecorator for CommonUI adaptive input icons."));
 		ReportLines.Add(TEXT("- Deck operation hints now live in a 64px reserved row under the deck preview, separated from the global bottom confirm/cancel action bar."));
 	}
 

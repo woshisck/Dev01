@@ -25,7 +25,7 @@ void UCombatDeckCardSlotWidget::NativePreConstruct()
 	FCombatCardInstance PreviewCard;
 	PreviewCard.Config.bIsCombatCard = true;
 	PreviewCard.Config.DisplayName = FText::FromString(TEXT("Card"));
-	PreviewCard.Config.RequiredAction = ECardRequiredAction::Light;
+	PreviewCard.Config.RequiredAction = ECardRequiredAction::Any;
 	PreviewCard.Config.CardType = ECombatCardType::Attack;
 	SetCard(PreviewCard, true);
 }
@@ -166,9 +166,8 @@ FText UCombatDeckCardSlotWidget::GetActionText(ECardRequiredAction RequiredActio
 	switch (RequiredAction)
 	{
 	case ECardRequiredAction::Light:
-		return FText::FromString(TEXT("Light"));
 	case ECardRequiredAction::Heavy:
-		return FText::FromString(TEXT("Heavy"));
+		return FText::FromString(TEXT("Action"));
 	case ECardRequiredAction::Any:
 	default:
 		return FText::FromString(TEXT("Any"));

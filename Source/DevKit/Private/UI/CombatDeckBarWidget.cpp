@@ -12,10 +12,10 @@ void UCombatDeckBarWidget::NativeConstruct()
 
 	CacheDesignerWidgets();
 	UpdateShuffleVisuals(0.0f, false);
-	if (ConsumedToastText)
+	if (UWidget* ToastWidget = GetResolvedToastWidget())
 	{
-		ConsumedToastText->SetRenderOpacity(0.0f);
-		ConsumedToastText->SetVisibility(ESlateVisibility::Collapsed);
+		ToastWidget->SetRenderOpacity(0.0f);
+		ToastWidget->SetVisibility(ESlateVisibility::Collapsed);
 	}
 	if (RewardToastText)
 	{
@@ -34,7 +34,7 @@ void UCombatDeckBarWidget::NativeTick(const FGeometry& MyGeometry, float InDelta
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
 
-	TickToast(ConsumedToastText, ConsumedToastTimeRemaining, InDeltaTime);
+	TickToast(GetResolvedToastWidget(), ResolvedToastTimeRemaining, InDeltaTime);
 	TickToast(RewardToastText, RewardToastTimeRemaining, InDeltaTime);
 	TickDeckCardsEnteredHighlight(InDeltaTime);
 }
@@ -53,7 +53,7 @@ void UCombatDeckBarWidget::BindToCombatDeck(UCombatDeckComponent* InCombatDeck)
 	if (BoundCombatDeck)
 	{
 		BoundCombatDeck->OnDeckLoaded.AddDynamic(this, &UCombatDeckBarWidget::HandleDeckLoaded);
-		BoundCombatDeck->OnCardConsumed.AddDynamic(this, &UCombatDeckBarWidget::HandleCardConsumed);
+		BoundCombatDeck->OnCardResolved.AddDynamic(this, &UCombatDeckBarWidget::HandleCardResolved);
 		BoundCombatDeck->OnShuffleStarted.AddDynamic(this, &UCombatDeckBarWidget::HandleShuffleStarted);
 		BoundCombatDeck->OnShuffleProgress.AddDynamic(this, &UCombatDeckBarWidget::HandleShuffleProgress);
 		BoundCombatDeck->OnShuffleCompleted.AddDynamic(this, &UCombatDeckBarWidget::HandleShuffleCompleted);
@@ -112,7 +112,7 @@ void UCombatDeckBarWidget::UnbindFromCurrentDeck()
 	}
 
 	BoundCombatDeck->OnDeckLoaded.RemoveDynamic(this, &UCombatDeckBarWidget::HandleDeckLoaded);
-	BoundCombatDeck->OnCardConsumed.RemoveDynamic(this, &UCombatDeckBarWidget::HandleCardConsumed);
+	BoundCombatDeck->OnCardResolved.RemoveDynamic(this, &UCombatDeckBarWidget::HandleCardResolved);
 	BoundCombatDeck->OnShuffleStarted.RemoveDynamic(this, &UCombatDeckBarWidget::HandleShuffleStarted);
 	BoundCombatDeck->OnShuffleProgress.RemoveDynamic(this, &UCombatDeckBarWidget::HandleShuffleProgress);
 	BoundCombatDeck->OnShuffleCompleted.RemoveDynamic(this, &UCombatDeckBarWidget::HandleShuffleCompleted);
@@ -251,6 +251,11 @@ void UCombatDeckBarWidget::TickToast(UWidget* ToastWidget, float& ToastTimeRemai
 	}
 }
 
+UWidget* UCombatDeckBarWidget::GetResolvedToastWidget() const
+{
+	return ResolvedToastText ? ResolvedToastText.Get() : ConsumedToastText.Get();
+}
+
 float UCombatDeckBarWidget::GetDeckEntryHighlightDuration() const
 {
 	return FMath::Max(0.0f, EntryHighlightFadeInDuration)
@@ -321,7 +326,7 @@ FText UCombatDeckBarWidget::GetCardDisplayName(const FCombatCardInstance& Card)
 	return FText::FromString(TEXT("Card"));
 }
 
-FText UCombatDeckBarWidget::GetConsumedToastText(const FCombatCardInstance& Card, const FCombatCardResolveResult& Result)
+FText UCombatDeckBarWidget::GetResolvedToastText(const FCombatCardInstance& Card, const FCombatCardResolveResult& Result)
 {
 	if (Result.bCardTemporarilyLocked)
 	{
@@ -331,7 +336,7 @@ FText UCombatDeckBarWidget::GetConsumedToastText(const FCombatCardInstance& Card
 			FText::AsNumber(Result.TemporaryUnlockRequiredCompletedBattles));
 	}
 
-	return FText::Format(FText::FromString(TEXT("Used {0}")), GetCardDisplayName(Card));
+	return FText::Format(FText::FromString(TEXT("Triggered {0}")), GetCardDisplayName(Card));
 }
 
 void UCombatDeckBarWidget::HandleDeckLoaded(const TArray<FCombatCardInstance>& ActiveSequence)
@@ -341,27 +346,29 @@ void UCombatDeckBarWidget::HandleDeckLoaded(const TArray<FCombatCardInstance>& A
 	BP_OnDeckSnapshotChanged(ActiveSequence, EDeckState::Ready);
 }
 
-void UCombatDeckBarWidget::HandleCardConsumed(const FCombatCardInstance& Card, const FCombatCardResolveResult& Result)
+void UCombatDeckBarWidget::HandleCardResolved(const FCombatCardInstance& Card, const FCombatCardResolveResult& Result)
 {
-	if (Result.ActionContext.ActionType == ECardRequiredAction::Light && CachedCardSlots.IsValidIndex(0) && CachedCardSlots[0])
+	if (Result.ActionContext.ActionSlot == ECombatDeckActionSlot::Attack && CachedCardSlots.IsValidIndex(0) && CachedCardSlots[0])
 	{
 		CachedCardSlots[0]->PlayUseFlipAnimation();
 	}
 
 	if (Result.bCardTemporarilyLocked)
 	{
-		SetTextIfBound(ConsumedToastText, GetConsumedToastText(Card, Result));
-		ShowToast(ConsumedToastText, ConsumedToastTimeRemaining);
+		UWidget* ToastWidget = GetResolvedToastWidget();
+		SetTextIfBound(ToastWidget, GetResolvedToastText(Card, Result));
+		ShowToast(ToastWidget, ResolvedToastTimeRemaining);
 		RefreshDeckSnapshot();
+		BP_OnCardResolved(Card, Result);
 		BP_OnCardConsumed(Card, Result);
 		return;
 	}
 
-	SetTextIfBound(
-		ConsumedToastText,
-		FText::Format(FText::FromString(TEXT("消耗: {0}")), GetCardDisplayName(Card)));
-	ShowToast(ConsumedToastText, ConsumedToastTimeRemaining);
+	UWidget* ToastWidget = GetResolvedToastWidget();
+	SetTextIfBound(ToastWidget, GetResolvedToastText(Card, Result));
+	ShowToast(ToastWidget, ResolvedToastTimeRemaining);
 	RefreshDeckSnapshot();
+	BP_OnCardResolved(Card, Result);
 	BP_OnCardConsumed(Card, Result);
 }
 

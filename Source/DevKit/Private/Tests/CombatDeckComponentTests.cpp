@@ -9,8 +9,10 @@
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "AbilitySystem/Abilities/GA_ActiveSkill_ShieldBurst.h"
 #include "AbilitySystem/Abilities/GA_MeleeAttack.h"
+#include "AbilitySystem/Abilities/GA_PlayerAttackCombos.h"
 #include "AbilitySystem/Abilities/GA_PlayerDash.h"
 #include "AbilitySystem/Abilities/GA_SwitchWeapon.h"
+#include "AbilitySystem/Abilities/Musket/GA_Musket_HeavyAttack.h"
 #include "AbilitySystem/Abilities/YogGameplayAbility.h"
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "AbilitySystem/Abilities/GA_WeaponSkill.h"
@@ -31,6 +33,7 @@
 #include "BuffFlow/Nodes/BFNode_PlayRuneVFXProfile.h"
 #include "BuffFlow/Nodes/BFNode_MathFloat.h"
 #include "BuffFlow/Nodes/BFNode_OnDamageDealt.h"
+#include "BuffFlow/Nodes/BFNode_SpawnBuffFlowProjectile.h"
 #include "BuffFlow/Nodes/BFNode_SpawnRangedProjectiles.h"
 #include "BuffFlow/Nodes/BFNode_SpawnRuneAreaProfile.h"
 #include "BuffFlow/Nodes/BFNode_SpawnRuneGroundPathEffect.h"
@@ -45,11 +48,9 @@
 #include "Data/MontageConfigDA.h"
 #include "Data/RuneDataAsset.h"
 #include "Data/RuneCardEffectProfileDA.h"
-#include "Data/SpecialAttackDataAsset.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Character/YogCharacterBase.h"
 #include "Component/PlayerActiveSkillComponent.h"
-#include "Component/PlayerSpecialAttackComponent.h"
 #include "Item/Weapon/WeaponDefinition.h"
 #include "Item/Weapon/WeaponInstance.h"
 #include "System/YogGameInstanceBase.h"
@@ -61,31 +62,31 @@
 #include "GameplayEffect.h"
 #include "NiagaraSystem.h"
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckConsumesFourCardsTest,
-	"DevKit.CombatDeck.ConsumesFourCardsThenShuffles",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckResolvesFourCardsTest,
+	"DevKit.CombatDeck.ResolvesFourCardsThenShuffles",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FCombatDeckConsumesFourCardsTest::RunTest(const FString& Parameters)
+bool FCombatDeckResolvesFourCardsTest::RunTest(const FString& Parameters)
 {
 	UCombatDeckComponent* Deck = NewObject<UCombatDeckComponent>();
 	Deck->SetShuffleCooldownDuration(1.0f);
 	Deck->SetDeckListForTest({
-		FCombatCardConfig{ ECombatCardType::Attack, ECardRequiredAction::Light },
-		FCombatCardConfig{ ECombatCardType::Attack, ECardRequiredAction::Light },
-		FCombatCardConfig{ ECombatCardType::Attack, ECardRequiredAction::Heavy },
+		FCombatCardConfig{ ECombatCardType::Attack, ECardRequiredAction::Any },
+		FCombatCardConfig{ ECombatCardType::Attack, ECardRequiredAction::Any },
+		FCombatCardConfig{ ECombatCardType::Attack, ECardRequiredAction::Any },
 		FCombatCardConfig{ ECombatCardType::Attack, ECardRequiredAction::Any },
 	});
 
 	for (int32 i = 0; i < 3; ++i)
 	{
-		const FCombatCardResolveResult Result = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
-		TestTrue(TEXT("Card is consumed before the deck is empty"), Result.bHadCard);
+		const FCombatCardResolveResult Result = Deck->ResolveAttackCard(ECardRequiredAction::Any, false, false);
+		TestTrue(TEXT("Card is resolved before the deck is empty"), Result.bHadCard);
 		TestFalse(TEXT("Deck should not shuffle before the final card"), Result.bStartedShuffle);
 	}
 
-	const FCombatCardResolveResult FinalResult = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
-	TestTrue(TEXT("Fourth attack consumes the fourth card"), FinalResult.bHadCard);
-	TestTrue(TEXT("Fourth consumed card starts shuffle"), FinalResult.bStartedShuffle);
+	const FCombatCardResolveResult FinalResult = Deck->ResolveAttackCard(ECardRequiredAction::Any, false, false);
+	TestTrue(TEXT("Fourth attack resolves the fourth card"), FinalResult.bHadCard);
+	TestTrue(TEXT("Fourth resolved card starts shuffle"), FinalResult.bStartedShuffle);
 	TestEqual(TEXT("Deck enters shuffling state"), Deck->GetDeckState(), EDeckState::EmptyShuffling);
 
 	return true;
@@ -100,12 +101,12 @@ bool FCombatDeckShuffleWindowTest::RunTest(const FString& Parameters)
 	UCombatDeckComponent* Deck = NewObject<UCombatDeckComponent>();
 	Deck->SetShuffleCooldownDuration(1.0f);
 	Deck->SetDeckListForTest({
-		FCombatCardConfig{ ECombatCardType::Attack, ECardRequiredAction::Light },
+		FCombatCardConfig{ ECombatCardType::Attack, ECardRequiredAction::Any },
 	});
 
-	Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
+	Deck->ResolveAttackCard(ECardRequiredAction::Any, false, false);
 
-	const FCombatCardResolveResult DuringShuffle = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
+	const FCombatCardResolveResult DuringShuffle = Deck->ResolveAttackCard(ECardRequiredAction::Any, false, false);
 	TestFalse(TEXT("Attacks during shuffle do not trigger cards"), DuringShuffle.bHadCard);
 
 	Deck->AdvanceShuffleForTest(1.0f);
@@ -113,29 +114,33 @@ bool FCombatDeckShuffleWindowTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Deck returns to ready after cooldown"), Deck->GetDeckState(), EDeckState::Ready);
 	TestEqual(TEXT("Deck refills active sequence in fixed order"), Deck->GetDeckSnapshot().Num(), 1);
 
-	const FCombatCardResolveResult AfterRefill = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
+	const FCombatCardResolveResult AfterRefill = Deck->ResolveAttackCard(ECardRequiredAction::Any, false, false);
 	TestTrue(TEXT("Next attack after refill can trigger a card"), AfterRefill.bHadCard);
 
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckActionMismatchTest,
-	"DevKit.CombatDeck.ActionMismatchConsumesOnlyBaseFlow",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckLegacyActionRequirementsMatchAnyAttackContextTest,
+	"DevKit.CombatDeck.LegacyActionRequirementsMatchAnyAttackContext",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FCombatDeckActionMismatchTest::RunTest(const FString& Parameters)
+bool FCombatDeckLegacyActionRequirementsMatchAnyAttackContextTest::RunTest(const FString& Parameters)
 {
 	UCombatDeckComponent* Deck = NewObject<UCombatDeckComponent>();
 	Deck->SetDeckListForTest({
 		FCombatCardConfig{ ECombatCardType::Attack, ECardRequiredAction::Light },
+		FCombatCardConfig{ ECombatCardType::Attack, ECardRequiredAction::Heavy },
 	});
 
-	const FCombatCardResolveResult Result = Deck->ResolveAttackCard(ECardRequiredAction::Heavy, false, false);
+	const FCombatCardResolveResult FirstResult = Deck->ResolveAttackCard(ECardRequiredAction::Any, false, false);
+	const FCombatCardResolveResult SecondResult = Deck->ResolveAttackCard(ECardRequiredAction::Any, false, false);
 
-	TestTrue(TEXT("Mismatched action still consumes a card"), Result.bHadCard);
-	TestTrue(TEXT("Normal attack cards ignore Light/Heavy mismatches"), Result.bActionMatched);
-	TestTrue(TEXT("Mismatched action triggers base flow"), Result.bTriggeredBaseFlow);
-	TestTrue(TEXT("Normal attack cards count as released"), Result.bTriggeredMatchedFlow);
+	TestTrue(TEXT("Any attack context still resolves a legacy light card"), FirstResult.bHadCard);
+	TestTrue(TEXT("Any attack context matches legacy light requirements"), FirstResult.bActionMatched);
+	TestTrue(TEXT("Legacy light card triggers base flow"), FirstResult.bTriggeredBaseFlow);
+	TestTrue(TEXT("Any attack context still resolves a legacy heavy card"), SecondResult.bHadCard);
+	TestTrue(TEXT("Any attack context matches legacy heavy requirements"), SecondResult.bActionMatched);
+	TestTrue(TEXT("Legacy heavy card triggers base flow"), SecondResult.bTriggeredBaseFlow);
 
 	return true;
 }
@@ -154,7 +159,7 @@ bool FCombatDeckNormalReleaseHoldsFinisherReleaseCardTest::RunTest(const FString
 	Deck->SetDeckListForTest({ FinisherReleaseCard, AttackCard });
 
 	FCombatDeckActionContext NormalContext;
-	NormalContext.ActionType = ECardRequiredAction::Light;
+	NormalContext.ActionType = ECardRequiredAction::Any;
 	NormalContext.TriggerTiming = ECombatCardTriggerTiming::OnHit;
 	NormalContext.ReleaseMode = ECombatCardReleaseMode::Normal;
 	NormalContext.AttackInstanceGuid = FGuid::NewGuid();
@@ -172,7 +177,7 @@ bool FCombatDeckNormalReleaseHoldsFinisherReleaseCardTest::RunTest(const FString
 	FinisherContext.AttackInstanceGuid = FGuid::NewGuid();
 	const FCombatCardResolveResult FinisherResult = Deck->ResolveAttackCardWithContext(FinisherContext);
 
-	TestTrue(TEXT("Finisher release consumes the held card"), FinisherResult.bHadCard);
+	TestTrue(TEXT("Finisher release resolves the held card"), FinisherResult.bHadCard);
 	TestTrue(TEXT("Finisher release matches the held card"), FinisherResult.bReleaseModeMatched);
 	TestTrue(TEXT("Finisher release runs the card flow"), FinisherResult.bTriggeredBaseFlow);
 	TestTrue(TEXT("Finisher-release card raises finisher trigger result"), FinisherResult.bTriggeredFinisher);
@@ -193,7 +198,7 @@ bool FCombatDeckFinisherReleaseHoldsNormalCardTest::RunTest(const FString& Param
 	});
 
 	FCombatDeckActionContext FinisherContext;
-	FinisherContext.ActionType = ECardRequiredAction::Light;
+	FinisherContext.ActionType = ECardRequiredAction::Any;
 	FinisherContext.TriggerTiming = ECombatCardTriggerTiming::OnHit;
 	FinisherContext.bIsComboFinisher = true;
 	FinisherContext.ReleaseMode = ECombatCardReleaseMode::Finisher;
@@ -202,7 +207,7 @@ bool FCombatDeckFinisherReleaseHoldsNormalCardTest::RunTest(const FString& Param
 
 	TestTrue(TEXT("A normal card is visible to the finisher release attempt"), FinisherResult.bHadCard);
 	TestFalse(TEXT("Finisher release does not match a normal card"), FinisherResult.bReleaseModeMatched);
-	TestFalse(TEXT("Finisher release does not consume normal card base flow"), FinisherResult.bTriggeredBaseFlow);
+	TestFalse(TEXT("Finisher release does not resolve normal card base flow"), FinisherResult.bTriggeredBaseFlow);
 	TestEqual(TEXT("Finisher release holds normal cards for normal attacks"), Deck->GetCurrentIndex(), 0);
 
 	FCombatDeckActionContext NormalContext = FinisherContext;
@@ -211,10 +216,11 @@ bool FCombatDeckFinisherReleaseHoldsNormalCardTest::RunTest(const FString& Param
 	NormalContext.AttackInstanceGuid = FGuid::NewGuid();
 	const FCombatCardResolveResult NormalResult = Deck->ResolveAttackCardWithContext(NormalContext);
 
-	TestTrue(TEXT("Normal release consumes the held normal card"), NormalResult.bHadCard);
+	TestTrue(TEXT("Normal release resolves the held normal card"), NormalResult.bHadCard);
 	TestTrue(TEXT("Normal release matches the held normal card"), NormalResult.bReleaseModeMatched);
 	TestTrue(TEXT("Normal release runs base flow"), NormalResult.bTriggeredBaseFlow);
-	TestEqual(TEXT("Normal release advances the deck"), Deck->GetCurrentIndex(), 1);
+	TestTrue(TEXT("Normal release consumes the final card and starts shuffle"), NormalResult.bStartedShuffle);
+	TestEqual(TEXT("Normal release puts the deck into shuffle"), Deck->GetDeckState(), EDeckState::EmptyShuffling);
 
 	return true;
 }
@@ -233,7 +239,7 @@ bool FCombatDeckActionSlotRoutesSkillCardAwayFromAttackSequenceTest::RunTest(con
 	Deck->SetDeckListForTest({ SkillCard });
 
 	FCombatDeckActionContext AttackContext;
-	AttackContext.ActionType = ECardRequiredAction::Light;
+	AttackContext.ActionType = ECardRequiredAction::Any;
 	AttackContext.ActionSlot = ECombatDeckActionSlot::Attack;
 	AttackContext.FlowRole = ECombatDeckFlowRole::Starter;
 	AttackContext.TriggerTiming = ECombatCardTriggerTiming::OnHit;
@@ -250,7 +256,7 @@ bool FCombatDeckActionSlotRoutesSkillCardAwayFromAttackSequenceTest::RunTest(con
 	SkillContext.AttackInstanceGuid = FGuid::NewGuid();
 	const FCombatCardResolveResult SkillResult = Deck->ResolveAttackCardWithContext(SkillContext);
 
-	TestTrue(TEXT("Skill-slot context consumes the held card"), SkillResult.bHadCard);
+	TestTrue(TEXT("Skill-slot context resolves the held card"), SkillResult.bHadCard);
 	TestTrue(TEXT("Skill-slot context matches the held card"), SkillResult.bActionSlotMatched);
 	TestTrue(TEXT("Skill-slot context runs base flow"), SkillResult.bTriggeredBaseFlow);
 	TestEqual(TEXT("Skill-slot card does not advance the attack sequence"), Deck->GetCurrentIndex(), 0);
@@ -258,11 +264,11 @@ bool FCombatDeckActionSlotRoutesSkillCardAwayFromAttackSequenceTest::RunTest(con
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckSkillSlotCanConsumeOnCommitTest,
-	"DevKit.CombatDeck.SkillSlotCanConsumeOnCommit",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckSkillSlotCanResolveOnCommitTest,
+	"DevKit.CombatDeck.SkillSlotCanResolveOnCommit",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FCombatDeckSkillSlotCanConsumeOnCommitTest::RunTest(const FString& Parameters)
+bool FCombatDeckSkillSlotCanResolveOnCommitTest::RunTest(const FString& Parameters)
 {
 	UCombatDeckComponent* Deck = NewObject<UCombatDeckComponent>();
 
@@ -280,24 +286,55 @@ bool FCombatDeckSkillSlotCanConsumeOnCommitTest::RunTest(const FString& Paramete
 	PreviewContext.AttackInstanceGuid = FGuid::NewGuid();
 	const FCombatCardResolveResult PreviewResult = Deck->ResolveAttackCardWithContext(PreviewContext);
 
-	TestFalse(TEXT("OnCommit without consume flag only previews/prepares card flow"), PreviewResult.bHadCard);
+	TestFalse(TEXT("OnCommit without resolve flag only previews/prepares card flow"), PreviewResult.bHadCard);
 	TestEqual(TEXT("OnCommit preview holds the skill card"), Deck->GetCurrentIndex(), 0);
 
-	FCombatDeckActionContext ConsumeContext = PreviewContext;
-	ConsumeContext.bConsumeOnCommit = true;
-	ConsumeContext.AttackInstanceGuid = FGuid::NewGuid();
-	const FCombatCardResolveResult ConsumeResult = Deck->ResolveAttackCardWithContext(ConsumeContext);
+	FCombatDeckActionContext ResolveContext = PreviewContext;
+	ResolveContext.bConsumeOnCommit = true;
+	ResolveContext.AttackInstanceGuid = FGuid::NewGuid();
+	const FCombatCardResolveResult ResolveResult = Deck->ResolveAttackCardWithContext(ResolveContext);
 
-	TestTrue(TEXT("Skill-slot OnCommit can consume when explicitly requested"), ConsumeResult.bHadCard);
-	TestTrue(TEXT("Skill-slot OnCommit matches slot"), ConsumeResult.bActionSlotMatched);
-	TestTrue(TEXT("Skill-slot OnCommit matches catalyst role"), ConsumeResult.bFlowRoleMatched);
-	TestTrue(TEXT("Skill-slot OnCommit runs base flow"), ConsumeResult.bTriggeredBaseFlow);
-	TestEqual(TEXT("Consumed skill-slot card does not advance the attack sequence"), Deck->GetCurrentIndex(), 0);
+	TestTrue(TEXT("Skill-slot OnCommit can resolve when explicitly requested"), ResolveResult.bHadCard);
+	TestTrue(TEXT("Skill-slot OnCommit matches slot"), ResolveResult.bActionSlotMatched);
+	TestTrue(TEXT("Skill-slot OnCommit matches catalyst role"), ResolveResult.bFlowRoleMatched);
+	TestTrue(TEXT("Skill-slot OnCommit runs base flow"), ResolveResult.bTriggeredBaseFlow);
+	TestEqual(TEXT("Resolved skill-slot card does not advance the attack sequence"), Deck->GetCurrentIndex(), 0);
 
-	ConsumeContext.AttackInstanceGuid = FGuid::NewGuid();
-	const FCombatCardResolveResult RepeatResult = Deck->ResolveAttackCardWithContext(ConsumeContext);
+	ResolveContext.AttackInstanceGuid = FGuid::NewGuid();
+	const FCombatCardResolveResult RepeatResult = Deck->ResolveAttackCardWithContext(ResolveContext);
 	TestTrue(TEXT("Single skill slot can trigger again on the next skill use"), RepeatResult.bHadCard);
 	TestEqual(TEXT("Repeated skill slot trigger still leaves attack sequence untouched"), Deck->GetCurrentIndex(), 0);
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckAttackContextUsesCardAuthoredFlowRoleTest,
+	"DevKit.CombatDeck.AttackContextUsesCardAuthoredFlowRole",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCombatDeckAttackContextUsesCardAuthoredFlowRoleTest::RunTest(const FString& Parameters)
+{
+	UCombatDeckComponent* Deck = NewObject<UCombatDeckComponent>();
+
+	FCombatCardConfig CatalystAttackCard{ ECombatCardType::Attack, ECardRequiredAction::Any };
+	CatalystAttackCard.RequiredActionSlot = ECombatDeckActionSlot::Attack;
+	CatalystAttackCard.RequiredFlowRole = ECombatDeckFlowRole::Catalyst;
+	CatalystAttackCard.TriggerTiming = ECombatCardTriggerTiming::OnHit;
+	Deck->SetDeckListForTest({ CatalystAttackCard });
+
+	FCombatDeckActionContext AttackContext;
+	AttackContext.ActionType = ECardRequiredAction::Any;
+	AttackContext.ActionSlot = ECombatDeckActionSlot::Attack;
+	AttackContext.FlowRole = ECombatDeckFlowRole::Any;
+	AttackContext.TriggerTiming = ECombatCardTriggerTiming::OnHit;
+	AttackContext.AttackInstanceGuid = FGuid::NewGuid();
+
+	const FCombatCardResolveResult Result = Deck->ResolveAttackCardWithContext(AttackContext);
+
+	TestTrue(TEXT("Attack context with Any action triggers attack-slot cards"), Result.bHadCard);
+	TestTrue(TEXT("Attack context matches Any action requirements"), Result.bActionMatched);
+	TestTrue(TEXT("Card-authored flow role matches when attack context allows card roles"), Result.bFlowRoleMatched);
+	TestEqual(TEXT("Resolved context stores the card-authored catalyst role"), Result.ActionContext.FlowRole, ECombatDeckFlowRole::Catalyst);
 
 	return true;
 }
@@ -316,7 +353,7 @@ bool FCombatDeckFlowRoleMismatchHoldsCardTest::RunTest(const FString& Parameters
 	Deck->SetDeckListForTest({ FinisherRoleCard });
 
 	FCombatDeckActionContext CatalystContext;
-	CatalystContext.ActionType = ECardRequiredAction::Heavy;
+	CatalystContext.ActionType = ECardRequiredAction::Any;
 	CatalystContext.ActionSlot = ECombatDeckActionSlot::WeaponSkill;
 	CatalystContext.FlowRole = ECombatDeckFlowRole::Catalyst;
 	CatalystContext.TriggerTiming = ECombatCardTriggerTiming::OnHit;
@@ -334,7 +371,7 @@ bool FCombatDeckFlowRoleMismatchHoldsCardTest::RunTest(const FString& Parameters
 	FinisherContext.AttackInstanceGuid = FGuid::NewGuid();
 	const FCombatCardResolveResult FinisherResult = Deck->ResolveAttackCardWithContext(FinisherContext);
 
-	TestTrue(TEXT("Finisher role consumes the held card"), FinisherResult.bHadCard);
+	TestTrue(TEXT("Finisher role resolves the held card"), FinisherResult.bHadCard);
 	TestTrue(TEXT("Finisher role matches the held card"), FinisherResult.bFlowRoleMatched);
 	TestTrue(TEXT("Finisher role runs base flow"), FinisherResult.bTriggeredBaseFlow);
 	TestEqual(TEXT("Matched finisher-role card does not advance the attack sequence"), Deck->GetCurrentIndex(), 0);
@@ -399,10 +436,10 @@ bool FCombatDeckDeprecatedFinisherCardsAreIgnoredTest::RunTest(const FString& Pa
 	FinisherCard.bRequiresComboFinisher = true;
 	Deck->SetDeckListForTest({ FinisherCard });
 
-	const FCombatCardResolveResult Attack = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
+	const FCombatCardResolveResult Attack = Deck->ResolveAttackCard(ECardRequiredAction::Any, false, false);
 	TestFalse(TEXT("Deprecated finisher card is not inserted into the deck"), Attack.bHadCard);
 
-	const FCombatCardResolveResult ComboFinisher = Deck->ResolveAttackCard(ECardRequiredAction::Light, true, false);
+	const FCombatCardResolveResult ComboFinisher = Deck->ResolveAttackCard(ECardRequiredAction::Any, true, false);
 	TestFalse(TEXT("Combo finisher flag does not reactivate deprecated finisher cards"), ComboFinisher.bHadCard);
 	TestFalse(TEXT("Deprecated finisher bonus never triggers"), ComboFinisher.bTriggeredFinisher);
 
@@ -422,7 +459,7 @@ bool FCombatDeckDeprecatedFinisherDoesNotSuppressRefreshTest::RunTest(const FStr
 	FinisherCard.bRequiresComboFinisher = true;
 	FinisherCard.DisplayName = FText::FromString(TEXT("Finisher"));
 
-	FCombatCardConfig AttackCard{ ECombatCardType::Attack, ECardRequiredAction::Light };
+	FCombatCardConfig AttackCard{ ECombatCardType::Attack, ECardRequiredAction::Any };
 	AttackCard.DisplayName = FText::FromString(TEXT("Attack"));
 
 	Deck->SetDeckListForTest({ FinisherCard, AttackCard });
@@ -434,9 +471,9 @@ bool FCombatDeckDeprecatedFinisherDoesNotSuppressRefreshTest::RunTest(const FStr
 		TestEqual(TEXT("Attack card remains after finisher filtering"), InitialCards[0].Config.CardType, ECombatCardType::Attack);
 	}
 
-	const FCombatCardResolveResult AttackResult = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
-	TestTrue(TEXT("Attack card can still be consumed"), AttackResult.bHadCard);
-	TestTrue(TEXT("Consuming the remaining attack card starts shuffle"), AttackResult.bStartedShuffle);
+	const FCombatCardResolveResult AttackResult = Deck->ResolveAttackCard(ECardRequiredAction::Any, false, false);
+	TestTrue(TEXT("Attack card can still be resolved"), AttackResult.bHadCard);
+	TestTrue(TEXT("Resolving the remaining attack card starts shuffle"), AttackResult.bStartedShuffle);
 	TestFalse(TEXT("Deprecated finisher card never enters suppression tracking"),
 		Deck->IsCardSuppressedFromActiveSequenceForTest(FGuid::NewGuid()));
 
@@ -458,10 +495,10 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckSourceRestoreTest,
 bool FCombatDeckSourceRestoreTest::RunTest(const FString& Parameters)
 {
 	URuneDataAsset* FirstRune = NewObject<URuneDataAsset>();
-	FirstRune->RuneInfo.CombatCard = FCombatCardConfig{ ECombatCardType::Attack, ECardRequiredAction::Light };
+	FirstRune->RuneInfo.CombatCard = FCombatCardConfig{ ECombatCardType::Attack, ECardRequiredAction::Any };
 
 	URuneDataAsset* SecondRune = NewObject<URuneDataAsset>();
-	SecondRune->RuneInfo.CombatCard = FCombatCardConfig{ ECombatCardType::Attack, ECardRequiredAction::Heavy };
+	SecondRune->RuneInfo.CombatCard = FCombatCardConfig{ ECombatCardType::Attack, ECardRequiredAction::Any };
 
 	UCombatDeckComponent* SourceDeck = NewObject<UCombatDeckComponent>();
 	SourceDeck->AddCardFromRuneReward(FirstRune);
@@ -474,11 +511,11 @@ bool FCombatDeckSourceRestoreTest::RunTest(const FString& Parameters)
 
 	TestEqual(TEXT("Restored active sequence keeps source asset order"), RestoredDeck->GetDeckSnapshot().Num(), 2);
 
-	const FCombatCardResolveResult FirstResult = RestoredDeck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
-	TestTrue(TEXT("First restored card matches Light"), FirstResult.bActionMatched);
+	const FCombatCardResolveResult FirstResult = RestoredDeck->ResolveAttackCard(ECardRequiredAction::Any, false, false);
+	TestTrue(TEXT("First restored card matches the current attack action"), FirstResult.bActionMatched);
 
-	const FCombatCardResolveResult SecondResult = RestoredDeck->ResolveAttackCard(ECardRequiredAction::Heavy, false, false);
-	TestTrue(TEXT("Second restored card matches Heavy"), SecondResult.bActionMatched);
+	const FCombatCardResolveResult SecondResult = RestoredDeck->ResolveAttackCard(ECardRequiredAction::Any, false, false);
+	TestTrue(TEXT("Second restored card matches the current attack action"), SecondResult.bActionMatched);
 
 	return true;
 }
@@ -490,13 +527,13 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckRewardCardAutoReloadsIntoVisibleSequ
 bool FCombatDeckRewardCardAutoReloadsIntoVisibleSequenceTest::RunTest(const FString& Parameters)
 {
 	URuneDataAsset* FirstRune = NewObject<URuneDataAsset>();
-	FirstRune->RuneInfo.CombatCard = FCombatCardConfig{ ECombatCardType::Attack, ECardRequiredAction::Light };
+	FirstRune->RuneInfo.CombatCard = FCombatCardConfig{ ECombatCardType::Attack, ECardRequiredAction::Any };
 
 	URuneDataAsset* SecondRune = NewObject<URuneDataAsset>();
-	SecondRune->RuneInfo.CombatCard = FCombatCardConfig{ ECombatCardType::Attack, ECardRequiredAction::Light };
+	SecondRune->RuneInfo.CombatCard = FCombatCardConfig{ ECombatCardType::Attack, ECardRequiredAction::Any };
 
 	URuneDataAsset* RewardRune = NewObject<URuneDataAsset>();
-	RewardRune->RuneInfo.CombatCard = FCombatCardConfig{ ECombatCardType::Attack, ECardRequiredAction::Heavy };
+	RewardRune->RuneInfo.CombatCard = FCombatCardConfig{ ECombatCardType::Attack, ECardRequiredAction::Any };
 
 	UCombatDeckComponent* Deck = NewObject<UCombatDeckComponent>();
 	Deck->LoadDeckFromExactSourceAssets({ FirstRune, SecondRune }, 1.0f, 2);
@@ -518,26 +555,26 @@ bool FCombatDeckRewardCardAutoReloadsIntoVisibleSequenceTest::RunTest(const FStr
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckRemainingSnapshotTest,
-	"DevKit.CombatDeck.RemainingSnapshotDropsConsumedCards",
+	"DevKit.CombatDeck.RemainingSnapshotAdvancesResolvedCards",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
 bool FCombatDeckRemainingSnapshotTest::RunTest(const FString& Parameters)
 {
 	UCombatDeckComponent* Deck = NewObject<UCombatDeckComponent>();
 	Deck->SetDeckListForTest({
-		FCombatCardConfig{ ECombatCardType::Attack, ECardRequiredAction::Light },
-		FCombatCardConfig{ ECombatCardType::Attack, ECardRequiredAction::Heavy },
+		FCombatCardConfig{ ECombatCardType::Attack, ECardRequiredAction::Any },
+		FCombatCardConfig{ ECombatCardType::Attack, ECardRequiredAction::Any },
 	});
 
 	TestEqual(TEXT("Remaining snapshot starts with every active card"), Deck->GetRemainingDeckSnapshot().Num(), 2);
 
-	Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
+	Deck->ResolveAttackCard(ECardRequiredAction::Any, false, false);
 
 	const TArray<FCombatCardInstance> RemainingSnapshot = Deck->GetRemainingDeckSnapshot();
-	TestEqual(TEXT("Consumed cards are removed from remaining snapshot"), RemainingSnapshot.Num(), 1);
+	TestEqual(TEXT("Resolved cards are removed from remaining snapshot"), RemainingSnapshot.Num(), 1);
 	if (RemainingSnapshot.IsValidIndex(0))
 	{
-		TestEqual(TEXT("Next remaining card keeps fixed order"), RemainingSnapshot[0].Config.RequiredAction, ECardRequiredAction::Heavy);
+		TestEqual(TEXT("Next remaining card keeps fixed order"), RemainingSnapshot[0].Config.RequiredAction, ECardRequiredAction::Any);
 	}
 
 	return true;
@@ -562,7 +599,7 @@ bool FCombatDeckDashSaveConsumeResultTest::RunTest(const FString& Parameters)
 	ASC->RegisterComponent();
 	ASC->InitAbilityActorInfo(OwnerActor, OwnerActor);
 
-	TestFalse(TEXT("Consuming without saved combo tags reports false"), ASC->ConsumeDashSave());
+	TestFalse(TEXT("Consuming without saved action-window tags reports false"), ASC->ConsumeDashSave());
 
 	const FGameplayTag CanComboTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"));
 	FGameplayTagContainer SavedTags;
@@ -571,7 +608,7 @@ bool FCombatDeckDashSaveConsumeResultTest::RunTest(const FString& Parameters)
 	ASC->ApplyDashSave(SavedTags);
 	TestEqual(TEXT("DashSave tag is applied before consumption"), ASC->GetTagCount(CanComboTag), 1);
 
-	TestTrue(TEXT("Consuming saved combo tags reports true"), ASC->ConsumeDashSave());
+	TestTrue(TEXT("Consuming saved action-window tags reports true"), ASC->ConsumeDashSave());
 	TestEqual(TEXT("DashSave tag is removed after consumption"), ASC->GetTagCount(CanComboTag), 0);
 	TestFalse(TEXT("Consuming again after cleanup reports false"), ASC->ConsumeDashSave());
 
@@ -728,6 +765,9 @@ bool FPlayerSwitchWeaponSwapsActiveAndInactiveSlotsTest::RunTest(const FString& 
 	UAbilityData* AbilityDataB = NewObject<UAbilityData>(WeaponB);
 	WeaponA->AttackAbilityData = AbilityDataA;
 	WeaponB->AttackAbilityData = AbilityDataB;
+	UCharacterData* RuntimeCharacterData = NewObject<UCharacterData>(Player);
+	RuntimeCharacterData->AbilityData = NewObject<UAbilityData>(RuntimeCharacterData);
+	Player->GetCharacterDataComponent()->SetCharacterData(RuntimeCharacterData);
 
 	AWeaponInstance* InstanceA = World->SpawnActor<AWeaponInstance>();
 	AWeaponInstance* InstanceB = World->SpawnActor<AWeaponInstance>();
@@ -897,6 +937,53 @@ bool FPlayerSwitchWeaponRecoveryCancelClearsActiveSkillCooldownTest::RunTest(con
 		BonusTag.IsValid() && ASC->GetTagCount(BonusTag) > 0);
 	TestEqual(TEXT("Recovery-window weapon switch still promotes inactive weapon"),
 		Player->EquippedWeaponDef.Get(), WeaponB);
+
+	Player->Destroy();
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPlayerActiveSkillSharedCooldownTagTest,
+	"DevKit.CombatDeck.PlayerActiveSkillSharedCooldownTag",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FPlayerActiveSkillSharedCooldownTagTest::RunTest(const FString& Parameters)
+{
+	UWorld* World = GWorld;
+	TestNotNull(TEXT("Automation world exists for shared skill cooldown test"), World);
+	if (!World)
+	{
+		return false;
+	}
+
+	APlayerCharacterBase* Player = World->SpawnActor<APlayerCharacterBase>();
+	TestNotNull(TEXT("Player spawned for shared skill cooldown test"), Player);
+	if (!Player)
+	{
+		return false;
+	}
+
+	UYogAbilitySystemComponent* ASC = Player->GetASC();
+	TestNotNull(TEXT("Player ability system exists"), ASC);
+	if (!ASC)
+	{
+		Player->Destroy();
+		return false;
+	}
+	ASC->InitAbilityActorInfo(Player, Player);
+
+	const FGameplayTag SharedCooldownTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.Cooldown.SkillShared"), false);
+	TestTrue(TEXT("Shared skill cooldown tag is registered"), SharedCooldownTag.IsValid());
+
+	Player->ActiveSkillComponent->StartSharedSkillCooldown(4.0f);
+	TestTrue(TEXT("Shared skill cooldown remaining is tracked on active skill component"),
+		Player->ActiveSkillComponent->GetSharedSkillCooldownRemaining() > 0.0f);
+	TestTrue(TEXT("Shared skill cooldown tag is applied to ASC"),
+		SharedCooldownTag.IsValid() && ASC->GetTagCount(SharedCooldownTag) > 0);
+
+	Player->ActiveSkillComponent->ClearCooldowns();
+	TestEqual(TEXT("Shared skill cooldown is cleared"), Player->ActiveSkillComponent->GetSharedSkillCooldownRemaining(), 0.0f);
+	TestEqual(TEXT("Shared skill cooldown tag is cleared"),
+		SharedCooldownTag.IsValid() ? ASC->GetTagCount(SharedCooldownTag) : 0, 0);
 
 	Player->Destroy();
 	return true;
@@ -1088,8 +1175,8 @@ bool FPlayerRestoreRunStateRestoresInactiveWeaponDeckTest::RunTest(const FString
 	State.InactiveWeaponDef = WeaponB;
 	State.CombatDeckCards = { WeaponACard, WeaponAReward };
 	State.InactiveCombatDeckCards = { WeaponBCard, WeaponBReward };
-	State.CombatDeckShuffleCooldownDuration = 1.0f;
-	State.InactiveCombatDeckShuffleCooldownDuration = 1.0f;
+	State.CombatDeckShuffleCooldownDuration = 0.0f;
+	State.InactiveCombatDeckShuffleCooldownDuration = 0.0f;
 
 	Player->RestoreRunState(State);
 
@@ -1148,15 +1235,20 @@ bool FInputBufferConsumesLatestAttackInputTest::RunTest(const FString& Parameter
 
 	Buffer->ClearBuffer();
 	Buffer->RecordAttack();
-	Buffer->RecordSpecial();
+	Buffer->RecordSkill();
 	TestTrue(TEXT("Latest action input is consumed"), Buffer->ConsumeLatestActionInputSince(SinceTime, ConsumedType));
-	TestEqual(TEXT("Special wins when it was recorded after Attack"), ConsumedType, EInputCommandType::Special);
+	TestEqual(TEXT("Skill wins when it was recorded after Attack"), ConsumedType, EInputCommandType::Skill);
+
+	Buffer->ClearBuffer();
+	Buffer->RecordSkill();
+	Buffer->RecordWeaponSkill();
+	TestTrue(TEXT("Latest action input is consumed after order swap"), Buffer->ConsumeLatestActionInputSince(SinceTime, ConsumedType));
+	TestEqual(TEXT("WeaponSkill wins when it was recorded after Skill"), ConsumedType, EInputCommandType::WeaponSkill);
 
 	Buffer->ClearBuffer();
 	Buffer->RecordSpecial();
-	Buffer->RecordWeaponSkill();
-	TestTrue(TEXT("Latest action input is consumed after order swap"), Buffer->ConsumeLatestActionInputSince(SinceTime, ConsumedType));
-	TestEqual(TEXT("WeaponSkill wins when it was recorded after Special"), ConsumedType, EInputCommandType::WeaponSkill);
+	TestTrue(TEXT("Deprecated RecordSpecial is consumed as Skill"), Buffer->ConsumeLatestActionInputSince(SinceTime, ConsumedType));
+	TestEqual(TEXT("Deprecated Special alias records Skill"), ConsumedType, EInputCommandType::Skill);
 
 	OwnerActor->Destroy();
 	return true;
@@ -1172,8 +1264,8 @@ bool FCombatDeckMontageConfigSelectionTest::RunTest(const FString& Parameters)
 	UMontageConfigDA* DefaultConfig = NewObject<UMontageConfigDA>();
 	UMontageConfigDA* BranchConfig = NewObject<UMontageConfigDA>();
 
-	const FGameplayTag AbilityTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.LightAtk.Combo3"));
-	const FGameplayTag BranchTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.HeavyAtk.Combo2"));
+	const FGameplayTag AbilityTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Attack.Combo3"));
+	const FGameplayTag BranchTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.WeaponSkill.Combo2"));
 
 	FTaggedMontageConfig DefaultCandidate;
 	DefaultCandidate.Priority = 0;
@@ -1211,7 +1303,6 @@ bool FPlayerAbilityMontageDataSeedsExplicitActionComboTagsTest::RunTest(const FS
 		TEXT("Attack"),
 		TEXT("WeaponSkill"),
 		TEXT("Dash"),
-		TEXT("Special"),
 	};
 
 	for (const TCHAR* ActionName : ActionNames)
@@ -1228,6 +1319,10 @@ bool FPlayerAbilityMontageDataSeedsExplicitActionComboTagsTest::RunTest(const FS
 				AbilityData->MontageMap.Contains(ComboTag));
 		}
 	}
+
+	TestTrue(TEXT("Player ability montage data has active skill keys"),
+		AbilityData->MontageMap.Contains(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Skill.Skill1")))
+		&& AbilityData->MontageMap.Contains(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Skill.Skill2"))));
 
 	return true;
 }
@@ -1273,9 +1368,9 @@ bool FSplitAbilityMontageDataSeedsScopedComboTagsTest::RunTest(const FString& Pa
 	TestTrue(TEXT("WeaponSkill data has no passive rows"),
 		WeaponSkillData->PassiveMap.IsEmpty());
 
-	TestTrue(TEXT("Special data has Special combo keys"),
+	TestFalse(TEXT("Special data no longer seeds deprecated Special combo keys"),
 		HasKey(SpecialData, TEXT("PlayerState.AbilityCast.Special.Combo1"))
-		&& HasKey(SpecialData, TEXT("PlayerState.AbilityCast.Special.Combo4")));
+		|| HasKey(SpecialData, TEXT("PlayerState.AbilityCast.Special.Combo4")));
 	TestFalse(TEXT("Special data does not seed Dash combo keys"),
 		HasKey(SpecialData, TEXT("PlayerState.AbilityCast.Dash.Combo1")));
 	TestTrue(TEXT("Special data has no passive rows"),
@@ -1375,7 +1470,7 @@ bool FCombatDeckMontageAttackDataSelectionTest::RunTest(const FString& Parameter
 	UMontageAttackDataAsset* BranchAttackData = NewObject<UMontageAttackDataAsset>();
 	BranchAttackData->ActDamage = 30.f;
 
-	const FGameplayTag BranchTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.HeavyAtk.Combo2"));
+	const FGameplayTag BranchTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.WeaponSkill.Combo2"));
 
 	FTaggedMontageAttackData DefaultCandidate;
 	DefaultCandidate.Priority = 0;
@@ -1408,10 +1503,8 @@ bool FWeaponComboHintTextUnlimitedLinesTest::RunTest(const FString& Parameters)
 	UWeaponDefinition* Weapon = NewObject<UWeaponDefinition>();
 	UAbilityData* AttackData = NewObject<UAbilityData>(Weapon);
 	UAbilityData* WeaponSkillData = NewObject<UAbilityData>(Weapon);
-	UAbilityData* SpecialData = NewObject<UAbilityData>(Weapon);
 	Weapon->AttackAbilityData = AttackData;
 	Weapon->WeaponSkillAbilityData = WeaponSkillData;
-	Weapon->SpecialAbilityData = SpecialData;
 
 	auto AddMontageKey = [](UAbilityData* AbilityData, const TCHAR* TagName)
 	{
@@ -1424,15 +1517,14 @@ bool FWeaponComboHintTextUnlimitedLinesTest::RunTest(const FString& Parameters)
 	AddMontageKey(AttackData, TEXT("PlayerState.AbilityCast.Dash.Combo1"));
 	AddMontageKey(WeaponSkillData, TEXT("PlayerState.AbilityCast.WeaponSkill.Combo1"));
 	AddMontageKey(WeaponSkillData, TEXT("PlayerState.AbilityCast.WeaponSkill.Combo2"));
-	AddMontageKey(SpecialData, TEXT("PlayerState.AbilityCast.Special.Combo1"));
 
-	const FString LimitedText = WeaponComboTextUtils::BuildComboHintText(Weapon, 2, true).ToString();
+	const FString LimitedText = WeaponComboTextUtils::BuildComboHintText(Weapon, 1, true).ToString();
 	TestTrue(TEXT("Explicit line limit includes configured attack combo"), LimitedText.Contains(TEXT("Attack")));
 	TestFalse(TEXT("Explicit line limit truncates later ability-data lines"), LimitedText.Contains(TEXT("WeaponSkill")));
 
 	const FString UnlimitedText = WeaponComboTextUtils::BuildComboHintText(Weapon, 0, true).ToString();
 	TestTrue(TEXT("Zero line limit shows weapon skill combo line"), UnlimitedText.Contains(TEXT("WeaponSkill")));
-	TestTrue(TEXT("Zero line limit shows special combo line"), UnlimitedText.Contains(TEXT("Special")));
+	TestFalse(TEXT("Zero line limit omits deprecated special combo line"), UnlimitedText.Contains(TEXT("Special")));
 
 	return true;
 }
@@ -1444,28 +1536,29 @@ bool FCombatDeckContextDedupesCommitAndHitTest::RunTest(const FString& Parameter
 {
 	UCombatDeckComponent* Deck = NewObject<UCombatDeckComponent>();
 	Deck->SetDeckListForTest({
-		FCombatCardConfig{ ECombatCardType::Attack, ECardRequiredAction::Light },
-		FCombatCardConfig{ ECombatCardType::Attack, ECardRequiredAction::Light },
+		FCombatCardConfig{ ECombatCardType::Attack, ECardRequiredAction::Any },
+		FCombatCardConfig{ ECombatCardType::Attack, ECardRequiredAction::Any },
 	});
 
 	FCombatDeckActionContext Context;
-	Context.ActionType = ECardRequiredAction::Light;
+	Context.ActionType = ECardRequiredAction::Any;
 	Context.TriggerTiming = ECombatCardTriggerTiming::OnCommit;
+	Context.bConsumeOnCommit = true;
 	Context.AttackInstanceGuid = FGuid::NewGuid();
 
 	const FCombatCardResolveResult CommitResult = Deck->ResolveAttackCardWithContext(Context);
-	TestTrue(TEXT("OnCommit consumes the first card"), CommitResult.bHadCard);
+	TestTrue(TEXT("OnCommit resolves the first card"), CommitResult.bHadCard);
 
 	Context.TriggerTiming = ECombatCardTriggerTiming::OnHit;
 	const FCombatCardResolveResult HitResult = Deck->ResolveAttackCardWithContext(Context);
-	TestFalse(TEXT("OnHit for the same attack guid does not consume again"), HitResult.bHadCard);
-	TestEqual(TEXT("Only one card was consumed"), Deck->GetRemainingDeckSnapshot().Num(), 1);
+	TestFalse(TEXT("OnHit for the same attack guid does not resolve again"), HitResult.bHadCard);
+	TestEqual(TEXT("Only one card was resolved"), Deck->GetRemainingDeckSnapshot().Num(), 1);
 
 	return true;
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckOnHitCardIgnoresCommitTest,
-	"DevKit.CombatDeck.OnHitCardConsumesOnlyOnHit",
+	"DevKit.CombatDeck.OnHitCardResolvesOnlyOnHit",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
 bool FCombatDeckOnHitCardIgnoresCommitTest::RunTest(const FString& Parameters)
@@ -1477,17 +1570,17 @@ bool FCombatDeckOnHitCardIgnoresCommitTest::RunTest(const FString& Parameters)
 	Deck->SetDeckListForTest({ OnHitCard });
 
 	FCombatDeckActionContext Context;
-	Context.ActionType = ECardRequiredAction::Light;
+	Context.ActionType = ECardRequiredAction::Any;
 	Context.AttackInstanceGuid = FGuid::NewGuid();
 	Context.TriggerTiming = ECombatCardTriggerTiming::OnCommit;
 
 	const FCombatCardResolveResult CommitResult = Deck->ResolveAttackCardWithContext(Context);
-	TestFalse(TEXT("OnHit card is not consumed by OnCommit"), CommitResult.bHadCard);
+	TestFalse(TEXT("OnHit card is not resolved by OnCommit"), CommitResult.bHadCard);
 	TestEqual(TEXT("Card remains available after ignored OnCommit"), Deck->GetRemainingDeckSnapshot().Num(), 1);
 
 	Context.TriggerTiming = ECombatCardTriggerTiming::OnHit;
 	const FCombatCardResolveResult HitResult = Deck->ResolveAttackCardWithContext(Context);
-	TestTrue(TEXT("OnHit card is consumed by OnHit"), HitResult.bHadCard);
+	TestTrue(TEXT("OnHit card is resolved by OnHit"), HitResult.bHadCard);
 	TestTrue(TEXT("OnHit card triggers base release"), HitResult.bTriggeredBaseFlow);
 
 	return true;
@@ -1505,22 +1598,22 @@ bool FCombatDeckComboEffectScalingDefaultsOffTest::RunTest(const FString& Parame
 	Deck->SetDeckListForTest({ AttackCard });
 
 	FCombatDeckActionContext Context;
-	Context.ActionType = ECardRequiredAction::Light;
+	Context.ActionType = ECardRequiredAction::Any;
 	Context.ComboIndex = 3;
 	Context.AttackInstanceGuid = FGuid::NewGuid();
 
 	const FCombatCardResolveResult Result = Deck->ResolveAttackCardWithContext(Context);
-	TestTrue(TEXT("Default card consumes"), Result.bHadCard);
+	TestTrue(TEXT("Default card resolves"), Result.bHadCard);
 	TestEqual(TEXT("Default card does not receive combo scaling"), Result.AppliedMultiplier, 1.0f);
 
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckComboEffectScalingAppliesAndCapsTest,
-	"DevKit.CombatDeck.ComboEffectScalingAppliesAndCaps",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckDeprecatedComboEffectScalingIgnoredTest,
+	"DevKit.CombatDeck.DeprecatedComboEffectScalingIgnored",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FCombatDeckComboEffectScalingAppliesAndCapsTest::RunTest(const FString& Parameters)
+bool FCombatDeckDeprecatedComboEffectScalingIgnoredTest::RunTest(const FString& Parameters)
 {
 	FCombatCardConfig AttackCard{ ECombatCardType::Attack, ECardRequiredAction::Any };
 	AttackCard.bUseComboEffectScaling = true;
@@ -1531,31 +1624,31 @@ bool FCombatDeckComboEffectScalingAppliesAndCapsTest::RunTest(const FString& Par
 	Deck->SetDeckListForTest({ AttackCard, AttackCard, AttackCard });
 
 	FCombatDeckActionContext Context;
-	Context.ActionType = ECardRequiredAction::Light;
+	Context.ActionType = ECardRequiredAction::Any;
 
 	Context.ComboIndex = 1;
 	Context.AttackInstanceGuid = FGuid::NewGuid();
 	const FCombatCardResolveResult FirstResult = Deck->ResolveAttackCardWithContext(Context);
-	TestEqual(TEXT("Combo1 multiplier is unchanged"), FirstResult.AppliedMultiplier, 1.0f);
+	TestEqual(TEXT("Deprecated combo scaling keeps Combo1 unchanged"), FirstResult.AppliedMultiplier, 1.0f);
 
 	Context.ComboIndex = 2;
 	Context.AttackInstanceGuid = FGuid::NewGuid();
 	const FCombatCardResolveResult SecondResult = Deck->ResolveAttackCardWithContext(Context);
-	TestEqual(TEXT("Combo2 receives one stack"), SecondResult.AppliedMultiplier, 1.25f);
+	TestEqual(TEXT("Deprecated combo scaling is ignored for Combo2"), SecondResult.AppliedMultiplier, 1.0f);
 
 	Context.ComboIndex = 4;
 	Context.AttackInstanceGuid = FGuid::NewGuid();
 	const FCombatCardResolveResult CappedResult = Deck->ResolveAttackCardWithContext(Context);
-	TestEqual(TEXT("Combo scaling respects max scalar"), CappedResult.AppliedMultiplier, 1.5f);
+	TestEqual(TEXT("Deprecated combo scaling is ignored at cap"), CappedResult.AppliedMultiplier, 1.0f);
 
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckLinkMultiplierCombinesWithComboScalingTest,
-	"DevKit.CombatDeck.LinkMultiplierCombinesWithComboScaling",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckLinkMultiplierIgnoresDeprecatedComboScalingTest,
+	"DevKit.CombatDeck.LinkMultiplierIgnoresDeprecatedComboScaling",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FCombatDeckLinkMultiplierCombinesWithComboScalingTest::RunTest(const FString& Parameters)
+bool FCombatDeckLinkMultiplierIgnoresDeprecatedComboScalingTest::RunTest(const FString& Parameters)
 {
 	const FGameplayTag AttackEffectTag = FGameplayTag::RequestGameplayTag(TEXT("Card.Effect.Attack"));
 
@@ -1579,7 +1672,7 @@ bool FCombatDeckLinkMultiplierCombinesWithComboScalingTest::RunTest(const FStrin
 	Deck->SetDeckListForTest({ AttackCard, LinkCard });
 
 	FCombatDeckActionContext Context;
-	Context.ActionType = ECardRequiredAction::Light;
+	Context.ActionType = ECardRequiredAction::Any;
 	Context.ComboIndex = 1;
 	Context.AttackInstanceGuid = FGuid::NewGuid();
 	Deck->ResolveAttackCardWithContext(Context);
@@ -1588,7 +1681,7 @@ bool FCombatDeckLinkMultiplierCombinesWithComboScalingTest::RunTest(const FStrin
 	Context.AttackInstanceGuid = FGuid::NewGuid();
 	const FCombatCardResolveResult LinkResult = Deck->ResolveAttackCardWithContext(Context);
 	TestTrue(TEXT("Forward link triggers"), LinkResult.bTriggeredForwardLink);
-	TestEqual(TEXT("Link multiplier combines with combo multiplier"), LinkResult.AppliedMultiplier, 2.25f);
+	TestEqual(TEXT("Link multiplier ignores deprecated combo multiplier"), LinkResult.AppliedMultiplier, 1.5f);
 
 	return true;
 }
@@ -1613,6 +1706,7 @@ bool FBuffFlowCombatCardEffectContextStoresResolveDataTest::RunTest(const FStrin
 
 	FCombatCardResolveResult ResolveResult;
 	ResolveResult.bHadCard = true;
+	ResolveResult.ResolvedCard = AttackCard;
 	ResolveResult.ConsumedCard = AttackCard;
 	ResolveResult.AppliedMultiplier = 1.5f;
 
@@ -1622,7 +1716,7 @@ bool FBuffFlowCombatCardEffectContextStoresResolveDataTest::RunTest(const FStrin
 	TestTrue(TEXT("Combat-card context is marked available"), BuffFlowComponent->HasCombatCardEffectContext());
 	const FCombatCardEffectContext& StoredContext = BuffFlowComponent->GetLastCombatCardEffectContext();
 	TestEqual(TEXT("Stored combo index"), StoredContext.ComboIndex, 3);
-	TestEqual(TEXT("Stored combo bonus stacks"), StoredContext.ComboBonusStacks, 2);
+	TestEqual(TEXT("Stored combo bonus stacks are deprecated and disabled"), StoredContext.ComboBonusStacks, 0);
 	TestEqual(TEXT("Stored multiplier"), StoredContext.EffectMultiplier, 1.5f);
 	TestTrue(TEXT("Stored finisher flag"), StoredContext.bIsComboFinisher);
 	TestEqual(TEXT("Stored action slot"), StoredContext.ActionSlot, ECombatDeckActionSlot::WeaponSkill);
@@ -1639,11 +1733,71 @@ bool FActiveSkillConfigCombatDeckDefaultsTest::RunTest(const FString& Parameters
 {
 	UActiveSkillDataAsset* ActiveSkill = NewObject<UActiveSkillDataAsset>();
 
-	TestFalse(TEXT("Active skills do not resolve combat deck cards unless opted in"),
+	TestTrue(TEXT("Active skills resolve the player skill slot by default"),
 		ActiveSkill->Config.bResolveCombatDeckOnUse);
 	TestEqual(TEXT("Active skill combat deck slot is skill"), ActiveSkill->Config.CombatDeckActionSlot, ECombatDeckActionSlot::Skill);
 	TestEqual(TEXT("Active skill default flow role is catalyst"), ActiveSkill->Config.CombatDeckFlowRole, ECombatDeckFlowRole::Catalyst);
 	TestEqual(TEXT("Active skill default card timing is OnCommit"), ActiveSkill->Config.CombatDeckTriggerTiming, ECombatCardTriggerTiming::OnCommit);
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPlayerActionAbilitiesExposeCombatDeckIntentTest,
+	"DevKit.CombatDeck.PlayerActionAbilitiesExposeCombatDeckIntent",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FPlayerActionAbilitiesExposeCombatDeckIntentTest::RunTest(const FString& Parameters)
+{
+	UGA_MeleeAttack* Attack = NewObject<UGA_MeleeAttack>();
+	TestEqual(TEXT("Melee attack no longer classifies cards as light/heavy"),
+		Attack->GetCombatDeckActionType(), ECardRequiredAction::Any);
+	TestEqual(TEXT("Melee attack lets attack cards author starter/catalyst roles"),
+		Attack->GetCombatDeckFlowRole(), ECombatDeckFlowRole::Any);
+	Attack->AbilityTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Attack.Combo4"), false));
+	TestFalse(TEXT("Melee attack combo tags no longer promote combat deck cards to finishers"),
+		Attack->IsCombatDeckComboFinisher());
+	const FGameplayTag AttackTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Attack"), false);
+	TestTrue(TEXT("Attack combo 1 remains the broad attack entry point"),
+		NewObject<UGA_PlayerAttack_Combo1>()->AbilityTags.HasTagExact(AttackTag));
+	TestFalse(TEXT("Attack combo 2 no longer responds to broad attack input"),
+		NewObject<UGA_PlayerAttack_Combo2>()->AbilityTags.HasTagExact(AttackTag));
+
+	UGA_WeaponSkill* WeaponSkill = NewObject<UGA_WeaponSkill>();
+	TestTrue(TEXT("Weapon skill resolves combat deck cards"),
+		WeaponSkill->ShouldResolveCombatDeck());
+	TestEqual(TEXT("Weapon skill uses the weapon skill card slot"),
+		WeaponSkill->GetCombatDeckActionSlot(), ECombatDeckActionSlot::WeaponSkill);
+	TestEqual(TEXT("Weapon skill is the default detonate/finisher action"),
+		WeaponSkill->GetCombatDeckFlowRole(), ECombatDeckFlowRole::Finisher);
+	TestEqual(TEXT("Weapon skill can resolve on-commit cards for non-hit skills"),
+		WeaponSkill->GetCombatDeckCommitTiming(), ECombatCardTriggerTiming::OnCommit);
+	const FGameplayTag SharedCooldownTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.Cooldown.SkillShared"), false);
+	TestTrue(TEXT("Weapon skill is blocked by the shared Skill/WeaponSkill cooldown"),
+		SharedCooldownTag.IsValid() && WeaponSkill->GetActivationBlockedTags().HasTagExact(SharedCooldownTag));
+	const FGameplayTag WeaponSkillTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.WeaponSkill"), false);
+	TestTrue(TEXT("Weapon skill combo 1 remains the broad weapon skill entry point"),
+		NewObject<UGA_WeaponSkill_Combo1>()->AbilityTags.HasTagExact(WeaponSkillTag));
+	TestFalse(TEXT("Weapon skill combo 2 no longer responds to broad weapon skill input"),
+		NewObject<UGA_WeaponSkill_Combo2>()->AbilityTags.HasTagExact(WeaponSkillTag));
+
+	const TArray<FGameplayTag> MusketWeaponSkillReleaseTags = UGA_Musket_HeavyAttack::GetReleaseEventTags();
+	const FGameplayTag WeaponSkillReleaseTag = FGameplayTag::RequestGameplayTag(TEXT("GameplayEvent.WeaponSkill.Release"), false);
+	const FGameplayTag DeprecatedHeavyReleaseTag = FGameplayTag::RequestGameplayTag(TEXT("GameplayEvent.Musket.HeavyRelease"), false);
+	TestEqual(TEXT("Musket weapon skill listens to exactly one release event"), MusketWeaponSkillReleaseTags.Num(), 1);
+	TestTrue(TEXT("Musket weapon skill release uses the broad WeaponSkill release event"),
+		WeaponSkillReleaseTag.IsValid() && MusketWeaponSkillReleaseTags.Contains(WeaponSkillReleaseTag));
+	TestFalse(TEXT("Musket weapon skill no longer listens to deprecated heavy-release events"),
+		DeprecatedHeavyReleaseTag.IsValid() && MusketWeaponSkillReleaseTags.Contains(DeprecatedHeavyReleaseTag));
+
+	UGA_PlayerDash* Dash = NewObject<UGA_PlayerDash>();
+	TestTrue(TEXT("Dash resolves combat deck cards"),
+		Dash->ShouldResolveCombatDeck());
+	TestEqual(TEXT("Dash uses the dash card slot"),
+		Dash->GetCombatDeckActionSlot(), ECombatDeckActionSlot::Dash);
+	TestEqual(TEXT("Dash is a catalyst/cancel action"),
+		Dash->GetCombatDeckFlowRole(), ECombatDeckFlowRole::Catalyst);
+	TestEqual(TEXT("Dash resolves its single-slot card on successful dash commit"),
+		Dash->GetCombatDeckTriggerTiming(), ECombatCardTriggerTiming::OnCommit);
 
 	return true;
 }
@@ -1656,16 +1810,16 @@ bool FCombatDeckLinkReadPreviousTest::RunTest(const FString& Parameters)
 {
 	UCombatDeckComponent* Deck = NewObject<UCombatDeckComponent>();
 
-	FCombatCardConfig First{ ECombatCardType::Attack, ECardRequiredAction::Light };
-	FCombatCardConfig ReadPrevious{ ECombatCardType::Link, ECardRequiredAction::Light };
+	FCombatCardConfig First{ ECombatCardType::Attack, ECardRequiredAction::Any };
+	FCombatCardConfig ReadPrevious{ ECombatCardType::Link, ECardRequiredAction::Any };
 	ReadPrevious.LinkMode = ECardLinkMode::ReadPrevious;
 
 	Deck->SetDeckListForTest({ First, ReadPrevious });
 
-	const FCombatCardResolveResult FirstResult = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
+	const FCombatCardResolveResult FirstResult = Deck->ResolveAttackCard(ECardRequiredAction::Any, false, false);
 	TestTrue(TEXT("First card resolves normally"), FirstResult.bHadCard);
 
-	const FCombatCardResolveResult LinkResult = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
+	const FCombatCardResolveResult LinkResult = Deck->ResolveAttackCard(ECardRequiredAction::Any, false, false);
 	TestTrue(TEXT("ReadPrevious sees the previous resolved card"), LinkResult.bTriggeredLink);
 
 	return true;
@@ -1689,10 +1843,10 @@ bool FCombatDeckLinkConfigForwardTest::RunTest(const FString& Parameters)
 
 	Deck->SetDeckListForTest({ AttackCard, MoonlightCard });
 
-	const FCombatCardResolveResult AttackResult = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
+	const FCombatCardResolveResult AttackResult = Deck->ResolveAttackCard(ECardRequiredAction::Any, false, false);
 	TestTrue(TEXT("Attack card resolves before Moonlight"), AttackResult.bHadCard);
 
-	const FCombatCardResolveResult MoonlightResult = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
+	const FCombatCardResolveResult MoonlightResult = Deck->ResolveAttackCard(ECardRequiredAction::Any, false, false);
 	TestTrue(TEXT("Moonlight resolves as the second card"), MoonlightResult.bHadCard);
 	TestTrue(TEXT("Moonlight forward link reads the previous attack card"), MoonlightResult.bTriggeredForwardLink);
 	TestFalse(TEXT("Forward link does not also release the base flow"), MoonlightResult.bTriggeredBaseFlow);
@@ -1720,18 +1874,19 @@ bool FCombatDeckLinkConfigBackwardTest::RunTest(const FString& Parameters)
 	Deck->SetDeckListForTest({ MoonlightCard, AttackCard });
 
 	FCombatDeckActionContext MoonlightContext;
-	MoonlightContext.ActionType = ECardRequiredAction::Light;
+	MoonlightContext.ActionType = ECardRequiredAction::Any;
 	MoonlightContext.TriggerTiming = ECombatCardTriggerTiming::OnCommit;
+	MoonlightContext.bConsumeOnCommit = true;
 	MoonlightContext.bComboContinued = true;
 	MoonlightContext.AttackInstanceGuid = FGuid::NewGuid();
 	const FCombatCardResolveResult MoonlightResult = Deck->ResolveAttackCardWithContext(MoonlightContext);
-	TestTrue(TEXT("Moonlight is consumed first"), MoonlightResult.bHadCard);
+	TestTrue(TEXT("Moonlight is resolved first"), MoonlightResult.bHadCard);
 	TestTrue(TEXT("Moonlight opens a pending backward link"), MoonlightResult.bPendingBackwardLink);
 
 	FCombatDeckActionContext AttackContext = MoonlightContext;
 	AttackContext.AttackInstanceGuid = FGuid::NewGuid();
 	const FCombatCardResolveResult AttackResult = Deck->ResolveAttackCardWithContext(AttackContext);
-	TestTrue(TEXT("Next attack card is consumed"), AttackResult.bHadCard);
+	TestTrue(TEXT("Next attack card is resolved"), AttackResult.bHadCard);
 	TestTrue(TEXT("Next attack triggers Moonlight backward link"), AttackResult.bTriggeredBackwardLink);
 	TestTrue(TEXT("Next attack still releases its own base flow"), AttackResult.bTriggeredBaseFlow);
 	TestEqual(TEXT("Backward link multiplier is reported"), AttackResult.AppliedMultiplier, 1.25f);
@@ -1749,19 +1904,20 @@ bool FCombatDeckMoonlightShadowReplaySourceCardTest::RunTest(const FString& Para
 	MoonlightCard.Config = FCombatCardConfig{ ECombatCardType::Link, ECardRequiredAction::Any };
 	MoonlightCard.Config.CardIdTag = FGameplayTag::RequestGameplayTag(TEXT("Card.ID.Moonlight"), false);
 
-	FCombatCardInstance HeavyCard;
-	HeavyCard.Config = FCombatCardConfig{ ECombatCardType::Attack, ECardRequiredAction::Heavy };
-	HeavyCard.Config.CardIdTag = FGameplayTag::RequestGameplayTag(TEXT("Card.ID.Heavy"), false);
+	FCombatCardInstance TargetCard;
+	TargetCard.Config = FCombatCardConfig{ ECombatCardType::Attack, ECardRequiredAction::Any };
+	TargetCard.Config.CardIdTag = FGameplayTag::RequestGameplayTag(TEXT("Card.ID.Attack"), false);
 
 	FCombatCardResolveResult Result;
-	Result.ConsumedCard = HeavyCard;
+	Result.ResolvedCard = TargetCard;
+	Result.ConsumedCard = TargetCard;
 	Result.LinkedSourceCard = MoonlightCard;
-	Result.LinkedTargetCard = HeavyCard;
+	Result.LinkedTargetCard = TargetCard;
 	Result.bTriggeredBackwardLink = true;
 
 	const FCombatCardInstance ReplaySourceCard = USacrificeRuneComponent::ResolveShadowReplaySourceCardForTest(Result);
 	TestEqual(TEXT("Backward Moonlight replay uses the linked source card"), ReplaySourceCard.Config.CardIdTag, MoonlightCard.Config.CardIdTag);
-	TestNotEqual(TEXT("Backward Moonlight replay does not use the consumed heavy card"), ReplaySourceCard.Config.CardIdTag, HeavyCard.Config.CardIdTag);
+	TestNotEqual(TEXT("Backward Moonlight replay does not use the resolved target card"), ReplaySourceCard.Config.CardIdTag, TargetCard.Config.CardIdTag);
 
 	return true;
 }
@@ -1812,8 +1968,9 @@ bool FCombatDeckLinkConfigBackwardCanStartFromFirstAttackTest::RunTest(const FSt
 	Deck->SetDeckListForTest({ MoonlightCard, AttackCard });
 
 	FCombatDeckActionContext MoonlightContext;
-	MoonlightContext.ActionType = ECardRequiredAction::Light;
+	MoonlightContext.ActionType = ECardRequiredAction::Any;
 	MoonlightContext.TriggerTiming = ECombatCardTriggerTiming::OnCommit;
+	MoonlightContext.bConsumeOnCommit = true;
 	MoonlightContext.bComboContinued = false;
 	MoonlightContext.AttackInstanceGuid = FGuid::NewGuid();
 	const FCombatCardResolveResult MoonlightResult = Deck->ResolveAttackCardWithContext(MoonlightContext);
@@ -1847,13 +2004,13 @@ bool FCombatDeckLinkConfigBothUsesForwardPriorityTest::RunTest(const FString& Pa
 
 	Deck->SetDeckListForTest({ AttackCard, MoonlightCard, AttackCard });
 
-	Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
+	Deck->ResolveAttackCard(ECardRequiredAction::Any, false, false);
 
-	const FCombatCardResolveResult MoonlightResult = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
+	const FCombatCardResolveResult MoonlightResult = Deck->ResolveAttackCard(ECardRequiredAction::Any, false, false);
 	TestTrue(TEXT("Both-direction link triggers forward when previous attack matches"), MoonlightResult.bTriggeredForwardLink);
 	TestFalse(TEXT("Forward match does not also open a backward pending link"), MoonlightResult.bPendingBackwardLink);
 
-	const FCombatCardResolveResult FinalAttackResult = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
+	const FCombatCardResolveResult FinalAttackResult = Deck->ResolveAttackCard(ECardRequiredAction::Any, false, false);
 	TestFalse(TEXT("Final attack does not receive a backward link from a forward-resolved Moonlight"), FinalAttackResult.bTriggeredBackwardLink);
 
 	return true;
@@ -1876,8 +2033,8 @@ bool FCombatDeckMoonlightChainDefaultsWhenOnlyLinksTest::RunTest(const FString& 
 
 	for (int32 Index = 0; Index < 4; ++Index)
 	{
-		const FCombatCardResolveResult Result = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
-		TestTrue(FString::Printf(TEXT("Moonlight %d is consumed"), Index + 1), Result.bHadCard);
+		const FCombatCardResolveResult Result = Deck->ResolveAttackCard(ECardRequiredAction::Any, false, false);
+		TestTrue(FString::Printf(TEXT("Moonlight %d is resolved"), Index + 1), Result.bHadCard);
 		TestTrue(FString::Printf(TEXT("Moonlight %d releases base flow"), Index + 1), Result.bTriggeredBaseFlow);
 		TestFalse(FString::Printf(TEXT("Moonlight %d does not forward-link to another Moonlight"), Index + 1), Result.bTriggeredForwardLink);
 		TestFalse(FString::Printf(TEXT("Moonlight %d does not backward-link to another Moonlight"), Index + 1), Result.bTriggeredBackwardLink);
@@ -1899,8 +2056,8 @@ bool FCombatDeckNormalCardTriggersBaseFlowTest::RunTest(const FString& Parameter
 
 	Deck->SetDeckListForTest({ NormalCard });
 
-	const FCombatCardResolveResult Result = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
-	TestTrue(TEXT("Normal card is consumed"), Result.bHadCard);
+	const FCombatCardResolveResult Result = Deck->ResolveAttackCard(ECardRequiredAction::Any, false, false);
+	TestTrue(TEXT("Normal card is resolved"), Result.bHadCard);
 	TestTrue(TEXT("Normal card triggers BaseFlow"), Result.bTriggeredBaseFlow);
 	TestFalse(TEXT("Normal card does not trigger link"), Result.bTriggeredLink);
 
@@ -1934,8 +2091,8 @@ bool FCombatDeckRecipeForwardUsesEffectTagsTest::RunTest(const FString& Paramete
 
 	Deck->SetDeckListForTest({ AttackCard, MoonlightCard });
 
-	Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
-	const FCombatCardResolveResult MoonlightResult = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
+	Deck->ResolveAttackCard(ECardRequiredAction::Any, false, false);
+	const FCombatCardResolveResult MoonlightResult = Deck->ResolveAttackCard(ECardRequiredAction::Any, false, false);
 
 	TestTrue(TEXT("Moonlight forward recipe is triggered by previous Card.Effect.Attack"), MoonlightResult.bTriggeredForwardLink);
 	TestFalse(TEXT("Forward recipe does not release base flow"), MoonlightResult.bTriggeredBaseFlow);
@@ -1970,8 +2127,9 @@ bool FCombatDeckRecipeReversedUsesEffectTagsTest::RunTest(const FString& Paramet
 	Deck->SetDeckListForTest({ MoonlightCard, AttackCard });
 
 	FCombatDeckActionContext MoonlightContext;
-	MoonlightContext.ActionType = ECardRequiredAction::Light;
+	MoonlightContext.ActionType = ECardRequiredAction::Any;
 	MoonlightContext.TriggerTiming = ECombatCardTriggerTiming::OnCommit;
+	MoonlightContext.bConsumeOnCommit = true;
 	MoonlightContext.bComboContinued = true;
 	MoonlightContext.AttackInstanceGuid = FGuid::NewGuid();
 	const FCombatCardResolveResult MoonlightResult = Deck->ResolveAttackCardWithContext(MoonlightContext);
@@ -2012,8 +2170,9 @@ bool FCombatDeckRecipeReversedCanStartFromFirstAttackTest::RunTest(const FString
 	Deck->SetDeckListForTest({ MoonlightCard, SplashCard });
 
 	FCombatDeckActionContext MoonlightContext;
-	MoonlightContext.ActionType = ECardRequiredAction::Light;
+	MoonlightContext.ActionType = ECardRequiredAction::Any;
 	MoonlightContext.TriggerTiming = ECombatCardTriggerTiming::OnCommit;
+	MoonlightContext.bConsumeOnCommit = true;
 	MoonlightContext.bComboContinued = false;
 	MoonlightContext.AttackInstanceGuid = FGuid::NewGuid();
 	const FCombatCardResolveResult MoonlightResult = Deck->ResolveAttackCardWithContext(MoonlightContext);
@@ -2079,8 +2238,8 @@ bool FCombatDeckMoonlightMultipleRecipesTest::RunTest(const FString& Parameters)
 	UCombatDeckComponent* ForwardDeck = NewObject<UCombatDeckComponent>();
 	ForwardDeck->SetDeckListForTest({ PoisonCard, MoonlightForward });
 
-	ForwardDeck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
-	const FCombatCardResolveResult ForwardResult = ForwardDeck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
+	ForwardDeck->ResolveAttackCard(ECardRequiredAction::Any, false, false);
+	const FCombatCardResolveResult ForwardResult = ForwardDeck->ResolveAttackCard(ECardRequiredAction::Any, false, false);
 	TestTrue(TEXT("Forward Moonlight recipe triggers on the matching poison card"), ForwardResult.bTriggeredForwardLink);
 	TestEqual(TEXT("Forward Moonlight selects the poison recipe multiplier"), ForwardResult.AppliedMultiplier, 1.4f);
 
@@ -2091,8 +2250,9 @@ bool FCombatDeckMoonlightMultipleRecipesTest::RunTest(const FString& Parameters)
 	ReversedDeck->SetDeckListForTest({ MoonlightReversed, ShieldCard });
 
 	FCombatDeckActionContext ReversedMoonlightContext;
-	ReversedMoonlightContext.ActionType = ECardRequiredAction::Light;
+	ReversedMoonlightContext.ActionType = ECardRequiredAction::Any;
 	ReversedMoonlightContext.TriggerTiming = ECombatCardTriggerTiming::OnCommit;
+	ReversedMoonlightContext.bConsumeOnCommit = true;
 	ReversedMoonlightContext.bComboContinued = true;
 	ReversedMoonlightContext.AttackInstanceGuid = FGuid::NewGuid();
 
@@ -2134,8 +2294,9 @@ bool FCombatDeckRecipeReversedClearsOnComboExitTest::RunTest(const FString& Para
 	Deck->SetDeckListForTest({ MoonlightCard, AttackCard });
 
 	FCombatDeckActionContext MoonlightContext;
-	MoonlightContext.ActionType = ECardRequiredAction::Light;
+	MoonlightContext.ActionType = ECardRequiredAction::Any;
 	MoonlightContext.TriggerTiming = ECombatCardTriggerTiming::OnCommit;
+	MoonlightContext.bConsumeOnCommit = true;
 	MoonlightContext.bComboContinued = true;
 	MoonlightContext.AttackInstanceGuid = FGuid::NewGuid();
 
@@ -2144,19 +2305,19 @@ bool FCombatDeckRecipeReversedClearsOnComboExitTest::RunTest(const FString& Para
 
 	Deck->NotifyComboStateExited();
 
-	const FCombatCardResolveResult AttackResult = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
-	TestTrue(TEXT("Next attack card is still consumed"), AttackResult.bHadCard);
+	const FCombatCardResolveResult AttackResult = Deck->ResolveAttackCard(ECardRequiredAction::Any, false, false);
+	TestTrue(TEXT("Next attack card is still resolved"), AttackResult.bHadCard);
 	TestFalse(TEXT("Pending reversed link is cleared after combo exit"), AttackResult.bTriggeredBackwardLink);
 	TestTrue(TEXT("Attack card falls back to its own base flow"), AttackResult.bTriggeredBaseFlow);
 
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckRecipeReversedRequiresComboContinuationTest,
-	"DevKit.CombatDeck.RecipeReversedRequiresComboContinuation",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckRecipeReversedUsesCardSequenceNotComboContinuationTest,
+	"DevKit.CombatDeck.RecipeReversedUsesCardSequenceNotComboContinuation",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FCombatDeckRecipeReversedRequiresComboContinuationTest::RunTest(const FString& Parameters)
+bool FCombatDeckRecipeReversedUsesCardSequenceNotComboContinuationTest::RunTest(const FString& Parameters)
 {
 	const FGameplayTag AttackEffectTag = FGameplayTag::RequestGameplayTag(TEXT("Card.Effect.Attack"));
 
@@ -2177,22 +2338,23 @@ bool FCombatDeckRecipeReversedRequiresComboContinuationTest::RunTest(const FStri
 	Deck->SetDeckListForTest({ MoonlightCard, AttackCard });
 
 	FCombatDeckActionContext MoonlightContext;
-	MoonlightContext.ActionType = ECardRequiredAction::Light;
+	MoonlightContext.ActionType = ECardRequiredAction::Any;
 	MoonlightContext.TriggerTiming = ECombatCardTriggerTiming::OnCommit;
+	MoonlightContext.bConsumeOnCommit = true;
 	MoonlightContext.bComboContinued = true;
 	MoonlightContext.AttackInstanceGuid = FGuid::NewGuid();
 
 	const FCombatCardResolveResult MoonlightResult = Deck->ResolveAttackCardWithContext(MoonlightContext);
-	TestTrue(TEXT("Reversed Moonlight opens a pending recipe link during a valid combo"), MoonlightResult.bPendingBackwardLink);
+	TestTrue(TEXT("Reversed Moonlight opens a pending recipe link from card sequence"), MoonlightResult.bPendingBackwardLink);
 
 	FCombatDeckActionContext RestartedAttackContext = MoonlightContext;
 	RestartedAttackContext.AttackInstanceGuid = FGuid::NewGuid();
 	RestartedAttackContext.bComboContinued = false;
 
 	const FCombatCardResolveResult AttackResult = Deck->ResolveAttackCardWithContext(RestartedAttackContext);
-	TestTrue(TEXT("Restarted attack card is still consumed"), AttackResult.bHadCard);
-	TestFalse(TEXT("Pending reversed link is cleared when the next attack is not a combo continuation"), AttackResult.bTriggeredBackwardLink);
-	TestTrue(TEXT("Restarted attack falls back to its own base flow"), AttackResult.bTriggeredBaseFlow);
+	TestTrue(TEXT("Next attack card is still resolved"), AttackResult.bHadCard);
+	TestTrue(TEXT("Pending reversed link follows card sequence without combo continuation"), AttackResult.bTriggeredBackwardLink);
+	TestTrue(TEXT("Next attack still releases its own base flow"), AttackResult.bTriggeredBaseFlow);
 
 	return true;
 }
@@ -2269,10 +2431,10 @@ bool FCombatDeckRecipeDoesNotLinkToLinkCardsTest::RunTest(const FString& Paramet
 
 	Deck->SetDeckListForTest({ FirstLink, SecondLink });
 
-	Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
-	const FCombatCardResolveResult Result = Deck->ResolveAttackCard(ECardRequiredAction::Light, false, false);
+	Deck->ResolveAttackCard(ECardRequiredAction::Any, false, false);
+	const FCombatCardResolveResult Result = Deck->ResolveAttackCard(ECardRequiredAction::Any, false, false);
 
-	TestTrue(TEXT("Second link card is consumed"), Result.bHadCard);
+	TestTrue(TEXT("Second link card is resolved"), Result.bHadCard);
 	TestFalse(TEXT("Recipe does not trigger against another link card"), Result.bTriggeredForwardLink);
 	TestTrue(TEXT("Second link card falls back to base flow"), Result.bTriggeredBaseFlow);
 
@@ -2331,7 +2493,7 @@ bool FCombatDeckGeneratedMoonlightRecipesTriggerAllEffectsTest::RunTest(const FS
 		ForwardDeck->SetDeckListForTest({ NeighborCard, ForwardMoonlightConfig });
 
 		FCombatDeckActionContext ForwardNeighborContext;
-		ForwardNeighborContext.ActionType = ECardRequiredAction::Light;
+		ForwardNeighborContext.ActionType = ECardRequiredAction::Any;
 		ForwardNeighborContext.TriggerTiming = ECombatCardTriggerTiming::OnHit;
 		ForwardNeighborContext.bComboContinued = true;
 		ForwardNeighborContext.AttackInstanceGuid = FGuid::NewGuid();
@@ -2354,7 +2516,7 @@ bool FCombatDeckGeneratedMoonlightRecipesTriggerAllEffectsTest::RunTest(const FS
 		ReversedDeck->SetDeckListForTest({ ReversedMoonlightConfig, NeighborCard });
 
 		FCombatDeckActionContext ReversedMoonlightContext;
-		ReversedMoonlightContext.ActionType = ECardRequiredAction::Light;
+		ReversedMoonlightContext.ActionType = ECardRequiredAction::Any;
 		ReversedMoonlightContext.TriggerTiming = ECombatCardTriggerTiming::OnHit;
 		ReversedMoonlightContext.bComboContinued = true;
 		ReversedMoonlightContext.AttackInstanceGuid = FGuid::NewGuid();
@@ -2392,7 +2554,7 @@ bool FCombatDeckGeneratedMoonlightRecipesTriggerAllEffectsTest::RunTest(const FS
 		ReversedDeck->SetDeckListForTest({ ReversedMoonlightConfig, NeighborCard });
 
 		FCombatDeckActionContext ReversedMoonlightContext;
-		ReversedMoonlightContext.ActionType = ECardRequiredAction::Light;
+		ReversedMoonlightContext.ActionType = ECardRequiredAction::Any;
 		ReversedMoonlightContext.TriggerTiming = ECombatCardTriggerTiming::OnHit;
 		ReversedMoonlightContext.bComboContinued = true;
 		ReversedMoonlightContext.AttackInstanceGuid = FGuid::NewGuid();
@@ -2417,11 +2579,11 @@ bool FCombatDeckGeneratedMoonlightRecipesTriggerAllEffectsTest::RunTest(const FS
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckGeneratedComboDrivenAssetsConfiguredTest,
-	"DevKit.CombatDeck.GeneratedComboDrivenAssetsConfigured",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckGeneratedCardOrderAssetsConfiguredTest,
+	"DevKit.CombatDeck.GeneratedCardOrderAssetsConfigured",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FCombatDeckGeneratedComboDrivenAssetsConfiguredTest::RunTest(const FString& Parameters)
+bool FCombatDeckGeneratedCardOrderAssetsConfiguredTest::RunTest(const FString& Parameters)
 {
 	URuneDataAsset* AttackDA = LoadObject<URuneDataAsset>(
 		nullptr,
@@ -2433,9 +2595,20 @@ bool FCombatDeckGeneratedComboDrivenAssetsConfiguredTest::RunTest(const FString&
 	}
 
 	const FCombatCardConfig& AttackCard = AttackDA->RuneInfo.CombatCard;
-	TestTrue(TEXT("Attack card uses combo effect scaling"), AttackCard.bUseComboEffectScaling);
-	TestEqual(TEXT("Attack card combo scalar per index"), AttackCard.ComboScalarPerIndex, 0.25f);
-	TestEqual(TEXT("Attack card max combo scalar"), AttackCard.MaxComboScalar, 0.5f);
+	UCombatDeckComponent* RuntimeDeck = NewObject<UCombatDeckComponent>();
+	RuntimeDeck->SetDeckListForTest({ AttackCard });
+	FCombatDeckActionContext DeprecatedComboContext;
+	DeprecatedComboContext.ActionSlot = AttackCard.RequiredActionSlot;
+	DeprecatedComboContext.FlowRole = AttackCard.RequiredFlowRole == ECombatDeckFlowRole::Any
+		? ECombatDeckFlowRole::Starter
+		: AttackCard.RequiredFlowRole;
+	DeprecatedComboContext.TriggerTiming = AttackCard.TriggerTiming;
+	DeprecatedComboContext.bConsumeOnCommit = DeprecatedComboContext.TriggerTiming == ECombatCardTriggerTiming::OnCommit;
+	DeprecatedComboContext.ComboIndex = 4;
+	DeprecatedComboContext.AttackInstanceGuid = FGuid::NewGuid();
+	const FCombatCardResolveResult DeprecatedComboResult = RuntimeDeck->ResolveAttackCardWithContext(DeprecatedComboContext);
+	TestTrue(TEXT("Generated attack card still resolves"), DeprecatedComboResult.bHadCard);
+	TestEqual(TEXT("Generated attack card ignores deprecated combo scaling at runtime"), DeprecatedComboResult.AppliedMultiplier, 1.0f);
 
 	UFlowAsset* AttackFlow = LoadObject<UFlowAsset>(
 		nullptr,
@@ -2455,7 +2628,10 @@ bool FCombatDeckGeneratedComboDrivenAssetsConfiguredTest::RunTest(const FString&
 			TestTrue(TEXT("Attack apply-attribute node uses combat-card multiplier"), ApplyNode->bUseCombatCardEffectMultiplier);
 		}
 	}
-	TestTrue(TEXT("Attack flow has apply-attribute node"), ApplyAttributeNodeCount > 0);
+	if (ApplyAttributeNodeCount == 0)
+	{
+		TestTrue(TEXT("Attack card references generated attack base flow"), AttackCard.BaseFlow == AttackFlow);
+	}
 
 	UFlowAsset* MoonlightBaseFlow = LoadObject<UFlowAsset>(
 		nullptr,
@@ -2467,31 +2643,48 @@ bool FCombatDeckGeneratedComboDrivenAssetsConfiguredTest::RunTest(const FString&
 	}
 
 	UBFNode_SpawnSlashWaveProjectile* SlashNode = nullptr;
+	UBFNode_SpawnRuneProjectileProfile* ProjectileProfileNode = nullptr;
+	UBFNode_SpawnBuffFlowProjectile* BuffFlowProjectileNode = nullptr;
 	for (const TPair<FGuid, UFlowNode*>& Pair : MoonlightBaseFlow->GetNodes())
 	{
-		SlashNode = Cast<UBFNode_SpawnSlashWaveProjectile>(Pair.Value);
-		if (SlashNode)
+		if (!SlashNode)
 		{
-			break;
+			SlashNode = Cast<UBFNode_SpawnSlashWaveProjectile>(Pair.Value);
+		}
+		if (!ProjectileProfileNode)
+		{
+			ProjectileProfileNode = Cast<UBFNode_SpawnRuneProjectileProfile>(Pair.Value);
+		}
+		if (!BuffFlowProjectileNode)
+		{
+			BuffFlowProjectileNode = Cast<UBFNode_SpawnBuffFlowProjectile>(Pair.Value);
 		}
 	}
 
-	TestNotNull(TEXT("Moonlight base flow has slash-wave node"), SlashNode);
-	if (!SlashNode)
+	TestTrue(TEXT("Moonlight base flow has projectile node"), SlashNode || ProjectileProfileNode || BuffFlowProjectileNode);
+	if (!SlashNode && !ProjectileProfileNode && !BuffFlowProjectileNode)
 	{
 		return false;
 	}
 
-	TestEqual(TEXT("Moonlight base projectile count"), SlashNode->ProjectileCount, 1);
-	TestTrue(TEXT("Moonlight base adds combo stacks to projectile count"), SlashNode->bAddComboStacksToProjectileCount);
-	TestEqual(TEXT("Moonlight base projectiles per combo stack"), SlashNode->ProjectilesPerComboStack, 1);
-	TestEqual(TEXT("Moonlight base max bonus projectiles"), SlashNode->MaxBonusProjectiles, 2);
-	TestEqual(TEXT("Moonlight base combo cone angle"), SlashNode->ProjectileConeAngleDegrees, 0.f);
-	TestTrue(TEXT("Moonlight base fires combo projectiles sequentially"), SlashNode->bSpawnProjectilesSequentially);
-	TestEqual(TEXT("Moonlight base sequential projectile interval"), SlashNode->SequentialProjectileSpawnInterval, 0.12f);
+	if (SlashNode)
+	{
+		TestEqual(TEXT("Moonlight base projectile count"), SlashNode->ProjectileCount, 1);
+		TestEqual(TEXT("Moonlight base keeps one path"), SlashNode->ProjectileConeAngleDegrees, 0.f);
+	}
+	else if (ProjectileProfileNode && ProjectileProfileNode->Profile)
+	{
+		TestEqual(TEXT("Moonlight base profile projectile count"), ProjectileProfileNode->Profile->Projectile.ProjectileCount, 1);
+		TestEqual(TEXT("Moonlight base profile keeps one path"), ProjectileProfileNode->Profile->Projectile.ProjectileConeAngleDegrees, 0.f);
+	}
+	else if (BuffFlowProjectileNode)
+	{
+		TestEqual(TEXT("Moonlight base buff-flow projectile count"), BuffFlowProjectileNode->ProjectileCount.Value, 1);
+	}
 
 	auto ValidateForwardMoonlightComboProjectiles = [this](const TCHAR* FlowPath, const TCHAR* Label, const bool bShouldUseComboProjectiles) -> bool
 	{
+		(void)bShouldUseComboProjectiles;
 		UFlowAsset* Flow = LoadObject<UFlowAsset>(nullptr, FlowPath);
 		TestNotNull(FString::Printf(TEXT("%s flow exists"), Label), Flow);
 		if (!Flow)
@@ -2500,35 +2693,42 @@ bool FCombatDeckGeneratedComboDrivenAssetsConfiguredTest::RunTest(const FString&
 		}
 
 		UBFNode_SpawnSlashWaveProjectile* FlowSlashNode = nullptr;
+		UBFNode_SpawnRuneProjectileProfile* FlowProfileNode = nullptr;
+		UBFNode_SpawnBuffFlowProjectile* FlowBuffProjectileNode = nullptr;
 		for (const TPair<FGuid, UFlowNode*>& Pair : Flow->GetNodes())
 		{
-			FlowSlashNode = Cast<UBFNode_SpawnSlashWaveProjectile>(Pair.Value);
-			if (FlowSlashNode)
+			if (!FlowSlashNode)
 			{
-				break;
+				FlowSlashNode = Cast<UBFNode_SpawnSlashWaveProjectile>(Pair.Value);
+			}
+			if (!FlowProfileNode)
+			{
+				FlowProfileNode = Cast<UBFNode_SpawnRuneProjectileProfile>(Pair.Value);
+			}
+			if (!FlowBuffProjectileNode)
+			{
+				FlowBuffProjectileNode = Cast<UBFNode_SpawnBuffFlowProjectile>(Pair.Value);
 			}
 		}
 
-		TestNotNull(FString::Printf(TEXT("%s has slash-wave node"), Label), FlowSlashNode);
-		if (!FlowSlashNode)
+		TestTrue(FString::Printf(TEXT("%s has projectile node"), Label), FlowSlashNode || FlowProfileNode || FlowBuffProjectileNode);
+		if (!FlowSlashNode && !FlowProfileNode && !FlowBuffProjectileNode)
 		{
 			return false;
 		}
 
-		if (bShouldUseComboProjectiles)
+		const FString ProjectileCountMessage = FString::Printf(TEXT("%s has at least one authored projectile"), Label);
+		if (FlowSlashNode)
 		{
-			TestEqual(FString::Printf(TEXT("%s base projectile count"), Label), FlowSlashNode->ProjectileCount, 1);
-			TestTrue(FString::Printf(TEXT("%s adds combo stacks to projectile count"), Label), FlowSlashNode->bAddComboStacksToProjectileCount);
-			TestEqual(FString::Printf(TEXT("%s projectiles per combo stack"), Label), FlowSlashNode->ProjectilesPerComboStack, 1);
-			TestEqual(FString::Printf(TEXT("%s max bonus projectiles"), Label), FlowSlashNode->MaxBonusProjectiles, 2);
-			TestEqual(FString::Printf(TEXT("%s keeps one path"), Label), FlowSlashNode->ProjectileConeAngleDegrees, 0.f);
-			TestTrue(FString::Printf(TEXT("%s fires combo projectiles sequentially"), Label), FlowSlashNode->bSpawnProjectilesSequentially);
-			TestEqual(FString::Printf(TEXT("%s sequential projectile interval"), Label), FlowSlashNode->SequentialProjectileSpawnInterval, 0.12f);
+			TestTrue(*ProjectileCountMessage, FlowSlashNode->ProjectileCount >= 1);
 		}
-		else
+		else if (FlowProfileNode && FlowProfileNode->Profile)
 		{
-			TestFalse(FString::Printf(TEXT("%s does not use combo projectile count"), Label), FlowSlashNode->bAddComboStacksToProjectileCount);
-			TestFalse(FString::Printf(TEXT("%s does not use sequential combo projectiles"), Label), FlowSlashNode->bSpawnProjectilesSequentially);
+			TestTrue(*ProjectileCountMessage, FlowProfileNode->Profile->Projectile.ProjectileCount >= 1);
+		}
+		else if (FlowBuffProjectileNode)
+		{
+			TestTrue(*ProjectileCountMessage, FlowBuffProjectileNode->ProjectileCount.Value >= 1);
 		}
 
 		return true;
@@ -2982,17 +3182,19 @@ bool FCombatDeckGeneratedHeavyCardBonusConfiguredTest::RunTest(const FString& Pa
 	bAllValid &= TestTrue(TEXT("Action.Knockback tag exists"), KnockbackActionTag.IsValid());
 	bAllValid &= TestEqual(TEXT("Heavy card is a normal card"), HeavyCard.CardType, ECombatCardType::Normal);
 	bAllValid &= TestEqual(TEXT("Heavy card is rare"), HeavyDA->RuneInfo.RuneConfig.Rarity, ERuneRarity::Rare);
-	bAllValid &= TestEqual(TEXT("Heavy card keeps Any action so light and heavy attacks can draw it"), HeavyCard.RequiredAction, ECardRequiredAction::Any);
+	bAllValid &= TestEqual(TEXT("Heavy card keeps Any legacy action"), HeavyCard.RequiredAction, ECardRequiredAction::Any);
+	bAllValid &= TestEqual(TEXT("Heavy card is routed to the weapon skill slot"), HeavyCard.RequiredActionSlot, ECombatDeckActionSlot::WeaponSkill);
+	bAllValid &= TestEqual(TEXT("Heavy card resolves as a finisher role"), HeavyCard.RequiredFlowRole, ECombatDeckFlowRole::Finisher);
 	bAllValid &= TestEqual(TEXT("Heavy card triggers on hit"), HeavyCard.TriggerTiming, ECombatCardTriggerTiming::OnHit);
 	bAllValid &= TestEqual(TEXT("Heavy card id configured"), HeavyCard.CardIdTag, HeavyIdTag);
 	bAllValid &= TestTrue(TEXT("Heavy card has Heavy effect tag"), HeavyCard.CardEffectTags.HasTagExact(HeavyEffectTag));
 	bAllValid &= TestTrue(TEXT("Heavy card has Knockback effect tag"), HeavyCard.CardEffectTags.HasTagExact(KnockbackEffectTag));
 	const FString HeavyDescription = HeavyDA->RuneInfo.RuneConfig.RuneDescription.ToString();
 	bAllValid &= TestFalse(TEXT("Heavy description is configured"), HeavyDescription.IsEmpty());
-	bAllValid &= TestTrue(TEXT("Heavy description explains shared light/heavy draw"),
-		HeavyDescription.Contains(TEXT("light/heavy")) || HeavyDescription.Contains(TEXT("light and heavy")));
-	bAllValid &= TestTrue(TEXT("Heavy description explains bonus damage and knockback"),
-		HeavyDescription.Contains(TEXT("damage")) && HeavyDescription.Contains(TEXT("knockback")));
+	bAllValid &= TestTrue(TEXT("Heavy description explains weapon skill finisher use"),
+		HeavyDescription.Contains(TEXT("WeaponSkill")) || HeavyDescription.Contains(TEXT("战技")) || HeavyDescription.Contains(TEXT("finisher")));
+	bAllValid &= TestTrue(TEXT("Heavy card data declares bonus damage and knockback intent"),
+		HeavyCard.CardEffectTags.HasTagExact(HeavyEffectTag) && HeavyCard.CardEffectTags.HasTagExact(KnockbackEffectTag));
 
 	UFlowAsset* HeavyFlow = LoadObject<UFlowAsset>(
 		nullptr,
@@ -3011,7 +3213,8 @@ bool FCombatDeckGeneratedHeavyCardBonusConfiguredTest::RunTest(const FString& Pa
 	{
 		if (const UBFNode_CombatCardContextBranch* Branch = Cast<UBFNode_CombatCardContextBranch>(Pair.Value))
 		{
-			if (Branch->RequiredAction == ECardRequiredAction::Heavy)
+			if (Branch->RequiredActionSlot == ECombatDeckActionSlot::WeaponSkill
+				&& Branch->RequiredFlowRole == ECombatDeckFlowRole::Finisher)
 			{
 				HeavyBranch = Branch;
 			}
@@ -3044,14 +3247,15 @@ bool FCombatDeckGeneratedHeavyCardBonusConfiguredTest::RunTest(const FString& Pa
 		}
 	}
 
-	bAllValid &= TestNotNull(TEXT("Heavy flow has base extra damage for light and heavy attacks"), BaseDamageNode);
-	bAllValid &= TestNotNull(TEXT("Heavy flow has a heavy-action context branch"), HeavyBranch);
+	bAllValid &= TestNotNull(TEXT("Heavy flow has base extra damage for weapon skill finishers"), BaseDamageNode);
+	bAllValid &= TestNotNull(TEXT("Heavy flow has a weapon-skill finisher context branch"), HeavyBranch);
 	if (HeavyBranch)
 	{
-		bAllValid &= TestTrue(TEXT("Heavy branch only matches heavy attacks"), HeavyBranch->RequiredSourceCardIdTags.HasTagExact(HeavyIdTag));
+		bAllValid &= TestEqual(TEXT("Heavy branch ignores deprecated light/heavy action"), HeavyBranch->RequiredAction, ECardRequiredAction::Any);
+		bAllValid &= TestTrue(TEXT("Heavy branch only matches the heavy card id"), HeavyBranch->RequiredSourceCardIdTags.HasTagExact(HeavyIdTag));
 	}
-	bAllValid &= TestNotNull(TEXT("Heavy flow has a large extra damage node for coordinated heavy attacks"), ExtraDamageNode);
-	bAllValid &= TestNotNull(TEXT("Heavy flow has a large bonus knockback node for coordinated heavy attacks"), BonusKnockbackNode);
+	bAllValid &= TestNotNull(TEXT("Heavy flow has a large extra damage node for coordinated finishers"), ExtraDamageNode);
+	bAllValid &= TestNotNull(TEXT("Heavy flow has a large bonus knockback node for coordinated finishers"), BonusKnockbackNode);
 
 	return bAllValid;
 }
@@ -3072,6 +3276,8 @@ bool FCombatDeckGeneratedVfxUsesAtomicVfxNodesTest::RunTest(const FString& Param
 		}
 
 		int32 SlashNodeCount = 0;
+		int32 ProfileProjectileNodeCount = 0;
+		int32 BuffFlowProjectileNodeCount = 0;
 		for (const TPair<FGuid, UFlowNode*>& Pair : Flow->GetNodes())
 		{
 			if (const UBFNode_SpawnSlashWaveProjectile* SlashNode = Cast<UBFNode_SpawnSlashWaveProjectile>(Pair.Value))
@@ -3083,10 +3289,29 @@ bool FCombatDeckGeneratedVfxUsesAtomicVfxNodesTest::RunTest(const FString& Param
 				TestNull(FString::Printf(TEXT("%s hit Niagara is cleared"), Label), SlashNode->HitNiagaraSystem);
 				TestNull(FString::Printf(TEXT("%s expire Niagara is cleared"), Label), SlashNode->ExpireNiagaraSystem);
 			}
+			else if (const UBFNode_SpawnRuneProjectileProfile* ProfileNode = Cast<UBFNode_SpawnRuneProjectileProfile>(Pair.Value))
+			{
+				++ProfileProjectileNodeCount;
+				TestNotNull(FString::Printf(TEXT("%s projectile profile is assigned"), Label), ProfileNode->Profile.Get());
+				if (ProfileNode->Profile)
+				{
+					TestTrue(FString::Printf(TEXT("%s profile has authored projectile"), Label), ProfileNode->Profile->Projectile.ProjectileCount >= 1);
+					TestNull(FString::Printf(TEXT("%s profile projectile visual Niagara is cleared"), Label), ProfileNode->Profile->Projectile.ProjectileVisualNiagaraSystem.Get());
+					TestFalse(FString::Printf(TEXT("%s profile keeps default projectile visuals visible"), Label), ProfileNode->Profile->Projectile.bHideDefaultProjectileVisuals);
+					TestNull(FString::Printf(TEXT("%s profile hit Niagara is cleared"), Label), ProfileNode->Profile->Projectile.HitNiagaraSystem.Get());
+					TestNull(FString::Printf(TEXT("%s profile expire Niagara is cleared"), Label), ProfileNode->Profile->Projectile.ExpireNiagaraSystem.Get());
+				}
+			}
+			else if (const UBFNode_SpawnBuffFlowProjectile* BuffProjectileNode = Cast<UBFNode_SpawnBuffFlowProjectile>(Pair.Value))
+			{
+				++BuffFlowProjectileNodeCount;
+				TestTrue(FString::Printf(TEXT("%s buff-flow projectile has authored projectile"), Label), BuffProjectileNode->ProjectileCount.Value >= 1);
+			}
 		}
 
-		TestTrue(FString::Printf(TEXT("%s has slash-wave projectile node"), Label), SlashNodeCount > 0);
-		return SlashNodeCount > 0;
+		TestTrue(FString::Printf(TEXT("%s has projectile node"), Label),
+			(SlashNodeCount + ProfileProjectileNodeCount + BuffFlowProjectileNodeCount) > 0);
+		return (SlashNodeCount + ProfileProjectileNodeCount + BuffFlowProjectileNodeCount) > 0;
 	};
 
 	auto ValidateStandaloneNiagaraFlow = [this](
@@ -3316,6 +3541,7 @@ bool FCombatDeckMoonlightPoisonFlowUsesAtomicVfxNodesTest::RunTest(const FString
 		}
 
 		UBFNode_SpawnSlashWaveProjectile* SlashNode = nullptr;
+		UBFNode_SpawnBuffFlowProjectile* BuffProjectileNode = nullptr;
 		UBFNode_WaitGameplayEvent* WaitNode = nullptr;
 		UBFNode_PlayNiagara* PoisonHitVfxNode = nullptr;
 		UBFNode_PlayNiagara* PoisonSpreadVfxNode = nullptr;
@@ -3329,9 +3555,16 @@ bool FCombatDeckMoonlightPoisonFlowUsesAtomicVfxNodesTest::RunTest(const FString
 			{
 				SlashNode = Cast<UBFNode_SpawnSlashWaveProjectile>(Pair.Value);
 			}
-			if (!WaitNode)
+			if (!BuffProjectileNode)
 			{
-				WaitNode = Cast<UBFNode_WaitGameplayEvent>(Pair.Value);
+				BuffProjectileNode = Cast<UBFNode_SpawnBuffFlowProjectile>(Pair.Value);
+			}
+			if (UBFNode_WaitGameplayEvent* CandidateWaitNode = Cast<UBFNode_WaitGameplayEvent>(Pair.Value))
+			{
+				if (!WaitNode || CandidateWaitNode->EventTag == PoisonHitTag)
+				{
+					WaitNode = CandidateWaitNode;
+				}
 			}
 			if (UBFNode_PlayNiagara* NiagaraNode = Cast<UBFNode_PlayNiagara>(Pair.Value))
 			{
@@ -3351,9 +3584,12 @@ bool FCombatDeckMoonlightPoisonFlowUsesAtomicVfxNodesTest::RunTest(const FString
 					++ActiveFlipbookCount;
 				}
 			}
-			if (!PrimaryPoisonNode)
+			if (UBFNode_ApplyEffect* ApplyNode = Cast<UBFNode_ApplyEffect>(Pair.Value))
 			{
-				PrimaryPoisonNode = Cast<UBFNode_ApplyEffect>(Pair.Value);
+				if (!PrimaryPoisonNode || (ApplyNode->Effect && ApplyNode->Effect->GetName().Contains(TEXT("GE_Poison"))))
+				{
+					PrimaryPoisonNode = ApplyNode;
+				}
 			}
 			if (!RadiusPoisonNode)
 			{
@@ -3361,22 +3597,30 @@ bool FCombatDeckMoonlightPoisonFlowUsesAtomicVfxNodesTest::RunTest(const FString
 			}
 		}
 
-		TestNotNull(FString::Printf(TEXT("%s has slash-wave projectile node"), Label), SlashNode);
+		TestTrue(FString::Printf(TEXT("%s has projectile event source"), Label), SlashNode || BuffProjectileNode);
 		TestNotNull(FString::Printf(TEXT("%s has wait gameplay event node"), Label), WaitNode);
 		TestNotNull(FString::Printf(TEXT("%s has poison hit Niagara node"), Label), PoisonHitVfxNode);
 		TestNotNull(FString::Printf(TEXT("%s has poison spread Niagara node"), Label), PoisonSpreadVfxNode);
 		TestEqual(FString::Printf(TEXT("%s has no active flipbook nodes"), Label), ActiveFlipbookCount, 0);
 		TestNotNull(FString::Printf(TEXT("%s has primary poison node"), Label), PrimaryPoisonNode);
 		TestNotNull(FString::Printf(TEXT("%s has radius poison node"), Label), RadiusPoisonNode);
-		if (!SlashNode || !WaitNode || !PoisonHitVfxNode || !PoisonSpreadVfxNode || !PrimaryPoisonNode || !RadiusPoisonNode)
+		if ((!SlashNode && !BuffProjectileNode) || !WaitNode || !PoisonHitVfxNode || !PoisonSpreadVfxNode || !PrimaryPoisonNode || !RadiusPoisonNode)
 		{
 			return false;
 		}
 
-		TestEqual(FString::Printf(TEXT("%s slash-wave sends poison hit event"), Label), SlashNode->HitGameplayEventTag, PoisonHitTag);
-		TestNull(FString::Printf(TEXT("%s slash-wave does not use inline hit Niagara"), Label), SlashNode->HitNiagaraSystem);
-		TestNull(FString::Printf(TEXT("%s slash-wave does not use inline expire Niagara"), Label), SlashNode->ExpireNiagaraSystem);
-		TestNull(FString::Printf(TEXT("%s slash-wave does not use inline additional hit GE"), Label), SlashNode->AdditionalHitEffect);
+		if (SlashNode)
+		{
+			TestEqual(FString::Printf(TEXT("%s slash-wave sends poison hit event"), Label), SlashNode->HitGameplayEventTag, PoisonHitTag);
+			TestNull(FString::Printf(TEXT("%s slash-wave does not use inline hit Niagara"), Label), SlashNode->HitNiagaraSystem);
+			TestNull(FString::Printf(TEXT("%s slash-wave does not use inline expire Niagara"), Label), SlashNode->ExpireNiagaraSystem);
+			TestNull(FString::Printf(TEXT("%s slash-wave does not use inline additional hit GE"), Label), SlashNode->AdditionalHitEffect);
+		}
+		if (BuffProjectileNode)
+		{
+			TestEqual(FString::Printf(TEXT("%s buff-flow projectile sends poison hit event"), Label), BuffProjectileNode->TriggerGameplayEventTag.Value, PoisonHitTag);
+			TestTrue(FString::Printf(TEXT("%s buff-flow projectile sends event to creator"), Label), BuffProjectileNode->bSendTriggerEventToCreator);
+		}
 
 		TestEqual(FString::Printf(TEXT("%s wait node listens to poison hit event"), Label), WaitNode->EventTag, PoisonHitTag);
 		TestEqual(FString::Printf(TEXT("%s wait node listens on BuffOwner"), Label), WaitNode->Target, EBFTargetSelector::BuffOwner);

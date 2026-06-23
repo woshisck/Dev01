@@ -66,7 +66,7 @@ void USacrificeRuneComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	{
 		if (Player->CombatDeckComponent)
 		{
-			Player->CombatDeckComponent->OnCardConsumed.RemoveDynamic(this, &USacrificeRuneComponent::HandleCardConsumed);
+			Player->CombatDeckComponent->OnCardResolved.RemoveDynamic(this, &USacrificeRuneComponent::HandleCardResolved);
 		}
 		if (UYogAbilitySystemComponent* ASC = Player->GetASC())
 		{
@@ -235,7 +235,7 @@ void USacrificeRuneComponent::EnsureBindings()
 	}
 	if (Player->CombatDeckComponent)
 	{
-		Player->CombatDeckComponent->OnCardConsumed.AddUniqueDynamic(this, &USacrificeRuneComponent::HandleCardConsumed);
+		Player->CombatDeckComponent->OnCardResolved.AddUniqueDynamic(this, &USacrificeRuneComponent::HandleCardResolved);
 	}
 	bBindingsInitialized = true;
 }
@@ -621,11 +621,6 @@ bool USacrificeRuneComponent::IsPlayerInAttackState() const
 		TEXT("PlayerState.AbilityCast.Attack"),
 		TEXT("PlayerState.AbilityCast.WeaponSkill"),
 		TEXT("PlayerState.AbilityCast.Dash"),
-		TEXT("PlayerState.AbilityCast.Special"),
-		TEXT("PlayerState.AbilityCast.LightAtk"),
-		TEXT("PlayerState.AbilityCast.HeavyAtk"),
-		TEXT("PlayerState.AbilityCast.DashAtk"),
-		TEXT("PlayerState.AbilityCast.SpecialAttack"),
 	};
 
 	for (const FName& TagName : AttackStateTagNames)
@@ -672,7 +667,7 @@ FCombatCardInstance USacrificeRuneComponent::ResolveShadowReplaySourceCard(const
 		return Result.LinkedTargetCard;
 	}
 
-	return Result.ConsumedCard;
+	return Result.ResolvedCard;
 }
 
 void USacrificeRuneComponent::HandlePlayerDamageDealt(UYogAbilitySystemComponent* TargetASC, float Damage)
@@ -702,7 +697,7 @@ void USacrificeRuneComponent::HandlePlayerDamageDealt(UYogAbilitySystemComponent
 	}
 }
 
-void USacrificeRuneComponent::HandleCardConsumed(const FCombatCardInstance& Card, const FCombatCardResolveResult& Result)
+void USacrificeRuneComponent::HandleCardResolved(const FCombatCardInstance& Card, const FCombatCardResolveResult& Result)
 {
 	if (!ActiveShadow)
 	{

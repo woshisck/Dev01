@@ -3,6 +3,7 @@
 #include "BuffFlow/BuffFlowComponent.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
+#include "Character/YogCharacterBase.h"
 
 namespace
 {
@@ -30,19 +31,15 @@ namespace
 		static const FName ComboTagNames[] = {
 			TEXT("PlayerState.AbilityCast.Attack.Combo4"),
 			TEXT("PlayerState.AbilityCast.WeaponSkill.Combo4"),
-			TEXT("PlayerState.AbilityCast.Special.Combo4"),
 			TEXT("PlayerState.AbilityCast.Dash.Combo4"),
 			TEXT("PlayerState.AbilityCast.Attack.Combo3"),
 			TEXT("PlayerState.AbilityCast.WeaponSkill.Combo3"),
-			TEXT("PlayerState.AbilityCast.Special.Combo3"),
 			TEXT("PlayerState.AbilityCast.Dash.Combo3"),
 			TEXT("PlayerState.AbilityCast.Attack.Combo2"),
 			TEXT("PlayerState.AbilityCast.WeaponSkill.Combo2"),
-			TEXT("PlayerState.AbilityCast.Special.Combo2"),
 			TEXT("PlayerState.AbilityCast.Dash.Combo2"),
 			TEXT("PlayerState.AbilityCast.Attack.Combo1"),
 			TEXT("PlayerState.AbilityCast.WeaponSkill.Combo1"),
-			TEXT("PlayerState.AbilityCast.Special.Combo1"),
 			TEXT("PlayerState.AbilityCast.Dash.Combo1"),
 		};
 

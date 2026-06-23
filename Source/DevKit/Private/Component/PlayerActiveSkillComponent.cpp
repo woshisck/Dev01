@@ -6,6 +6,14 @@
 #include "Component/CombatDeckComponent.h"
 #include "MetaProgression/YogMetaProgressionSubsystem.h"
 
+namespace
+{
+	FGameplayTag GetSharedSkillCooldownTag()
+	{
+		return FGameplayTag::RequestGameplayTag(TEXT("PlayerState.Cooldown.SkillShared"), false);
+	}
+}
+
 UPlayerActiveSkillComponent::UPlayerActiveSkillComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
@@ -22,6 +30,17 @@ void UPlayerActiveSkillComponent::TickComponent(float DeltaTime, ELevelTick Tick
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
 	bool bChanged = false;
+	if (SharedSkillCooldownRemaining > 0.0f)
+	{
+		SharedSkillCooldownRemaining = FMath::Max(0.0f, SharedSkillCooldownRemaining - FMath::Max(0.0f, DeltaTime));
+		if (SharedSkillCooldownRemaining <= 0.0f)
+		{
+			SharedSkillCooldownDuration = 0.0f;
+			SetSharedSkillCooldownTag(false);
+		}
+		bChanged = true;
+	}
+
 	for (FActiveSkillRuntimeSlot& Slot : Slots)
 	{
 		if (Slot.CooldownRemaining > 0.0f)
@@ -153,6 +172,12 @@ bool UPlayerActiveSkillComponent::UseActiveSkill()
 		return false;
 	}
 
+	if (SharedSkillCooldownRemaining > 0.0f)
+	{
+		OnSkillUseFailed.Broadcast(ActiveSlotIndex, FText::FromString(TEXT("Skill cooldown shared with weapon skill")));
+		return false;
+	}
+
 	UYogAbilitySystemComponent* ASC = GetOwnerYogASC();
 	if (!ASC)
 	{
@@ -199,6 +224,7 @@ bool UPlayerActiveSkillComponent::UseActiveSkill()
 	}
 
 	Slot.CooldownRemaining = FMath::Max(0.0f, Slot.Config.Cooldown);
+	StartSharedSkillCooldown(Slot.Config.Cooldown);
 	const TArray<FActiveSkillSlotView> Views = GetSlotViews();
 	const FActiveSkillSlotView UsedSlot = Views.IsValidIndex(ActiveSlotIndex)
 		? Views[ActiveSlotIndex]
@@ -211,6 +237,14 @@ bool UPlayerActiveSkillComponent::UseActiveSkill()
 void UPlayerActiveSkillComponent::ClearCooldowns()
 {
 	bool bChanged = false;
+	if (SharedSkillCooldownRemaining > 0.0f || SharedSkillCooldownDuration > 0.0f)
+	{
+		SharedSkillCooldownRemaining = 0.0f;
+		SharedSkillCooldownDuration = 0.0f;
+		SetSharedSkillCooldownTag(false);
+		bChanged = true;
+	}
+
 	for (FActiveSkillRuntimeSlot& Slot : Slots)
 	{
 		if (Slot.CooldownRemaining > 0.0f)
@@ -224,6 +258,20 @@ void UPlayerActiveSkillComponent::ClearCooldowns()
 	{
 		BroadcastSlotsChanged();
 	}
+}
+
+void UPlayerActiveSkillComponent::StartSharedSkillCooldown(float Duration)
+{
+	const float ClampedDuration = FMath::Max(0.0f, Duration);
+	if (ClampedDuration <= 0.0f)
+	{
+		return;
+	}
+
+	SharedSkillCooldownRemaining = FMath::Max(SharedSkillCooldownRemaining, ClampedDuration);
+	SharedSkillCooldownDuration = FMath::Max(SharedSkillCooldownDuration, ClampedDuration);
+	SetSharedSkillCooldownTag(true);
+	BroadcastSlotsChanged();
 }
 
 void UPlayerActiveSkillComponent::SelectNextSkill()
@@ -277,8 +325,8 @@ TArray<FActiveSkillSlotView> UPlayerActiveSkillComponent::GetSlotViews() const
 		View.SkillId = Slot.Config.SkillId;
 		View.DisplayName = Slot.Config.DisplayName;
 		View.Icon = Slot.Config.Icon;
-		View.CooldownRemaining = Slot.CooldownRemaining;
-		View.CooldownDuration = Slot.Config.Cooldown;
+		View.CooldownRemaining = FMath::Max(Slot.CooldownRemaining, SharedSkillCooldownRemaining);
+		View.CooldownDuration = FMath::Max(Slot.Config.Cooldown, SharedSkillCooldownDuration);
 		View.bSelected = Index == ActiveSlotIndex;
 		View.bLocked = Index >= AvailableSlots;
 	}
@@ -300,6 +348,16 @@ TArray<UActiveSkillDataAsset*> UPlayerActiveSkillComponent::GetSkillLoadout() co
 void UPlayerActiveSkillComponent::BroadcastSlotsChanged() const
 {
 	OnSkillSlotsChanged.Broadcast(GetSlotViews());
+}
+
+void UPlayerActiveSkillComponent::SetSharedSkillCooldownTag(bool bEnabled) const
+{
+	const FGameplayTag SharedCooldownTag = GetSharedSkillCooldownTag();
+	UYogAbilitySystemComponent* ASC = GetOwnerYogASC();
+	if (SharedCooldownTag.IsValid() && ASC)
+	{
+		ASC->SetLooseGameplayTagCount(SharedCooldownTag, bEnabled ? 1 : 0);
+	}
 }
 
 APlayerCharacterBase* UPlayerActiveSkillComponent::GetPlayerOwner() const

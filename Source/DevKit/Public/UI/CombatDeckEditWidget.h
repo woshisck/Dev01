@@ -228,7 +228,7 @@ private:
 	void HandleDeckChanged(const TArray<FCombatCardInstance>& ActiveSequence);
 
 	UFUNCTION()
-	void HandleCardConsumed(const FCombatCardInstance& Card, const FCombatCardResolveResult& Result);
+	void HandleCardResolved(const FCombatCardInstance& Card, const FCombatCardResolveResult& Result);
 
 	UFUNCTION()
 	void HandleRewardAddedToDeck(const FCombatCardInstance& Card);

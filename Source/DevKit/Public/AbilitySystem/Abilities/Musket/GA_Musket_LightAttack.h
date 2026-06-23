@@ -7,7 +7,10 @@
 #include "GA_Musket_LightAttack.generated.h"
 
 /**
- * 轻攻击速射 GA。
+ * 火枪普通攻击速射 GA。
+ *
+ * Native class name is legacy compatibility; runtime input treats this as Attack,
+ * not a separate light-attack branch.
  *
  * 工作流：
  *   检查弹药 → 阻断移动 → 播放 FireMontage
@@ -15,7 +18,7 @@
  *   → 蒙太奇结束 → 恢复移动 → 结束
  *
  * Blueprint 子类 Class Defaults 需填写（除基类字段外）：
- *   - FireMontage        轻攻击动画蒙太奇
+ *   - FireMontage        普通攻击动画蒙太奇
  *   - FireEventTag       AnimNotify 发送的 GameplayEvent Tag（空则立即开枪）
  *   - DamageMultiplier   伤害倍率（默认 0.8）
  *   - HalfAngleDeg       速射随机散布半角（默认 15°）
@@ -30,24 +33,24 @@ class DEVKIT_API UGA_Musket_LightAttack : public UGA_MusketBase
 public:
     UGA_Musket_LightAttack();
 
-    /** 轻攻击动画蒙太奇（Blueprint 填写） */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Musket|LightAtk")
+    /** 普通攻击动画蒙太奇（Blueprint 填写） */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Musket|Attack")
     TObjectPtr<UAnimMontage> FireMontage;
 
     /**
      * AnimNotify 发送的 GameplayEvent Tag，触发开枪。
      * 留空则在 ActivateAbility 时立即生成子弹（蒙太奇仅作视觉）。
      */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Musket|LightAtk")
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Musket|Attack")
     FGameplayTag FireEventTag;
 
     /** 伤害倍率：Damage = BaseAttack × DamageMultiplier */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Musket|LightAtk",
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Musket|Attack",
               meta = (ClampMin = "0.1", ClampMax = "5.0"))
     float DamageMultiplier = 0.8f;
 
     /** 速射随机散布半角（±HalfAngleDeg 内均匀随机） */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Musket|LightAtk",
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Musket|Attack",
               meta = (ClampMin = "0.0", ClampMax = "90.0"))
     float HalfAngleDeg = 15.f;
 

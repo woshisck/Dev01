@@ -36,6 +36,13 @@ FLinearColor GetFilterTint(ECombatLogFilter Filter)
 	default:                         return FLinearColor(0.9f, 0.96f, 0.96f, 1.f);
 	}
 }
+
+bool IsCardResolveEventDamageType(const FName DamageType)
+{
+	return DamageType == FName("Card_Resolve")
+		|| DamageType == FName("Card_Consume")
+		|| DamageType == FName("Card_Shuffle");
+}
 }
 
 // ── UCombatFilterProxy ────────────────────────────────────────────────────
@@ -539,7 +546,7 @@ void UCombatLogWidget::ResetLog()
 	UCombatLogStatics::ClearEntries();
 	SessionNormal = SessionCrit = SessionRune = SessionBleed = 0.f;
 	HitNormal = HitCrit = HitRune = HitBleed = 0;
-	HitCardConsume = HitCardHit = HitCardMatched = 0;
+	HitCardResolve = HitCardHit = HitCardMatched = 0;
 	HitCardLink = HitCardFinisher = HitCardShuffle = 0;
 	SessionCardHit = SessionCardLink = SessionCardFinisher = 0.f;
 	if (LogScrollBox) LogScrollBox->ClearChildren();
@@ -554,7 +561,7 @@ void UCombatLogWidget::RebuildLog()
 
 	SessionNormal = SessionCrit = SessionRune = SessionBleed = 0.f;
 	HitNormal = HitCrit = HitRune = HitBleed = 0;
-	HitCardConsume = HitCardHit = HitCardMatched = 0;
+	HitCardResolve = HitCardHit = HitCardMatched = 0;
 	HitCardLink = HitCardFinisher = HitCardShuffle = 0;
 	SessionCardHit = SessionCardLink = SessionCardFinisher = 0.f;
 	LogScrollBox->ClearChildren();
@@ -563,9 +570,9 @@ void UCombatLogWidget::RebuildLog()
 	{
 		const FString TypeStr = E.DamageType.ToString();
 
-		if (E.DamageType == FName("Card_Consume") || E.DamageType == FName("Card_Shuffle"))
+		if (IsCardResolveEventDamageType(E.DamageType))
 		{
-			HitCardConsume++;
+			HitCardResolve++;
 			if (E.bStartedShuffle) HitCardShuffle++;
 		}
 		else if (E.DamageType == FName("Card_Finisher"))
@@ -707,10 +714,10 @@ void UCombatLogWidget::RefreshSummary()
 		+ SessionCardHit + SessionCardLink + SessionCardFinisher;
 
 	SummaryText->SetText(FText::FromString(FString::Printf(
-		TEXT("卡牌统计  消耗 %d次  命中 %d次  匹配 %d次  连携 %d次  终结技 %d次  洗牌 %d次\n")
+		TEXT("卡牌统计  结算 %d次  命中 %d次  匹配 %d次  连携 %d次  终结技 %d次  洗牌 %d次\n")
 		TEXT("伤害统计  普通 %.0f(%d次)  暴击 %.0f(%d次)  符文 %.0f(%d次)  流血 %.0f(%d次)\n")
 		TEXT("卡牌伤害  命中 %.0f(%d次)  终结技 %.0f(%d次)  连携 %.0f(%d次)  总计 %.0f"),
-		HitCardConsume, HitCardHit, HitCardMatched, HitCardLink, HitCardFinisher, HitCardShuffle,
+		HitCardResolve, HitCardHit, HitCardMatched, HitCardLink, HitCardFinisher, HitCardShuffle,
 		SessionNormal, HitNormal, SessionCrit, HitCrit, SessionRune, HitRune, SessionBleed, HitBleed,
 		SessionCardHit, HitCardHit, SessionCardFinisher, HitCardFinisher, SessionCardLink, HitCardLink,
 		Total)));
@@ -725,12 +732,12 @@ void UCombatLogWidget::RefreshSummaryLegacy()
 
 	SummaryText->SetText(FText::FromString(FString::Printf(
 		TEXT("-- 卡牌统计 --\n")
-		TEXT("消耗: %d次 | 命中: %d次 | 匹配: %d次 | 连携: %d次 | 终结技: %d次 | 洗牌: %d次\n")
+		TEXT("结算: %d次 | 命中: %d次 | 匹配: %d次 | 连携: %d次 | 终结技: %d次 | 洗牌: %d次\n")
 		TEXT("-- 伤害统计 --\n")
 		TEXT("普通: %.0f(%d次) | 暴击: %.0f(%d次) | 符文: %.0f(%d次) | 流血: %.0f(%d次)\n")
 		TEXT("卡牌: %.0f(%d次) | 终结技: %.0f(%d次) | 连携: %.0f(%d次)\n")
 		TEXT("总计: %.0f"),
-		HitCardConsume, HitCardHit, HitCardMatched, HitCardLink, HitCardFinisher, HitCardShuffle,
+		HitCardResolve, HitCardHit, HitCardMatched, HitCardLink, HitCardFinisher, HitCardShuffle,
 		SessionNormal, HitNormal, SessionCrit, HitCrit, SessionRune, HitRune, SessionBleed, HitBleed,
 		SessionCardHit, HitCardHit, SessionCardFinisher, HitCardFinisher, SessionCardLink, HitCardLink,
 		Total)));

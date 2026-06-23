@@ -353,7 +353,7 @@ struct DEVKIT_API FRunCheckpointData
 
 	// ── 战斗卡组配置 ────────────────────────────────────────────
 	UPROPERTY() int32 CompletedCombatBattleCount          = 0;
-	UPROPERTY() float CombatDeckShuffleCooldownDuration   = 1.f;
+	UPROPERTY() float CombatDeckShuffleCooldownDuration   = 0.f;
 	UPROPERTY() int32 CombatDeckMaxActiveSequenceSize      = 0;
 
 	// ── 背包与符文（FPlacedRune / FRuneInstance 内部 UObject* 由 UE 存档系统处理）──
@@ -372,7 +372,7 @@ struct DEVKIT_API FRunCheckpointData
 	UPROPERTY() TArray<ECombatCardLinkOrientation>     CombatDeckCardOrientations;
 	UPROPERTY() TArray<TSoftObjectPtr<URuneDataAsset>> InactiveCombatDeckCards;
 	UPROPERTY() TArray<ECombatCardLinkOrientation>     InactiveCombatDeckCardOrientations;
-	UPROPERTY() float InactiveCombatDeckShuffleCooldownDuration = 1.f;
+	UPROPERTY() float InactiveCombatDeckShuffleCooldownDuration = 0.f;
 	UPROPERTY() int32 InactiveCombatDeckMaxActiveSequenceSize = 0;
 	UPROPERTY() TArray<TSoftObjectPtr<UActiveSkillDataAsset>> SelectedSkillLoadout;
 };

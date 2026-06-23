@@ -140,7 +140,7 @@ void UBackpackScreenWidget::RefreshWeaponAndComboInfo()
     const UWeaponInfoDA* WeaponInfo = WeaponDefinition ? WeaponDefinition->WeaponInfo.Get() : nullptr;
 
     FText WeaponName = FText::FromString(TEXT("No Weapon"));
-    FText WeaponDesc = FText::FromString(TEXT("Equip a weapon to view its description and combo hints."));
+    FText WeaponDesc = FText::FromString(TEXT("Equip a weapon to view its action slots."));
     UTexture2D* Thumbnail = nullptr;
 
     if (WeaponDefinition)

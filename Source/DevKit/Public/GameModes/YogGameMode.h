@@ -238,13 +238,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LevelFlow", meta = (ClampMin = "0.0"))
 	float InitialSpawnDelay = 1.5f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LevelFlow|Temporary Finisher")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LevelFlow|Deprecated", meta = (DeprecatedProperty, DeprecationMessage = "Temporary finisher unlock is deprecated and ignored while finisher ability is disabled."))
 	bool bCountCombatClearsForTemporaryFinisherUnlock = false;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "LevelFlow|Temporary Finisher")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "LevelFlow|Deprecated")
 	int32 CompletedCombatBattleCount = 0;
 
-	UFUNCTION(BlueprintPure, Category = "LevelFlow|Temporary Finisher")
+	UFUNCTION(BlueprintPure, Category = "LevelFlow|Deprecated")
 	int32 GetCompletedCombatBattleCount() const { return CompletedCombatBattleCount; }
 
 	// 阶段变化事件

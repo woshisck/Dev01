@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "AbilitySystem/Abilities/YogGameplayAbility.h"
+#include "Component/CombatDeckComponent.h"
 #include "GA_PlayerDash.generated.h"
 
 class AActor;
@@ -44,6 +45,18 @@ public:
 
 	UAnimMontage* ResolveDashMontage(APlayerCharacterBase* Player, const FGameplayTag& AbilityTag) const;
 
+	UFUNCTION(BlueprintPure, Category = "Combat|Deck")
+	bool ShouldResolveCombatDeck() const { return bResolveCombatDeck; }
+
+	UFUNCTION(BlueprintPure, Category = "Combat|Deck")
+	ECombatDeckActionSlot GetCombatDeckActionSlot() const { return CombatDeckActionSlot; }
+
+	UFUNCTION(BlueprintPure, Category = "Combat|Deck")
+	ECombatDeckFlowRole GetCombatDeckFlowRole() const { return CombatDeckFlowRole; }
+
+	UFUNCTION(BlueprintPure, Category = "Combat|Deck")
+	ECombatCardTriggerTiming GetCombatDeckTriggerTiming() const { return CombatDeckTriggerTiming; }
+
 	// ── 策划配置 ─────────────────────────────────────────────────────────────
 
 	/** 最远冲刺距离（cm）。*/
@@ -67,6 +80,18 @@ public:
 	/** 冲刺蒙太奇根运动总长度（cm）。Scale = DashMaxDistance / DashMontageRootMotionLength。*/
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Dash", meta = (ClampMin = "1.0"))
 	float DashMontageRootMotionLength = 600.f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Deck")
+	bool bResolveCombatDeck = true;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Deck", meta = (EditCondition = "bResolveCombatDeck"))
+	ECombatDeckActionSlot CombatDeckActionSlot = ECombatDeckActionSlot::Dash;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Deck", meta = (EditCondition = "bResolveCombatDeck"))
+	ECombatDeckFlowRole CombatDeckFlowRole = ECombatDeckFlowRole::Catalyst;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Deck", meta = (EditCondition = "bResolveCombatDeck"))
+	ECombatCardTriggerTiming CombatDeckTriggerTiming = ECombatCardTriggerTiming::OnCommit;
 
 
 	virtual bool CanActivateAbility(
@@ -146,12 +171,13 @@ private:
 	FVector LastDashDirection = FVector::ZeroVector;
 	TArray<TWeakObjectPtr<AActor>> DashIgnoredActors;
 
-	/**
-	 * CanActivateAbility 检测到处于 X-1 招位时缓存应注入的连招 Tag。
-	 * mutable：const 方法内写入，ActivateAbility/EndAbility 时读取。
-	 * 非桥接位冲刺时为空容器。
-	 */
+	/** Deprecated DashSave combo-tag cache. Current Dash no longer injects combo tags. */
 	mutable FGameplayTagContainer PendingSaveComboTags;
+
+	UPROPERTY()
+	FCombatCardResolveResult ActiveCombatCardResult;
+
+	FGuid ActiveCombatDeckGuid;
 
 	UFUNCTION()
 	void OnMontageCompleted(FGameplayTag EventTag, FGameplayEventData EventData);

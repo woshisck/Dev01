@@ -4,14 +4,13 @@
 
 旧工具用于把武器连招配置里的可接续节点同步到实际 `AnimMontage` 的 `ANS_AddGameplayTag`。
 
-当前 512 临时简化后，不推荐继续依赖该工具批量写入开窗。新内容优先由策划/动画直接在攻击蒙太奇上放 `Combo Window` NotifyState。
+当前玩家动作不再依赖轻/重攻击续段连招；新内容不要继续依赖该工具批量写入开窗。本工具仅用于旧资产维护或迁移对照。
 
 ## 当前规则
 
-- 运行时以实际 `AnimMontage` 上的 `Combo Window` NotifyState 作为连招开窗来源。
-- `GameplayAbilityComboGraph` 节点窗口帧只作为展示数据，不驱动运行时。
-- 旧 `ANS_AddGameplayTag` + `PlayerState.AbilityCast.CanCombo` 仍兼容，用于旧资产过渡。
-- BlockTag、Combo1/2/3、DashSaveTag 等系统 Tag 仍由运行时自动处理，不需要策划或美术配置。
+- 当前新武器以 `AttackAbilityData` / `WeaponSkillAbilityData` 和 `MontageConfigMap` 为主。
+- 旧 `Combo Window` / `ANS_AddGameplayTag` + `PlayerState.AbilityCast.CanCombo` 仍兼容，用于旧资产过渡。
+- 旧 Combo1/2/3/4 Tag 只作为旧 GA / 旧蒙太奇选择兼容，不再作为卡牌构筑条件。
 
 ## 使用方式
 
@@ -28,6 +27,6 @@ UnrealEditor-Cmd.exe DevKit.uproject -run=CombatMontageSync -Weapon=/Game/Code/W
 
 ## 配置检查
 
-1. 每个需要接下一击的攻击 `AnimMontage` 放一个 `Combo Window` NotifyState。
-2. 终结击通常不放 `Combo Window` NotifyState。
-3. 同一个蒙太奇不要同时给“可接续节点”和“终结节点”复用；如果复用，蒙太奇级开窗会影响所有分支。
+1. 只在维护旧 ComboGraph 资产时检查 `Combo Window` NotifyState。
+2. 新武器不要为了卡牌连携新增 `CanCombo` 开窗。
+3. 同一个蒙太奇如果仍被旧可接续节点和旧终结节点复用，需在迁移时拆到当前 AbilityData / MontageConfigMap。

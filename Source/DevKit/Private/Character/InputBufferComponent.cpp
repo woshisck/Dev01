@@ -118,6 +118,10 @@ void UInputBufferComponent::DebugPrintMovement()
 
 FVector2D UInputBufferComponent::GetLastMoveInput(FVector2D Movement)
 {
+	if (MovementBuffer.Num() <= 0)
+	{
+		return FVector2D::ZeroVector;
+	}
 	return MovementBuffer.Pop();
 	//return GetLastItem(MovementBuffer);
 }

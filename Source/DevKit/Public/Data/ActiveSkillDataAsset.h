@@ -29,7 +29,7 @@ struct DEVKIT_API FActiveSkillConfig
 	float Cooldown = 120.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Active Skill|Combat Deck")
-	bool bResolveCombatDeckOnUse = false;
+	bool bResolveCombatDeckOnUse = true;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Active Skill|Combat Deck", meta = (EditCondition = "bResolveCombatDeckOnUse"))
 	ECombatDeckActionSlot CombatDeckActionSlot = ECombatDeckActionSlot::Skill;

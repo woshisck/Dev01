@@ -15,7 +15,7 @@ enum class EInputCommandType : uint8
 	Attack,
 	WeaponSkill,
 	Dash,
-	Special,
+	Skill,
 	Move
 };
 
@@ -60,8 +60,8 @@ struct FInputCommand
 			return TEXT("WeaponSkill");
 		case EInputCommandType::Dash:
 			return TEXT("Dash");
-		case EInputCommandType::Special:
-			return TEXT("Special");
+		case EInputCommandType::Skill:
+			return TEXT("Skill");
 		case EInputCommandType::Move:
 			return FString::Printf(TEXT("Move: X=%f, Y=%f"), MoveDirection.X, MoveDirection.Y);
 		default:
@@ -83,6 +83,8 @@ public:
 	void RecordAttack();
 	void RecordWeaponSkill();
 	void RecordDash();
+	void RecordSkill();
+	// Deprecated compatibility alias for old Special input buffering.
 	void RecordSpecial();
 	void RecordMove(const FVector2D& Direction);
 

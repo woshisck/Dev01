@@ -9,7 +9,7 @@
 /**
  * AnimNotifyState：在 Notify 区间内为角色 ASC 添加 Gameplay Tag
  * Begin → AddLooseGameplayTag，End / 被打断 → RemoveLooseGameplayTag
- * 典型用途：在连招最后一击的攻击帧窗口上标记 Action.Combo.LastHit
+ * 旧兼容用途：在旧连招攻击帧窗口上标记 Action.Combo.LastHit
  */
 UCLASS(meta = (DisplayName = "Add Gameplay Tag"))
 class DEVKIT_API UAnimNotifyState_AddGameplayTag : public UAnimNotifyState

@@ -10,8 +10,8 @@
 UGA_Musket_SprintAttack::UGA_Musket_SprintAttack()
 {
     AbilityTags.AddTag(FGameplayTag::RequestGameplayTag("Ability.Musket.SprintAtk"));
-    // LightAtk 按键时与 LightAttack 共用同一激活 Tag，由 ActivationRequiredTags 区分
-    AbilityTags.AddTag(FGameplayTag::RequestGameplayTag("PlayerState.AbilityCast.LightAtk"));
+    // Attack input shares the ranged attack tag; ActivationRequiredTags selects sprint fire.
+    AbilityTags.AddTag(FGameplayTag::RequestGameplayTag("PlayerState.AbilityCast.Attack"));
 
     // 必须在冲刺（DashInvincible 标签）中才能激活
     ActivationRequiredTags.AddTag(FGameplayTag::RequestGameplayTag("Buff.Status.DashInvincible"));
@@ -38,7 +38,14 @@ void UGA_Musket_SprintAttack::ActivateAbility(
     const float   TunedDamageMultiplier = TuningData ? TuningData->SprintDamageMultiplier : DamageMultiplier;
     const float   TunedHalfFanAngle = TuningData ? TuningData->SprintHalfFanAngle : HalfFanAngle;
     const float   Damage      = GetBaseAttack() * TunedDamageMultiplier;
-    const FGuid   AttackGuid  = ResolveCombatDeckOnFire(ECardRequiredAction::Light, false, false, Damage, 0.f);
+    const FGuid   AttackGuid  = ResolveCombatDeckOnFire(
+        ECardRequiredAction::Any,
+        ECombatDeckActionSlot::Attack,
+        ECombatDeckFlowRole::Any,
+        false,
+        false,
+        Damage,
+        0.f);
 
     // 均匀扇形射出全部子弹
     for (int32 i = 0; i < BulletCount; ++i)
@@ -53,7 +60,15 @@ void UGA_Musket_SprintAttack::ActivateAbility(
         AMusketBullet* Bullet = SpawnBullet(Angle, Damage);
         if (Bullet)
         {
-            ApplyCombatDeckContextToBullet(Bullet, ECardRequiredAction::Light, false, false, AttackGuid, Damage);
+            ApplyCombatDeckContextToBullet(
+                Bullet,
+                ECardRequiredAction::Any,
+                ECombatDeckActionSlot::Attack,
+                ECombatDeckFlowRole::Any,
+                false,
+                false,
+                AttackGuid,
+                Damage);
         }
 
         // 为每颗子弹施加击退 GE（通过子弹命中时的目标，在 BP_MusketBullet.BP_OnHitEnemy 中处理）

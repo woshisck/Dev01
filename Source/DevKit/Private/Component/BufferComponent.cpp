@@ -29,9 +29,14 @@ void UBufferComponent::RecordDash()
 	PushCommand(FInputCommand(EInputCommandType::Dash, GetWorld()->GetTimeSeconds()));
 }
 
+void UBufferComponent::RecordSkill()
+{
+	PushCommand(FInputCommand(EInputCommandType::Skill, GetWorld()->GetTimeSeconds()));
+}
+
 void UBufferComponent::RecordSpecial()
 {
-	PushCommand(FInputCommand(EInputCommandType::Special, GetWorld()->GetTimeSeconds()));
+	RecordSkill();
 }
 
 void UBufferComponent::RecordMove(const FVector2D& Direction)
@@ -119,7 +124,7 @@ bool UBufferComponent::ConsumeLatestActionInputSince(float SinceTime, EInputComm
 			Cmd.CommandType == EInputCommandType::Attack ||
 			Cmd.CommandType == EInputCommandType::WeaponSkill ||
 			Cmd.CommandType == EInputCommandType::Dash ||
-			Cmd.CommandType == EInputCommandType::Special;
+			Cmd.CommandType == EInputCommandType::Skill;
 		if (bIsAction && Cmd.Timestamp > SinceTime)
 		{
 			OutType = Cmd.CommandType;
@@ -193,8 +198,8 @@ FString UBufferComponent::CommandToString(const FInputCommand& Command)
 		return TEXT("WeaponSkill");
 	case EInputCommandType::Dash:
 		return TEXT("Dash");
-	case EInputCommandType::Special:
-		return TEXT("Special");
+	case EInputCommandType::Skill:
+		return TEXT("Skill");
 	case EInputCommandType::Move:
 		return FString::Printf(TEXT("Move: X=%f, Y=%f"), Command.MoveDirection.X, Command.MoveDirection.Y);
 	default:
