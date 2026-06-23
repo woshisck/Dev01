@@ -167,6 +167,8 @@ AMusketBullet* UGA_MusketBase::SpawnBullet(float YawOffsetDeg, float Damage)
 
 FGuid UGA_MusketBase::ResolveCombatDeckOnFire(
     ECardRequiredAction ActionType,
+    ECombatDeckActionSlot ActionSlot,
+    ECombatDeckFlowRole FlowRole,
     bool bIsComboFinisher,
     bool bFromDashSave,
     float Damage,
@@ -181,8 +183,8 @@ FGuid UGA_MusketBase::ResolveCombatDeckOnFire(
 
     FCombatDeckActionContext Context;
     Context.ActionType = ActionType;
-    Context.ActionSlot = ECombatDeckActionSlot::Attack;
-    Context.FlowRole = bIsComboFinisher ? ECombatDeckFlowRole::Finisher : ECombatDeckFlowRole::Starter;
+    Context.ActionSlot = ActionSlot;
+    Context.FlowRole = bIsComboFinisher ? ECombatDeckFlowRole::Finisher : FlowRole;
     Context.bIsComboFinisher = bIsComboFinisher;
     Context.ReleaseMode = bIsComboFinisher ? ECombatCardReleaseMode::Finisher : ECombatCardReleaseMode::Normal;
     Context.bFromDashSave = bFromDashSave;
@@ -199,6 +201,8 @@ FGuid UGA_MusketBase::ResolveCombatDeckOnFire(
 void UGA_MusketBase::ApplyCombatDeckContextToBullet(
     AMusketBullet* Bullet,
     ECardRequiredAction ActionType,
+    ECombatDeckActionSlot ActionSlot,
+    ECombatDeckFlowRole FlowRole,
     bool bIsComboFinisher,
     bool bFromDashSave,
     const FGuid& AttackGuid,
@@ -215,8 +219,8 @@ void UGA_MusketBase::ApplyCombatDeckContextToBullet(
         bFromDashSave,
         AttackGuid,
         Damage,
-        ECombatDeckActionSlot::Attack,
-        bIsComboFinisher ? ECombatDeckFlowRole::Finisher : ECombatDeckFlowRole::Starter);
+        ActionSlot,
+        bIsComboFinisher ? ECombatDeckFlowRole::Finisher : FlowRole);
 }
 
 // ── Cues ──────────────────────────────────────────────────────────────────────

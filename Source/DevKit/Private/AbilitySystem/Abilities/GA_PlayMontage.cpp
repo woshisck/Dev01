@@ -6,14 +6,17 @@
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "AbilitySystem/AbilityTask/YogTask_PlayMontageAbility.h"
+#include "AbilitySystem/Abilities/GA_Knockback.h"
 #include "AbilitySystem/Abilities/YogAbilityTypes.h"
 #include "Animation/AN_MeleeDamage.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/HitStopManager.h"
+#include "BuffFlow/BuffFlowComponent.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Character/YogCharacterBase.h"
 #include "Component/BufferComponent.h"
 #include "Component/CombatItemComponent.h"
+#include "Component/PlayerActiveSkillComponent.h"
 #include "Component/CharacterDataComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Data/AbilityData.h"
@@ -75,6 +78,9 @@ void UGA_PlayMontage::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 	ActiveMontage = nullptr;
 	bActiveHoldMontage = false;
 	bHoldReleaseReceived = false;
+	bCombatDeckCardResolvedThisActivation = false;
+	ActiveCombatCardResult = FCombatCardResolveResult();
+	ActiveCombatDeckGuid = FGuid::NewGuid();
 
 	if (ActivePlayMontageTask)
 	{
@@ -98,10 +104,6 @@ void UGA_PlayMontage::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.WeaponSkill.Combo2"), false),
 			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.WeaponSkill.Combo3"), false),
 			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.WeaponSkill.Combo4"), false),
-			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Special.Combo1"), false),
-			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Special.Combo2"), false),
-			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Special.Combo3"), false),
-			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Special.Combo4"), false),
 		};
 		for (const FGameplayTag& PreferredTag : PreferredAbilityTags)
 		{
@@ -136,10 +138,12 @@ void UGA_PlayMontage::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 		return;
 	}
 	ActiveMontage = MontageToPlay;
+	StartSharedSkillCooldownIfConfigured();
 
 	UAN_MeleeDamage* TemplateDamageNotify = FindFirstDamageNotify(MontageToPlay);
 
 	AbilityActivationTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
+	ResolveCombatDeck(CombatDeckCommitTiming, bConsumeCombatDeckOnCommit);
 
 	if (ASC && bListenForComboWindow)
 	{
@@ -217,11 +221,15 @@ void UGA_PlayMontage::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 void UGA_PlayMontage::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
 {
 	ActivePlayMontageTask = nullptr;
+	StopActiveCombatDeckFlows();
 	ClearBlockStateTags();
 
 	ActiveMontage = nullptr;
 	bActiveHoldMontage = false;
 	bHoldReleaseReceived = false;
+	bCombatDeckCardResolvedThisActivation = false;
+	ActiveCombatCardResult = FCombatCardResolveResult();
+	ActiveCombatDeckGuid = FGuid();
 
 	if (ActorInfo && ActorInfo->AbilitySystemComponent.IsValid())
 	{
@@ -302,17 +310,21 @@ void UGA_PlayMontage::OnEventReceived(FGameplayTag EventTag, const FGameplayEven
 	if (bIsHandlingMeleeEvent) return;
 	TGuardValue<bool> ReentrancyGuard(bIsHandlingMeleeEvent, true);
 
-	FYogGameplayEffectContainerSpec ContainerSpec = MakeEffectContainerSpec(EventTag, EventData, -1);
-	TArray<FActiveGameplayEffectHandle> Handles = ApplyEffectContainerSpec(ContainerSpec);
-
 	AYogCharacterBase* Owner = Cast<AYogCharacterBase>(GetOwningActorFromActorInfo());
 	const UAN_MeleeDamage* FiredDamageNotify = Cast<UAN_MeleeDamage>(EventData.OptionalObject);
+	FYogGameplayEffectContainerSpec ContainerSpec = MakeEffectContainerSpec(EventTag, EventData, -1);
+	TArray<AActor*> HitActors;
+	GA_PlayMontage_CollectHitActors(ContainerSpec, HitActors);
+	if (Owner && HitActors.Num() > 0)
+	{
+		PrimeCombatDeckHitContext(Owner, HitActors);
+		ResolveCombatDeck(ECombatCardTriggerTiming::OnHit, false);
+	}
+
+	TArray<FActiveGameplayEffectHandle> Handles = ApplyEffectContainerSpec(ContainerSpec);
 	if (Handles.Num() > 0 && Owner)
 	{
 		Owner->bComboHitConnected = true;
-
-		TArray<AActor*> HitActors;
-		GA_PlayMontage_CollectHitActors(ContainerSpec, HitActors);
 
 		// AN_MeleeDamage 配置的 HitStop：命中至少一个目标时直接对攻击者蒙太奇生效
 		if (HitActors.Num() > 0)
@@ -394,6 +406,148 @@ void UGA_PlayMontage::OnEventReceived(FGameplayTag EventTag, const FGameplayEven
 		Owner->PendingOnHitEventTags.Empty();
 		Owner->PendingHitStopOverride = AYogCharacterBase::FPendingHitStopOverride();
 	}
+}
+
+FGameplayTag UGA_PlayMontage::GetPrimaryAbilityTag() const
+{
+	for (const FGameplayTag& Tag : AbilityTags)
+	{
+		return Tag;
+	}
+	return FGameplayTag();
+}
+
+FCombatDeckActionContext UGA_PlayMontage::BuildCombatDeckContext(ECombatCardTriggerTiming TriggerTiming, bool bResolveOnCommit) const
+{
+	FCombatDeckActionContext Context;
+	Context.ActionType = ECardRequiredAction::Any;
+	Context.ActionSlot = CombatDeckActionSlot;
+	Context.FlowRole = CombatDeckFlowRole;
+	Context.ComboIndex = 0;
+	Context.AbilityTag = GetPrimaryAbilityTag();
+	Context.bIsComboFinisher = CombatDeckFlowRole == ECombatDeckFlowRole::Finisher;
+	Context.ReleaseMode = Context.bIsComboFinisher ? ECombatCardReleaseMode::Finisher : ECombatCardReleaseMode::Normal;
+	Context.TriggerTiming = TriggerTiming;
+	Context.bConsumeOnCommit = TriggerTiming == ECombatCardTriggerTiming::OnCommit && bResolveOnCommit;
+	Context.AttackInstanceGuid = ActiveCombatDeckGuid.IsValid() ? ActiveCombatDeckGuid : FGuid::NewGuid();
+
+	if (const APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(GetAvatarActorFromActorInfo()))
+	{
+		Context.WeaponDef = Player->EquippedWeaponDef;
+	}
+
+	return Context;
+}
+
+FCombatCardResolveResult UGA_PlayMontage::ResolveCombatDeck(ECombatCardTriggerTiming TriggerTiming, bool bResolveOnCommit)
+{
+	FCombatCardResolveResult EmptyResult;
+	if (!bResolveCombatDeck)
+	{
+		return EmptyResult;
+	}
+
+	if (TriggerTiming == ECombatCardTriggerTiming::OnHit && bCombatDeckCardResolvedThisActivation)
+	{
+		return EmptyResult;
+	}
+
+	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(GetAvatarActorFromActorInfo());
+	if (!Player)
+	{
+		Player = Cast<APlayerCharacterBase>(GetOwningActorFromActorInfo());
+	}
+
+	if (!Player || !Player->CombatDeckComponent)
+	{
+		return EmptyResult;
+	}
+
+	const FCombatDeckActionContext Context = BuildCombatDeckContext(TriggerTiming, bResolveOnCommit);
+	const FCombatCardResolveResult Result = Player->CombatDeckComponent->ResolveAttackCardWithContext(Context);
+	if (Result.bHadCard)
+	{
+		ActiveCombatCardResult = Result;
+		bCombatDeckCardResolvedThisActivation = true;
+	}
+	return Result;
+}
+
+void UGA_PlayMontage::PrimeCombatDeckHitContext(AYogCharacterBase* Owner, const TArray<AActor*>& HitActors) const
+{
+	if (!Owner)
+	{
+		return;
+	}
+
+	UBuffFlowComponent* BuffFlowComponent = Owner->FindComponentByClass<UBuffFlowComponent>();
+	if (!BuffFlowComponent)
+	{
+		return;
+	}
+
+	BuffFlowComponent->LastEventContext.DamageCauser = Owner;
+	BuffFlowComponent->LastEventContext.DamageAmount = 0.f;
+	BuffFlowComponent->LastEventContext.AttackDirection =
+		UGA_Knockback::ResolveAttackDirectionFromSource(Owner);
+	BuffFlowComponent->LastEventContext.DamageReceivers.Reset();
+
+	AActor* FirstTarget = nullptr;
+	for (AActor* HitActor : HitActors)
+	{
+		if (!IsValid(HitActor))
+		{
+			continue;
+		}
+
+		BuffFlowComponent->LastEventContext.DamageReceivers.AddUnique(HitActor);
+		if (!FirstTarget)
+		{
+			FirstTarget = HitActor;
+		}
+	}
+
+	BuffFlowComponent->LastEventContext.DamageReceiver = FirstTarget;
+}
+
+void UGA_PlayMontage::StopActiveCombatDeckFlows()
+{
+	if (!ActiveCombatCardResult.bHadCard)
+	{
+		return;
+	}
+
+	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(GetAvatarActorFromActorInfo());
+	if (!Player)
+	{
+		Player = Cast<APlayerCharacterBase>(GetOwningActorFromActorInfo());
+	}
+
+	if (!Player || !Player->CombatDeckComponent)
+	{
+		return;
+	}
+
+	Player->CombatDeckComponent->StopCardFlow(ActiveCombatCardResult.ResolvedCard);
+	Player->CombatDeckComponent->StopCardFlow(ActiveCombatCardResult.LinkedSourceCard);
+	Player->CombatDeckComponent->StopCardFlow(ActiveCombatCardResult.LinkedTargetCard);
+}
+
+void UGA_PlayMontage::StartSharedSkillCooldownIfConfigured() const
+{
+	if (!bStartsSharedSkillCooldown)
+	{
+		return;
+	}
+
+	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(GetAvatarActorFromActorInfo());
+	if (!Player || !Player->ActiveSkillComponent)
+	{
+		return;
+	}
+
+	const float CooldownDuration = FMath::Max(GetRemainingCooldownTime(), SharedSkillCooldownFallbackDuration);
+	Player->ActiveSkillComponent->StartSharedSkillCooldown(CooldownDuration);
 }
 
 bool UGA_PlayMontage::HasMontageSection(const UAnimMontage* Montage, FName SectionName) const
@@ -602,38 +756,31 @@ void UGA_PlayMontage::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCoun
 	{
 		Buffer->ClearBuffer();
 		bool bActivated = false;
-		if (ASC && (BufferedActionType == EInputCommandType::Attack || BufferedActionType == EInputCommandType::WeaponSkill))
+		const TCHAR* FallbackTagName = TEXT("PlayerState.AbilityCast.Attack");
+		bool bUseFallbackTag = true;
+		switch (BufferedActionType)
 		{
-			const bool bHasActiveComboTag = BufferedActionType == EInputCommandType::Attack
-				? ASC->HasActiveAttackComboAbilityTag()
-				: ASC->HasActiveWeaponSkillComboAbilityTag();
-			bActivated = BufferedActionType == EInputCommandType::Attack
-				? ASC->TryActivateNextAttackComboAbility(true, true)
-				: ASC->TryActivateNextWeaponSkillComboAbility(true, true);
-			if (!bActivated && bHasActiveComboTag)
+		case EInputCommandType::WeaponSkill:
+			FallbackTagName = TEXT("PlayerState.AbilityCast.WeaponSkill");
+			break;
+		case EInputCommandType::Dash:
+			FallbackTagName = TEXT("PlayerState.AbilityCast.Dash");
+			break;
+		case EInputCommandType::Skill:
+			bUseFallbackTag = false;
+			if (APlayerCharacterBase* PlayerOwner = Cast<APlayerCharacterBase>(Owner))
 			{
-				ASC->SetLooseGameplayTagCount(CanComboTag, 0);
-				return;
+				bActivated = PlayerOwner->ActiveSkillComponent
+					? PlayerOwner->ActiveSkillComponent->UseActiveSkill()
+					: false;
 			}
+			break;
+		default:
+			break;
 		}
-		if (!bActivated)
-		{
-			const TCHAR* FallbackTagName = TEXT("PlayerState.AbilityCast.Attack");
-			switch (BufferedActionType)
-			{
-			case EInputCommandType::WeaponSkill:
-				FallbackTagName = TEXT("PlayerState.AbilityCast.WeaponSkill");
-				break;
-			case EInputCommandType::Dash:
-				FallbackTagName = TEXT("PlayerState.AbilityCast.Dash");
-				break;
-			case EInputCommandType::Special:
-				FallbackTagName = TEXT("PlayerState.AbilityCast.Special");
-				break;
-			default:
-				break;
-			}
 
+		if (bUseFallbackTag)
+		{
 			FGameplayTagContainer TagContainer;
 			TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName(FallbackTagName)));
 			bActivated = Owner->GetASC()->TryActivateAbilitiesByTag(TagContainer, true);

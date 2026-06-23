@@ -59,6 +59,10 @@ bool FEnemyAIDefaultTemplateTest::RunTest(const FString& Parameters)
 		TEXT("AcceptanceRadius"),
 		TEXT("AlertExpireTime"),
 		TEXT("LastSeenTargetTime"),
+		TEXT("bLastAttackWhiffed"),
+		TEXT("LastWhiffTime"),
+		TEXT("bPostAttackReposition"),
+		TEXT("LastRepositionRequestTime"),
 	};
 
 	for (const FName KeyName : RequiredKeys)
@@ -78,28 +82,34 @@ bool FEnemyAIDefaultTemplateTest::RunTest(const FString& Parameters)
 	TestNotNull(TEXT("Combat branch is a selector child"), CombatSelector);
 	if (CombatSelector)
 	{
-		TestTrue(TEXT("Combat branch has skill, special, close, and move children"), CombatSelector->Children.Num() >= 4);
-		if (CombatSelector->Children.Num() >= 4)
+		TestTrue(TEXT("Combat branch has reposition, skill, special, close, and move children"), CombatSelector->Children.Num() >= 5);
+		if (CombatSelector->Children.Num() >= 5)
 		{
-			const UBTTask_EnemyAttackByProfile* SkillTask = Cast<UBTTask_EnemyAttackByProfile>(CombatSelector->Children[0].ChildTask);
-			const UBTTask_EnemyAttackByProfile* SpecialTask = Cast<UBTTask_EnemyAttackByProfile>(CombatSelector->Children[1].ChildTask);
-			const UBTTask_EnemyAttackByProfile* CloseTask = Cast<UBTTask_EnemyAttackByProfile>(CombatSelector->Children[2].ChildTask);
-			const UBTTask_EnemyCombatMove* MoveTask = Cast<UBTTask_EnemyCombatMove>(CombatSelector->Children[3].ChildTask);
-			TestNotNull(TEXT("Combat child 0 is skill attack task"), SkillTask);
-			TestNotNull(TEXT("Combat child 1 is special movement attack task"), SpecialTask);
-			TestNotNull(TEXT("Combat child 2 is close melee attack task"), CloseTask);
-			TestNotNull(TEXT("Combat child 3 is combat move task"), MoveTask);
+			const UBTTask_EnemyAttackByProfile* RepositionTask = Cast<UBTTask_EnemyAttackByProfile>(CombatSelector->Children[0].ChildTask);
+			const UBTTask_EnemyAttackByProfile* SkillTask = Cast<UBTTask_EnemyAttackByProfile>(CombatSelector->Children[1].ChildTask);
+			const UBTTask_EnemyAttackByProfile* SpecialTask = Cast<UBTTask_EnemyAttackByProfile>(CombatSelector->Children[2].ChildTask);
+			const UBTTask_EnemyAttackByProfile* CloseTask = Cast<UBTTask_EnemyAttackByProfile>(CombatSelector->Children[3].ChildTask);
+			const UBTTask_EnemyCombatMove* MoveTask = Cast<UBTTask_EnemyCombatMove>(CombatSelector->Children[4].ChildTask);
+			TestNotNull(TEXT("Combat child 0 is reposition attack task"), RepositionTask);
+			TestNotNull(TEXT("Combat child 1 is skill attack task"), SkillTask);
+			TestNotNull(TEXT("Combat child 2 is special movement attack task"), SpecialTask);
+			TestNotNull(TEXT("Combat child 3 is close melee attack task"), CloseTask);
+			TestNotNull(TEXT("Combat child 4 is combat move task"), MoveTask);
+			if (RepositionTask)
+			{
+				TestEqual(TEXT("Combat child 0 role is Reposition"), RepositionTask->GetRequiredAttackRole(), EEnemyAIAttackRole::Reposition);
+			}
 			if (SkillTask)
 			{
-				TestEqual(TEXT("Combat child 0 role is Skill"), SkillTask->GetRequiredAttackRole(), EEnemyAIAttackRole::Skill);
+				TestEqual(TEXT("Combat child 1 role is Skill"), SkillTask->GetRequiredAttackRole(), EEnemyAIAttackRole::Skill);
 			}
 			if (SpecialTask)
 			{
-				TestEqual(TEXT("Combat child 1 role is SpecialMovement"), SpecialTask->GetRequiredAttackRole(), EEnemyAIAttackRole::SpecialMovement);
+				TestEqual(TEXT("Combat child 2 role is SpecialMovement"), SpecialTask->GetRequiredAttackRole(), EEnemyAIAttackRole::SpecialMovement);
 			}
 			if (CloseTask)
 			{
-				TestEqual(TEXT("Combat child 2 role is CloseMelee"), CloseTask->GetRequiredAttackRole(), EEnemyAIAttackRole::CloseMelee);
+				TestEqual(TEXT("Combat child 3 role is CloseMelee"), CloseTask->GetRequiredAttackRole(), EEnemyAIAttackRole::CloseMelee);
 			}
 		}
 	}

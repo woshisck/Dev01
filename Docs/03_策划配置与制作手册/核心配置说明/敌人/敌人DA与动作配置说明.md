@@ -47,8 +47,11 @@ AI 移动和行为树配置见：
 | `MaxRange` | 最远可用距离，0 为无限远 |
 | `Weight` | 多个攻击同时可用时的随机权重 |
 | `Cooldown` | 该攻击成功触发后的冷却 |
+| `MinHealthPercent` | 最低血量百分比，低于该值时不选这招 |
+| `MaxHealthPercent` | 最高血量百分比，高于该值时不选这招；看守队长低血火焰阶段使用此字段 |
 | `bPreAttackFlash` | 是否播放前摇红光 |
-| `AttackRole` | 行为树攻击分支：`Skill`、`SpecialMovement`、`CloseMelee` |
+| `AttackRole` | 行为树攻击分支：`Reposition`、`Skill`、`SpecialMovement`、`CloseMelee` |
+| `bRequestRepositionOnResolve` | 此攻击结束后是否强制请求后撤；近身推击后撤使用此字段 |
 | `AttackMovementMode` | 攻击激活时是否附带程序位移，默认 `None` |
 | `LungeStartRange` | `RadialLunge` 的触发距离，敌人距离目标大于等于该值才前冲 |
 | `LungeDistance` | `RadialLunge` 最大前冲距离 |
@@ -90,6 +93,19 @@ AI 移动和行为树配置见：
 - 玩家离开远距位移攻击范围后，内置冷却会重置。
 
 `AbilityTags` 填具体攻击 Tag，不要只填父级分类 Tag。代码会先调用 `AbilityData.HasAbility(Tag)` 过滤，没配蒙太奇 / GA 的 Tag 不会被激活。
+
+攻击后后撤规则：
+
+- `bRequestRepositionOnResolve=true` 的攻击在 GA 结束时会写入黑板 `bPostAttackReposition=true`。
+- 默认行为树会优先进入 `AttackRole=Reposition` 的攻击项，例如哨铃狱卒 `PanicRetreat`、看守队长 `TacticalRetreat`。
+- 攻击打空也可按 `AttackProfile.WhiffRepositionChance` 请求后撤，适合让远程 / 辅助敌人避免贴身。
+- `AttackRole=Reposition` 的攻击通常不需要红光前摇，建议 `bPreAttackFlash=false`，并使用 `RadialLunge` 反向或侧后方向拉开距离。
+
+血量门槛规则：
+
+- `MinHealthPercent / MaxHealthPercent` 默认为 `0.0 / 1.0`，表示全血量段都可用。
+- 低血阶段技能可把 `MaxHealthPercent` 设为阶段阈值，例如看守队长 `FlameIgnition.MaxHealthPercent=0.35`。
+- 当前字段只负责 AI 选招门槛；真正的阶段状态、火焰伤害、视觉表现仍需要 GE / BP / Montage Notify 实现。
 
 如果日志出现 `[EnemyAIAttack] Reason=NoValidAbilityTag ConfiguredTags=Enemy.Melee.HAtk2`，说明 `AttackProfile.Heavy` 已配置，但死亡守卫的 `AbilityData` 里没有给 `Enemy.Melee.HAtk2` 配有效蒙太奇或 `MontageConfig`。此时远距前冲不会再占用 650 攻击范围，敌人会继续靠近并尝试其他有效攻击。要启用死亡守卫中距前冲，必须补齐 `Enemy.Melee.HAtk2`；如果暂时没有该动作，请把 `Heavy.AbilityTags` 改成已有有效攻击 Tag，或把 `Heavy.Weight` 设为 0。
 
@@ -141,3 +157,28 @@ AI 移动和行为树配置见：
 死亡守卫重攻击的霸体窗口用 `AnimNotifyState_AddGameplayTag` 添加 `Buff.Status.SuperArmor`，窗口结束自动移除。
 
 死亡守卫“投掷小型敌人”本轮不实现。后续默认设计为：死亡守卫消耗附近小型敌人，投向玩家当前位置，落点有圆圈预警，落地范围伤害和减速，被投掷小怪命中或落地后死亡 / 隐藏。
+
+## 5. 哨铃狱卒与看守队长动作待配
+
+当前生成器会创建哨铃狱卒和看守队长的 `EnemyData` / `AbilityData` 基础资产，但这两类敌人暂时没有模型和动作，所以所有 Tag 都需要后续在编辑器中补蒙太奇或 `MontageConfig`。
+
+哨铃狱卒推荐动作槽位：
+
+| 攻击项 | Tag | 动作 / 效果制作要求 |
+|---|---|---|
+| `BellAlarm` | `Enemy.Skill.Skill1` | 长前摇摇铃，可被打断；成功后召唤腐鼠或通知附近敌人 |
+| `BellShock` | `Enemy.Skill.Skill2` | 近中距离小范围铃声震荡，可做硬直、减速或短击退 |
+| `BatonShove` | `Enemy.Melee.LAtk1` | 近身警棍推击，命中后轻击退；攻击结束触发后撤 |
+| `PanicRetreat` | `Enemy.Melee.LAtk2` | 后撤动作，可无命中段；用于拉开距离 |
+
+看守队长推荐动作槽位：
+
+| 攻击项 | Tag | 动作 / 效果制作要求 |
+|---|---|---|
+| `ExecutionShot` | `Enemy.Range.LAtk1` | 常规远程射击，火焰阶段可附带火焰伤害 |
+| `SuppressiveShot` | `Enemy.Range.HAtk1` | 长前摇重射击或压制射击，适合高伤害 / 多段警戒线 |
+| `SummonJailer` | `Enemy.Skill.Skill1` | 召唤 1-2 名狱卒；需要同屏召唤上限 |
+| `CommandBuff` | `Enemy.Skill.Skill2` | 给附近狱卒施加攻击 / 移速 / 韧性增益；没有目标时不建议空放 |
+| `CaptainPush` | `Enemy.Melee.HAtk1` | 近身重击推开玩家；攻击结束触发后撤 |
+| `TacticalRetreat` | `Enemy.Melee.HAtk2` | 后撤或侧后撤动作，可无命中段 |
+| `FlameIgnition` | `Enemy.Skill.Skill4` | 35% 血量以下阶段技能，头部火炬点燃，后续攻击附带火焰伤害 |

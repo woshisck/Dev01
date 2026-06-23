@@ -134,7 +134,7 @@ private:
 	int32 HitCrit = 0;
 	int32 HitRune = 0;
 	int32 HitBleed = 0;
-	int32 HitCardConsume = 0;
+	int32 HitCardResolve = 0;
 	int32 HitCardHit = 0;
 	int32 HitCardMatched = 0;
 	int32 HitCardLink = 0;

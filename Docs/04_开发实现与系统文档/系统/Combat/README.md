@@ -12,6 +12,7 @@
 | [Dash_Design.md](Dash_Design.md) | 闪避系统设计与碰撞通道 |
 | [PoiseSystem_ConfigGuide.md](PoiseSystem_ConfigGuide.md) | 架势（韧性）系统配置 |
 | [SkillCharge_Guide.md](SkillCharge_Guide.md) | 技能蓄力配置 |
+| [PlayerActionCombatDeck_Current.md](PlayerActionCombatDeck_Current.md) | 当前玩家动作与卡牌槽位、顺序结算、Starter/Catalyst/Finisher 制作口径 |
 | [FinisherCard_*.md](.) | 终结技卡相关文档 |
 
 ## 编码前必读

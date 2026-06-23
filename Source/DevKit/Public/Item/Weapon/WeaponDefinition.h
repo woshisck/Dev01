@@ -95,7 +95,7 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Ability Data")
 	TObjectPtr<UAbilityData> WeaponSkillAbilityData;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Ability Data")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Ability Data|Deprecated", meta = (DeprecatedProperty, DeprecationMessage = "Use WeaponSkillAbilityData or active skill data."))
 	TObjectPtr<UAbilityData> SpecialAbilityData;
 
 	// Optional weapon-specific reaction/passive data. Merged after action data so
@@ -137,28 +137,28 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Heat")
 	TObjectPtr<UMaterialInterface> HeatOverlayMaterial;
 
-	// 背包配置（格子尺寸 + 各热度阶段激活区）；装备时自动注入到 BackpackGridComponent
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "背包配置")
+	// Deprecated compatibility data for the old heat/backpack rune grid.
+	UPROPERTY()
 	FBackpackConfig BackpackConfig;
 
 	// 武器展示信息（名称/描述/缩略图/激活区图像），驱动武器浮窗
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "武器信息")
 	TObjectPtr<UWeaponInfoDA> WeaponInfo;
 
-	// 初始符文列表：拾取武器时在浮窗展示，并预置到激活区起始格
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "武器信息")
+	// Deprecated compatibility data for old backpack rune seeding. Do not use as a combat deck fallback.
+	UPROPERTY()
 	TArray<TObjectPtr<URuneDataAsset>> InitialRunes;
 
-	// 512 战斗卡组：优先使用此列表初始化 1D 攻击卡组；为空时从 InitialRunes 中筛选 CombatCard 配置
+	// Combat deck attack sequence. Skill, WeaponSkill, and Dash cards route to their own single slots.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat Deck")
 	TArray<TObjectPtr<URuneDataAsset>> InitialCombatDeck;
 
-	// 卡组打空后的装填时间。V1 默认 1 秒，武器可覆盖。
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat Deck", meta = (ClampMin = "0.0"))
-	float ShuffleCooldownDuration = 1.0f;
+	// Deprecated compatibility data. Current cards loop in sequence without shuffle downtime.
+	UPROPERTY()
+	float ShuffleCooldownDuration = 0.0f;
 
-	// 第一版默认展示完整卡组；大于 0 时限制 ActiveSequence 长度。
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat Deck", meta = (ClampMin = "0"))
+	// Deprecated compatibility data. Current attack sequence always uses all equipped attack cards.
+	UPROPERTY()
 	int32 MaxActiveSequenceSize = 0;
 
 	// 勾选后武器仅作展示：玩家按 E 弹出 PreviewPopup 信息浮窗，不可实际拾取

@@ -298,8 +298,9 @@ OnLevelPhaseChanged (NewPhase)
 | `OpenBackback` | IA_OpenBackback（注意是 Backback 不是 Backpack — 项目历史拼写）|
 | `Interact` | IA_Interact |
 | `Dash` | IA_Dash |
-| `LightAttack` | IA_LightAttack |
-| `HeavyAttack` | IA_HeavyAttack |
+| `Attack` | IA_Attack |
+| `WeaponSkill` | IA_WeaponSkill |
+| `Skill` | IA_UseActiveSkill |
 | `Move` | IA_Move |
 | `L1` / `R1` | IA_L1 / IA_R1 |
 

@@ -59,8 +59,8 @@ namespace
 		case EActionBalanceRowType::MeleeHitWindow:  return TEXT("Melee HitWindow");
 		case EActionBalanceRowType::MeleeComboWindow:return TEXT("Melee Combo");
 		case EActionBalanceRowType::MeleeEarlyExit:  return TEXT("Melee EarlyExit");
-		case EActionBalanceRowType::MusketLight:     return TEXT("Musket Light");
-		case EActionBalanceRowType::MusketHeavy:     return TEXT("Musket Heavy");
+		case EActionBalanceRowType::MusketLight:     return TEXT("Musket Attack");
+		case EActionBalanceRowType::MusketHeavy:     return TEXT("Musket WeaponSkill");
 		case EActionBalanceRowType::MusketSprint:    return TEXT("Musket Sprint");
 		}
 		return TEXT("Unknown");

@@ -51,8 +51,6 @@ public:
 	void WeaponSkill(const FInputActionValue& Value);
 	void WeaponSkillReleased(const FInputActionValue& Value);
 	void Dash(const FInputActionValue& Value);
-	void Special(const FInputActionValue& Value);
-	void SpecialReleased(const FInputActionValue& Value);
 	void MusketReload(const FInputActionValue& Value);
 	void UseCombatItem(const FInputActionValue& Value);
 	void SwitchCombatItem(const FInputActionValue& Value);
@@ -78,15 +76,6 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
 	TObjectPtr<UInputAction> Input_Dash;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
-	TObjectPtr<UInputAction> Input_Special;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input|Deprecated", meta = (DeprecatedProperty, DeprecationMessage = "Use Input_Attack."))
-	TObjectPtr<UInputAction> Input_LightAttack;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input|Deprecated", meta = (DeprecatedProperty, DeprecationMessage = "Use Input_WeaponSkill."))
-	TObjectPtr<UInputAction> Input_HeavyAttack;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
 	TObjectPtr<UInputAction> Input_Interact;
@@ -235,7 +224,6 @@ private:
 	uint32 PauseInputHandle = INDEX_NONE;
 	uint32 WeaponSkillInputHandle = INDEX_NONE;
 	uint32 DashInputHandle = INDEX_NONE;
-	uint32 SpecialInputHandle = INDEX_NONE;
 	uint32 InteractInputHandle = INDEX_NONE;
 	uint32 OpenBackpackInputHandle = INDEX_NONE;
 	uint32 CameraLookInputHandle = INDEX_NONE;

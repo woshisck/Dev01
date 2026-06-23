@@ -9,17 +9,22 @@
 
 
 
+// Deprecated legacy buffer enum. Live player input uses EInputCommandType in Component/BufferComponent.h.
 UENUM(BlueprintType)
 enum class EPlayerActionInput : uint8
 {
-	WeaponSkill,
 	Attack,
+	WeaponSkill,
 	Dash,
-	Projectile,
+	Skill,
+	Move,
+	Projectile UMETA(Hidden, DisplayName = "Deprecated Projectile"),
 	None
 };
 
 
+// Deprecated legacy component kept only so old Blueprint assets can load.
+// Runtime player combat uses UBufferComponent on AYogCharacterBase.
 UCLASS(Blueprintable)
 class DEVKIT_API UInputBufferComponent : public UActorComponent
 {
@@ -79,27 +84,27 @@ public:
 	void DebugPrintMovement();
 
 	template<typename T>
-	void ClearBuffer(TArray<T> TargetArray)
+	void ClearBuffer(TArray<T>& TargetArray)
 	{
-		return TargetArray.Empty();
+		TargetArray.Empty();
 	}
 
 
 	template<typename T>
-	T GetLastItem(TArray<T> TargetArray)
-	{
-		return TargetArray.Pop();
-	}
-
-
-	template<typename T>
-	T GetFirstItem(TArray<T> TargetArray)
+	T GetLastItem(TArray<T>& TargetArray)
 	{
 		return TargetArray.Pop();
 	}
 
+
 	template<typename T>
-	void UpdateBuffer(TArray<T> TargetArray, T element, int32 MAX_BUFFER_SIZE)
+	T GetFirstItem(TArray<T>& TargetArray)
+	{
+		return TargetArray.Pop();
+	}
+
+	template<typename T>
+	void UpdateBuffer(TArray<T>& TargetArray, T element, int32 MAX_BUFFER_SIZE)
 	{
 		if (TargetArray.Num() <= MAX_BUFFER_SIZE)
 		{

@@ -132,7 +132,7 @@ void UCombatDeckEditWidget::BindToCombatDeck(UCombatDeckComponent* InCombatDeck)
 	{
 		BoundCombatDeck->OnDeckLoaded.AddDynamic(this, &UCombatDeckEditWidget::HandleDeckChanged);
 		BoundCombatDeck->OnShuffleCompleted.AddDynamic(this, &UCombatDeckEditWidget::HandleDeckChanged);
-		BoundCombatDeck->OnCardConsumed.AddDynamic(this, &UCombatDeckEditWidget::HandleCardConsumed);
+		BoundCombatDeck->OnCardResolved.AddDynamic(this, &UCombatDeckEditWidget::HandleCardResolved);
 		BoundCombatDeck->OnRewardAddedToDeck.AddDynamic(this, &UCombatDeckEditWidget::HandleRewardAddedToDeck);
 	}
 
@@ -190,7 +190,7 @@ void UCombatDeckEditWidget::UnbindFromCurrentDeck()
 
 	BoundCombatDeck->OnDeckLoaded.RemoveDynamic(this, &UCombatDeckEditWidget::HandleDeckChanged);
 	BoundCombatDeck->OnShuffleCompleted.RemoveDynamic(this, &UCombatDeckEditWidget::HandleDeckChanged);
-	BoundCombatDeck->OnCardConsumed.RemoveDynamic(this, &UCombatDeckEditWidget::HandleCardConsumed);
+	BoundCombatDeck->OnCardResolved.RemoveDynamic(this, &UCombatDeckEditWidget::HandleCardResolved);
 	BoundCombatDeck->OnRewardAddedToDeck.RemoveDynamic(this, &UCombatDeckEditWidget::HandleRewardAddedToDeck);
 	BoundCombatDeck = nullptr;
 }
@@ -997,7 +997,7 @@ void UCombatDeckEditWidget::HandleDeckChanged(const TArray<FCombatCardInstance>&
 	RefreshDeckList();
 }
 
-void UCombatDeckEditWidget::HandleCardConsumed(const FCombatCardInstance& Card, const FCombatCardResolveResult& Result)
+void UCombatDeckEditWidget::HandleCardResolved(const FCombatCardInstance& Card, const FCombatCardResolveResult& Result)
 {
 	RefreshDeckList();
 }

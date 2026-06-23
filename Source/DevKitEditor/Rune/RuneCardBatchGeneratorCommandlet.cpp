@@ -20,6 +20,7 @@
 #include "BuffFlow/Nodes/BFNode_PlayRuneVFXProfile.h"
 #include "BuffFlow/Nodes/BFNode_GrantSacrificePassive.h"
 #include "BuffFlow/Nodes/BFNode_ApplyRuneEffectProfile.h"
+#include "BuffFlow/Nodes/BFNode_SpawnBuffFlowProjectile.h"
 #include "BuffFlow/Nodes/BFNode_SpawnRangedProjectiles.h"
 #include "BuffFlow/Nodes/BFNode_SpawnRuneAreaProfile.h"
 #include "BuffFlow/Nodes/BFNode_SpawnRuneGroundPathEffect.h"
@@ -81,6 +82,7 @@ namespace Rune512Batch
 	const FString MoonlightPoisonExpireEventTag = TEXT("Action.Rune.MoonlightPoisonExpired");
 	const FString PoisonEffectPath = TEXT("/Game/Code/GAS/Abilities/Shared/GE_Poison");
 	const FString PoisonSplashEffectPath = TEXT("/Game/Docs/BuffDocs/Playtest_GA/DeathPoison/GE_PoisonSplash");
+	const FString DeathPoisonFlowPath = TEXT("/Game/Docs/BuffDocs/Playtest_GA/DeathPoison/FA_Rune_DeathPoison");
 	const FString PoisonGroundPathDecalMaterialPath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/VFX/Materials/M_Rune512_GroundPath_Poison_Decal");
 	const FString BurnGroundPathDecalMaterialPath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/VFX/Materials/M_Rune512_GroundPath_Burn_Fan_Decal");
 	const FString AttackTemplateDA = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/GenericRune/DA_Rune_AttackUp_01");
@@ -119,6 +121,8 @@ namespace Rune512Batch
 		TArray<FString> EffectTags;
 		ECombatCardType CardType = ECombatCardType::Normal;
 		ECardRequiredAction RequiredAction = ECardRequiredAction::Any;
+		ECombatDeckActionSlot RequiredActionSlot = ECombatDeckActionSlot::Attack;
+		ECombatDeckFlowRole RequiredFlowRole = ECombatDeckFlowRole::Any;
 		ECombatCardTriggerTiming TriggerTiming = ECombatCardTriggerTiming::OnHit;
 		ECombatCardLinkOrientation DefaultLinkOrientation = ECombatCardLinkOrientation::Forward;
 		ERuneType RuneType = ERuneType::Buff;
@@ -937,8 +941,8 @@ namespace Rune512Batch
 
 		FCardSpec Heavy = MakeNormalCard(
 			TEXT("Heavy"),
-			TEXT("\u91cd\u51fb"),
-			TEXT("\u666e\u901a\u7a00\u6709\u5361\u3002\u8f7b\u653b\u51fb\u547d\u4e2d\u65f6\u4e5f\u53ef\u4ee5\u6b63\u5e38\u6253\u51fa\uff0c\u9020\u6210\u989d\u5916\u4f24\u5bb3\u5e76\u51fb\u9000\u654c\u4eba\u3002\u534f\u8c03\u9700\u6c42\uff1a\u5982\u679c\u7528\u91cd\u653b\u51fb\u6253\u51fa\u8fd9\u5f20\u5361\uff0c\u5219\u5927\u5e45\u63d0\u5347\u672c\u6b21\u989d\u5916\u4f24\u5bb3\u548c\u51fb\u9000\u8ddd\u79bb\u3002"),
+			TEXT("终结击"),
+			TEXT("稀有终结卡。装备在战技槽位；战技命中时造成额外伤害并击退敌人。作为终结/引爆动作打出时，大幅提升本次额外伤害和击退距离。"),
 			TEXT("Card.ID.Heavy"),
 			{ TEXT("Card.Effect.Heavy"), TEXT("Card.Effect.Knockback"), TEXT("Card.Effect.Attack") },
 			TEXT("T_Rune512_THSword_Cleave"),
@@ -946,10 +950,12 @@ namespace Rune512Batch
 			TEXT("FA_Rune512_Heavy_Base"),
 			ERuneType::Buff,
 			{
-				TEXT("RequiredAction remains Any so light/heavy attacks can both draw the card; FA_Rune512_Heavy_Base adds a Heavy-only coordination branch for much higher bonus damage and knockback distance.")
+				TEXT("RequiredAction remains Any; the card is routed to the WeaponSkill slot and resolves as a Finisher. FA_Rune512_Heavy_Base adds a finisher-role branch for much higher bonus damage and knockback distance.")
 			});
 		Heavy.TriggerTiming = ECombatCardTriggerTiming::OnHit;
 		Heavy.RequiredAction = ECardRequiredAction::Any;
+		Heavy.RequiredActionSlot = ECombatDeckActionSlot::WeaponSkill;
+		Heavy.RequiredFlowRole = ECombatDeckFlowRole::Finisher;
 		Heavy.Rarity = ERuneRarity::Rare;
 		Specs.Add(Heavy);
 
@@ -1364,11 +1370,11 @@ namespace Rune512Batch
 				SlashNode->CollisionBoxExtent = FVector(30.f, 60.f, 35.f);
 				SlashNode->VisualScaleMultiplier = FVector(1.f, 1.f, 1.f);
 				SlashNode->ProjectileVisualNiagaraScale = FVector(0.85f, 0.85f, 0.85f);
-				SlashNode->bAddComboStacksToProjectileCount = true;
-				SlashNode->ProjectilesPerComboStack = 1;
-				SlashNode->MaxBonusProjectiles = 2;
+				SlashNode->bAddComboStacksToProjectileCount = false;
+				SlashNode->ProjectilesPerComboStack = 0;
+				SlashNode->MaxBonusProjectiles = 0;
 				SlashNode->ProjectileConeAngleDegrees = 0.f;
-				SlashNode->bSpawnProjectilesSequentially = true;
+				SlashNode->bSpawnProjectilesSequentially = false;
 				SlashNode->SequentialProjectileSpawnInterval = 0.12f;
 				SlashNode->SpawnOffset = FVector(80.f, 0.f, 45.f);
 				break;
@@ -1383,11 +1389,11 @@ namespace Rune512Batch
 				SlashNode->CollisionBoxExtent = FVector(60.f, 120.f, 55.f);
 				SlashNode->VisualScaleMultiplier = FVector(1.35f, 1.35f, 1.2f);
 				SlashNode->ProjectileVisualNiagaraScale = FVector(1.35f, 1.35f, 1.2f);
-				SlashNode->bAddComboStacksToProjectileCount = true;
-				SlashNode->ProjectilesPerComboStack = 1;
-				SlashNode->MaxBonusProjectiles = 2;
+				SlashNode->bAddComboStacksToProjectileCount = false;
+				SlashNode->ProjectilesPerComboStack = 0;
+				SlashNode->MaxBonusProjectiles = 0;
 				SlashNode->ProjectileConeAngleDegrees = 0.f;
-				SlashNode->bSpawnProjectilesSequentially = true;
+				SlashNode->bSpawnProjectilesSequentially = false;
 				SlashNode->SequentialProjectileSpawnInterval = 0.12f;
 				SlashNode->SpawnOffset = FVector(80.f, 0.f, 45.f);
 				break;
@@ -1404,11 +1410,11 @@ namespace Rune512Batch
 				SlashNode->ProjectileVisualNiagaraScale = FVector(1.2f, 1.2f, 1.1f);
 				SlashNode->HitNiagaraScale = FVector(0.3f, 0.3f, 0.3f);
 				SlashNode->ExpireNiagaraScale = FVector(0.3f, 0.3f, 0.3f);
-				SlashNode->bAddComboStacksToProjectileCount = true;
-				SlashNode->ProjectilesPerComboStack = 1;
-				SlashNode->MaxBonusProjectiles = 2;
+				SlashNode->bAddComboStacksToProjectileCount = false;
+				SlashNode->ProjectilesPerComboStack = 0;
+				SlashNode->MaxBonusProjectiles = 0;
 				SlashNode->ProjectileConeAngleDegrees = 0.f;
-				SlashNode->bSpawnProjectilesSequentially = true;
+				SlashNode->bSpawnProjectilesSequentially = false;
 				SlashNode->SequentialProjectileSpawnInterval = 0.12f;
 				SlashNode->SpawnOffset = FVector(80.f, 0.f, 45.f);
 				break;
@@ -1425,11 +1431,11 @@ namespace Rune512Batch
 				SlashNode->ProjectileVisualNiagaraScale = FVector(1.f, 1.f, 1.f);
 				SlashNode->HitNiagaraScale = FVector(0.65f, 0.65f, 0.65f);
 				SlashNode->ExpireNiagaraScale = FVector(0.5f, 0.5f, 0.5f);
-				SlashNode->bAddComboStacksToProjectileCount = true;
-				SlashNode->ProjectilesPerComboStack = 1;
-				SlashNode->MaxBonusProjectiles = 2;
+				SlashNode->bAddComboStacksToProjectileCount = false;
+				SlashNode->ProjectilesPerComboStack = 0;
+				SlashNode->MaxBonusProjectiles = 0;
 				SlashNode->ProjectileConeAngleDegrees = 0.f;
-				SlashNode->bSpawnProjectilesSequentially = true;
+				SlashNode->bSpawnProjectilesSequentially = false;
 				SlashNode->SequentialProjectileSpawnInterval = 0.12f;
 				SlashNode->SpawnOffset = FVector(80.f, 0.f, 45.f);
 				break;
@@ -1463,11 +1469,11 @@ namespace Rune512Batch
 				SlashNode->TargetedBounceMaxCount = 5;
 				SlashNode->TargetedBounceSearchRadius = 650.f;
 				SlashNode->TargetedBounceMaxTravelDistance = 650.f;
-				SlashNode->bAddComboStacksToProjectileCount = true;
-				SlashNode->ProjectilesPerComboStack = 1;
-				SlashNode->MaxBonusProjectiles = 2;
+				SlashNode->bAddComboStacksToProjectileCount = false;
+				SlashNode->ProjectilesPerComboStack = 0;
+				SlashNode->MaxBonusProjectiles = 0;
 				SlashNode->ProjectileConeAngleDegrees = 0.f;
-				SlashNode->bSpawnProjectilesSequentially = true;
+				SlashNode->bSpawnProjectilesSequentially = false;
 				SlashNode->SequentialProjectileSpawnInterval = 0.12f;
 				SlashNode->SpawnOffset = FVector(80.f, 0.f, 45.f);
 				break;
@@ -1483,11 +1489,11 @@ namespace Rune512Batch
 				SlashNode->CollisionBoxExtent = FVector(36.f, 80.f, 35.f);
 				SlashNode->VisualScaleMultiplier = FVector(1.05f, 1.05f, 1.f);
 				SlashNode->ProjectileVisualNiagaraScale = FVector(1.05f, 1.05f, 1.f);
-				SlashNode->bAddComboStacksToProjectileCount = true;
-				SlashNode->ProjectilesPerComboStack = 1;
-				SlashNode->MaxBonusProjectiles = 2;
+				SlashNode->bAddComboStacksToProjectileCount = false;
+				SlashNode->ProjectilesPerComboStack = 0;
+				SlashNode->MaxBonusProjectiles = 0;
 				SlashNode->ProjectileConeAngleDegrees = 0.f;
-				SlashNode->bSpawnProjectilesSequentially = true;
+				SlashNode->bSpawnProjectilesSequentially = false;
 				SlashNode->SequentialProjectileSpawnInterval = 0.12f;
 				SlashNode->SpawnOffset = FVector(80.f, 0.f, 45.f);
 				break;
@@ -1501,11 +1507,11 @@ namespace Rune512Batch
 				SlashNode->CollisionBoxExtent = FVector(75.f, 135.f, 70.f);
 				SlashNode->VisualScaleMultiplier = FVector(1.35f, 1.35f, 1.25f);
 				SlashNode->ProjectileVisualNiagaraScale = FVector(1.f, 1.f, 1.f);
-				SlashNode->bAddComboStacksToProjectileCount = true;
-				SlashNode->ProjectilesPerComboStack = 1;
-				SlashNode->MaxBonusProjectiles = 2;
+				SlashNode->bAddComboStacksToProjectileCount = false;
+				SlashNode->ProjectilesPerComboStack = 0;
+				SlashNode->MaxBonusProjectiles = 0;
 				SlashNode->ProjectileConeAngleDegrees = 0.f;
-				SlashNode->bSpawnProjectilesSequentially = true;
+				SlashNode->bSpawnProjectilesSequentially = false;
 				SlashNode->SequentialProjectileSpawnInterval = 0.12f;
 				SlashNode->SpawnOffset = FVector(80.f, 0.f, 45.f);
 				break;
@@ -1618,6 +1624,14 @@ namespace Rune512Batch
 				break;
 			}
 
+			// Combo projectile scaling is deprecated in the current card-order
+			// combat model. Moonlight profiles keep their authored base projectile
+			// counts, while Link recipes express build sequencing.
+			SlashNode->bAddComboStacksToProjectileCount = false;
+			SlashNode->ProjectilesPerComboStack = 0;
+			SlashNode->MaxBonusProjectiles = 0;
+			SlashNode->bSpawnProjectilesSequentially = false;
+
 			SlashNode->LaunchNiagaraSystem = nullptr;
 			SlashNode->LaunchNiagaraEffectName = NAME_None;
 			SlashNode->ProjectileVisualNiagaraSystem = nullptr;
@@ -1697,7 +1711,7 @@ namespace Rune512Batch
 					CleanVfxPolicy));
 				if (Profile == EMoonlightFlowProfile::Base)
 				{
-					ReportLines.Add(TEXT("- Configured `FA_Rune512_Moonlight_Base`: Combo1=1 projectile, Combo2=2 projectiles, Combo3+=3 projectiles."));
+					ReportLines.Add(TEXT("- Configured `FA_Rune512_Moonlight_Base`: fixed one-shot moonlight; deprecated combo projectile scaling remains disabled."));
 				}
 			}
 		}
@@ -1832,6 +1846,106 @@ namespace Rune512Batch
 			}
 		}
 		return nullptr;
+	}
+
+	void ConfigureDeathPoisonFlowAsset(
+		bool bDryRun,
+		TArray<FString>& ReportLines,
+		TArray<UPackage*>& DirtyPackages)
+	{
+		ReportLines.Add(TEXT("## Death poison Flow asset"));
+		const FGameplayTag DeathAnimCompleteTag = RequestTag(TEXT("Ability.Event.DeathAnimComplete"), ReportLines);
+		const FGameplayTag DamageTag = RequestTag(TEXT("Data.Damage"), ReportLines);
+		if (bDryRun)
+		{
+			ReportLines.Add(FString::Printf(
+				TEXT("- Would configure `%s`: Wait DeathAnimComplete -> ApplyGEInRadius GE_PoisonSplash."),
+				*DeathPoisonFlowPath));
+			return;
+		}
+
+		UFlowAsset* FlowAsset = LoadAssetByPackagePath<UFlowAsset>(DeathPoisonFlowPath);
+		if (!FlowAsset)
+		{
+			ReportLines.Add(FString::Printf(TEXT("- Cannot configure `%s`: Flow asset was not loaded."), *DeathPoisonFlowPath));
+			return;
+		}
+
+		UFlowGraph* FlowGraph = Cast<UFlowGraph>(FlowAsset->GetGraph());
+		UFlowNode* EntryNode = FlowAsset->GetDefaultEntryNode();
+		if (!FlowGraph || !EntryNode)
+		{
+			ReportLines.Add(FString::Printf(TEXT("- Cannot configure `%s`: missing FlowGraph or Entry node."), *DeathPoisonFlowPath));
+			return;
+		}
+
+		UBFNode_WaitGameplayEvent* WaitNode = Cast<UBFNode_WaitGameplayEvent>(FindFirstNode(
+			FlowAsset,
+			[](UFlowNode* Node)
+			{
+				return Cast<UBFNode_WaitGameplayEvent>(Node) != nullptr;
+			}));
+		if (!WaitNode)
+		{
+			WaitNode = Cast<UBFNode_WaitGameplayEvent>(CreateFlowNodeAfter(
+				FlowGraph,
+				EntryNode,
+				UBFNode_WaitGameplayEvent::StaticClass(),
+				FVector2D(320.f, 0.f)));
+		}
+
+		UBFNode_ApplyGEInRadius* RadiusNode = Cast<UBFNode_ApplyGEInRadius>(FindFirstNode(
+			FlowAsset,
+			[](UFlowNode* Node)
+			{
+				return Cast<UBFNode_ApplyGEInRadius>(Node) != nullptr;
+			}));
+		if (!RadiusNode && WaitNode)
+		{
+			RadiusNode = Cast<UBFNode_ApplyGEInRadius>(CreateFlowNodeAfter(
+				FlowGraph,
+				WaitNode,
+				UBFNode_ApplyGEInRadius::StaticClass(),
+				FVector2D(640.f, 0.f)));
+		}
+
+		if (!WaitNode || !RadiusNode)
+		{
+			ReportLines.Add(FString::Printf(TEXT("- Failed to configure `%s`: missing WaitGameplayEvent or ApplyGEInRadius node."), *DeathPoisonFlowPath));
+			return;
+		}
+
+		WaitNode->Modify();
+		WaitNode->EventTag = DeathAnimCompleteTag;
+		WaitNode->Target = EBFTargetSelector::BuffOwner;
+
+		RadiusNode->Modify();
+		RadiusNode->Effect = LoadBlueprintClassByPackagePath<UGameplayEffect>(PoisonSplashEffectPath);
+		RadiusNode->Radius = FFlowDataPinInputProperty_Float(300.f);
+		RadiusNode->LocationSource = EBFTargetSelector::BuffOwner;
+		RadiusNode->bUseKillLocation = false;
+		RadiusNode->LocationOffset = FVector::ZeroVector;
+		RadiusNode->bEnemyOnly = false;
+		RadiusNode->bExcludeSelf = true;
+		RadiusNode->bExcludeLocationSourceActor = true;
+		RadiusNode->MaxTargets = 0;
+		RadiusNode->ApplicationCount = 1;
+		RadiusNode->SetByCallerTag1 = DamageTag;
+		RadiusNode->SetByCallerValue1 = FFlowDataPinInputProperty_Float(5.f);
+
+		RefreshGraphNodePins(WaitNode);
+		RefreshGraphNodePins(RadiusNode);
+		LinkFlowNodes(EntryNode, WaitNode);
+		LinkFlowNodes(WaitNode, RadiusNode);
+
+		FlowAsset->HarvestNodeConnections();
+		FlowAsset->MarkPackageDirty();
+		DirtyPackages.AddUnique(FlowAsset->GetPackage());
+		FlowGraph->Modify();
+		FlowGraph->NotifyGraphChanged();
+		ReportLines.Add(FString::Printf(
+			TEXT("- Configured `%s`: Wait DeathAnimComplete on BuffOwner -> ApplyGEInRadius GE_PoisonSplash radius=300 around BuffOwner."),
+			*DeathPoisonFlowPath));
 	}
 
 	UBFNode_ApplyEffect* FindBurnApplyEffectNode(UFlowAsset* FlowAsset)
@@ -2951,9 +3065,13 @@ namespace Rune512Batch
 		UBFNode_SpawnSlashWaveProjectile* SlashNode = Cast<UBFNode_SpawnSlashWaveProjectile>(FindFirstNode(
 			FlowAsset,
 			[](UFlowNode* Node) { return Cast<UBFNode_SpawnSlashWaveProjectile>(Node) != nullptr; }));
-		if (!SlashNode)
+		UBFNode_SpawnBuffFlowProjectile* BuffProjectileNode = Cast<UBFNode_SpawnBuffFlowProjectile>(FindFirstNode(
+			FlowAsset,
+			[](UFlowNode* Node) { return Cast<UBFNode_SpawnBuffFlowProjectile>(Node) != nullptr; }));
+		UFlowNode* ProjectileEventNode = SlashNode ? Cast<UFlowNode>(SlashNode) : Cast<UFlowNode>(BuffProjectileNode);
+		if (!ProjectileEventNode)
 		{
-			ReportLines.Add(FString::Printf(TEXT("- Cannot configure `%s`: missing Spawn Slash Wave Projectile node."), *FlowName));
+			ReportLines.Add(FString::Printf(TEXT("- Cannot configure `%s`: missing projectile event source node."), *FlowName));
 			return;
 		}
 
@@ -2981,9 +3099,9 @@ namespace Rune512Batch
 				*PoisonSpreadNiagaraPath));
 		}
 
-		UFlowGraphNode* SlashGraphNode = Cast<UFlowGraphNode>(SlashNode->GetGraphNode());
-		const int32 BaseX = SlashGraphNode ? SlashGraphNode->NodePosX : 320;
-		const int32 BaseY = SlashGraphNode ? SlashGraphNode->NodePosY : 0;
+		UFlowGraphNode* ProjectileGraphNode = Cast<UFlowGraphNode>(ProjectileEventNode->GetGraphNode());
+		const int32 BaseX = ProjectileGraphNode ? ProjectileGraphNode->NodePosX : 320;
+		const int32 BaseY = ProjectileGraphNode ? ProjectileGraphNode->NodePosY : 0;
 
 		UBFNode_WaitGameplayEvent* WaitNode = Cast<UBFNode_WaitGameplayEvent>(FindFirstNode(
 			FlowAsset,
@@ -2996,7 +3114,7 @@ namespace Rune512Batch
 		{
 			WaitNode = Cast<UBFNode_WaitGameplayEvent>(CreateFlowNodeAfter(
 				FlowGraph,
-				SlashNode,
+				ProjectileEventNode,
 				UBFNode_WaitGameplayEvent::StaticClass(),
 				FVector2D(BaseX + 320.f, BaseY)));
 		}
@@ -3061,15 +3179,51 @@ namespace Rune512Batch
 			return;
 		}
 
-		LinkFlowNodes(SlashNode, WaitNode);
+		LinkFlowNodes(ProjectileEventNode, WaitNode);
 		LinkFlowNodes(WaitNode, HitVfxNode);
 		LinkFlowNodes(HitVfxNode, PrimaryPoisonNode);
 		LinkFlowNodes(PrimaryPoisonNode, SpreadVfxNode);
 		LinkFlowNodes(SpreadVfxNode, RadiusPoisonNode);
 
+		if (SlashNode)
+		{
+			SlashNode->Modify();
+			SlashNode->HitGameplayEventTag = HitEventTag;
+			SlashNode->HitNiagaraSystem = nullptr;
+			SlashNode->ExpireNiagaraSystem = nullptr;
+			SlashNode->AdditionalHitEffect = nullptr;
+			SlashNode->AdditionalHitSetByCallerTag = FGameplayTag();
+			SlashNode->AdditionalHitSetByCallerValue = 0.f;
+		}
+		if (BuffProjectileNode)
+		{
+			BuffProjectileNode->Modify();
+			BuffProjectileNode->SourceSelector = EBFTargetSelector::BuffOwner;
+			BuffProjectileNode->ProjectileCount.Value = FMath::Max(1, BuffProjectileNode->ProjectileCount.Value);
+			BuffProjectileNode->bAddComboStacksToProjectileCount = false;
+			BuffProjectileNode->ProjectilesPerComboStack = 0;
+			BuffProjectileNode->MaxBonusProjectiles = 0;
+			BuffProjectileNode->TriggerGameplayEventTag.Value = HitEventTag;
+			BuffProjectileNode->bSendTriggerEventToCreator = true;
+			BuffProjectileNode->ExpireGameplayEventTag.Value = FGameplayTag();
+			BuffProjectileNode->ProjectileVisualNiagaraSystem = nullptr;
+		}
+
 		WaitNode->Modify();
 		WaitNode->EventTag = HitEventTag;
 		WaitNode->Target = EBFTargetSelector::BuffOwner;
+
+		int32 PoisonHitWaitNodeCount = 0;
+		for (const TPair<FGuid, UFlowNode*>& Pair : FlowAsset->GetNodes())
+		{
+			UBFNode_WaitGameplayEvent* ExistingWaitNode = Cast<UBFNode_WaitGameplayEvent>(Pair.Value);
+			if (ExistingWaitNode && ExistingWaitNode->EventTag == HitEventTag)
+			{
+				ExistingWaitNode->Modify();
+				ExistingWaitNode->Target = EBFTargetSelector::BuffOwner;
+				++PoisonHitWaitNodeCount;
+			}
+		}
 
 		ConfigureNiagaraNode(
 			HitVfxNode,
@@ -3127,9 +3281,10 @@ namespace Rune512Batch
 		FlowGraph->NotifyGraphChanged();
 
 		ReportLines.Add(FString::Printf(
-			TEXT("- Configured `%s`: SpawnSlashWave -> Wait `%s` -> Play Niagara hit -> Apply GE_Poison x3 -> Play Niagara spread -> ApplyGEInRadius radius=300 max=3; cleared Flipbook nodes=%d."),
+			TEXT("- Configured `%s`: projectile event source -> Wait `%s` -> Play Niagara hit -> Apply GE_Poison x3 -> Play Niagara spread -> ApplyGEInRadius radius=300 max=3; normalized wait nodes=%d; cleared Flipbook nodes=%d."),
 			*FlowName,
 			*MoonlightPoisonHitEventTag,
+			PoisonHitWaitNodeCount,
 			ClearedFlipbookCount));
 	}
 
@@ -3439,7 +3594,7 @@ namespace Rune512Batch
 
 		if (bDryRun)
 		{
-			ReportLines.Add(TEXT("- Would configure `FA_Rune512_Heavy_Base`: base knockback flow -> Heavy-only context branch -> bonus damage -> bonus knockback distance."));
+			ReportLines.Add(TEXT("- Would configure `FA_Rune512_Heavy_Base`: base knockback flow -> WeaponSkill/Finisher context branch -> bonus damage -> bonus knockback distance."));
 			return;
 		}
 
@@ -3462,7 +3617,10 @@ namespace Rune512Batch
 			[](UFlowNode* Node)
 			{
 				UBFNode_CombatCardContextBranch* Branch = Cast<UBFNode_CombatCardContextBranch>(Node);
-				return Branch && Branch->RequiredAction == ECardRequiredAction::Heavy;
+				return Branch
+					&& (Branch->RequiredAction == ECardRequiredAction::Heavy
+						|| (Branch->RequiredActionSlot == ECombatDeckActionSlot::WeaponSkill
+							&& Branch->RequiredFlowRole == ECombatDeckFlowRole::Finisher));
 			}));
 
 		UFlowNode* TerminalNode = FindRightmostTerminalFlowNode(FlowAsset);
@@ -3549,7 +3707,7 @@ namespace Rune512Batch
 
 		if (!BaseDamageNode || !HeavyBranch || !ExtraDamageNode || !BonusKnockbackNode)
 		{
-			ReportLines.Add(TEXT("- Failed to configure `FA_Rune512_Heavy_Base`: missing generated base damage, Heavy branch, bonus damage, or bonus knockback node."));
+			ReportLines.Add(TEXT("- Failed to configure `FA_Rune512_Heavy_Base`: missing generated base damage, WeaponSkill/Finisher branch, bonus damage, or bonus knockback node."));
 			return;
 		}
 
@@ -3561,7 +3719,9 @@ namespace Rune512Batch
 		BaseDamageNode->DamageEffect = LoadBlueprintClassByPackagePath<UGameplayEffect>(HeavyBonusDamageEffectPath);
 
 		HeavyBranch->Modify();
-		HeavyBranch->RequiredAction = ECardRequiredAction::Heavy;
+		HeavyBranch->RequiredAction = ECardRequiredAction::Any;
+		HeavyBranch->RequiredActionSlot = ECombatDeckActionSlot::WeaponSkill;
+		HeavyBranch->RequiredFlowRole = ECombatDeckFlowRole::Finisher;
 		HeavyBranch->RequiredSourceCardTypes = { ECombatCardType::Normal };
 		HeavyBranch->RequiredSourceCardIdTags.Reset();
 		if (HeavyCardIdTag.IsValid())
@@ -3595,7 +3755,7 @@ namespace Rune512Batch
 		DirtyPackages.AddUnique(FlowAsset->GetPackage());
 		FlowGraph->Modify();
 		FlowGraph->NotifyGraphChanged();
-		ReportLines.Add(TEXT("- Configured `FA_Rune512_Heavy_Base`: any action adds +8 damage after base knockback; Heavy-only coordination branch adds +20 damage and 520cm knockback."));
+		ReportLines.Add(TEXT("- Configured `FA_Rune512_Heavy_Base`: WeaponSkill/Finisher card adds +8 damage after base knockback; finisher-role branch adds +20 damage and 520cm knockback."));
 	}
 
 	void ConfigureSplitBaseFlow(
@@ -4155,6 +4315,8 @@ namespace Rune512Batch
 			}
 		}
 		CombatCard.RequiredAction = Spec.RequiredAction;
+		CombatCard.RequiredActionSlot = Spec.RequiredActionSlot;
+		CombatCard.RequiredFlowRole = Spec.RequiredFlowRole;
 		CombatCard.TriggerTiming = Spec.TriggerTiming;
 		CombatCard.BaseFlow = BaseFlow;
 		CombatCard.LinkRecipes.Reset();
@@ -4166,10 +4328,7 @@ namespace Rune512Batch
 		CombatCard.MaxComboScalar = 0.f;
 		if (Spec.CardIdTag == TEXT("Card.ID.AttackUp"))
 		{
-			CombatCard.bUseComboEffectScaling = true;
-			CombatCard.ComboScalarPerIndex = 0.25f;
-			CombatCard.MaxComboScalar = 0.5f;
-			ReportLines.Add(TEXT("- Configured Combo Scaling: bUse=true, ComboScalarPerIndex=0.25, MaxComboScalar=0.5."));
+			ReportLines.Add(TEXT("- Deprecated Combo Scaling remains disabled for AttackUp; card order and Link recipes drive build scaling."));
 		}
 		for (const FLinkRecipeSpec& LinkSpec : Spec.LinkRecipes)
 		{
@@ -4245,6 +4404,8 @@ int32 URuneCardBatchGeneratorCommandlet::Main(const FString& Params)
 
 	ConfigurePoisonGameplayEffectAssets(bDryRun, ReportLines, DirtyPackages);
 	ReportLines.Add(TEXT(""));
+	ConfigureDeathPoisonFlowAsset(bDryRun, ReportLines, DirtyPackages);
+	ReportLines.Add(TEXT(""));
 
 	int32 RuneId = 51201;
 	for (const FCardSpec& Spec : MakeCardSpecs())
@@ -4270,7 +4431,7 @@ int32 URuneCardBatchGeneratorCommandlet::Main(const FString& Params)
 	ReportLines.Add(TEXT("## FA VFX todos"));
 	ReportLines.Add(TEXT("- Card VFX is configured in each BaseFlow/LinkFlow, not on CombatCard data."));
 	ReportLines.Add(TEXT("- Moonlight generated slash-wave nodes clear inline Niagara fields and use BP/default projectile visuals; hit/status visuals should be independent atomic VFX nodes."));
-	ReportLines.Add(TEXT("- Moonlight base and forward LinkFlows use combo projectiles as sequential same-path shots: Cone=0, Sequential=true, Interval=0.12, MaxBonus=2."));
+	ReportLines.Add(TEXT("- Moonlight base and forward LinkFlows no longer use combo projectile scaling; Link recipes and card order drive build changes."));
 	ReportLines.Add(TEXT("- Moonlight projectile/area tuning is mirrored into EffectProfile assets; new profile nodes execute the copied profile while legacy nodes are retained for parameter comparison."));
 	ReportLines.Add(TEXT("- Moonlight forward poison LinkFlow is configured as atomic nodes: projectile event -> Wait Gameplay Event -> Play Niagara -> ApplyEffect -> Play Niagara -> ApplyGEInRadius."));
 	ReportLines.Add(TEXT("- Moonlight forward burn LinkFlow is configured as atomic nodes: projectile event -> Wait Gameplay Event -> Play Niagara attached to enemy socket -> persistent UGE_RuneBurn."));

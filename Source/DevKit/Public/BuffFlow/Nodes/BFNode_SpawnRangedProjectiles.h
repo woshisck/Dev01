@@ -12,7 +12,7 @@ class UGameplayEffect;
 
 /**
  * 向目标方向发射一组远程弹丸。
- * 弹丸继承当前战斗卡攻击实例 GUID，不额外消耗卡牌资源。
+ * 弹丸继承当前战斗卡攻击实例 GUID，不额外推进或结算卡牌。
  *
  * 表现层分离原则：
  *   - 弹丸飞行特效（轨迹/粒子）由弹丸 BP 类自身持有，不在本节点配置。
@@ -101,7 +101,7 @@ class DEVKIT_API UBFNode_SpawnRangedProjectiles : public UBFNode_Base
 
 	// ---- 攻击实例 ----
 
-	// 共享攻击 GUID — 勾选后与主攻击共享同一 GUID，额外弹丸不额外消耗卡牌次数
+	// 共享攻击 GUID — 勾选后与主攻击共享同一 GUID，额外弹丸不额外推进卡牌次数
 	UPROPERTY(EditAnywhere, Category = "Ranged Projectile", meta = (DisplayName = "共享攻击 GUID"))
 	bool bShareAttackInstanceGuid = true;
 

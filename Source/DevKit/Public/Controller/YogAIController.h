@@ -78,7 +78,7 @@ public:
 	// Records the outcome of the most recently completed enemy profile attack on the
 	// blackboard: bLastAttackWhiffed reflects whether it missed, and LastWhiffTime is
 	// stamped on a whiff so the BT can gate a reposition response. Connecting clears the flag.
-	void NotifyAttackResolved(bool bWhiffed);
+	void NotifyAttackResolved(bool bWhiffed, bool bForceReposition = false);
 	void ResetCombatMoveSmoothingAfterAttack();
 	void SetCombatAttackInProgress(bool bInProgress);
 	bool IsCombatAttackInProgress() const { return bCombatAttackInProgress; }

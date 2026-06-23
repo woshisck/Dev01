@@ -9,10 +9,15 @@
 #include "Data/MusketActionTuningDataAsset.h"
 #include "Projectile/MusketBullet.h"
 
+namespace
+{
+    const TCHAR* WeaponSkillReleaseEventTagName = TEXT("GameplayEvent.WeaponSkill.Release");
+}
+
 UGA_Musket_HeavyAttack::UGA_Musket_HeavyAttack()
 {
     AbilityTags.AddTag(FGameplayTag::RequestGameplayTag("Ability.Musket.Heavy"));
-    AbilityTags.AddTag(FGameplayTag::RequestGameplayTag("PlayerState.AbilityCast.HeavyAtk"));
+    AbilityTags.AddTag(FGameplayTag::RequestGameplayTag("PlayerState.AbilityCast.WeaponSkill"));
 
     // C++ 默认值：无材质时弧不可见但不崩溃
     AimArcClass = AYogAimArcActor::StaticClass();
@@ -22,6 +27,22 @@ UGA_Musket_HeavyAttack::UGA_Musket_HeavyAttack()
     CancelAbilitiesWithTag.AddTag(FGameplayTag::RequestGameplayTag("Ability.Musket.Reload"));
 
     ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag("State.Musket.Reloading"));
+}
+
+FGameplayTag UGA_Musket_HeavyAttack::GetWeaponSkillReleaseEventTag()
+{
+    return FGameplayTag::RequestGameplayTag(FName(WeaponSkillReleaseEventTagName), false);
+}
+
+TArray<FGameplayTag> UGA_Musket_HeavyAttack::GetReleaseEventTags()
+{
+    TArray<FGameplayTag> Tags;
+    const FGameplayTag ReleaseTag = GetWeaponSkillReleaseEventTag();
+    if (ReleaseTag.IsValid())
+    {
+        Tags.Add(ReleaseTag);
+    }
+    return Tags;
 }
 
 void UGA_Musket_HeavyAttack::ActivateAbility(
@@ -78,13 +99,26 @@ void UGA_Musket_HeavyAttack::ActivateAbility(
     ChargeTask->OnChargeFull.AddDynamic(this, &UGA_Musket_HeavyAttack::OnChargeFullNotify);
     ChargeTask->ReadyForActivation();
 
-    // 等待重攻击松键事件（Controller Completed 绑定通过 HandleGameplayEvent 发送）
-    UAbilityTask_WaitGameplayEvent* ReleaseTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(
-        this,
-        FGameplayTag::RequestGameplayTag("GameplayEvent.Musket.HeavyRelease"),
-        nullptr, false, true);
-    ReleaseTask->EventReceived.AddDynamic(this, &UGA_Musket_HeavyAttack::OnHeavyReleaseEvent);
-    ReleaseTask->ReadyForActivation();
+    // 等待战技松键事件（Controller Completed 绑定通过 HandleGameplayEvent 发送）
+    auto BindReleaseTask = [this](const FGameplayTag& ReleaseTag)
+    {
+        if (!ReleaseTag.IsValid())
+        {
+            return;
+        }
+
+        UAbilityTask_WaitGameplayEvent* ReleaseTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(
+            this,
+            ReleaseTag,
+            nullptr, false, true);
+        ReleaseTask->EventReceived.AddDynamic(this, &UGA_Musket_HeavyAttack::OnHeavyReleaseEvent);
+        ReleaseTask->ReadyForActivation();
+    };
+
+    for (const FGameplayTag& ReleaseTag : GetReleaseEventTags())
+    {
+        BindReleaseTask(ReleaseTag);
+    }
 }
 
 void UGA_Musket_HeavyAttack::OnChargeTick(float HalfAngleDeg, float RadiusCm, bool bFull)
@@ -129,10 +163,25 @@ void UGA_Musket_HeavyAttack::DoFire()
     const float Multiplier = bFullCharge ? TunedFullMultiplier : TunedBaseMultiplier;
     const float Damage     = GetBaseAttack() * Multiplier;
     const float Angle      = FMath::RandRange(-CurrentHalfAngle, CurrentHalfAngle);
-    const FGuid AttackGuid = ResolveCombatDeckOnFire(ECardRequiredAction::Heavy, false, false, Damage, Angle);
+    const FGuid AttackGuid = ResolveCombatDeckOnFire(
+        ECardRequiredAction::Any,
+        ECombatDeckActionSlot::WeaponSkill,
+        ECombatDeckFlowRole::Finisher,
+        true,
+        false,
+        Damage,
+        Angle);
     if (AMusketBullet* Bullet = SpawnBullet(Angle, Damage))
     {
-        ApplyCombatDeckContextToBullet(Bullet, ECardRequiredAction::Heavy, false, false, AttackGuid, Damage);
+        ApplyCombatDeckContextToBullet(
+            Bullet,
+            ECardRequiredAction::Any,
+            ECombatDeckActionSlot::WeaponSkill,
+            ECombatDeckFlowRole::Finisher,
+            true,
+            false,
+            AttackGuid,
+            Damage);
     }
     ConsumeOneAmmo();
     ExecuteFireCue();

@@ -54,7 +54,7 @@
 | `Action.Mark.Apply.Finisher` | 申请对目标施加终结技印记 |
 | `Action.Mark.Detonate.Finisher` | 引爆终结技印记（EventMagnitude = 确认倍率 1.0 / 2.0） |
 | `Action.Player.FinisherAttack` | 触发 GA_Player_FinisherAttack |
-| `Action.Finisher.Confirm` | 玩家在子弹时间内按下重攻击确认 |
+| `Action.Finisher.Confirm` | 玩家在子弹时间内按下 WeaponSkill 确认 |
 | `Ability.Event.Finisher.HitFrame` | 终结技蒙太奇攻击判定帧事件 |
 | `Action.Knockback` | 触发击退 GA |
 | `Action.Slash` | 触发割裂效果（移动扣血） |
@@ -151,7 +151,7 @@
 | Activation Owned Tags | `Buff.Status.FinisherExecuting` |
 | Activation Required Tags | `Buff.Status.FinisherWindowOpen` |
 | Activation Blocked Tags | `Buff.Status.Dead` · `Buff.Status.FinisherExecuting` |
-| Cancel Abilities With Tag | `PlayerState.AbilityCast.LightAtk` · `PlayerState.AbilityCast.HeavyAtk` · `PlayerState.AbilityCast.Dash` |
+| Cancel Abilities With Tag | `PlayerState.AbilityCast.Attack` · `PlayerState.AbilityCast.WeaponSkill` · `PlayerState.AbilityCast.Dash` |
 | Finisher Montage | `AM_Player_FinisherAttack` |
 | Confirmed Damage Multiplier | `2.0` |
 
@@ -528,7 +528,7 @@
            → GA_Player_FinisherAttack 激活（Buff.Status.FinisherExecuting 出现，时间膨胀）
   → 下1帧: GA_FinisherCharge.EndAbility → ClearAllMarks（跳过，FinisherExecuting 存在）
 
-玩家重攻击（可选，子弹时间内）
+玩家 WeaponSkill（可选，子弹时间内）
   → GA_Player_FinisherAttack: bPlayerConfirmed = true, 恢复时间流速
 
 蒙太奇 HitFrame（Ability.Event.Finisher.HitFrame）

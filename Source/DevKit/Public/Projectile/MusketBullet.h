@@ -20,7 +20,7 @@ class ACharacter;
  * 火绳枪子弹 — 单目标命中即销毁，不穿透。
  *
  * 工作流：
- *   1. GA_Musket_LightAttack / GA_Musket_HeavyAttack 调用 SpawnActor + InitBullet
+ *   1. Musket Attack / WeaponSkill compatibility GAs call SpawnActor + InitBullet
  *   2. 子弹沿发射方向飞行，SphereComponent 与 Pawn 发生 Overlap
  *   3. 命中第一个有效目标 → ApplyDamageTo → BP_OnHitEnemy → Destroy
  *   4. 生存时间到期未命中 → BP_OnMiss → Destroy

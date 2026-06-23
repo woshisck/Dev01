@@ -228,23 +228,9 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 			{ TEXT("PlayerState.AbilityCast.Dash.Combo2"), TEXT("Dash 2") },
 			{ TEXT("PlayerState.AbilityCast.Dash.Combo3"), TEXT("Dash 3") },
 			{ TEXT("PlayerState.AbilityCast.Dash.Combo4"), TEXT("Dash 4") },
-			{ TEXT("PlayerState.AbilityCast.Special.Combo1"), TEXT("Special 1") },
-			{ TEXT("PlayerState.AbilityCast.Special.Combo2"), TEXT("Special 2") },
-			{ TEXT("PlayerState.AbilityCast.Special.Combo3"), TEXT("Special 3") },
-			{ TEXT("PlayerState.AbilityCast.Special.Combo4"), TEXT("Special 4") },
 			{ TEXT("PlayerState.AbilityCast.Attack"), TEXT("Attack") },
 			{ TEXT("PlayerState.AbilityCast.WeaponSkill"), TEXT("Weapon Skill") },
 			{ TEXT("PlayerState.AbilityCast.Dash"), TEXT("Dash") },
-			{ TEXT("PlayerState.AbilityCast.Special"), TEXT("Special") },
-			{ TEXT("PlayerState.AbilityCast.LightAtk.Combo1"), TEXT("轻击1") },
-			{ TEXT("PlayerState.AbilityCast.LightAtk.Combo2"), TEXT("轻击2") },
-			{ TEXT("PlayerState.AbilityCast.LightAtk.Combo3"), TEXT("轻击3") },
-			{ TEXT("PlayerState.AbilityCast.LightAtk.Combo4"), TEXT("轻击4") },
-			{ TEXT("PlayerState.AbilityCast.HeavyAtk.Combo1"), TEXT("重击1") },
-			{ TEXT("PlayerState.AbilityCast.HeavyAtk.Combo2"), TEXT("重击2") },
-			{ TEXT("PlayerState.AbilityCast.HeavyAtk.Combo3"), TEXT("重击3") },
-			{ TEXT("PlayerState.AbilityCast.HeavyAtk.Combo4"), TEXT("重击4") },
-			{ TEXT("PlayerState.AbilityCast.SpecialAttack"), TEXT("Special Attack") },
 		};
 
 		FName ActionName = FName("Attack");
@@ -296,7 +282,8 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 					const FCombatCardResolveResult& Res = Ctx.ResolveResult;
 
 					Breakdown.bHadCard              = true;
-					Breakdown.bConsumedCard         = Res.ConsumedCard.IsValidCard();
+					Breakdown.bResolvedCard         = Res.ResolvedCard.IsValidCard();
+					Breakdown.bConsumedCard         = false;
 					Breakdown.bActionMatched        = Res.bActionMatched;
 					Breakdown.bTriggeredMatchedFlow = Res.bTriggeredMatchedFlow;
 					Breakdown.bTriggeredLink        = Res.bTriggeredLink
@@ -304,11 +291,11 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 					                               || Res.bTriggeredBackwardLink;
 					Breakdown.bTriggeredFinisher    = Res.bTriggeredFinisher;
 
-					if (Res.ConsumedCard.IsValidCard())
+					if (Res.ResolvedCard.IsValidCard())
 					{
-						Breakdown.CardDisplayName = Res.ConsumedCard.SourceData
-							? Res.ConsumedCard.SourceData->GetRuneName()
-							: Res.ConsumedCard.Config.CardIdTag.GetTagName();
+						Breakdown.CardDisplayName = Res.ResolvedCard.SourceData
+							? Res.ResolvedCard.SourceData->GetRuneName()
+							: Res.ResolvedCard.Config.CardIdTag.GetTagName();
 					}
 
 					// DamageType 按卡牌结果升级（优先级：终结技 > 连携 > 匹配 > 普通卡牌命中）

@@ -42,7 +42,7 @@ CardId：Card.ID.Moonlight
 
 `CombatDeckEditWidget` 选中战斗卡牌时会调用 `RuneInfoCardWidget::ShowCombatCard`。如果该卡是临时锁定的终结技卡：
 
-- `CardEffect` 会显示显眼提示：`终结技未解锁：当前/所需`，并说明锁定期间消耗此牌不会触发终结技。
+- `CardEffect` 会显示显眼提示：`终结技未解锁：当前/所需`，并说明锁定期间结算此牌不会触发终结技。
 - `CardCombatInfo` 会额外显示 `锁定状态：未解锁（当前/所需）`。
 - 文案可在 `WBP_RuneInfoCard` 的 Class Defaults -> `RuneInfoCard|Temporary Lock` 中调整：
   - `bShowTemporaryLockWarning`：是否在详情显示锁定提示。

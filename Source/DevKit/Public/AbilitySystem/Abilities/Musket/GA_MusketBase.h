@@ -89,6 +89,8 @@ protected:
 
     FGuid ResolveCombatDeckOnFire(
         ECardRequiredAction ActionType,
+        ECombatDeckActionSlot ActionSlot,
+        ECombatDeckFlowRole FlowRole,
         bool bIsComboFinisher,
         bool bFromDashSave,
         float Damage,
@@ -97,6 +99,8 @@ protected:
     void ApplyCombatDeckContextToBullet(
         AMusketBullet* Bullet,
         ECardRequiredAction ActionType,
+        ECombatDeckActionSlot ActionSlot,
+        ECombatDeckFlowRole FlowRole,
         bool bIsComboFinisher,
         bool bFromDashSave,
         const FGuid& AttackGuid,

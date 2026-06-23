@@ -173,7 +173,7 @@ private:
 	int32 HitRune       = 0,   HitBleed     = 0;
 
 	// 512版本：卡牌统计
-	int32 HitCardConsume   = 0, HitCardHit     = 0, HitCardMatched  = 0;
+	int32 HitCardResolve   = 0, HitCardHit     = 0, HitCardMatched  = 0;
 	int32 HitCardLink      = 0, HitCardFinisher = 0, HitCardShuffle = 0;
 	float SessionCardHit   = 0.f, SessionCardLink = 0.f, SessionCardFinisher = 0.f;
 };

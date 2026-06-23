@@ -171,7 +171,6 @@ void UGA_HitReaction::InterruptForParriedReaction(AYogCharacterBase* Character) 
         static const TCHAR* ActionTagNames[] = {
             TEXT("PlayerState.AbilityCast.Attack"),
             TEXT("PlayerState.AbilityCast.WeaponSkill"),
-            TEXT("PlayerState.AbilityCast.Special"),
             TEXT("Enemy.Melee.LAtk1"),
             TEXT("Enemy.Melee.LAtk2"),
             TEXT("Enemy.Melee.LAtk3"),

@@ -167,38 +167,34 @@ namespace
 			{
 				TEXT("攻击类"),
 				{
-					{ "Attack.Damage", TEXT("攻击伤害"), 15.f, "Damage", TEXT("攻击基础伤害；连招乘算，第N段 = 15×(1+0.1×(N-1))，封顶1.5倍"),
-					  ERuneComboBonusMode::Multiply, 0.1f, 0.5f },
+					{ "Attack.Damage", TEXT("攻击伤害"), 15.f, "Damage", TEXT("攻击基础伤害；顺序构筑加成请用 Link / FlowRole 表达") },
 				}
 			},
 			{
 				TEXT("燃烧类"),
 				{
-					{ "Burn.Damage", TEXT("燃烧伤害/周期"), 20.f, "Damage", TEXT("燃烧DoT每次触发的伤害量；连招乘算，封顶+60%"),
-					  ERuneComboBonusMode::Multiply, 0.15f, 0.60f },
+					{ "Burn.Damage", TEXT("燃烧伤害/周期"), 20.f, "Damage", TEXT("燃烧DoT每次触发的伤害量；构筑强化请用 Catalyst 或 Link Flow 表达") },
 					{ "Burn.Duration", TEXT("燃烧持续时间"), 3.f, "Duration", TEXT("燃烧效果持续秒数") },
 				}
 			},
 			{
 				TEXT("中毒类"),
 				{
-					{ "Poison.Stack", TEXT("中毒层数"), 3.f, "Stack", TEXT("附加的中毒层数；连招加算，第N段 = 3+(N-1)，封顶+4层"),
-					  ERuneComboBonusMode::Add, 1.f, 4.f, ERuneTuningRoundMode::Floor },
+					{ "Poison.Stack", TEXT("中毒层数"), 3.f, "Stack", TEXT("附加的中毒层数；构筑强化请用 Catalyst 或 Link Flow 表达") },
 					{ "Poison.Duration", TEXT("中毒持续时间"), 6.f, "Duration", TEXT("每层中毒持续秒数") },
 				}
 			},
 			{
 				TEXT("月光类"),
 				{
-					{ "Moonlight.ProjectileCount", TEXT("月光弹数"), 1.f, "Projectile", TEXT("发射的月光投射物数量；连招加算，第N段 = 1+(N-1)，封顶+3发"),
-					  ERuneComboBonusMode::Add, 1.f, 3.f, ERuneTuningRoundMode::Floor },
+					{ "Moonlight.ProjectileCount", TEXT("月光弹数"), 1.f, "Projectile", TEXT("发射的月光投射物数量；多弹变化请在具体 Link Flow 中配置") },
 					{ "Moonlight.ProjectileSpeed", TEXT("月光弹速"), 2000.f, "Projectile", TEXT("月光投射物飞行速度（cm/s）") },
 				}
 			},
 			{
 				TEXT("终结技类"),
 				{
-					{ "Finisher.Damage",    TEXT("终结技伤害"),    80.f,  "Damage", TEXT("终结技基础伤害，建议不受连招缩放") },
+					{ "Finisher.Damage",    TEXT("终结技伤害"),    80.f,  "Damage", TEXT("终结技基础伤害，默认由 WeaponSkill / Finisher 语义触发") },
 					{ "Finisher.AOERadius", TEXT("终结技范围半径"), 300.f, "Radius", TEXT("终结技范围攻击半径（cm）") },
 				}
 			},
@@ -358,18 +354,19 @@ namespace
 	{
 		switch (Action)
 		{
-		case ECardRequiredAction::Light: return TEXT("轻击");
-		case ECardRequiredAction::Heavy: return TEXT("重击");
-		case ECardRequiredAction::Any:   return TEXT("任意");
+		case ECardRequiredAction::Light:
+		case ECardRequiredAction::Heavy:
+			return TEXT("动作");
+		case ECardRequiredAction::Any:
+			return TEXT("任意");
 		}
-		return TEXT("未知");
+		return TEXT("任意");
 	}
 
 	ECardRequiredAction CardRequiredActionFromString(const FString& S)
 	{
-		if (S == TEXT("重击")) return ECardRequiredAction::Heavy;
 		if (S == TEXT("任意")) return ECardRequiredAction::Any;
-		return ECardRequiredAction::Light;
+		return ECardRequiredAction::Any;
 	}
 
 	FString CardTriggerTimingToString(ECombatCardTriggerTiming Timing)
@@ -452,7 +449,7 @@ void SRuneEditorWidget::Construct(const FArguments& InArgs)
 	RarityOptions      = { MakeShared<FString>(TEXT("普通")), MakeShared<FString>(TEXT("稀有")), MakeShared<FString>(TEXT("史诗")), MakeShared<FString>(TEXT("传说")) };
 	TriggerTypeOptions = { MakeShared<FString>(TEXT("被动")), MakeShared<FString>(TEXT("攻击命中")), MakeShared<FString>(TEXT("冲刺")), MakeShared<FString>(TEXT("击杀")), MakeShared<FString>(TEXT("暴击")), MakeShared<FString>(TEXT("受到伤害")) };
 	CardTypeOptions       = { MakeShared<FString>(TEXT("Attack")), MakeShared<FString>(TEXT("连携")), MakeShared<FString>(TEXT("终结技")), MakeShared<FString>(TEXT("被动")), MakeShared<FString>(TEXT("普通")) };
-	RequiredActionOptions = { MakeShared<FString>(TEXT("轻击")), MakeShared<FString>(TEXT("重击")), MakeShared<FString>(TEXT("任意")) };
+	RequiredActionOptions = { MakeShared<FString>(TEXT("动作")), MakeShared<FString>(TEXT("任意")) };
 	TriggerTimingOptions  = { MakeShared<FString>(TEXT("命中时 (OnHit)")), MakeShared<FString>(TEXT("提交时 (OnCommit)")) };
 
 	ComboBonusModeOptions = { MakeShared<FString>(TEXT("无")), MakeShared<FString>(TEXT("加算")), MakeShared<FString>(TEXT("乘算")) };
@@ -1059,7 +1056,7 @@ TSharedRef<SWidget> SRuneEditorWidget::BuildValueTablePanel()
 				SAssignNew(TuningPresetCombo, FStringCombo)
 				.OptionsSource(&TuningPresetGroupNames)
 				.IsEnabled_Lambda([this]() { return GetSelectedRune() != nullptr; })
-				.ToolTipText(LOCTEXT("InsertPresetTip", "选择符文类型，批量插入对应的预设数值行（含连招加成配置）"))
+				.ToolTipText(LOCTEXT("InsertPresetTip", "选择符文类型，批量插入对应的预设数值行；旧连招加成不再默认生成"))
 				.OnSelectionChanged_Lambda([this](TSharedPtr<FString> Item, ESelectInfo::Type SelectType)
 				{
 					if (SelectType == ESelectInfo::Direct || !Item.IsValid()) { return; }
@@ -1127,7 +1124,7 @@ TSharedRef<SWidget> SRuneEditorWidget::BuildValueTablePanel()
 				+ SHeaderRow::Column(TEXT("ValueTag")).DefaultLabel(LOCTEXT("TuningColumnValueTag", "ValueTag")).FillWidth(0.9f)
 				+ SHeaderRow::Column(TEXT("Unit")).DefaultLabel(LOCTEXT("TuningColumnUnit", "单位")).FillWidth(0.55f)
 				+ SHeaderRow::Column(TEXT("Description")).DefaultLabel(LOCTEXT("TuningColumnDescription", "说明")).FillWidth(1.2f)
-				+ SHeaderRow::Column(TEXT("ComboMode")).DefaultLabel(LOCTEXT("TuningColumnComboMode", "连招模式")).FillWidth(0.65f)
+				+ SHeaderRow::Column(TEXT("ComboMode")).DefaultLabel(LOCTEXT("TuningColumnComboMode", "旧连招模式")).FillWidth(0.65f)
 				+ SHeaderRow::Column(TEXT("BonusPerStack")).DefaultLabel(LOCTEXT("TuningColumnBonusPerStack", "每段奖励")).FillWidth(0.6f)
 				+ SHeaderRow::Column(TEXT("MaxBonus")).DefaultLabel(LOCTEXT("TuningColumnMaxBonus", "奖励上限")).FillWidth(0.6f)
 				+ SHeaderRow::Column(TEXT("RoundMode")).DefaultLabel(LOCTEXT("TuningColumnRoundMode", "取整")).FillWidth(0.55f)
@@ -1308,7 +1305,7 @@ TSharedRef<SWidget> SRuneEditorWidget::BuildNodeLibraryPanel()
 
 	AddNode(ENodeLibraryFilter::Spawn, UYogFlowNode_SpawnAreaProfile::StaticClass(), LOCTEXT("NodeSpawnAreaProfileName", "生成区域配置"), LOCTEXT("NodeSpawnAreaProfileDescription", "生成可配置区域，适合燃烧圈、毒区、领域。"));
 	AddNode(ENodeLibraryFilter::Spawn, UYogFlowNode_SpawnGroundPath::StaticClass(), LOCTEXT("NodeSpawnGroundPathName", "生成地面路径"), LOCTEXT("NodeSpawnGroundPathDescription", "生成路径类地面效果，适合燃烧轨迹或月光路径。"));
-	AddNode(ENodeLibraryFilter::Spawn, UYogFlowNode_SpawnRangedProjectiles::StaticClass(), LOCTEXT("NodeSpawnRangedProjectilesName", "生成远程弹幕"), LOCTEXT("NodeSpawnRangedProjectilesDescription", "生成多枚远程投射物，支持连招增加数量和命中事件。"));
+	AddNode(ENodeLibraryFilter::Spawn, UYogFlowNode_SpawnRangedProjectiles::StaticClass(), LOCTEXT("NodeSpawnRangedProjectilesName", "生成远程弹幕"), LOCTEXT("NodeSpawnRangedProjectilesDescription", "生成多枚远程投射物，支持命中事件；旧连招增量已废弃。"));
 	AddNode(ENodeLibraryFilter::Spawn, UBFNode_GetProjectileModule::StaticClass(), LOCTEXT("NodeGetProjectileModuleName", "读取飞行物模块"), LOCTEXT("NodeGetProjectileModuleDescription", "读取符文DA飞行物模块配置（数量/锥角/速度），输出数据引脚接到弹幕节点。"));
 	AddNode(ENodeLibraryFilter::Spawn, UBFNode_GetAuraModule::StaticClass(), LOCTEXT("NodeGetAuraModuleName", "读取光环模块"), LOCTEXT("NodeGetAuraModuleDescription", "读取符文DA光环/场地模块配置（长宽高/时间/间隔），输出数据引脚接到路径效果节点。"));
 
@@ -2534,17 +2531,17 @@ TSharedRef<SWidget> SRuneEditorWidget::BuildCombatCardPanel()
 		.Padding(0.f, 0.f, 0.f, 10.f)
 		[
 			MakeSection(
-				LOCTEXT("CardComboScalingSection", "连击缩放"),
+				LOCTEXT("CardComboScalingSection", "旧连击缩放（废弃）"),
 				SNew(SVerticalBox)
 				+ SVerticalBox::Slot()
 				.AutoHeight()
 				.Padding(0.f, 0.f, 0.f, 8.f)
 				[
 					MakeFieldRow(
-						LOCTEXT("CardComboScalingLabel", "启用连击缩放"),
+						LOCTEXT("CardComboScalingLabel", "旧连击缩放状态"),
 						SNew(SButton)
 						.Text(this, &SRuneEditorWidget::GetSelectedCardComboScalingText)
-						.IsEnabled_Lambda([this]() { return GetSelectedRune() != nullptr; })
+						.IsEnabled(false)
 						.OnClicked(this, &SRuneEditorWidget::OnToggleComboScalingClicked))
 				]
 				+ SVerticalBox::Slot()
@@ -2557,13 +2554,14 @@ TSharedRef<SWidget> SRuneEditorWidget::BuildCombatCardPanel()
 					.Padding(0.f, 0.f, 0.f, 3.f)
 					[
 						SNew(STextBlock)
-						.Text(LOCTEXT("CardComboScalarPerIndexLabel", "每层倍率 (ComboScalarPerIndex)"))
+						.Text(LOCTEXT("CardComboScalarPerIndexLabel", "废弃字段：每层倍率 (ComboScalarPerIndex)"))
 						.ColorAndOpacity(FSlateColor::UseSubduedForeground())
 					]
 					+ SVerticalBox::Slot()
 					.AutoHeight()
 					[
 						SNew(SNumericEntryBox<float>)
+						.IsEnabled(false)
 						.Value_Lambda([this]() -> TOptional<float>
 						{
 							const URuneDataAsset* Rune = GetSelectedRune();
@@ -2590,13 +2588,14 @@ TSharedRef<SWidget> SRuneEditorWidget::BuildCombatCardPanel()
 					.Padding(0.f, 0.f, 0.f, 3.f)
 					[
 						SNew(STextBlock)
-						.Text(LOCTEXT("CardMaxComboScalarLabel", "最大连击倍率 (MaxComboScalar)"))
+						.Text(LOCTEXT("CardMaxComboScalarLabel", "废弃字段：最大连击倍率 (MaxComboScalar)"))
 						.ColorAndOpacity(FSlateColor::UseSubduedForeground())
 					]
 					+ SVerticalBox::Slot()
 					.AutoHeight()
 					[
 						SNew(SNumericEntryBox<float>)
+						.IsEnabled(false)
 						.Value_Lambda([this]() -> TOptional<float>
 						{
 							const URuneDataAsset* Rune = GetSelectedRune();
@@ -3297,7 +3296,7 @@ TSharedRef<SWidget> SRuneEditorWidget::BuildTuningCategoryFilterBar()
 		{ LOCTEXT("TuningFilterProjectile","飞行物"),  FName("Projectile")    },
 		{ LOCTEXT("TuningFilterStack",    "层数"),     FName("Stack")         },
 		{ LOCTEXT("TuningFilterDuration", "持续时间"), FName("Duration")      },
-		{ LOCTEXT("TuningFilterCombo",    "连招奖励"), FName("##ComboBonus")  },
+		{ LOCTEXT("TuningFilterCombo",    "旧连招奖励"), FName("##ComboBonus")  },
 	};
 
 	TSharedRef<SHorizontalBox> Bar = SNew(SHorizontalBox);
@@ -4443,13 +4442,13 @@ FReply SRuneEditorWidget::OnToggleComboScalingClicked()
 		return FReply::Handled();
 	}
 
-	const FScopedTransaction Transaction(LOCTEXT("ToggleComboScaling", "Toggle Combo Scaling"));
+	const FScopedTransaction Transaction(LOCTEXT("DisableDeprecatedComboScaling", "Disable Deprecated Combo Scaling"));
 	Rune->Modify();
-	Rune->RuneInfo.CombatCard.bUseComboEffectScaling = !Rune->RuneInfo.CombatCard.bUseComboEffectScaling;
+	Rune->RuneInfo.CombatCard.bUseComboEffectScaling = false;
+	Rune->RuneInfo.CombatCard.ComboScalarPerIndex = 0.f;
+	Rune->RuneInfo.CombatCard.MaxComboScalar = 0.f;
 	Rune->MarkPackageDirty();
-	StatusText = Rune->RuneInfo.CombatCard.bUseComboEffectScaling
-		? LOCTEXT("ComboScalingEnabled", "已启用连击缩放。")
-		: LOCTEXT("ComboScalingDisabled", "已禁用连击缩放。");
+	StatusText = LOCTEXT("ComboScalingDeprecated", "旧连击缩放已废弃并保持禁用；请使用动作槽、流程角色和 Link。");
 	return FReply::Handled();
 }
 
@@ -4473,7 +4472,7 @@ FText SRuneEditorWidget::GetSelectedCardComboScalingText() const
 		return FText::GetEmpty();
 	}
 	return Rune->RuneInfo.CombatCard.bUseComboEffectScaling
-		? LOCTEXT("ComboScalingYes", "已启用")
+		? LOCTEXT("ComboScalingDeprecatedEnabled", "旧值已启用（运行时忽略）")
 		: LOCTEXT("ComboScalingNo", "已禁用");
 }
 

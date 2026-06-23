@@ -54,6 +54,13 @@ static bool IsCardType(const FString& TypeStr)
 	return TypeStr.StartsWith("Card_");
 }
 
+static bool IsCardResolveEventDamageType(const FName DamageType)
+{
+	return DamageType == FName("Card_Resolve")
+		|| DamageType == FName("Card_Consume")
+		|| DamageType == FName("Card_Shuffle");
+}
+
 static bool IsAllFilterText(const FString& Value)
 {
 	return Value.IsEmpty()
@@ -88,7 +95,7 @@ static FString BuildDebugFlags(const FDamageBreakdown& Entry)
 {
 	TArray<FString> Flags;
 	if (Entry.bHadCard) Flags.Add(TEXT("HadCard"));
-	if (Entry.bConsumedCard) Flags.Add(TEXT("Consumed"));
+	if (Entry.bResolvedCard || Entry.bConsumedCard) Flags.Add(TEXT("Resolved"));
 	if (Entry.bActionMatched) Flags.Add(TEXT("ActionMatched"));
 	if (Entry.bTriggeredMatchedFlow) Flags.Add(TEXT("Matched"));
 	if (Entry.bTriggeredLink) Flags.Add(TEXT("Link"));
@@ -432,9 +439,12 @@ TArray<FCombatLogTextSegment> UCombatLogStatics::GetEntryTextSegments(const FDam
 
 	if (Entry.bIsCardEventOnly)
 	{
-		const FString TimingStr = Entry.CardConsumeTiming.IsNone()
+		const FName TimingName = Entry.CardResolveTiming.IsNone()
+			? Entry.CardConsumeTiming
+			: Entry.CardResolveTiming;
+		const FString TimingStr = TimingName.IsNone()
 			? TEXT("")
-			: FString::Printf(TEXT(" (%s)"), *Entry.CardConsumeTiming.ToString());
+			: FString::Printf(TEXT(" (%s)"), *TimingName.ToString());
 		AddSegment(Segments, SourceName, SourceColor);
 		AddSegment(Segments, TEXT("使用了"), TextColor);
 		AddSegment(Segments, GetCardNameForLog(Entry), GetEntryColor(Entry));
@@ -530,7 +540,7 @@ FLinearColor UCombatLogStatics::GetEntryColor(const FDamageBreakdown& Entry)
 {
 	const FString TypeStr = Entry.DamageType.ToString();
 
-	// 优先级：终结技 > 连携 > 匹配 > 普通卡牌/消耗/洗牌 > 暴击 > 符文 > 流血 > 普通
+	// 优先级：终结技 > 连携 > 匹配 > 普通卡牌/结算/洗牌 > 暴击 > 符文 > 流血 > 普通
 	if (Entry.DamageType == FName("Card_Finisher"))
 		return FLinearColor(1.f, 0.85f, 0.f);
 	if (Entry.DamageType == FName("Card_Link"))
@@ -695,15 +705,15 @@ FString UCombatLogStatics::GetFormattedSummary()
 	float Normal = 0, Crit = 0, Rune = 0, Bleed = 0;
 	float CardHit = 0, CardLink = 0, CardFinisher = 0;
 	int32 HN = 0, HC = 0, HR = 0, HB = 0;
-	int32 HCardConsume = 0, HCardHit = 0, HCardMatched = 0;
+	int32 HCardResolve = 0, HCardHit = 0, HCardMatched = 0;
 	int32 HCardLink = 0, HCardFinisher = 0, HCardShuffle = 0;
 
 	for (const FDamageBreakdown& E : Entries)
 	{
 		const FString T = E.DamageType.ToString();
-		if (E.DamageType == FName("Card_Consume") || E.DamageType == FName("Card_Shuffle"))
+		if (IsCardResolveEventDamageType(E.DamageType))
 		{
-			HCardConsume++;
+			HCardResolve++;
 			if (E.bStartedShuffle) HCardShuffle++;
 		}
 		else if (E.DamageType == FName("Card_Finisher"))
@@ -739,12 +749,12 @@ FString UCombatLogStatics::GetFormattedSummary()
 
 	return FString::Printf(
 		TEXT("-- 卡牌统计 --\n")
-		TEXT("消耗: %d次 | 命中: %d次 | 匹配: %d次 | 连携: %d次 | 终结技: %d次 | 洗牌: %d次\n")
+		TEXT("结算: %d次 | 命中: %d次 | 匹配: %d次 | 连携: %d次 | 终结技: %d次 | 洗牌: %d次\n")
 		TEXT("-- 伤害统计 --\n")
 		TEXT("普通: %.0f(%d次) | 暴击: %.0f(%d次) | 符文: %.0f(%d次) | 流血: %.0f(%d次)\n")
 		TEXT("卡牌命中: %.0f(%d次) | 终结技: %.0f(%d次) | 连携: %.0f(%d次)\n")
 		TEXT("总计: %.0f"),
-		HCardConsume, HCardHit, HCardMatched, HCardLink, HCardFinisher, HCardShuffle,
+		HCardResolve, HCardHit, HCardMatched, HCardLink, HCardFinisher, HCardShuffle,
 		Normal, HN, Crit, HC, Rune, HR, Bleed, HB,
 		CardHit, HCardHit, CardFinisher, HCardFinisher, CardLink, HCardLink,
 		Total);

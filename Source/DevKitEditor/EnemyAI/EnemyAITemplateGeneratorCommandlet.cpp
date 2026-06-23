@@ -1,7 +1,10 @@
 #include "DevKitEditor/EnemyAI/EnemyAITemplateGeneratorCommandlet.h"
 
 #include "AI/BTDecorator_EnemyAIState.h"
+#include "AI/BTDecorator_EnemyPostAttackReposition.h"
 #include "AI/BTService_UpdateEnemyAwareness.h"
+#include "AbilitySystem/Abilities/GA_EnemyMeleeAttacks.h"
+#include "AbilitySystem/Abilities/GA_EnemyWeaponSkills.h"
 #include "Commandlets/CommandletReportUtils.h"
 #include "AI/BTService_UpdateEnemyCombatMove.h"
 #include "AI/BTTask_EnemyCombatMove.h"
@@ -28,8 +31,10 @@
 #include "BehaviorTreeGraphNode_Root.h"
 #include "BehaviorTreeGraphNode_Service.h"
 #include "BehaviorTreeGraphNode_Task.h"
+#include "Character/EnemyCharacterBase.h"
 #include "Data/AbilityData.h"
 #include "Data/EnemyData.h"
+#include "Data/GasTemplate.h"
 #include "EdGraph/EdGraphPin.h"
 #include "EdGraphSchema_BehaviorTree.h"
 #include "FileHelpers.h"
@@ -42,13 +47,20 @@ namespace EnemyAITemplateGenerator
 {
 	const FString BlackboardPath = TEXT("/Game/Code/Enemy/AI/BlackBoard/BB_Enemy_DefaultMelee");
 	const FString BehaviorTreePath = TEXT("/Game/Code/Enemy/AI/Behaviour/BT_Enemy_DefaultMelee");
+	const FString EnemyGASTemplatePath = TEXT("/Game/Docs/Data/Enemy/DA_Enemy_GASTemplate");
 	const FString RatDataPath = TEXT("/Game/Docs/Data/Enemy/Rat/DA_Rat");
 	const FString RottenGuardDataPath = TEXT("/Game/Docs/Data/Enemy/RottenGuard/DA_RottenGuard");
+	const FString AlarmBellJailerDataPath = TEXT("/Game/Docs/Data/Enemy/AlarmBellJailer/DA_AlarmBellJailer");
+	const FString AlarmBellJailerAbilityDataPath = TEXT("/Game/Docs/Data/Enemy/AlarmBellJailer/DA_AbilityMontage_AlarmBellJailer_01");
+	const FString GuardCaptainDataPath = TEXT("/Game/Docs/Data/Enemy/GuardCaptain/DA_GuardCaptain");
+	const FString GuardCaptainAbilityDataPath = TEXT("/Game/Docs/Data/Enemy/GuardCaptain/DA_AbilityMontage_GuardCaptain_01");
 
 	enum class EDefaultEnemyProfile : uint8
 	{
 		Rat,
 		RottenGuard,
+		AlarmBellJailer,
+		GuardCaptain,
 	};
 
 	FString ToObjectPath(const FString& PackagePath)
@@ -137,6 +149,10 @@ namespace EnemyAITemplateGenerator
 		EnsureBlackboardKey<UBlackboardKeyType_Float>(Blackboard, TEXT("AcceptanceRadius"));
 		EnsureBlackboardKey<UBlackboardKeyType_Float>(Blackboard, TEXT("AlertExpireTime"));
 		EnsureBlackboardKey<UBlackboardKeyType_Float>(Blackboard, TEXT("LastSeenTargetTime"));
+		EnsureBlackboardKey<UBlackboardKeyType_Bool>(Blackboard, TEXT("bLastAttackWhiffed"));
+		EnsureBlackboardKey<UBlackboardKeyType_Float>(Blackboard, TEXT("LastWhiffTime"));
+		EnsureBlackboardKey<UBlackboardKeyType_Bool>(Blackboard, TEXT("bPostAttackReposition"));
+		EnsureBlackboardKey<UBlackboardKeyType_Float>(Blackboard, TEXT("LastRepositionRequestTime"));
 
 		Blackboard.UpdateKeyIDs();
 		Blackboard.MarkPackageDirty();
@@ -156,7 +172,13 @@ namespace EnemyAITemplateGenerator
 		float LungeDuration = 0.35f,
 		float LungeStopDistance = 0.0f,
 		float MovementAttackRangeMultiplier = 2.5f,
-		float MovementAttackCooldown = 10.0f)
+		float MovementAttackCooldown = 10.0f,
+		float MinHealthPercent = 0.0f,
+		float MaxHealthPercent = 1.0f,
+		bool bRequestRepositionOnResolve = false,
+		float RepositionAngleMin = 60.0f,
+		float RepositionAngleMax = 120.0f,
+		bool bPreAttackFlash = true)
 	{
 		FEnemyAIAttackOption Option;
 		Option.AttackName = FName(AttackName);
@@ -164,7 +186,9 @@ namespace EnemyAITemplateGenerator
 		Option.MaxRange = MaxRange;
 		Option.Weight = Weight;
 		Option.Cooldown = Cooldown;
-		Option.bPreAttackFlash = true;
+		Option.bPreAttackFlash = bPreAttackFlash;
+		Option.MinHealthPercent = MinHealthPercent;
+		Option.MaxHealthPercent = MaxHealthPercent;
 		Option.AttackRole = AttackRole;
 		Option.AttackMovementMode = MovementMode;
 		Option.LungeStartRange = LungeStartRange;
@@ -173,6 +197,9 @@ namespace EnemyAITemplateGenerator
 		Option.LungeStopDistance = LungeStopDistance;
 		Option.MovementAttackRangeMultiplier = MovementAttackRangeMultiplier;
 		Option.MovementAttackCooldown = MovementAttackCooldown;
+		Option.bRequestRepositionOnResolve = bRequestRepositionOnResolve;
+		Option.RepositionAngleMin = RepositionAngleMin;
+		Option.RepositionAngleMax = RepositionAngleMax;
 
 		const FGameplayTag AbilityTag = FGameplayTag::RequestGameplayTag(FName(TagName), false);
 		if (AbilityTag.IsValid())
@@ -236,6 +263,48 @@ namespace EnemyAITemplateGenerator
 		UpsertAttackOption(AttackProfile, Option);
 	}
 
+	void EnsureGASTemplateAbility(UGASTemplate& GASTemplate, TSubclassOf<UYogGameplayAbility> AbilityClass)
+	{
+		if (!AbilityClass)
+		{
+			return;
+		}
+
+		for (const TSubclassOf<UYogGameplayAbility>& Existing : GASTemplate.AbilityMap)
+		{
+			if (Existing == AbilityClass)
+			{
+				return;
+			}
+		}
+
+		GASTemplate.AbilityMap.Add(AbilityClass);
+	}
+
+	void ConfigureSharedEnemyGASTemplate(UGASTemplate& GASTemplate)
+	{
+		EnsureGASTemplateAbility(GASTemplate, UGA_Enemy_LAtk1::StaticClass());
+		EnsureGASTemplateAbility(GASTemplate, UGA_Enemy_LAtk2::StaticClass());
+		EnsureGASTemplateAbility(GASTemplate, UGA_Enemy_LAtk3::StaticClass());
+		EnsureGASTemplateAbility(GASTemplate, UGA_Enemy_LAtk4::StaticClass());
+		EnsureGASTemplateAbility(GASTemplate, UGA_Enemy_HAtk1::StaticClass());
+		EnsureGASTemplateAbility(GASTemplate, UGA_Enemy_HAtk2::StaticClass());
+		EnsureGASTemplateAbility(GASTemplate, UGA_Enemy_HAtk3::StaticClass());
+		EnsureGASTemplateAbility(GASTemplate, UGA_Enemy_HAtk4::StaticClass());
+		EnsureGASTemplateAbility(GASTemplate, UGA_Enemy_Range_LAtk1::StaticClass());
+		EnsureGASTemplateAbility(GASTemplate, UGA_Enemy_Range_LAtk2::StaticClass());
+		EnsureGASTemplateAbility(GASTemplate, UGA_Enemy_Range_LAtk3::StaticClass());
+		EnsureGASTemplateAbility(GASTemplate, UGA_Enemy_Range_LAtk4::StaticClass());
+		EnsureGASTemplateAbility(GASTemplate, UGA_Enemy_Range_HAtk1::StaticClass());
+		EnsureGASTemplateAbility(GASTemplate, UGA_Enemy_Range_HAtk2::StaticClass());
+		EnsureGASTemplateAbility(GASTemplate, UGA_Enemy_Range_HAtk3::StaticClass());
+		EnsureGASTemplateAbility(GASTemplate, UGA_Enemy_Range_HAtk4::StaticClass());
+		EnsureGASTemplateAbility(GASTemplate, UGA_Enemy_Skill1::StaticClass());
+		EnsureGASTemplateAbility(GASTemplate, UGA_Enemy_Skill2::StaticClass());
+		EnsureGASTemplateAbility(GASTemplate, UGA_Enemy_Skill3::StaticClass());
+		EnsureGASTemplateAbility(GASTemplate, UGA_Enemy_Skill4::StaticClass());
+	}
+
 	FString GetAttackNameFromTag(const FGameplayTag& AbilityTag)
 	{
 		const FString TagString = AbilityTag.ToString();
@@ -245,7 +314,9 @@ namespace EnemyAITemplateGenerator
 
 	bool IsGeneratedAttackTag(const FString& TagString)
 	{
-		return TagString.StartsWith(TEXT("Enemy.Melee.")) || TagString.StartsWith(TEXT("Enemy.Skill."));
+		return TagString.StartsWith(TEXT("Enemy.Melee."))
+			|| TagString.StartsWith(TEXT("Enemy.Range."))
+			|| TagString.StartsWith(TEXT("Enemy.Skill."));
 	}
 
 	FEnemyAIAttackOption MakeGeneratedAttackOptionFromAbilityTag(const UEnemyData& EnemyData, const FGameplayTag& AbilityTag)
@@ -264,6 +335,20 @@ namespace EnemyAITemplateGenerator
 				SkillRange,
 				1.0f,
 				15.0f,
+				EEnemyAIAttackRole::Skill);
+		}
+
+		if (TagString.StartsWith(TEXT("Enemy.Range.")))
+		{
+			const float RangedMax = FMath::Max(EnemyData.AwarenessTuning.CombatEnterRadius, CloseAttackRange);
+			const float RangedMin = TagString.Contains(TEXT(".HAtk")) ? CloseAttackRange : 0.0f;
+			return MakeAttackOption(
+				*AttackName,
+				*TagString,
+				RangedMin,
+				RangedMax,
+				TagString.Contains(TEXT(".HAtk")) ? 1.2f : 2.0f,
+				TagString.Contains(TEXT(".HAtk")) ? 4.0f : 2.2f,
 				EEnemyAIAttackRole::Skill);
 		}
 
@@ -407,6 +492,105 @@ namespace EnemyAITemplateGenerator
 				2.5f,
 				10.0f));
 			break;
+
+		case EDefaultEnemyProfile::AlarmBellJailer:
+		{
+			EnemyData.DifficultyScore = 4;
+			EnemyData.AwarenessTuning.DetectionRadius = 950.f;
+			EnemyData.AwarenessTuning.CombatEnterRadius = 760.f;
+			EnemyData.AwarenessTuning.CombatExitRadius = 1250.f;
+			EnemyData.AwarenessTuning.AlertDuration = 5.0f;
+			EnemyData.AwarenessTuning.AlertBroadcastRadius = 1400.f;
+			EnemyData.AwarenessTuning.PatrolRadius = 550.f;
+			EnemyData.MovementTuning.ApproachStyle = EEnemyAIApproachStyle::BruiserHold;
+			EnemyData.MovementTuning.PreferredRange = 520.f;
+			EnemyData.MovementTuning.AttackRange = 680.f;
+			EnemyData.MovementTuning.AcceptanceRadius = 95.f;
+			EnemyData.MovementTuning.RepathInterval = 0.28f;
+			EnemyData.MovementTuning.FlankDistance = 120.f;
+			EnemyData.MovementTuning.StrafeChance = 0.25f;
+			EnemyData.MovementTuning.CrowdSeparationWeight = 2.2f;
+			EnemyData.MovementTuning.bUseForwardSteering = true;
+			EnemyData.MovementTuning.ForwardTurnLeadDistance = 220.f;
+			EnemyData.MovementTuning.MaxTurnYawSpeed = 300.f;
+			EnemyData.MovementTuning.MoveTargetSmoothingSpeed = 5.5f;
+			EnemyData.MovementTuning.SharpTurnAngle = 110.f;
+			EnemyData.MovementTuning.MaxWalkSpeedOverride = 360.f;
+			EnemyData.MovementTuning.CombatSlotLockDuration = 0.4f;
+			EnemyData.MovementTuning.AttackRangeExitBuffer = 70.f;
+			EnemyData.AttackProfile.WhiffRepositionChance = 0.75f;
+
+			UpsertAttackOptionByTag(EnemyData.AttackProfile, MakeAttackOption(TEXT("BellAlarm"), TEXT("Enemy.Skill.Skill1"), 250.f, 900.f, 2.2f, 14.0f, EEnemyAIAttackRole::Skill));
+			UpsertAttackOptionByTag(EnemyData.AttackProfile, MakeAttackOption(TEXT("BellShock"), TEXT("Enemy.Skill.Skill2"), 0.f, 520.f, 1.0f, 9.0f, EEnemyAIAttackRole::Skill));
+
+			FEnemyAIAttackOption BatonShove = MakeAttackOption(TEXT("BatonShove"), TEXT("Enemy.Melee.LAtk1"), 0.f, 220.f, 1.0f, 2.4f);
+			BatonShove.bRequestRepositionOnResolve = true;
+			UpsertAttackOptionByTag(EnemyData.AttackProfile, BatonShove);
+
+			FEnemyAIAttackOption PanicRetreat = MakeAttackOption(TEXT("PanicRetreat"), TEXT("Enemy.Melee.LAtk2"), 0.f, 700.f, 1.0f, 4.0f, EEnemyAIAttackRole::Reposition);
+			PanicRetreat.bPreAttackFlash = false;
+			PanicRetreat.LungeDistance = 360.f;
+			PanicRetreat.LungeDuration = 0.4f;
+			PanicRetreat.RepositionAngleMin = 0.f;
+			PanicRetreat.RepositionAngleMax = 25.f;
+			UpsertAttackOptionByTag(EnemyData.AttackProfile, PanicRetreat);
+			break;
+		}
+
+		case EDefaultEnemyProfile::GuardCaptain:
+		{
+			EnemyData.DifficultyScore = 10;
+			EnemyData.SuperArmorThreshold = 4;
+			EnemyData.SuperArmorDuration = 2.2f;
+			EnemyData.RecentlyDamagedStateDuration = 3.5f;
+			EnemyData.AwarenessTuning.DetectionRadius = 1200.f;
+			EnemyData.AwarenessTuning.CombatEnterRadius = 950.f;
+			EnemyData.AwarenessTuning.CombatExitRadius = 1600.f;
+			EnemyData.AwarenessTuning.AlertDuration = 5.0f;
+			EnemyData.AwarenessTuning.AlertBroadcastRadius = 1600.f;
+			EnemyData.AwarenessTuning.PatrolRadius = 700.f;
+			EnemyData.MovementTuning.ApproachStyle = EEnemyAIApproachStyle::BruiserHold;
+			EnemyData.MovementTuning.PreferredRange = 650.f;
+			EnemyData.MovementTuning.AttackRange = 900.f;
+			EnemyData.MovementTuning.AcceptanceRadius = 110.f;
+			EnemyData.MovementTuning.RepathInterval = 0.3f;
+			EnemyData.MovementTuning.FlankDistance = 140.f;
+			EnemyData.MovementTuning.StrafeChance = 0.2f;
+			EnemyData.MovementTuning.CrowdSeparationWeight = 3.6f;
+			EnemyData.MovementTuning.bUseForwardSteering = true;
+			EnemyData.MovementTuning.ForwardTurnLeadDistance = 260.f;
+			EnemyData.MovementTuning.MaxTurnYawSpeed = 220.f;
+			EnemyData.MovementTuning.MoveTargetSmoothingSpeed = 4.5f;
+			EnemyData.MovementTuning.SharpTurnAngle = 100.f;
+			EnemyData.MovementTuning.MaxWalkSpeedOverride = 360.f;
+			EnemyData.MovementTuning.CombatSlotLockDuration = 0.3f;
+			EnemyData.MovementTuning.AttackRangeExitBuffer = 80.f;
+			EnemyData.AttackProfile.RecentAttackMemoryDuration = 3.0f;
+			EnemyData.AttackProfile.RepeatAttackWeightMultiplier = 0.2f;
+			EnemyData.AttackProfile.WhiffRepositionChance = 0.6f;
+
+			UpsertAttackOptionByTag(EnemyData.AttackProfile, MakeAttackOption(TEXT("ExecutionShot"), TEXT("Enemy.Range.LAtk1"), 320.f, 950.f, 2.0f, 3.2f, EEnemyAIAttackRole::Skill));
+			UpsertAttackOptionByTag(EnemyData.AttackProfile, MakeAttackOption(TEXT("SuppressiveShot"), TEXT("Enemy.Range.HAtk1"), 450.f, 1050.f, 1.1f, 8.0f, EEnemyAIAttackRole::Skill));
+			UpsertAttackOptionByTag(EnemyData.AttackProfile, MakeAttackOption(TEXT("SummonJailer"), TEXT("Enemy.Skill.Skill1"), 450.f, 1100.f, 1.1f, 18.0f, EEnemyAIAttackRole::Skill));
+			UpsertAttackOptionByTag(EnemyData.AttackProfile, MakeAttackOption(TEXT("CommandBuff"), TEXT("Enemy.Skill.Skill2"), 0.f, 950.f, 1.2f, 16.0f, EEnemyAIAttackRole::Skill));
+
+			FEnemyAIAttackOption CaptainPush = MakeAttackOption(TEXT("CaptainPush"), TEXT("Enemy.Melee.HAtk1"), 0.f, 300.f, 2.4f, 5.0f);
+			CaptainPush.bRequestRepositionOnResolve = true;
+			UpsertAttackOptionByTag(EnemyData.AttackProfile, CaptainPush);
+
+			FEnemyAIAttackOption TacticalRetreat = MakeAttackOption(TEXT("TacticalRetreat"), TEXT("Enemy.Melee.HAtk2"), 0.f, 1000.f, 1.0f, 3.0f, EEnemyAIAttackRole::Reposition);
+			TacticalRetreat.bPreAttackFlash = false;
+			TacticalRetreat.LungeDistance = 520.f;
+			TacticalRetreat.LungeDuration = 0.45f;
+			TacticalRetreat.RepositionAngleMin = 0.f;
+			TacticalRetreat.RepositionAngleMax = 25.f;
+			UpsertAttackOptionByTag(EnemyData.AttackProfile, TacticalRetreat);
+
+			FEnemyAIAttackOption FlameIgnition = MakeAttackOption(TEXT("FlameIgnition"), TEXT("Enemy.Skill.Skill4"), 0.f, 900.f, 3.0f, 60.0f, EEnemyAIAttackRole::Skill);
+			FlameIgnition.MaxHealthPercent = 0.35f;
+			UpsertAttackOptionByTag(EnemyData.AttackProfile, FlameIgnition);
+			break;
+		}
 		}
 
 		SyncAttackProfileFromAbilityData(EnemyData);
@@ -479,6 +663,18 @@ namespace EnemyAITemplateGenerator
 		DecoratedNode.AddSubNode(DecoratorNode, &Graph);
 	}
 
+	void AddPostAttackRepositionDecorator(UBehaviorTree& BehaviorTree, UBehaviorTreeGraph& Graph, UBehaviorTreeGraphNode& DecoratedNode)
+	{
+		UBehaviorTreeGraphNode_Decorator* DecoratorNode = NewObject<UBehaviorTreeGraphNode_Decorator>(&Graph);
+		UBTDecorator_EnemyPostAttackReposition* Decorator = NewObject<UBTDecorator_EnemyPostAttackReposition>(&BehaviorTree);
+		DecoratorNode->NodeInstance = Decorator;
+		DecoratorNode->SetFlags(RF_Transactional);
+		Decorator->SetFlags(RF_Transactional);
+		DecoratorNode->CreateNewGuid();
+		DecoratorNode->UpdateNodeClassData();
+		DecoratedNode.AddSubNode(DecoratorNode, &Graph);
+	}
+
 	UBehaviorTreeGraphNode_Root* FindOrCreateRootNode(UBehaviorTreeGraph& Graph, UBlackboardData& Blackboard)
 	{
 		for (UEdGraphNode* Node : Graph.Nodes)
@@ -535,6 +731,14 @@ namespace EnemyAITemplateGenerator
 		UBehaviorTreeGraphNode_Composite* CombatSelector = AddNode<UBehaviorTreeGraphNode_Composite, UBTComposite_Selector>(BehaviorTree, *Graph, -450, 360);
 		AddStateDecorator(BehaviorTree, *Graph, *CombatSelector, EEnemyAIState::Combat);
 		Connect(MainSelector, CombatSelector);
+
+		UBehaviorTreeGraphNode_Task* RepositionTask = AddNode<UBehaviorTreeGraphNode_Task, UBTTask_EnemyAttackByProfile>(BehaviorTree, *Graph, -1050, 560);
+		if (UBTTask_EnemyAttackByProfile* AttackTask = Cast<UBTTask_EnemyAttackByProfile>(RepositionTask->NodeInstance))
+		{
+			AttackTask->SetRequiredAttackRole(EEnemyAIAttackRole::Reposition);
+		}
+		AddPostAttackRepositionDecorator(BehaviorTree, *Graph, *RepositionTask);
+		Connect(CombatSelector, RepositionTask);
 
 		UBehaviorTreeGraphNode_Task* SkillTask = AddNode<UBehaviorTreeGraphNode_Task, UBTTask_EnemyAttackByProfile>(BehaviorTree, *Graph, -850, 560);
 		if (UBTTask_EnemyAttackByProfile* AttackTask = Cast<UBTTask_EnemyAttackByProfile>(SkillTask->NodeInstance))
@@ -611,6 +815,9 @@ namespace EnemyAITemplateGenerator
 		const FString& EnemyDataPath,
 		UBehaviorTree* BehaviorTree,
 		EDefaultEnemyProfile Profile,
+		UAbilityData* AbilityData,
+		UGASTemplate* GASTemplate,
+		bool bCreateIfMissing,
 		bool bDryRun,
 		TArray<FString>& ReportLines,
 		TArray<UPackage*>& DirtyPackages)
@@ -618,14 +825,16 @@ namespace EnemyAITemplateGenerator
 		if (bDryRun)
 		{
 			ReportLines.Add(FString::Printf(TEXT("- %s `%s`.BehaviorTree -> `%s`."),
-				PackageExists(EnemyDataPath) ? TEXT("Would set") : TEXT("Missing enemy DA"),
+				PackageExists(EnemyDataPath) ? TEXT("Would set") : bCreateIfMissing ? TEXT("Would create enemy DA and set") : TEXT("Missing enemy DA"),
 				*EnemyDataPath,
 				*BehaviorTreePath));
 			return;
 		}
 
 		const uint32 EnemyDataLoadFlags = LOAD_NoWarn | LOAD_NoVerify | LOAD_DisableDependencyPreloading | LOAD_DisableCompileOnLoad;
-		UEnemyData* EnemyData = LoadAssetByPackagePath<UEnemyData>(EnemyDataPath, EnemyDataLoadFlags);
+		UEnemyData* EnemyData = bCreateIfMissing
+			? CreateOrLoadAsset<UEnemyData>(EnemyDataPath, bDryRun, ReportLines, DirtyPackages)
+			: LoadAssetByPackagePath<UEnemyData>(EnemyDataPath, EnemyDataLoadFlags);
 		if (!EnemyData)
 		{
 			ReportLines.Add(FString::Printf(TEXT("- Missing enemy DA `%s`."), *EnemyDataPath));
@@ -644,10 +853,22 @@ namespace EnemyAITemplateGenerator
 
 		EnemyData->Modify();
 		EnemyData->BehaviorTree = BehaviorTree;
+		if (AbilityData)
+		{
+			EnemyData->AbilityData = AbilityData;
+		}
+		if (GASTemplate)
+		{
+			EnemyData->GasTemplate = GASTemplate;
+		}
 		ConfigureDefaultEnemyData(*EnemyData, Profile);
 		EnemyData->MarkPackageDirty();
 		DirtyPackages.AddUnique(EnemyData->GetPackage());
 		ReportLines.Add(FString::Printf(TEXT("- Ensured `%s` default movement, awareness and attack profile."), *EnemyDataPath));
+		if (bCreateIfMissing && !EnemyData->EnemyClass)
+		{
+			ReportLines.Add(FString::Printf(TEXT("- `%s`.EnemyClass is intentionally empty; assign the final BP class when the model/animation BP is ready."), *EnemyDataPath));
+		}
 	}
 }
 
@@ -690,7 +911,7 @@ int32 UEnemyAITemplateGeneratorCommandlet::Main(const FString& Params)
 
 		ReportLines.Add(TEXT(""));
 		ReportLines.Add(TEXT("## Behavior Tree"));
-		ReportLines.Add(TEXT("- Combat branch order: Skill -> SpecialMovement -> CloseMelee -> MoveToCombatSlot."));
+		ReportLines.Add(TEXT("- Combat branch order: PostAttackReposition -> Skill -> SpecialMovement -> CloseMelee -> MoveToCombatSlot."));
 		UBehaviorTree* BehaviorTree = CreateOrLoadAsset<UBehaviorTree>(BehaviorTreePath, bDryRun, ReportLines, DirtyPackages);
 		if (!bDryRun && BehaviorTree && Blackboard)
 		{
@@ -700,9 +921,27 @@ int32 UEnemyAITemplateGeneratorCommandlet::Main(const FString& Params)
 		}
 
 		ReportLines.Add(TEXT(""));
+		ReportLines.Add(TEXT("## GAS Template"));
+		UGASTemplate* EnemyGASTemplate = CreateOrLoadAsset<UGASTemplate>(EnemyGASTemplatePath, bDryRun, ReportLines, DirtyPackages);
+		if (!bDryRun && EnemyGASTemplate)
+		{
+			ConfigureSharedEnemyGASTemplate(*EnemyGASTemplate);
+			EnemyGASTemplate->MarkPackageDirty();
+			DirtyPackages.AddUnique(EnemyGASTemplate->GetPackage());
+			ReportLines.Add(TEXT("- Ensured shared enemy GAS grants melee, ranged, and Skill1-4 attack slots."));
+		}
+
+		ReportLines.Add(TEXT(""));
+		ReportLines.Add(TEXT("## Enemy Ability Data"));
+		UEnemyAbilityMontageData* AlarmBellAbilityData = CreateOrLoadAsset<UEnemyAbilityMontageData>(AlarmBellJailerAbilityDataPath, bDryRun, ReportLines, DirtyPackages);
+		UEnemyAbilityMontageData* GuardCaptainAbilityData = CreateOrLoadAsset<UEnemyAbilityMontageData>(GuardCaptainAbilityDataPath, bDryRun, ReportLines, DirtyPackages);
+
+		ReportLines.Add(TEXT(""));
 		ReportLines.Add(TEXT("## Enemy Data"));
-		AssignBehaviorTreeToEnemyData(RatDataPath, BehaviorTree, EDefaultEnemyProfile::Rat, bDryRun, ReportLines, DirtyPackages);
-		AssignBehaviorTreeToEnemyData(RottenGuardDataPath, BehaviorTree, EDefaultEnemyProfile::RottenGuard, bDryRun, ReportLines, DirtyPackages);
+		AssignBehaviorTreeToEnemyData(RatDataPath, BehaviorTree, EDefaultEnemyProfile::Rat, nullptr, nullptr, false, bDryRun, ReportLines, DirtyPackages);
+		AssignBehaviorTreeToEnemyData(RottenGuardDataPath, BehaviorTree, EDefaultEnemyProfile::RottenGuard, nullptr, nullptr, false, bDryRun, ReportLines, DirtyPackages);
+		AssignBehaviorTreeToEnemyData(AlarmBellJailerDataPath, BehaviorTree, EDefaultEnemyProfile::AlarmBellJailer, AlarmBellAbilityData, EnemyGASTemplate, true, bDryRun, ReportLines, DirtyPackages);
+		AssignBehaviorTreeToEnemyData(GuardCaptainDataPath, BehaviorTree, EDefaultEnemyProfile::GuardCaptain, GuardCaptainAbilityData, EnemyGASTemplate, true, bDryRun, ReportLines, DirtyPackages);
 	}
 
 	if (!bDryRun && DirtyPackages.Num() > 0)

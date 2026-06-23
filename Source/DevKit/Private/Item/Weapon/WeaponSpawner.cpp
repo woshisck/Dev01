@@ -546,7 +546,7 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 	Player->EquippedFromSpawner  = this;
 	Player->PendingWeaponSpawner = nullptr;
 
-	// ── 5.25 注入战斗卡组与连招配置 ─────────────────────────────────
+	// ── 5.25 注入战斗卡组与 typed AbilityData ───────────────────────
 	// TryPickupWeapon 自己实现了装备流程，不走 WeaponDefinition::SetupWeaponToCharacter。
 	// 因此这里需要同步加载武器 DA 上的 InitialCombatDeck / InitialRunes / typed AbilityData。
 	if (UCombatDeckComponent* CombatDeck = Player->CombatDeckComponent.Get())

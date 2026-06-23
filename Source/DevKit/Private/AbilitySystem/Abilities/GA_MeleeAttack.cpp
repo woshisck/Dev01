@@ -20,6 +20,7 @@
 #include "Component/CombatDeckComponent.h"
 #include "Component/MontageVFXBindingComponent.h"
 #include "Component/BufferComponent.h"
+#include "Component/PlayerActiveSkillComponent.h"
 #include "Component/CharacterDataComponent.h"
 #include "Data/CharacterData.h"
 #include "Data/AbilityData.h"
@@ -78,10 +79,9 @@ namespace
 UGA_MeleeAttack::UGA_MeleeAttack()
 {
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
-	// Required for combo chaining: when ComboRuntime activates the next node
-	// (same UGA_MeleeAttack class), the previous instance is still alive
-	// (montage in CanCombo window). Without retrigger, TryActivateAbilityByClass
-	// returns false and the chain dies on the root. Matches GA_PlayMontage behavior.
+	// Required for buffered re-entry: during the CanCombo cancel window, the
+	// same broad Attack action may be triggered again while the previous
+	// montage instance is still alive. Matches GA_PlayMontage behavior.
 	bRetriggerInstancedAbility = true;
 
 	// Runtime guards that should not depend on Blueprint class defaults.
@@ -141,44 +141,12 @@ FActionData UGA_MeleeAttack::GetAbilityActionData_Implementation() const
 
 ECardRequiredAction UGA_MeleeAttack::GetCombatDeckActionType() const
 {
-	const FGameplayTag HeavyAttackTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.HeavyAtk"));
-	const FGameplayTag LightAttackTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.LightAtk"));
-	const FGameplayTag AttackTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Attack"));
-	const FGameplayTag WeaponSkillTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.WeaponSkill"));
-
-	if (AbilityTags.HasTag(HeavyAttackTag))
-	{
-		return ECardRequiredAction::Heavy;
-	}
-
-	if (AbilityTags.HasTag(LightAttackTag) || AbilityTags.HasTag(AttackTag))
-	{
-		return ECardRequiredAction::Light;
-	}
-
-	if (AbilityTags.HasTag(WeaponSkillTag))
-	{
-		return ECardRequiredAction::Heavy;
-	}
-
 	return ECardRequiredAction::Any;
 }
 
 bool UGA_MeleeAttack::IsCombatDeckComboFinisher() const
 {
-	const FGameplayTag LightFinisherTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.LightAtk.Combo4"));
-	const FGameplayTag HeavyFinisherTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.HeavyAtk.Combo4"));
-	const FGameplayTag AttackFinisherTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Attack.Combo4"));
-	const FGameplayTag WeaponSkillFinisherTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.WeaponSkill.Combo4"));
-	const FGameplayTag DashFinisherTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Dash.Combo4"));
-	const FGameplayTag SpecialFinisherTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Special.Combo4"));
-
-	return AbilityTags.HasTagExact(LightFinisherTag)
-		|| AbilityTags.HasTagExact(HeavyFinisherTag)
-		|| AbilityTags.HasTagExact(AttackFinisherTag)
-		|| AbilityTags.HasTagExact(WeaponSkillFinisherTag)
-		|| AbilityTags.HasTagExact(DashFinisherTag)
-		|| AbilityTags.HasTagExact(SpecialFinisherTag);
+	return false;
 }
 
 bool UGA_MeleeAttack::HasConfiguredAttackData() const
@@ -322,16 +290,19 @@ FCombatCardResolveResult UGA_MeleeAttack::ResolveCombatDeck(ECombatCardTriggerTi
 
 	FCombatDeckActionContext Context;
 	Context.ActionType = GetCombatDeckActionType();
-	Context.ActionSlot = AbilityTags.HasTagExact(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.WeaponSkill"), false))
+	Context.ActionSlot = AbilityTags.HasTag(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.WeaponSkill"), false))
 		? ECombatDeckActionSlot::WeaponSkill
 		: ECombatDeckActionSlot::Attack;
-	Context.ComboIndex = ActiveComboIndex;
+	// Legacy Combo1/2/3/4 tags may still select montages, but combat cards no
+	// longer use combo count as gameplay context. Card order and FlowRole drive
+	// build sequencing now.
+	Context.ComboIndex = 0;
 	Context.ComboNodeId = NAME_None;
-	Context.ComboTags = ActiveComboTags;
+	Context.ComboTags.Reset();
 	Context.AbilityTag = FGameplayTag();
 	Context.WeaponDef = PlayerOwner->EquippedWeaponDef;
-	Context.bIsComboFinisher = IsCombatDeckComboFinisher();
-	Context.FlowRole = Context.bIsComboFinisher ? ECombatDeckFlowRole::Finisher : ECombatDeckFlowRole::Starter;
+	Context.bIsComboFinisher = false;
+	Context.FlowRole = Context.bIsComboFinisher ? ECombatDeckFlowRole::Finisher : CombatDeckFlowRole;
 	Context.ReleaseMode = Context.bIsComboFinisher ? ECombatCardReleaseMode::Finisher : ECombatCardReleaseMode::Normal;
 	Context.bComboContinued = bComboContinued;
 	Context.bExitedComboState = bExitedComboState;
@@ -419,47 +390,34 @@ void UGA_MeleeAttack::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCoun
 	}
 
 	bool bActivated = false;
-	if (BufferedActionType == EInputCommandType::Attack || BufferedActionType == EInputCommandType::WeaponSkill)
+	if (UAbilitySystemComponent* PlayerASC = PlayerOwner->GetASC())
 	{
-		if (UYogAbilitySystemComponent* PlayerASC = Cast<UYogAbilitySystemComponent>(PlayerOwner->GetASC()))
+		const TCHAR* FallbackTagName = TEXT("PlayerState.AbilityCast.Attack");
+		bool bUseFallbackTag = true;
+		switch (BufferedActionType)
 		{
-			const bool bHasActiveComboTag = BufferedActionType == EInputCommandType::Attack
-				? PlayerASC->HasActiveAttackComboAbilityTag()
-				: PlayerASC->HasActiveWeaponSkillComboAbilityTag();
-			bActivated = BufferedActionType == EInputCommandType::Attack
-				? PlayerASC->TryActivateNextAttackComboAbility(true, true)
-				: PlayerASC->TryActivateNextWeaponSkillComboAbility(true, true);
-			if (!bActivated && bHasActiveComboTag)
-			{
-				ASC = PlayerASC;
-				if (Tag.IsValid())
-				{
-					PlayerASC->SetLooseGameplayTagCount(Tag, 0);
-				}
-				return;
-			}
+		case EInputCommandType::Attack:
+			// Current player combat has no attack combo continuation. Keep this
+			// window for cancel actions, but do not chain Attack into another GA.
+			return;
+		case EInputCommandType::WeaponSkill:
+			FallbackTagName = TEXT("PlayerState.AbilityCast.WeaponSkill");
+			break;
+		case EInputCommandType::Dash:
+			FallbackTagName = TEXT("PlayerState.AbilityCast.Dash");
+			break;
+		case EInputCommandType::Skill:
+			bUseFallbackTag = false;
+			bActivated = PlayerOwner->ActiveSkillComponent
+				? PlayerOwner->ActiveSkillComponent->UseActiveSkill()
+				: false;
+			break;
+		default:
+			break;
 		}
-	}
-	if (!bActivated)
-	{
-		if (UAbilitySystemComponent* PlayerASC = PlayerOwner->GetASC())
-		{
-			const TCHAR* FallbackTagName = TEXT("PlayerState.AbilityCast.Attack");
-			switch (BufferedActionType)
-			{
-			case EInputCommandType::WeaponSkill:
-				FallbackTagName = TEXT("PlayerState.AbilityCast.WeaponSkill");
-				break;
-			case EInputCommandType::Dash:
-				FallbackTagName = TEXT("PlayerState.AbilityCast.Dash");
-				break;
-			case EInputCommandType::Special:
-				FallbackTagName = TEXT("PlayerState.AbilityCast.Special");
-				break;
-			default:
-				break;
-			}
 
+		if (bUseFallbackTag)
+		{
 			FGameplayTagContainer TagContainer;
 			TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName(FallbackTagName)));
 			bActivated = PlayerASC->TryActivateAbilitiesByTag(TagContainer, true);
@@ -468,7 +426,7 @@ void UGA_MeleeAttack::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCoun
 
 	// === DIAG: attack-stuck repro (CL564) ===
 	UE_LOG(LogTemp, Verbose,
-		TEXT("[Melee][DIAG564] OnCanComboTagChanged consumed=%s HasComboSource=%d Activated=%d Tag=%s"),
+		TEXT("[Melee][DIAG564] OnCanComboTagChanged buffered=%s HasComboSource=%d Activated=%d Tag=%s"),
 		*StaticEnum<EInputCommandType>()->GetNameStringByValue(static_cast<int64>(BufferedActionType)),
 		0, bActivated ? 1 : 0, *Tag.ToString());
 
@@ -688,18 +646,6 @@ void UGA_MeleeAttack::ActivateAbility(
 		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Dash.Combo2"), false),
 		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Dash.Combo3"), false),
 		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Dash.Combo4"), false),
-		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Special.Combo1"), false),
-		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Special.Combo2"), false),
-		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Special.Combo3"), false),
-		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Special.Combo4"), false),
-		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.LightAtk.Combo1"), false),
-		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.LightAtk.Combo2"), false),
-		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.LightAtk.Combo3"), false),
-		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.LightAtk.Combo4"), false),
-		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.HeavyAtk.Combo1"), false),
-		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.HeavyAtk.Combo2"), false),
-		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.HeavyAtk.Combo3"), false),
-		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.HeavyAtk.Combo4"), false),
 	};
 	for (const FGameplayTag& PreferredTag : PreferredAbilityTags)
 	{
@@ -837,7 +783,7 @@ void UGA_MeleeAttack::ActivateAbility(
 	}
 
 	// 鐩戝惉 AnimNotify 浼ゅ浜嬩欢锛氬繀椤绘槑纭紶鍏?Tag锛岀┖瀹瑰櫒涓嶄細娉ㄥ唽浠讳綍鐩戝惉
-	// Combat cards resolve from AN_MeleeDamage, so effects and UI consumption
+	// Combat cards resolve from AN_MeleeDamage, so effects and UI resolve state
 	// happen on the actual attack notify frame instead of montage start.
 
 	FGameplayTagContainer DamageEventTags;
@@ -1024,15 +970,9 @@ void UGA_MeleeAttack::EndAbility(
 
 	if (APlayerCharacterBase* PlayerOwner = Cast<APlayerCharacterBase>(GetAvatarActorFromActorInfo()))
 	{
-		if (!bComboContinued && !bCombatDeckFromDashSave && PlayerOwner->CombatDeckComponent)
-		{
-			PlayerOwner->CombatDeckComponent->NotifyComboStateExited();
-			UE_LOG(LogTemp, Warning, TEXT("[CombatDeck] Combo ended without continuation; pending link cleared by %s"), *GetName());
-		}
-
 		if (ActiveCombatCardResult.bHadCard && PlayerOwner->CombatDeckComponent)
 		{
-			PlayerOwner->CombatDeckComponent->StopCardFlow(ActiveCombatCardResult.ConsumedCard);
+			PlayerOwner->CombatDeckComponent->StopCardFlow(ActiveCombatCardResult.ResolvedCard);
 			PlayerOwner->CombatDeckComponent->StopCardFlow(ActiveCombatCardResult.LinkedSourceCard);
 			PlayerOwner->CombatDeckComponent->StopCardFlow(ActiveCombatCardResult.LinkedTargetCard);
 		}
@@ -1061,7 +1001,9 @@ void UGA_MeleeAttack::EndAbility(
 				const bool bRepositionMove =
 					ActiveEnemyAttackContext.AttackOption.AttackRole == EEnemyAIAttackRole::Reposition;
 				const bool bWhiffed = !bRepositionMove && !EnemyOwner->bComboHitConnected;
-				YogAI->NotifyAttackResolved(bWhiffed);
+				const bool bForceReposition = !bRepositionMove
+					&& ActiveEnemyAttackContext.AttackOption.bRequestRepositionOnResolve;
+				YogAI->NotifyAttackResolved(bWhiffed, bForceReposition);
 			}
 		}
 	}
@@ -1334,7 +1276,7 @@ void UGA_MeleeAttack::RestoreAttrsPostCard(
 	{
 		if (PlayerOwner->CombatDeckComponent)
 		{
-			PlayerOwner->CombatDeckComponent->StopCardFlow(CardResult.ConsumedCard);
+			PlayerOwner->CombatDeckComponent->StopCardFlow(CardResult.ResolvedCard);
 			PlayerOwner->CombatDeckComponent->StopCardFlow(CardResult.LinkedSourceCard);
 			PlayerOwner->CombatDeckComponent->StopCardFlow(CardResult.LinkedTargetCard);
 		}
@@ -1451,7 +1393,7 @@ void UGA_MeleeAttack::OnEventReceived(FGameplayTag EventTag, FGameplayEventData 
 
 	UE_LOG(LogTemp, Warning,
 		TEXT("[CombatCardAttrSnapshot] Resolve Card=%s Had=%d Base=%d Link=%d PreAttack=%.2f PreAttackPower=%.2f ASC=%s"),
-		*CombatCardResult.ConsumedCard.Config.DisplayName.ToString(),
+		*CombatCardResult.ResolvedCard.Config.DisplayName.ToString(),
 		CombatCardResult.bHadCard ? 1 : 0,
 		CombatCardResult.bTriggeredBaseFlow ? 1 : 0,
 		CombatCardResult.bTriggeredLink ? 1 : 0,

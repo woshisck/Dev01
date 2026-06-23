@@ -75,7 +75,8 @@ struct DEVKIT_API FCombatDeckActionContext
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck")
 	ECombatCardTriggerTiming TriggerTiming = ECombatCardTriggerTiming::OnHit;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck")
+	// Compatibility field name: this means "resolve the card on commit" now.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck", meta = (DisplayName = "Resolve On Commit"))
 	bool bConsumeOnCommit = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck")
@@ -189,6 +190,10 @@ struct DEVKIT_API FCombatCardResolveResult
 	int32 TemporaryUnlockCurrentCompletedBattles = 0;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck")
+	FCombatCardInstance ResolvedCard;
+
+	// Deprecated compatibility alias. Cards now resolve in sequence; they are not removed from the deck.
+	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck|Deprecated")
 	FCombatCardInstance ConsumedCard;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Combat Deck")
@@ -272,6 +277,7 @@ struct DEVKIT_API FCombatCardEffectContext
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDeckLoaded, const TArray<FCombatCardInstance>&, ActiveSequence);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDeckCardsEntered, const TArray<FCombatCardInstance>&, Cards);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnCardResolved, const FCombatCardInstance&, Card, const FCombatCardResolveResult&, Result);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnCardConsumed, const FCombatCardInstance&, Card, const FCombatCardResolveResult&, Result);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCombatCardResult, const FCombatCardResolveResult&, Result);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnShuffleProgress, float, NormalizedProgress);
@@ -289,7 +295,7 @@ public:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
-	UFUNCTION(BlueprintCallable, Category = "Combat Deck")
+	UFUNCTION(BlueprintCallable, Category = "Combat Deck", meta = (DeprecatedFunction, DeprecationMessage = "Use ResolveAttackCardWithContext with ActionSlot and FlowRole."))
 	FCombatCardResolveResult ResolveAttackCard(ECardRequiredAction ActionType, bool bIsComboFinisher, bool bFromDashSave);
 
 	FCombatCardResolveResult ResolveAttackCard(const FCombatDeckActionContext& Context);
@@ -368,16 +374,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Combat Deck")
 	void RefreshDeckView();
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck|Temporary Finisher")
+	UPROPERTY()
 	bool bGrantTemporaryInitialFinisherCard = false;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck|Temporary Finisher")
+	UPROPERTY()
 	TSoftObjectPtr<URuneDataAsset> TemporaryInitialFinisherRune;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck|Temporary Finisher", meta = (ClampMin = "0"))
+	UPROPERTY()
 	int32 TemporaryFinisherUnlockCompletedBattles = 0;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Deck|Temporary Finisher")
+	UPROPERTY()
 	FText TemporaryFinisherLockedReasonText;
 
 	void SetDeckListForTest(const TArray<FCombatCardConfig>& InCards);
@@ -391,6 +397,10 @@ public:
 	FOnDeckCardsEntered OnDeckCardsEntered;
 
 	UPROPERTY(BlueprintAssignable, Category = "Combat Deck|Events")
+	FOnCardResolved OnCardResolved;
+
+	// Deprecated compatibility alias. Bind to OnCardResolved for new card trigger logic.
+	UPROPERTY(BlueprintAssignable, Category = "Combat Deck|Events|Deprecated")
 	FOnCardConsumed OnCardConsumed;
 
 	UPROPERTY(BlueprintAssignable, Category = "Combat Deck|Events")
@@ -446,7 +456,7 @@ private:
 	float ShuffleCooldownRemaining = 0.0f;
 
 	UPROPERTY(SaveGame)
-	float ShuffleCooldownDuration = 1.0f;
+	float ShuffleCooldownDuration = 0.0f;
 
 	UPROPERTY(SaveGame)
 	int32 MaxActiveSequenceSize = 0;
@@ -488,7 +498,7 @@ private:
 	bool IsTemporaryFinisherLocked(const FCombatCardInstance& Card, int32& OutRequiredBattles, int32& OutCurrentBattles) const;
 	FCombatCardInstance BuildTemporaryLockViewCard(const FCombatCardInstance& Card) const;
 	TArray<FCombatCardInstance> BuildTemporaryLockViewCards(const TArray<FCombatCardInstance>& Cards) const;
-	void PushCombatCardConsumeLog(const FCombatCardResolveResult& Result) const;
+	void PushCombatCardResolveLog(const FCombatCardResolveResult& Result) const;
 	void RefillActiveSequence();
 	void RegisterTriggeredFinisherCard(const FCombatCardInstance& Card);
 	void ReleaseTriggeredFinisherCard(const FCombatCardInstance& Card);

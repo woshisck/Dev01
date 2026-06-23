@@ -241,7 +241,6 @@ namespace PlayerAbilityMontageDataSetup
 		ReportLines.Add(FString::Printf(TEXT("- Weapon definition `%s` typed AbilityData:"), *GetNameSafe(WeaponDefinition)));
 		AssignField(WeaponDefinition->AttackAbilityData, TEXT("AttackAbilityData"), AbilityDataByName.FindRef(TEXT("DA_WeaponAttack")));
 		AssignField(WeaponDefinition->WeaponSkillAbilityData, TEXT("WeaponSkillAbilityData"), AbilityDataByName.FindRef(TEXT("DA_WeaponSkill")));
-		AssignField(WeaponDefinition->SpecialAbilityData, TEXT("SpecialAbilityData"), AbilityDataByName.FindRef(TEXT("DA_Special")));
 		AssignField(WeaponDefinition->PassiveAbilityData, TEXT("PassiveAbilityData"), AbilityDataByName.FindRef(TEXT("DA_WeaponPassive")));
 
 		if (bChanged)
@@ -306,17 +305,6 @@ int32 UPlayerAbilityMontageDataSetupCommandlet::Main(const FString& Params)
 			{
 				TEXT("Action.HitReact.Blocked"),
 			},
-		},
-		{
-			TEXT("DA_Special"),
-			USpecialAbilityMontageData::StaticClass(),
-			{
-				{ TEXT("PlayerState.AbilityCast.Special.Combo1"), TEXT("/Game/Animation/1H-2HSword/Montage/1H_Attack_09_Seq_Montage") },
-				{ TEXT("PlayerState.AbilityCast.Special.Combo2"), TEXT("/Game/Animation/1H-2HSword/Montage/1H_Attack_10_Seq_Montage") },
-				{ TEXT("PlayerState.AbilityCast.Special.Combo3"), TEXT("/Game/Animation/1H-2HSword/Montage/1H_Attack_11_Seq_Montage") },
-				{ TEXT("PlayerState.AbilityCast.Special.Combo4"), TEXT("/Game/Animation/1H-2HSword/Montage/1H_Attack_12_Seq_Montage") },
-			},
-			{},
 		},
 		{
 			TEXT("DA_WeaponPassive"),

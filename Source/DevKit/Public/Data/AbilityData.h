@@ -463,7 +463,9 @@ class DEVKIT_API UWeaponSkillAbilityMontageData : public UAbilityData
 	virtual void PostInitProperties() override;
 };
 
-UCLASS(BlueprintType, Blueprintable, DisplayName = "Special Ability Montage Data", HideCategories = ("Passive"))
+// Deprecated asset-load compatibility for old DA_Special assets. Active skills
+// and WeaponSkillAbilityData now own the runtime player skill/action rows.
+UCLASS(BlueprintType, Blueprintable, DisplayName = "Deprecated Special Ability Montage Data", HideCategories = ("Passive"))
 class DEVKIT_API USpecialAbilityMontageData : public UAbilityData
 {
 	GENERATED_BODY()

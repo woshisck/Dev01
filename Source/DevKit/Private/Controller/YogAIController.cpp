@@ -267,6 +267,10 @@ void AYogAIController::InitializePatrolState()
 	BB->SetValueAsBool(TEXT("bInAttackRange"), false);
 	BB->SetValueAsFloat(TEXT("AlertExpireTime"), 0.0f);
 	BB->SetValueAsFloat(TEXT("LastSeenTargetTime"), 0.0f);
+	BB->SetValueAsBool(TEXT("bLastAttackWhiffed"), false);
+	BB->SetValueAsFloat(TEXT("LastWhiffTime"), 0.0f);
+	BB->SetValueAsBool(TEXT("bPostAttackReposition"), false);
+	BB->SetValueAsFloat(TEXT("LastRepositionRequestTime"), 0.0f);
 
 	if (const UEnemyData* EnemyData = GetPossessedEnemyData())
 	{
@@ -894,7 +898,7 @@ void AYogAIController::NotifyMovementAttackActivated(const FEnemyAIAttackOption&
 	}
 }
 
-void AYogAIController::NotifyAttackResolved(bool bWhiffed)
+void AYogAIController::NotifyAttackResolved(bool bWhiffed, bool bForceReposition)
 {
 	UBlackboardComponent* BB = ResolveBlackboardComponent();
 	if (!BB)
@@ -902,19 +906,26 @@ void AYogAIController::NotifyAttackResolved(bool bWhiffed)
 		return;
 	}
 
-	bool bFlagReposition = bWhiffed;
+	bool bFlagWhiffReposition = bWhiffed;
 	if (bWhiffed)
 	{
 		const UEnemyData* EnemyData = GetPossessedEnemyData();
 		const float Chance = EnemyData ? EnemyData->AttackProfile.WhiffRepositionChance : 1.0f;
-		bFlagReposition = FMath::FRand() <= Chance;
+		bFlagWhiffReposition = FMath::FRand() <= Chance;
 	}
 
-	BB->SetValueAsBool(TEXT("bLastAttackWhiffed"), bFlagReposition);
-	if (bFlagReposition)
+	const bool bRequestPostAttackReposition = bForceReposition || bFlagWhiffReposition;
+	BB->SetValueAsBool(TEXT("bLastAttackWhiffed"), bWhiffed);
+	BB->SetValueAsBool(TEXT("bPostAttackReposition"), bRequestPostAttackReposition);
+	if (bWhiffed)
 	{
 		const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
 		BB->SetValueAsFloat(TEXT("LastWhiffTime"), CurrentTime);
+	}
+	if (bRequestPostAttackReposition)
+	{
+		const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+		BB->SetValueAsFloat(TEXT("LastRepositionRequestTime"), CurrentTime);
 	}
 }
 

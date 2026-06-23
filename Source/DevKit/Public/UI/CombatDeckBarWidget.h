@@ -24,6 +24,9 @@ public:
 	void BP_OnDeckSnapshotChanged(const TArray<FCombatCardInstance>& ActiveSequence, EDeckState DeckState);
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "Combat Deck")
+	void BP_OnCardResolved(const FCombatCardInstance& Card, const FCombatCardResolveResult& Result);
+
+	UFUNCTION(BlueprintImplementableEvent, Category = "Combat Deck", meta = (DeprecatedFunction, DeprecationMessage = "Cards now resolve from the deck sequence. Use BP_OnCardResolved."))
 	void BP_OnCardConsumed(const FCombatCardInstance& Card, const FCombatCardResolveResult& Result);
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "Combat Deck")
@@ -101,6 +104,9 @@ protected:
 	TObjectPtr<class UWidget> StatusText;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<class UWidget> ResolvedToastText;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<class UWidget> ConsumedToastText;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
@@ -124,13 +130,14 @@ private:
 	void SetTextIfBound(class UWidget* TextWidget, const FText& Text);
 	void ShowToast(class UWidget* ToastWidget, float& ToastTimeRemaining);
 	void TickToast(class UWidget* ToastWidget, float& ToastTimeRemaining, float DeltaTime);
+	class UWidget* GetResolvedToastWidget() const;
 	void TickDeckCardsEnteredHighlight(float DeltaTime);
 	float GetDeckEntryHighlightDuration() const;
 
 	static FText GetCardDisplayName(const FCombatCardInstance& Card);
-	static FText GetConsumedToastText(const FCombatCardInstance& Card, const FCombatCardResolveResult& Result);
+	static FText GetResolvedToastText(const FCombatCardInstance& Card, const FCombatCardResolveResult& Result);
 
-	float ConsumedToastTimeRemaining = 0.0f;
+	float ResolvedToastTimeRemaining = 0.0f;
 	float RewardToastTimeRemaining = 0.0f;
 	float EntryHighlightElapsed = 0.0f;
 	bool bEntryHighlightAnimating = false;
@@ -139,7 +146,7 @@ private:
 	void HandleDeckLoaded(const TArray<FCombatCardInstance>& ActiveSequence);
 
 	UFUNCTION()
-	void HandleCardConsumed(const FCombatCardInstance& Card, const FCombatCardResolveResult& Result);
+	void HandleCardResolved(const FCombatCardInstance& Card, const FCombatCardResolveResult& Result);
 
 	UFUNCTION()
 	void HandleShuffleStarted(const FCombatCardResolveResult& Result);

@@ -15,8 +15,10 @@
 | `Direction` | `Forward` 或 `Reversed` | 正向读取前一张，反向等待后一张 |
 | `Condition.RequiredNeighborIdTags` | 例如 `Card.ID.Moonlight` | 要求邻卡是指定卡牌 ID |
 | `Condition.RequiredNeighborEffectTags` | 例如 `Card.Effect.Attack` | 要求邻卡带有指定效果 Tag |
-| `Condition.RequiredAction` | 通常 `Any` | 需要限制轻/重攻击时再填 |
-| `Condition.RequiredComboTags` | 通常留空 | 需要指定连招分支时再填 |
+| `Condition.RequiredAction` | 通常 `Any` | 旧字段兼容；新配方不要用它区分轻/重攻击 |
+| `Condition.RequiredActionSlot` | `Attack` / `Skill` / `WeaponSkill` / `Dash` | 需要限制动作槽时填写 |
+| `Condition.RequiredFlowRole` | `Starter` / `Catalyst` / `Finisher` | 需要限制构筑流程角色时填写 |
+| `Condition.RequiredComboTags` | 留空 | 旧字段兼容；新配方不要依赖连招分支 |
 | `LinkFlow` | 对应 LinkFA | 配方命中后执行 |
 | `Multiplier` | 默认 `1.0` | 只作为结果参数/显示，不自动改伤害 |
 | `ReasonText` | 简短说明 | HUD 连携提示 |
@@ -60,4 +62,4 @@ Start -> Play Niagara -> 该连携的实际效果节点
 - 连携卡不会和连携卡触发配方，即使 Tag 条件满足也不触发。
 - `LinkRecipes` 非空时，运行时优先使用新配方；旧 `LinkConfig` 不参与该卡判断。
 - 反向配方需要卡牌实例方向为 `Reversed`。
-- 反向配方只会在下一张牌仍属于有效连招时结算。战斗系统传入 `bComboContinued=false` 时，未结算的反向连携会被清理，下一张牌只执行自己的 `BaseFlow`。
+- 反向配方按卡牌顺序等待下一张可结算牌；只有洗牌、换武器或条件失败时才会清理 pending link。

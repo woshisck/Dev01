@@ -12,17 +12,22 @@
 - `BTTask_UpdateEnemyPatrolTarget` 已实现，无巡逻点配置时会在出生点附近随机巡逻。
 - `BTTask_EnemyPatrolWait` 已实现，会按 `EnemyData.AwarenessTuning.PatrolWaitMin/Max` 随机等待。
 - `BTTask_EnemyAttackByProfile` 已实现，会按 `EnemyData.AttackProfile` 的 `AttackRole`、距离、权重、冷却和 GA Tag 选招。
-- 默认 Combat 分支已拆成固定优先级：技能判断 -> 特殊移动攻击判断 -> 近距离攻击判断 -> 战斗移动。
+- 默认 Combat 分支已拆成固定优先级：攻击后后撤 -> 技能判断 -> 特殊移动攻击判断 -> 近距离攻击判断 -> 战斗移动。
 - 战斗移动已加入战斗槽位锁定、攻击距离迟滞和 `AlreadyAtGoal` 进度修正，避免老鼠在未进攻击距离时原地抖动。
 - `AYogAIController` 接管敌人时会显式初始化 `Patrol` 状态、巡逻原点和非战斗黑板值。
-- `EnemyAITemplateGenerator` 已实现，可直接生成默认小怪黑板和行为树资产，并把老鼠、死亡守卫 DA 指向默认行为树，同时写入默认移动、感知和攻击配置。
+- 攻击结束后可通过 `bRequestRepositionOnResolve` 强制写入 `bPostAttackReposition`，让行为树优先执行后撤攻击分支；攻击打空也可按 `WhiffRepositionChance` 触发后撤。
+- `BTTask_EnemyAttackByProfile` 已支持 `MinHealthPercent / MaxHealthPercent`，可用于低血阶段技能，例如看守队长 35% 血量以下的火焰点燃。
+- `EnemyAITemplateGenerator` 已实现，可直接生成默认小怪黑板和行为树资产，并把老鼠、死亡守卫、哨铃狱卒、看守队长 DA 指向默认行为树，同时写入默认移动、感知和攻击配置。
 - 生成器会扫描敌人 `AbilityData` 里已有有效蒙太奇 / `MontageConfig` 的攻击 Tag，自动补进 `AttackProfile`；`AttackProfile` 主要管理角色、距离、权重、冷却和特殊移动参数。
+- 共享敌人 GAS 模板会补齐 `Enemy.Melee.*`、`Enemy.Range.*` 和 `Enemy.Skill.Skill1-4` 槽位；远程命中、召唤、增益、火焰伤害的具体效果仍需要后续 BP / GA / GE / Montage Notify 实现。
 
 ## 待做功能
 
-- 在编辑器里运行一次生成器，生成或更新默认行为树资产。
+- 在编辑器里运行一次生成器，生成或更新默认行为树、黑板、哨铃狱卒 DA、看守队长 DA 和对应 AbilityData 资产。
 - 在 `DA_Rat`、`DA_RottenGuard` 中按敌人定位微调 `MovementTuning`、`AwarenessTuning`、`AttackProfile`；默认值由生成器先写好。
 - 在攻击蒙太奇命中通知里配置老鼠流血、死亡守卫击退和霸体窗口。
+- 制作 `BP_Enemy_AlarmBellJailer` 和 `BP_Enemy_GuardCaptain`，并把它们填入 `DA_AlarmBellJailer.EnemyClass`、`DA_GuardCaptain.EnemyClass`。
+- 为哨铃狱卒和看守队长补齐模型、AnimBP、蒙太奇、命中 Notify、召唤逻辑、队长号令 Buff 和低血火焰阶段效果。
 - 后续如需要固定巡逻路线，再扩展 PatrolRoute 资产；当前 V1 使用出生点周围随机巡逻。
 
 ## 1. 默认小怪 AI 设计
@@ -73,8 +78,13 @@ Saved/EnemyAITemplateGeneratorReport.md
 | 默认行为树 | `/Game/Code/Enemy/AI/Behaviour/BT_Enemy_DefaultMelee` |
 | 老鼠 DA 引用 | `/Game/Docs/Data/Enemy/Rat/DA_Rat.BehaviorTree` |
 | 死亡守卫 DA 引用 | `/Game/Docs/Data/Enemy/RottenGuard/DA_RottenGuard.BehaviorTree` |
+| 哨铃狱卒 DA | `/Game/Docs/Data/Enemy/AlarmBellJailer/DA_AlarmBellJailer` |
+| 哨铃狱卒 AbilityData | `/Game/Docs/Data/Enemy/AlarmBellJailer/DA_AbilityMontage_AlarmBellJailer_01` |
+| 看守队长 DA | `/Game/Docs/Data/Enemy/GuardCaptain/DA_GuardCaptain` |
+| 看守队长 AbilityData | `/Game/Docs/Data/Enemy/GuardCaptain/DA_AbilityMontage_GuardCaptain_01` |
+| 共享敌人 GAS 模板 | `/Game/Docs/Data/Enemy/DA_Enemy_GASTemplate` |
 
-同时会给 `DA_Rat` 和 `DA_RottenGuard` 写入默认 `MovementTuning`、`AwarenessTuning`、`AttackProfile`。生成器会按 `AbilityTags` 更新默认覆盖项，并从 `AbilityData.MontageMap / MontageConfigMap` 自动补齐已有动作 Tag；其他自定义攻击项会保留。
+同时会给 `DA_Rat`、`DA_RottenGuard`、`DA_AlarmBellJailer` 和 `DA_GuardCaptain` 写入默认 `MovementTuning`、`AwarenessTuning`、`AttackProfile`。生成器会按 `AbilityTags` 更新默认覆盖项，并从 `AbilityData.MontageMap / MontageConfigMap` 自动补齐已有动作 Tag；其他自定义攻击项会保留。
 
 ## 3. 默认黑板 Key
 
@@ -93,6 +103,10 @@ Saved/EnemyAITemplateGeneratorReport.md
 | `AcceptanceRadius` | Float | 推荐 MoveTo 接受半径 |
 | `AlertExpireTime` | Float | 警戒状态结束时间 |
 | `LastSeenTargetTime` | Float | 最近一次看见目标的时间 |
+| `bLastAttackWhiffed` | Bool | 最近一次攻击是否打空；用于调试和后续打空反应扩展 |
+| `LastWhiffTime` | Float | 最近一次攻击打空时间 |
+| `bPostAttackReposition` | Bool | 攻击后是否需要立即执行后撤 / 重定位分支 |
+| `LastRepositionRequestTime` | Float | 最近一次请求攻击后后撤的时间 |
 
 ## 4. 默认行为树结构
 
@@ -106,6 +120,8 @@ Root
 
     Selector: Combat
       Decorator: EnemyAIState == Combat
+      Enemy Attack By Profile: Reposition
+        Decorator: bPostAttackReposition == true
       Enemy Attack By Profile: Skill
       Enemy Attack By Profile: SpecialMovement
       Enemy Attack By Profile: CloseMelee
@@ -125,7 +141,8 @@ Root
 
 说明：
 
-- `Combat` 分支按固定优先级尝试攻击：`Skill` 用于后续投掷等技能，`SpecialMovement` 用于死亡守卫 HAtk2 这类中远距离前冲，`CloseMelee` 用于普通近战。
+- `Combat` 分支按固定优先级尝试攻击：`Reposition` 用于推击后撤或打空后撤，`Skill` 用于召唤、增益、远程压制和阶段技能，`SpecialMovement` 用于死亡守卫 HAtk2 这类中远距离前冲，`CloseMelee` 用于普通近战。
+- `Reposition` 分支只在 `bPostAttackReposition == true` 时进入。普通攻击项可通过 `bRequestRepositionOnResolve` 在 GA 结束时强制请求后撤；攻击打空也可按 `WhiffRepositionChance` 请求后撤。
 - `SpecialMovement` 不会参与近身随机近战；距离小于普通近战范围或 `LungeStartRange` 时，死亡守卫会回到 `CloseMelee` 分支使用 HAtk1。
 - `Enemy Combat Move` 不直接观察黑板重启，而是按 `RepathInterval` 节流发起 MoveTo；进入攻击距离后结束，让树重新尝试攻击。
 - `Enemy Combat Move` 如果遇到 `AlreadyAtGoal` 但 `DistanceToTarget` 仍大于攻击范围，会把目标点向玩家方向推进一段距离，避免老鼠卡在“已到达但打不到”的状态。
@@ -375,3 +392,51 @@ PIE 里检查：
 - 敌人受到玩家伤害后立刻进攻。
 - 进入攻击距离后执行 `Enemy Attack By Profile`。
 - 失去目标超过 `LoseTargetDelay + AlertDuration` 后回到巡逻。
+
+## 9. 哨铃狱卒与看守队长当前配置
+
+本节记录当前已由 C++ 生成器写入的默认设计。由于两类敌人暂时没有模型和动作，生成器只负责创建 / 关联数据资产、行为树、黑板、GAS 槽位和 `AttackProfile` 基础决策；实际技能效果、蒙太奇和 BP 需要后续制作。
+
+哨铃狱卒 `AlarmBellJailer`：
+
+| 配置项 | 默认值 / 说明 |
+|---|---|
+| `EnemyData` | `/Game/Docs/Data/Enemy/AlarmBellJailer/DA_AlarmBellJailer` |
+| `AbilityData` | `/Game/Docs/Data/Enemy/AlarmBellJailer/DA_AbilityMontage_AlarmBellJailer_01` |
+| `DifficultyScore` | 4 |
+| `ApproachStyle` | `BruiserHold`，保持中距离，不主动贴身 |
+| `PreferredRange / AttackRange` | 520 / 680 |
+| `DetectionRadius / CombatEnterRadius` | 950 / 760 |
+| `WhiffRepositionChance` | 0.75 |
+
+| 攻击项 | Tag | Role | 距离 | 冷却 | 说明 |
+|---|---|---|---:|---:|---|
+| `BellAlarm` | `Enemy.Skill.Skill1` | `Skill` | 250-900 | 14.0 | 摇铃警报 / 召唤入口 |
+| `BellShock` | `Enemy.Skill.Skill2` | `Skill` | 0-520 | 9.0 | 近中距离铃声震荡 |
+| `BatonShove` | `Enemy.Melee.LAtk1` | `CloseMelee` | 0-220 | 2.4 | 近身推击，结束后强制请求后撤 |
+| `PanicRetreat` | `Enemy.Melee.LAtk2` | `Reposition` | 0-700 | 4.0 | 后撤重定位，`LungeDistance=360` |
+
+看守队长 `GuardCaptain`：
+
+| 配置项 | 默认值 / 说明 |
+|---|---|
+| `EnemyData` | `/Game/Docs/Data/Enemy/GuardCaptain/DA_GuardCaptain` |
+| `AbilityData` | `/Game/Docs/Data/Enemy/GuardCaptain/DA_AbilityMontage_GuardCaptain_01` |
+| `DifficultyScore` | 10 |
+| `ApproachStyle` | `BruiserHold`，中远距离压制 |
+| `PreferredRange / AttackRange` | 650 / 900 |
+| `DetectionRadius / CombatEnterRadius` | 1200 / 950 |
+| `SuperArmorThreshold / Duration` | 4 / 2.2 |
+| `WhiffRepositionChance` | 0.6 |
+
+| 攻击项 | Tag | Role | 距离 | 冷却 | 说明 |
+|---|---|---|---:|---:|---|
+| `ExecutionShot` | `Enemy.Range.LAtk1` | `Skill` | 320-950 | 3.2 | 常规远程压制 |
+| `SuppressiveShot` | `Enemy.Range.HAtk1` | `Skill` | 450-1050 | 8.0 | 长冷却远程重压制 |
+| `SummonJailer` | `Enemy.Skill.Skill1` | `Skill` | 450-1100 | 18.0 | 召唤狱卒入口 |
+| `CommandBuff` | `Enemy.Skill.Skill2` | `Skill` | 0-950 | 16.0 | 为狱卒提供增强 Buff 的入口 |
+| `CaptainPush` | `Enemy.Melee.HAtk1` | `CloseMelee` | 0-300 | 5.0 | 玩家靠近后重击推开，结束后强制请求后撤 |
+| `TacticalRetreat` | `Enemy.Melee.HAtk2` | `Reposition` | 0-1000 | 3.0 | 后撤重定位，`LungeDistance=520` |
+| `FlameIgnition` | `Enemy.Skill.Skill4` | `Skill` | 0-900 | 60.0 | 35% 血量以下可用，头部火炬点燃 / 火焰阶段入口 |
+
+后续接 BP 时，需要让 `SummonJailer`、`CommandBuff`、`FlameIgnition` 的 GA / BP 或 Montage Notify 产生实际效果；当前 AI 只会负责选择这些槽位。

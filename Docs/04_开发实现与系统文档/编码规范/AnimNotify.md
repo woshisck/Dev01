@@ -101,6 +101,6 @@ public:
 
 | 攻击类型 | FrozenDuration | SlowDuration | SlowTimeDilation |
 |---|---|---|---|
-| 轻攻击 | 50ms | — | — |
-| 重攻击 | 80ms | 120ms | 0.25 |
+| Attack | 50ms | — | — |
+| WeaponSkill | 80ms | 120ms | 0.25 |
 | 暴击/终结 | 60ms | 150ms | 0.20 |

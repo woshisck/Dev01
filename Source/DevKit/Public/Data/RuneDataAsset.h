@@ -145,8 +145,8 @@ enum class ECombatCardType : uint8
 UENUM(BlueprintType)
 enum class ECardRequiredAction : uint8
 {
-    Light UMETA(DisplayName = "Light"),
-    Heavy UMETA(DisplayName = "Heavy"),
+    Light UMETA(DisplayName = "Deprecated Light", Hidden),
+    Heavy UMETA(DisplayName = "Deprecated Heavy", Hidden),
     Any   UMETA(DisplayName = "Any"),
 };
 
@@ -387,16 +387,16 @@ struct DEVKIT_API FCombatCardConfig
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Basic", meta = (AdvancedDisplay))
     bool bRequiresComboFinisher = false;
 
-    /** Opt-in only. When true, CombatDeck scales this card's effect multiplier from the current combo index. */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Combo Scaling")
+    /** Deprecated. Current combat cards use action slot, FlowRole, sequence order, and Link recipes instead of combo count scaling. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Deprecated Combo Scaling", meta = (DeprecatedProperty, DeprecationMessage = "Combo scaling is disabled. Use action slots, FlowRole, sequence order, and Link recipes."))
     bool bUseComboEffectScaling = false;
 
-    /** Additive scalar per combo stack. Combo stacks are max(0, ComboIndex - 1). Example: 0.25 gives Combo2 x1.25. */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Combo Scaling", meta = (ClampMin = "0.0", EditCondition = "bUseComboEffectScaling", EditConditionHides))
+    /** Deprecated compatibility data; ignored by current CombatDeck resolution. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Deprecated Combo Scaling", meta = (ClampMin = "0.0", EditCondition = "bUseComboEffectScaling", EditConditionHides, DeprecatedProperty, DeprecationMessage = "Combo scaling is disabled. Use action slots, FlowRole, sequence order, and Link recipes."))
     float ComboScalarPerIndex = 0.0f;
 
-    /** Maximum additive combo scalar applied by this card. Example: 0.5 caps the combo contribution at +50%. */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Combo Scaling", meta = (ClampMin = "0.0", EditCondition = "bUseComboEffectScaling", EditConditionHides))
+    /** Deprecated compatibility data; ignored by current CombatDeck resolution. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Deprecated Combo Scaling", meta = (ClampMin = "0.0", EditCondition = "bUseComboEffectScaling", EditConditionHides, DeprecatedProperty, DeprecationMessage = "Combo scaling is disabled. Use action slots, FlowRole, sequence order, and Link recipes."))
     float MaxComboScalar = 0.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Display")
@@ -448,15 +448,15 @@ public:
 };
 
 // ============================================================
-//  连招奖励：每个数值行独立配置随 ComboIndex 变化的奖励方式
+//  Deprecated combo bonus tuning retained for old assets.
 // ============================================================
 
 UENUM(BlueprintType)
 enum class ERuneComboBonusMode : uint8
 {
-    None     UMETA(DisplayName = "不受连招影响"),
-    Add      UMETA(DisplayName = "加算"),
-    Multiply UMETA(DisplayName = "乘算"),
+    None     UMETA(DisplayName = "不使用旧连招奖励"),
+    Add      UMETA(DisplayName = "废弃：旧连招加算"),
+    Multiply UMETA(DisplayName = "废弃：旧连招乘算"),
 };
 
 UENUM(BlueprintType)
@@ -473,18 +473,18 @@ struct DEVKIT_API FRuneComboBonusConfig
 {
     GENERATED_BODY()
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo Bonus")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Deprecated Combo Bonus")
     ERuneComboBonusMode Mode = ERuneComboBonusMode::None;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo Bonus",
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Deprecated Combo Bonus",
         meta = (EditCondition = "Mode != ERuneComboBonusMode::None", EditConditionHides))
     float BonusPerStack = 0.0f;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo Bonus",
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Deprecated Combo Bonus",
         meta = (EditCondition = "Mode != ERuneComboBonusMode::None", EditConditionHides))
     float MaxBonus = 0.0f;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo Bonus",
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Deprecated Combo Bonus",
         meta = (EditCondition = "Mode != ERuneComboBonusMode::None", EditConditionHides))
     ERuneTuningRoundMode RoundMode = ERuneTuningRoundMode::None;
 

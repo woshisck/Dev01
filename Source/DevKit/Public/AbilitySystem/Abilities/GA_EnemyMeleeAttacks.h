@@ -28,3 +28,19 @@ UCLASS(BlueprintType, Blueprintable) class DEVKIT_API UGA_Enemy_HAtk1 : public U
 UCLASS(BlueprintType, Blueprintable) class DEVKIT_API UGA_Enemy_HAtk2 : public UGA_MeleeAttack { GENERATED_BODY() public: UGA_Enemy_HAtk2(); };
 UCLASS(BlueprintType, Blueprintable) class DEVKIT_API UGA_Enemy_HAtk3 : public UGA_MeleeAttack { GENERATED_BODY() public: UGA_Enemy_HAtk3(); };
 UCLASS(BlueprintType, Blueprintable) class DEVKIT_API UGA_Enemy_HAtk4 : public UGA_MeleeAttack { GENERATED_BODY() public: UGA_Enemy_HAtk4(); };
+
+/**
+ * Enemy ranged attack GA slots.
+ * These are still montage-driven by UGA_MeleeAttack so existing AbilityData and
+ * montage notify routing can be reused; projectiles/hitscan can be authored in
+ * the montage, notify, or Blueprint layer later.
+ */
+
+UCLASS(BlueprintType, Blueprintable) class DEVKIT_API UGA_Enemy_Range_LAtk1 : public UGA_MeleeAttack { GENERATED_BODY() public: UGA_Enemy_Range_LAtk1(); };
+UCLASS(BlueprintType, Blueprintable) class DEVKIT_API UGA_Enemy_Range_LAtk2 : public UGA_MeleeAttack { GENERATED_BODY() public: UGA_Enemy_Range_LAtk2(); };
+UCLASS(BlueprintType, Blueprintable) class DEVKIT_API UGA_Enemy_Range_LAtk3 : public UGA_MeleeAttack { GENERATED_BODY() public: UGA_Enemy_Range_LAtk3(); };
+UCLASS(BlueprintType, Blueprintable) class DEVKIT_API UGA_Enemy_Range_LAtk4 : public UGA_MeleeAttack { GENERATED_BODY() public: UGA_Enemy_Range_LAtk4(); };
+UCLASS(BlueprintType, Blueprintable) class DEVKIT_API UGA_Enemy_Range_HAtk1 : public UGA_MeleeAttack { GENERATED_BODY() public: UGA_Enemy_Range_HAtk1(); };
+UCLASS(BlueprintType, Blueprintable) class DEVKIT_API UGA_Enemy_Range_HAtk2 : public UGA_MeleeAttack { GENERATED_BODY() public: UGA_Enemy_Range_HAtk2(); };
+UCLASS(BlueprintType, Blueprintable) class DEVKIT_API UGA_Enemy_Range_HAtk3 : public UGA_MeleeAttack { GENERATED_BODY() public: UGA_Enemy_Range_HAtk3(); };
+UCLASS(BlueprintType, Blueprintable) class DEVKIT_API UGA_Enemy_Range_HAtk4 : public UGA_MeleeAttack { GENERATED_BODY() public: UGA_Enemy_Range_HAtk4(); };

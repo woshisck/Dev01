@@ -1,0 +1,734 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DevKit 项目系统整理图</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f4ef;
+      --panel: #ffffff;
+      --ink: #202326;
+      --muted: #667078;
+      --line: #d9d5cc;
+      --accent: #1d6f66;
+      --accent-2: #b84c31;
+      --accent-3: #295b9a;
+      --keep: #1f7a4f;
+      --review: #a26816;
+      --legacy: #8b3b48;
+      --shadow: 0 14px 34px rgba(32, 35, 38, .08);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Microsoft YaHei", "Segoe UI", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.55;
+    }
+
+    header {
+      padding: 42px 48px 28px;
+      border-bottom: 1px solid var(--line);
+      background: #fbfaf7;
+    }
+
+    h1 {
+      margin: 0 0 10px;
+      font-size: clamp(30px, 4vw, 48px);
+      letter-spacing: 0;
+      line-height: 1.08;
+    }
+
+    h2 {
+      margin: 0 0 14px;
+      font-size: 22px;
+      letter-spacing: 0;
+    }
+
+    h3 {
+      margin: 0 0 8px;
+      font-size: 17px;
+      letter-spacing: 0;
+    }
+
+    p { margin: 0; }
+
+    .subtitle {
+      max-width: 980px;
+      color: var(--muted);
+      font-size: 16px;
+    }
+
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .chip, .status {
+      display: inline-flex;
+      align-items: center;
+      min-height: 26px;
+      padding: 4px 9px;
+      border-radius: 6px;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    main {
+      padding: 28px 48px 48px;
+      max-width: 1440px;
+      margin: 0 auto;
+    }
+
+    .toolbar {
+      display: grid;
+      grid-template-columns: minmax(220px, 420px) 1fr;
+      gap: 16px;
+      align-items: center;
+      margin-bottom: 22px;
+    }
+
+    input[type="search"] {
+      width: 100%;
+      min-height: 42px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 0 12px;
+      font-size: 15px;
+      background: #fff;
+      color: var(--ink);
+    }
+
+    .legend {
+      display: flex;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .status.keep { color: var(--keep); border-color: rgba(31,122,79,.35); background: rgba(31,122,79,.08); }
+    .status.review { color: var(--review); border-color: rgba(162,104,22,.35); background: rgba(162,104,22,.08); }
+    .status.legacy { color: var(--legacy); border-color: rgba(139,59,72,.35); background: rgba(139,59,72,.08); }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 26px;
+    }
+
+    .metric {
+      padding: 18px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .metric strong {
+      display: block;
+      font-size: 30px;
+      line-height: 1;
+      margin-bottom: 8px;
+    }
+
+    .metric span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    section {
+      margin-top: 26px;
+      padding: 22px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .system-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      background: #fff;
+    }
+
+    .card-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .card p {
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 12px;
+    }
+
+    .list {
+      margin: 0;
+      padding-left: 18px;
+      color: #353a3f;
+      font-size: 13px;
+    }
+
+    .list li { margin: 5px 0; }
+
+    .sources {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 12px;
+    }
+
+    .source {
+      display: inline-flex;
+      padding: 3px 7px;
+      border-radius: 5px;
+      background: #f1efe9;
+      color: #5a626a;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 11px;
+    }
+
+    .tree {
+      overflow-x: auto;
+      padding: 14px;
+      background: #fbfaf7;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 13px;
+      white-space: pre;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    th, td {
+      padding: 10px 11px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: #f4f1ea;
+      font-weight: 700;
+    }
+
+    code {
+      font-family: Consolas, "Courier New", monospace;
+      background: #f3f1ec;
+      padding: 2px 5px;
+      border-radius: 4px;
+      color: #1d3d39;
+    }
+
+    .note {
+      padding: 14px 16px;
+      border-left: 4px solid var(--accent);
+      background: #eef7f4;
+      color: #244540;
+      border-radius: 6px;
+      margin-bottom: 16px;
+    }
+
+    .warn {
+      border-left-color: var(--accent-2);
+      background: #fff3ed;
+      color: #5a3329;
+    }
+
+    .cols {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    @media (max-width: 980px) {
+      header { padding: 30px 22px 22px; }
+      main { padding: 22px; }
+      .toolbar, .summary-grid, .system-grid, .cols { grid-template-columns: 1fr; }
+      .legend { justify-content: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>DevKit 项目系统整理图</h1>
+    <p class="subtitle">基于当前 UE 5.4 项目源码、Config/Tags、guide.md 和 Docs 系统文档整理。目标是帮助后续清理系统边界、确认从属结构，并为 GameplayTag 重命名提供一套可执行的分层参考。</p>
+    <div class="meta">
+      <span class="chip">项目：DevKit.uproject</span>
+      <span class="chip">运行时代码：Source/DevKit</span>
+      <span class="chip">编辑器工具：Source/DevKitEditor</span>
+      <span class="chip">Tag：Config/Tags + DefaultGameplayTags.ini</span>
+      <span class="chip">生成日期：2026-06-23</span>
+    </div>
+  </header>
+
+  <main>
+    <div class="toolbar">
+      <input id="search" type="search" placeholder="搜索系统、Tag、源码入口，例如 Weapon / BuffFlow / PlayerState" />
+      <div class="legend">
+        <span class="status keep">保留主系统</span>
+        <span class="status review">待清理确认</span>
+        <span class="status legacy">废弃兼容</span>
+      </div>
+    </div>
+
+    <div class="summary-grid">
+      <div class="metric"><strong>12</strong><span>建议保留的大系统，另有导演与编辑器层</span></div>
+      <div class="metric"><strong>4</strong><span>角色 3C 下的强子系统：输入、移动、相机、战斗</span></div>
+      <div class="metric"><strong>20+</strong><span>当前活跃 Tag 根，需收束命名</span></div>
+      <div class="metric"><strong>3</strong><span>清理状态：保留、待确认、废弃兼容</span></div>
+    </div>
+
+    <section>
+      <h2>一、推荐系统总览</h2>
+      <div class="note">
+        当前项目不是传统“角色系统、武器系统、敌人系统”平铺结构，而是“GameInstance/World 生命周期层 → Character Actor 宿主层 → GAS/组件/DA 驱动玩法层”。清理时建议先按职责边界分系统，再按运行时归属决定 Tag 根。
+      </div>
+      <div class="tree">DevKit
+├─ 01 CoreRuntime / 游戏生命周期
+│  ├─ GameInstance、GameMode、GameState、WorldSubsystem
+│  ├─ 关卡阶段：Combat / Arrangement / Transition
+│  └─ 运行时注册：敌人列表、奖励、传送门、跨关状态
+├─ 02 Character / 角色 3C 宿主系统
+│  ├─ PlayerCharacter：输入、移动、相机挂点、装备、HUD 驱动
+│  ├─ EnemyCharacter：AI、敌人武器、血条、受击反馈
+│  └─ CharacterBase：ASC、属性集、状态冲突、交互、死亡
+├─ 03 Combat / GAS 战斗系统
+│  ├─ Attack / Skill / WeaponSkill / Dash / Reload
+│  ├─ 伤害、受击、击退、死亡、霸体、HitStop
+│  └─ AbilityData、GameplayAbility、GameplayEffect、AnimNotify
+├─ 04 Weapon & Equipment / 武器装备系统
+│  ├─ WeaponDefinition、WeaponInstance、WeaponSpawner
+│  ├─ Weapon.Type.Melee / Weapon.Type.Ranged
+│  └─ 武器 AbilityData、动画层、初始战斗卡组
+├─ 05 Interact & Item / 交互物与道具系统
+│  ├─ 交互组件、拾取物、传送门、商店、祭坛
+│  └─ CombatItem：油瓶、烟雾、战斗消耗品
+├─ 06 Enemy & AI / 敌人与 AI 系统
+│  ├─ EnemyData、EnemyWeaponDefinition、AIController
+│  ├─ BehaviorTree / Blackboard / AttackProfile
+│  └─ MobSpawner、Room EnemyPool、敌人专属 Buff
+├─ 07 Rune / Card / BuffFlow / 符文卡组系统
+│  ├─ RuneDataAsset、CombatDeckComponent、BackpackGridComponent
+│  ├─ BuffFlow 节点图、FlowAsset、CombatCard 链路
+│  └─ 热度、连携、卡组、献祭符文
+├─ 08 Level / RunLoop / Reward / 关卡循环系统
+│  ├─ Campaign、Room、LevelFlow、RewardPickup
+│  ├─ 房间类型、层级、刷怪预算、三选一奖励
+│  └─ 传送门与切关
+├─ 09 Story / Tutorial / Narrative / 剧情教程系统
+│  ├─ StoryEngine、StoryEncounter、StoryFlow、FirstRunTutorial
+│  └─ 教程弹窗、故事事件、进度 Flag
+├─ 10 UI / HUD / UX / 界面系统
+│  ├─ HUDRoot、血条、卡组、背包、主动技能栏、战斗物品栏
+│  └─ 暂停、结算、LootSelection、PortalPreview、WeaponFloat
+├─ 11 Progression & Save / 存档与局外成长
+│  ├─ SaveSubsystem、SettingsSave、RunState
+│  └─ MetaProgression、局外货币、功能解锁
+└─ 12 Presentation / Camera / VFX / Water / 表现系统
+   ├─ CameraPawn、CameraVolume、OcclusionFade
+   ├─ CharacterFlash、Niagara、TimeDilationVisual
+   └─ Water、材质、武器热度发光</div>
+    </section>
+
+    <section>
+      <h2>二、全量大系统清单</h2>
+      <div class="system-grid" id="systems">
+        <article class="card" data-search="CoreRuntime GameMode GameInstance WorldSubsystem LevelPhase Save Story Meta">
+          <div class="card-head"><h3>01 CoreRuntime / 游戏生命周期</h3><span class="status keep">保留主系统</span></div>
+          <p>管理单局和跨局生命周期，是关卡、剧情、存档、局外成长的上层宿主。</p>
+          <ul class="list">
+            <li>GameInstance 层：Save、Story、Tutorial、MetaProgression。</li>
+            <li>World/GameMode 层：房间阶段、敌人注册、奖励生成、传送门。</li>
+            <li>不建议把具体战斗行为塞进 CoreRuntime。</li>
+          </ul>
+          <div class="sources"><span class="source">YogGameMode.*</span><span class="source">YogGameInstanceBase.*</span><span class="source">YogWorldSubsystem.*</span></div>
+        </article>
+
+        <article class="card" data-search="Character Player Enemy 3C Movement Camera ASC Attribute PropInteract">
+          <div class="card-head"><h3>02 Character / 角色 3C 宿主</h3><span class="status keep">保留主系统</span></div>
+          <p>角色不是单纯属性容器，而是输入、移动、相机、ASC、装备、组件的运行时宿主。</p>
+          <ul class="list">
+            <li>CharacterBase：ASC、Base/Damage/Rune AttributeSet、交互、输入缓存。</li>
+            <li>PlayerCharacter：背包、卡组、主动技能、献祭、武器双槽。</li>
+            <li>EnemyCharacter：敌人武器、AI 上下文、血条、BuffFlow。</li>
+          </ul>
+          <div class="sources"><span class="source">YogCharacterBase.*</span><span class="source">PlayerCharacterBase.*</span><span class="source">EnemyCharacterBase.*</span></div>
+        </article>
+
+        <article class="card" data-search="Combat GAS AbilityData Attack Skill WeaponSkill Dash Reload Damage HitReact Knockback Dead HitStop">
+          <div class="card-head"><h3>03 Combat / GAS 战斗</h3><span class="status keep">保留主系统</span></div>
+          <p>当前玩家运行时战斗主链是 Controller 输入 → PlayerState.AbilityCast.* → GA → AbilityData 蒙太奇 → Notify/伤害/卡组。</p>
+          <ul class="list">
+            <li>四个独立动作：Attack、Skill、WeaponSkill、Dash。</li>
+            <li>通用反应：HitReact、Knockback、Dead、SuperArmor、HitStop。</li>
+            <li>ComboGraph 对玩家运行时已不应作为主路径。</li>
+          </ul>
+          <div class="sources"><span class="source">GA_PlayerAttackCombos.*</span><span class="source">GA_WeaponSkill.*</span><span class="source">GA_PlayerDash.*</span><span class="source">AbilityData.*</span></div>
+        </article>
+
+        <article class="card" data-search="Weapon Equipment WeaponDefinition WeaponInstance WeaponSpawner Weapon.Type Melee Ranged Musket">
+          <div class="card-head"><h3>04 Weapon & Equipment / 武器装备</h3><span class="status keep">保留主系统</span></div>
+          <p>武器是战斗数据和装备表现的来源，不直接拥有玩家输入逻辑。</p>
+          <ul class="list">
+            <li>WeaponDefinition 提供 AttackAbilityData、WeaponSkillAbilityData、PassiveAbilityData。</li>
+            <li>装备时挂 Weapon.Type.* LooseTag，驱动近战/远程 GA 路径隔离。</li>
+            <li>武器还提供动画层、展示数据、初始 CombatDeck。</li>
+          </ul>
+          <div class="sources"><span class="source">WeaponDefinition.*</span><span class="source">WeaponInstance.*</span><span class="source">WeaponSpawner.*</span><span class="source">Config/Tags/Equip.ini</span></div>
+        </article>
+
+        <article class="card" data-search="Interact Item Pickup Prop Portal Shop Altar CombatItem Oil Smoke Reward">
+          <div class="card-head"><h3>05 Interact & Item / 交互物与道具</h3><span class="status review">待清理确认</span></div>
+          <p>当前散落在 Character、Map、Item、Actors、Component 中，建议统一归为场景交互域。</p>
+          <ul class="list">
+            <li>交互组件：PropInteractComponent、PlayerInteraction、InteractPrompt。</li>
+            <li>交互物：武器拾取、Portal、Teleporter、Shop、Altar、RewardPickup。</li>
+            <li>战斗道具：CombatItemComponent、CombatItemAreaActor。</li>
+          </ul>
+          <div class="sources"><span class="source">PlayerInteraction.*</span><span class="source">PropInteractComponnet.*</span><span class="source">CombatItemComponent.*</span><span class="source">Map/*</span></div>
+        </article>
+
+        <article class="card" data-search="Enemy AI MobSpawner EnemyData EnemyWeaponDefinition BehaviorTree Blackboard AttackProfile Awareness Patrol Combat Character.State Enemy.State">
+          <div class="card-head"><h3>06 Enemy & AI / 敌人与 AI</h3><span class="status keep">保留主系统</span></div>
+          <p>敌人系统单独存在；Tag 管理上建议把“通用角色状态”放到 Character.State，把“敌人专属决策/技能身份”放到 Enemy.*。</p>
+          <ul class="list">
+            <li>通用状态：死亡、受击、击退、眩晕等可共用 <code>Character.State.*</code>。</li>
+            <li>AI 状态：Patrol、Alert、Combat，建议使用 <code>Enemy.AI.State.*</code> 或黑板枚举，不放 Character.State。</li>
+            <li>攻击选择：AttackProfile 按 Range、Weight、Cooldown、Role 选招。</li>
+            <li>敌人武器使用 EnemyWeaponDefinition，和玩家 WeaponDefinition 分开。</li>
+          </ul>
+          <div class="sources"><span class="source">EnemyData.*</span><span class="source">YogAIController.*</span><span class="source">BTTask_EnemyAttackByProfile.*</span><span class="source">MobSpawner.*</span></div>
+        </article>
+
+        <article class="card" data-search="Rune Card BuffFlow CombatDeck Backpack Heat Sacrifice FlowAsset Card.ID Buff.Status">
+          <div class="card-head"><h3>07 Rune/Card/BuffFlow / 符文卡组</h3><span class="status keep">保留主系统</span></div>
+          <p>这是项目最核心的构筑系统之一，包含战斗卡组、背包热度、BuffFlow 节点图和符文 DA。</p>
+          <ul class="list">
+            <li>CombatDeck 按 ActionSlot：Attack、Skill、WeaponSkill、Dash 解析卡。</li>
+            <li>RuneDataAsset 描述符文身份、触发、连携、战斗卡配置。</li>
+            <li>BuffFlow 是符文和 Buff 的可视化执行引擎。</li>
+          </ul>
+          <div class="sources"><span class="source">CombatDeckComponent.*</span><span class="source">RuneDataAsset.*</span><span class="source">BuffFlow/*</span><span class="source">BackpackGridComponent.*</span></div>
+        </article>
+
+        <article class="card" data-search="Level RunLoop Room Campaign Reward Portal LootSelection LevelFlow Spawner">
+          <div class="card-head"><h3>08 Level/RunLoop/Reward / 关卡循环</h3><span class="status keep">保留主系统</span></div>
+          <p>负责房间选择、刷怪、结算、奖励和切关，是 Roguelite 单局循环骨架。</p>
+          <ul class="list">
+            <li>Room.Type：Normal、Elite、Shop、Event。</li>
+            <li>Room.Layer：L1、L2、L3。</li>
+            <li>LevelFlow 可用于关卡内脚本、教程触发和演出。</li>
+          </ul>
+          <div class="sources"><span class="source">RoomDataAsset.*</span><span class="source">CampaignDataAsset.*</span><span class="source">LevelFlow/*</span><span class="source">RewardPickup.*</span></div>
+        </article>
+
+        <article class="card" data-search="Director Story Tutorial Narrative StoryEngine StoryEncounter StoryFlow FirstRunTutorial TutorialManager override objective quest timed kill">
+          <div class="card-head"><h3>09 Director / Story / Tutorial / 导演剧情教程</h3><span class="status keep">保留主系统</span></div>
+          <p>建议提升为“导演系统”：它不拥有战斗/关卡/UI 的底层实现，而是通过接口编排和覆盖其他系统。</p>
+          <ul class="list">
+            <li>可覆盖下一房间、固定掉落、特殊敌人、传送门和首轮教程节奏。</li>
+            <li>可下发任务目标：限时击杀、护送、到达指定点、触发对话。</li>
+            <li>可调用 Character/AI/UI 接口：移动到点位、锁输入、开对话框、显示教程。</li>
+          </ul>
+          <div class="sources"><span class="source">StoryEngineSubsystem.*</span><span class="source">StoryEncounterRuntimeSubsystem.*</span><span class="source">FirstRunTutorialDirectorSubsystem.*</span><span class="source">TutorialManager.*</span></div>
+        </article>
+
+        <article class="card" data-search="UI HUD Widget Backpack CombatDeckBar ActiveSkillBar LootSelection Pause PortalPreview WeaponFloat Buff Icon Status ViewModel">
+          <div class="card-head"><h3>10 UI/HUD/UX / 界面</h3><span class="status keep">保留主系统</span></div>
+          <p>HUD 负责表现和玩家操作入口；玩家/敌人的 Buff 图标应由状态源驱动，UI 只订阅和展示，不决定状态。</p>
+          <ul class="list">
+            <li>HUDRoot：血条、敌人箭头、武器/卡组/技能/战斗物品栏。</li>
+            <li>Buff 图标建议链路：ASC GameplayTag/ActiveGameplayEffect → UI ViewModel/事件 → HUD Icon List。</li>
+            <li>Overlay：背包、暂停、LootSelection、教程、PortalPreview。</li>
+            <li>编辑器 UI 与运行时 UI 应分开命名。</li>
+          </ul>
+          <div class="sources"><span class="source">YogHUD.*</span><span class="source">YogHUDRootWidget.*</span><span class="source">UI/*Widget.*</span></div>
+        </article>
+
+        <article class="card" data-search="Save Progression MetaProgression RunState Settings Currency Unlock">
+          <div class="card-head"><h3>11 Save & Progression / 存档局外成长</h3><span class="status keep">保留主系统</span></div>
+          <p>负责跨关和跨局保存，包含 HP、金币、武器、卡组、符文、教程进度、局外升级；教程流程由导演系统决定，Save 只记录结果。</p>
+          <ul class="list">
+            <li>SaveSubsystem 是读写入口。</li>
+            <li>MetaProgression 管理局外货币、节点解锁、功能解锁。</li>
+            <li>RunState 与 PlayerCharacter 的恢复逻辑强相关。</li>
+          </ul>
+          <div class="sources"><span class="source">YogSaveSubsystem.*</span><span class="source">YogSaveGame.*</span><span class="source">YogMetaProgressionSubsystem.*</span></div>
+        </article>
+
+        <article class="card" data-search="Camera VFX Presentation Water Visual Animation HitStop Flash Niagara Occlusion">
+          <div class="card-head"><h3>12 Presentation / 相机表现</h3><span class="status keep">保留主系统</span></div>
+          <p>包括相机、视觉反馈、材质、Niagara、水体和动作表现辅助。</p>
+          <ul class="list">
+            <li>Camera：CameraPawn、CameraComponent、CameraVolume、遮挡淡出。</li>
+            <li>VFX：CharacterFlash、GameplayCue、Niagara、时间缩放。</li>
+            <li>Animation Notify 属于战斗/表现之间的桥。</li>
+          </ul>
+          <div class="sources"><span class="source">Camera/*</span><span class="source">Animation/*</span><span class="source">Visual/*</span><span class="source">Water/*</span></div>
+        </article>
+
+        <article class="card" data-search="Editor Tools Commandlet DataEditor RuneEditor Setup Validation Automation">
+          <div class="card-head"><h3>13 EditorTools / 编辑器自动化</h3><span class="status keep">保留主系统</span></div>
+          <p>非运行时系统，但对资产生产和迁移很重要，应从 Runtime 命名中独立。</p>
+          <ul class="list">
+            <li>Commandlet：战斗蒙太奇同步、敌人模板、UI 设置、故事导入。</li>
+            <li>Workbench：DataEditor、RuneEditor、LevelData、MetaProgression、StoryEvent。</li>
+            <li>建议统一前缀 Editor.* 或 Tools.*，不要混进 GameplayTag 运行时根。</li>
+          </ul>
+          <div class="sources"><span class="source">Source/DevKitEditor/*</span><span class="source">Tools/*</span></div>
+        </article>
+
+        <article class="card" data-search="Deprecated Legacy ComboGraph Special Finisher HeavyAtk LightAtk BackpackGrid old compatibility">
+          <div class="card-head"><h3>14 LegacyCompatibility / 旧兼容</h3><span class="status legacy">废弃兼容</span></div>
+          <p>为了老资产加载保留，但不应继续作为新系统入口；本轮已检查运行时入口并收紧 TemporaryFinisher 旧开关。</p>
+          <ul class="list">
+            <li>ComboGraph：玩家运行时不再走主路径。</li>
+            <li>Special/SpecialAttack：被 ActiveSkill 和 WeaponSkill 取代。</li>
+            <li>Finisher QTE：native 代码已移除，Tag/资产仅为兼容。</li>
+            <li>已隔离：GameMode 的 TemporaryFinisher 计数在 Finisher 废弃时不会运行。</li>
+          </ul>
+          <div class="sources"><span class="source">guide.md</span><span class="source">WeaponDefinition deprecated fields</span><span class="source">Config deprecated tags</span></div>
+        </article>
+      </div>
+    </section>
+
+    <section>
+      <h2>三、推荐从属结构</h2>
+      <div class="cols">
+        <div>
+          <h3>角色 3C 下属</h3>
+          <table>
+            <thead><tr><th>层级</th><th>包含</th><th>Tag 建议</th></tr></thead>
+            <tbody>
+              <tr><td>Character.Control</td><td>输入、控制器、输入缓存、输入屏蔽</td><td><code>Character.Input.*</code> 或保留输入系统不打 ASC Tag</td></tr>
+              <tr><td>Character.Movement</td><td>移动组件、Dash、RootMotion、冲刺无敌</td><td><code>Character.State.Moving</code>、<code>Character.Action.Dash</code></td></tr>
+              <tr><td>Character.Camera</td><td>玩家相机、相机体积、遮挡淡出</td><td>一般不需要 GameplayTag</td></tr>
+          <tr><td>Character.Combat</td><td>GAS 视角下 Attack、Skill、WeaponSkill 都是 Ability；受击、死亡是状态反应</td><td>建议动作身份用 <code>Character.Skill.Attack</code> / <code>Character.Skill.WeaponSkill</code>，执行中状态用 <code>Character.State.Skill.Attack</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div>
+          <h3>玩法系统下属</h3>
+          <table>
+            <thead><tr><th>系统</th><th>归属关系</th><th>说明</th></tr></thead>
+            <tbody>
+              <tr><td>Combat</td><td>挂在 Character 上，但系统独立</td><td>不要完全并入 3C，否则武器、符文、敌人复用会变差。</td></tr>
+              <tr><td>Weapon</td><td>Character 的装备子系统</td><td>装备后影响 Character.Combat；拾取前属于 Interact。</td></tr>
+              <tr><td>Rune/Card</td><td>独立构筑系统，运行时挂接 PlayerCharacter</td><td>Rune 是符文资产/效果系统，Card 是战斗卡牌表现/编排层；两者相关但不应合并成一个 Tag 根。</td></tr>
+              <tr><td>EnemyAI</td><td>EnemyCharacter 的决策子系统</td><td>AI 选择 AbilityTag，战斗执行仍交给 GAS。</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>四、GameplayTag 命名建议</h2>
+      <div class="note warn">
+        目前代码直接读取 <code>PlayerState.AbilityCast.Attack</code>、<code>PlayerState.AbilityCast.WeaponSkill</code>、<code>PlayerState.AbilityCast.Dash</code> 等 Tag 激活 GA。重命名不能一次硬替换，应先新增新 Tag、配置 Redirect、同步 AbilityTags/AbilityData/资产，再删除旧 Tag。
+      </div>
+      <table>
+        <thead>
+          <tr><th>用途</th><th>现有根</th><th>建议清理后根</th><th>示例</th><th>备注</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>角色动作身份 / GA 激活</td>
+            <td><code>PlayerState.AbilityCast.*</code>、<code>Enemy.*</code></td>
+            <td><code>Character.Skill.*</code>，敌人专属身份继续放 <code>Enemy.Skill.*</code></td>
+            <td><code>Character.Skill.Attack</code><br><code>Character.Skill.Active</code><br><code>Character.Skill.WeaponSkill</code></td>
+            <td>GAS 中 Attack 也是 Ability/Skill，可用 Character.Skill 表达“技能身份”；敌人 AI 选招和玩家输入不同，敌人专属技能仍保留 Enemy.Skill。</td>
+          </tr>
+          <tr>
+            <td>角色持续状态</td>
+            <td><code>Buff.Status.*</code>、<code>State.*</code>、<code>PlayerState.Block.*</code></td>
+            <td><code>Character.State.*</code></td>
+            <td><code>Character.State.Idle</code><br><code>Character.State.Dead</code><br><code>Character.State.CrowdControl.Stunned</code></td>
+            <td>用于 block/cancel 黑白名单的状态建议统一进 Character.State；例如执行攻击时挂 <code>Character.State.Skill.Attack</code>，死亡挂 <code>Character.State.Dead</code>。</td>
+          </tr>
+          <tr>
+            <td>动作瞬时事件</td>
+            <td><code>Action.*</code>、<code>Ability.Event.*</code></td>
+            <td><code>Combat.Event.*</code>，过渡期保留 <code>Action.*</code></td>
+            <td><code>Combat.Event.Attack.Hit</code><br><code>Combat.Event.Damaged</code><br><code>Combat.Event.Kill</code></td>
+            <td>事件和状态要分开：Event 是发生了，State 是正在处于。</td>
+          </tr>
+          <tr>
+            <td>武器装备状态</td>
+            <td><code>Weapon.Type.*</code></td>
+            <td><code>Weapon.Type.*</code></td>
+            <td><code>Weapon.Type.Melee</code><br><code>Weapon.Type.Ranged</code><br><code>Weapon.Type.Melee.SingleHandBlunt</code></td>
+            <td>装备到角色身上的武器类型仍归 Weapon，不建议放 Interact。</td>
+          </tr>
+          <tr>
+            <td>场景交互对象</td>
+            <td>分散：Item、GameplayEffect、Map Actor</td>
+            <td><code>Interact.*</code></td>
+            <td><code>Interact.Weapon.Melee.SingleHandBlunt</code><br><code>Interact.Pickup.Rune</code><br><code>Interact.Portal.Exit</code></td>
+            <td>只描述“场景中可交互的东西”，拾取装备后再转为 Weapon/Character 状态。</td>
+          </tr>
+          <tr>
+            <td>符文/Buff/卡牌</td>
+            <td><code>Buff.*</code>、<code>Rune.*</code>、<code>Card.*</code>、<code>Combo.*</code></td>
+            <td>保留三根，但收束职责</td>
+            <td><code>Rune.ID.Moonlight</code><br><code>Card.ID.Moonlight</code><br><code>Buff.Status.Poisoned</code></td>
+            <td>Rune 是资产身份，Card 是卡牌身份/效果，Buff 是运行时效果/状态。</td>
+          </tr>
+          <tr>
+            <td>关卡房间</td>
+            <td><code>Room.*</code>、<code>Level.*</code></td>
+            <td><code>Level.Room.*</code> 或保留 <code>Room.*</code></td>
+            <td><code>Room.Type.Normal</code><br><code>Room.Layer.L1</code></td>
+            <td>现有 Room 已清晰，可暂不迁移，避免资产大面积改动。</td>
+          </tr>
+          <tr>
+            <td>剧情教程</td>
+            <td><code>Story.*</code>、<code>Tutorial.*</code></td>
+            <td>保留</td>
+            <td><code>Story.Event.FirstRun.MoonlightObtained</code><br><code>Tutorial.Hint.*</code></td>
+            <td>这部分和 GAS 关系弱，独立根合理。</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>五、对你示例 Tag 的修正规格</h2>
+      <div class="cols">
+        <div class="card">
+          <h3>角色 / 战斗动作</h3>
+          <p>你写的 <code>Character.State.Skil</code> 建议修为 Skill。若用于 Block/Cancel，就放在 State；若用于查找/激活 GA，就放在 Skill。</p>
+          <ul class="list">
+            <li><code>Character.State.Idle</code></li>
+            <li><code>Character.State.Skill.Attack</code></li>
+            <li><code>Character.State.Skill.Active</code></li>
+            <li><code>Character.State.Skill.WeaponSkill</code></li>
+            <li><code>Character.State.Movement.Dash</code></li>
+            <li><code>Character.Skill.Attack</code></li>
+            <li><code>Character.Skill.WeaponSkill</code></li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>交互 / 武器拾取</h3>
+          <p>建议统一 PascalCase，不混用 melee/Melee；Interact 表示场景交互，Weapon 表示装备后运行态。</p>
+          <ul class="list">
+            <li><code>Interact.Weapon.Melee</code></li>
+            <li><code>Interact.Weapon.Melee.SingleHandBlunt</code></li>
+            <li><code>Interact.Weapon.Ranged.Bow</code></li>
+            <li><code>Weapon.Type.Melee.SingleHandBlunt</code></li>
+            <li><code>Weapon.Type.Ranged.Bow</code></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>六、优先清理建议</h2>
+      <table>
+        <thead><tr><th>优先级</th><th>清理项</th><th>原因</th><th>建议动作</th></tr></thead>
+        <tbody>
+          <tr><td>P0</td><td>明确废弃兼容边界</td><td>ComboGraph、Special、Finisher 仍留 Tag/资产，容易被误接回主流程。</td><td>文档和资产命名加 Legacy/Deprecated；新资产禁止引用。</td></tr>
+          <tr><td>P0</td><td>冻结玩家战斗主链</td><td>当前主链已改为 Attack/Skill/WeaponSkill/Dash，清理时不能回到 Light/Heavy/Special。</td><td>以 <code>PlayerState.AbilityCast.*</code> 为当前真实源，迁移前不重命名。</td></tr>
+          <tr><td>P1</td><td>整理 Interact 系统</td><td>武器拾取、奖励、商店、祭坛、传送门、战斗道具现在分散。</td><td>建立 Interact 分类表和 Tag 根，只给场景可交互对象使用。</td></tr>
+          <tr><td>P1</td><td>收束 Character.State / Buff.Status / State</td><td>三者都像“状态”，最容易混乱。</td><td>Character.State 表示角色自身状态；Buff.Status 表示效果施加状态；State 表示跨系统冲突抽象状态。</td></tr>
+          <tr><td>P2</td><td>武器细分类型</td><td>当前只有 Melee/Ranged，不足以表达单手钝器、弓、火枪等。</td><td>扩展 <code>Weapon.Type.*</code>，并决定是否同步 <code>Interact.Weapon.*</code>。</td></tr>
+          <tr><td>P2</td><td>Docs 与 Config 对齐</td><td>已有 GameplayTag_MasterGuide 与实际新增 Tag 有偏差。</td><td>迁移时同步更新 Tag 规范、Config/Tags、DA 制作手册。</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>七、浏览器注释处理结论</h2>
+      <table>
+        <thead><tr><th>注释</th><th>结论</th><th>执行状态</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>敌人与玩家 Tag 是否分开</td>
+            <td>通用角色状态统一用 <code>Character.State.*</code>，便于死亡/受击/击退等 block 黑白名单复用；玩家输入/敌人 AI 选招仍可分别使用 <code>Player.*</code> 或 <code>Enemy.*</code> 作为来源身份。</td>
+            <td><span class="status review">命名迁移待做</span></td>
+          </tr>
+          <tr>
+            <td>Story/Tutorial 提升为导演系统</td>
+            <td>建议命名为 Director 系统。Director 通过接口覆盖关卡、掉落、任务、教程和对话，不直接拥有底层战斗/关卡/UI 状态。</td>
+            <td><span class="status keep">已更新文档</span></td>
+          </tr>
+          <tr>
+            <td>HUD 如何显示玩家/敌人 Buff</td>
+            <td>状态来源是 ASC 的 GameplayTag/ActiveGameplayEffect；UI 通过 ViewModel 或事件订阅，只展示图标、倒计时、层数，不反写状态。</td>
+            <td><span class="status keep">已更新文档</span></td>
+          </tr>
+          <tr>
+            <td>教程归属</td>
+            <td>Save 只保存教程进度和结果；教程的触发、房间覆盖、固定掉落、任务推进由 Director 决定。</td>
+            <td><span class="status keep">已更新文档</span></td>
+          </tr>
+          <tr>
+            <td>旧资产是否影响游戏</td>
+            <td>已检查：Special GA 激活即结束；Finisher 卡组有 Prune 防护；首轮教程 Finisher 已由废弃开关屏蔽。本轮额外隔离 GameMode TemporaryFinisher 计数，避免老 BP 勾选后运行。</td>
+            <td><span class="status keep">已清理一处运行时开关</span></td>
+          </tr>
+          <tr>
+            <td>Character.State 与 block 规则</td>
+            <td>建议把 block/cancel 的主状态统一进 <code>Character.State.*</code>：<code>Character.State.Dead</code>、<code>Character.State.HitReact</code>、<code>Character.State.Skill.Attack</code>。当前 StateConflictDataAsset 已支持任意 ActiveTag，迁移可分阶段做。</td>
+            <td><span class="status review">命名迁移待做</span></td>
+          </tr>
+          <tr>
+            <td>Attack 是 GAS 技能</td>
+            <td>建议双层：<code>Character.Skill.Attack</code> 表示技能/Ability 身份，<code>Character.State.Skill.Attack</code> 表示正在执行且参与阻断。</td>
+            <td><span class="status review">命名迁移待做</span></td>
+          </tr>
+          <tr>
+            <td>Rune/Card 是否独立</td>
+            <td>独立。Rune 是符文资产与效果系统，Card 是战斗卡牌编排与 UI/卡组系统。二者可以由同一个 RuneDataAsset 承载，但 Tag 根应保持 <code>Rune.*</code>、<code>Card.*</code> 分工。</td>
+            <td><span class="status keep">已更新文档</span></td>
+          </tr>
+          <tr>
+            <td>当前命名需要改，但先标待做</td>
+            <td>已标注为待做。后续迁移需要新增 Tag、加 Redirect、同步 GA AbilityTags/AbilityData/资产，然后再删除旧 Tag。</td>
+            <td><span class="status review">待做</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+
+  <script>
+    const search = document.getElementById('search');
+    const cards = [...document.querySelectorAll('#systems .card')];
+
+    search.addEventListener('input', () => {
+      const q = search.value.trim().toLowerCase();
+      cards.forEach(card => {
+        const text = (card.innerText + ' ' + card.dataset.search).toLowerCase();
+        card.style.display = !q || text.includes(q) ? '' : 'none';
+      });
+    });
+  </script>
+</body>
+</html>

@@ -113,13 +113,13 @@ Activation Blocked Tags: Buff.Status.Dead
 
 ---
 
-### 类型 B：玩家攻击 GA（`GA_LightAtk_Combo1`）
+### 类型 B：玩家 Attack GA
 
 ```
-Ability Tags:            PlayerState.AbilityCast.LightAtk.Combo1
+Ability Tags:            PlayerState.AbilityCast.Attack
 Cancel Abilities With:   （空）
 Block Abilities With:    （空）
-Activation Owned Tags:   PlayerState.AbilityCast.LightAtk.Combo1
+Activation Owned Tags:   PlayerState.AbilityCast.Attack
 Activation Blocked Tags: Buff.Status.Dead, Buff.Status.HitReact, Buff.Status.Knockback
 ```
 

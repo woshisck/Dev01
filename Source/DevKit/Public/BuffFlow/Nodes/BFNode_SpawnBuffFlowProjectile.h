@@ -32,13 +32,13 @@ class DEVKIT_API UBFNode_SpawnBuffFlowProjectile : public UBFNode_Base
 	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile|Pattern", meta = (ClampMin = "0.0", DisplayName = "Spawn Interval", ToolTip = "Delay between each projectile spawn when Projectile Count is greater than 1. 0 spawns all projectiles immediately."))
 	float SpawnInterval = 0.f;
 
-	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile|Combat Card", meta = (DisplayName = "Add Combo Stacks To Projectile Count"))
+	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile|Deprecated Combo Scaling", meta = (DisplayName = "Deprecated: Add Combo Stacks To Projectile Count", DeprecatedProperty, DeprecationMessage = "Combo projectile scaling is disabled. Use card order, FlowRole, and Link recipes."))
 	bool bAddComboStacksToProjectileCount = false;
 
-	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile|Combat Card", meta = (ClampMin = "0", DisplayName = "Projectiles Per Combo Stack", EditCondition = "bAddComboStacksToProjectileCount", EditConditionHides))
+	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile|Deprecated Combo Scaling", meta = (ClampMin = "0", DisplayName = "Deprecated: Projectiles Per Combo Stack", EditCondition = "bAddComboStacksToProjectileCount", EditConditionHides, DeprecatedProperty, DeprecationMessage = "Combo projectile scaling is disabled. Use card order, FlowRole, and Link recipes."))
 	int32 ProjectilesPerComboStack = 1;
 
-	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile|Combat Card", meta = (ClampMin = "0", DisplayName = "Max Bonus Projectiles", ToolTip = "Maximum extra projectiles from combo stacks. 0 means no cap.", EditCondition = "bAddComboStacksToProjectileCount", EditConditionHides))
+	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile|Deprecated Combo Scaling", meta = (ClampMin = "0", DisplayName = "Deprecated: Max Bonus Projectiles", ToolTip = "Deprecated compatibility only; runtime combo bonus stacks are disabled.", EditCondition = "bAddComboStacksToProjectileCount", EditConditionHides, DeprecatedProperty, DeprecationMessage = "Combo projectile scaling is disabled. Use card order, FlowRole, and Link recipes."))
 	int32 MaxBonusProjectiles = 0;
 
 	UPROPERTY(EditAnywhere, Category = "BuffFlow Projectile", meta = (DisplayName = "Trigger Mode"))

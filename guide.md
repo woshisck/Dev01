@@ -4,28 +4,29 @@ This guide captures current project direction and working assumptions. `AGENTS.m
 
 ## Current Direction
 
-- Player combat input is now four independent actions: Attack, Dash, WeaponSkill, and Special.
-- Attack and WeaponSkill combos use explicit ability tags (`PlayerState.AbilityCast.Attack.Combo1-4` and `PlayerState.AbilityCast.WeaponSkill.Combo1-4`) plus AbilityData montage maps.
+- Player combat input is now four independent actions: Attack, Skill, WeaponSkill, and Dash.
+- Skill is the player-selected active skill handled by `PlayerActiveSkillComponent` / `ActiveSkillDataAsset`; do not route it through the deprecated SpecialAttack system.
+- Attack and WeaponSkill runtime input should activate the broad action tags only. Legacy Combo1-4 tags remain for montage-row compatibility and asset migration, but they should not drive card finisher logic or direct input combo chaining.
 - ComboGraph is no longer part of the player runtime combat path. Keep old graph fields/classes only as asset-load compatibility until legacy assets are migrated and resaved.
 
 ## Attack / WeaponSkill Refactor Follow-ups
 
-- Build/compile was not run for the Attack / WeaponSkill / Dash / Special refactor because this guide says not to compile unless explicitly requested.
+- Build/compile was not run for the Attack / WeaponSkill / Dash / Skill refactor because this guide says not to compile unless explicitly requested.
 - Add Unreal `ClassRedirects` for deleted native classes if legacy Blueprint assets still reference them:
   `UGA_Player_LightAtk1-4`, `UGA_Player_HeavyAtk1-4`, `UGA_Player_DashAtk`, and possibly `UGA_PlayerMeleeAttack`.
 - Asset migration/resave was not done. Existing input assets, combo graph assets, Blueprint GA assets, and UI data may still need editor-side validation after the C++ rename.
-- Some compatibility names/tags were intentionally left in code/config, including deprecated controller input fallbacks, legacy `LightAtk`/`HeavyAtk` gameplay tags, `SpecialAttack` compatibility tags, and `ComboSpecialActionAbility` wrapper redirects.
-- The old `Character/InputBufferComponent` legacy component still has `LightAttack`/`HeavyAttack` enum names; live player code uses `Component/BufferComponent`, but the old component was not removed.
+- Some compatibility names/tags were intentionally left in config, including legacy `LightAtk`/`HeavyAtk` gameplay tags, `Special`/`SpecialAttack` compatibility tags, and `ComboSpecialActionAbility` wrapper redirects.
+- The old `Character/InputBufferComponent` legacy component is now only an asset-load compatibility shell; live player code uses `Component/BufferComponent`.
 - `UGA_RangeAttack` remains a stub; projectile/hitscan implementation is still pending.
 - DevKit-only ComboGraph node fields are deprecated for player runtime combat. Prefer AbilityData montage rows and montage notifies for combo windows.
 
 ## Initial Data Assets
 
-- Weapon combat AbilityData is merged onto runtime `CharacterData->AbilityData` in `APlayerCharacterBase::ApplyAbilityDataFromWeapon`. `WeaponDefinition.AttackAbilityData` owns attack + dash rows, `WeaponDefinition.WeaponSkillAbilityData` owns weapon skill rows, `WeaponDefinition.SpecialAbilityData` owns special rows, and `WeaponDefinition.PassiveAbilityData` owns weapon-specific reaction/death passive rows such as `Action.HitReact.Front`, `Action.HitReact.Back`, and `Action.Dead`. The legacy all-in-one `WeaponDefinition.AbilityData` slot has been removed.
+- Weapon combat AbilityData is merged onto runtime `CharacterData->AbilityData` in `APlayerCharacterBase::ApplyAbilityDataFromWeapon`. `WeaponDefinition.AttackAbilityData` owns attack + dash rows, `WeaponDefinition.WeaponSkillAbilityData` owns weapon skill rows, and `WeaponDefinition.PassiveAbilityData` owns weapon-specific reaction/death passive rows such as `Action.HitReact.Front`, `Action.HitReact.Back`, and `Action.Dead`. `WeaponDefinition.SpecialAbilityData` is deprecated compatibility data and is not merged into runtime combat. The legacy all-in-one `WeaponDefinition.AbilityData` slot has been removed.
 
 - `DA_Base_AbilitySet_Initial` (`/Game/Docs/GlobalSet/CharacterBaseSet/DA_Base_AbilitySet_Initial`): base `UGASTemplate` loaded by every character at `BeginPlay` via `YogCharacterBase`. Contains shared reactive GAs (`GA_Dead`, `GA_HitReaction`, `GA_Knockback`, etc.). Do **not** put weapon combat montage-routing GAs here; keep player combat grants on the player combat ability set.
 - `CharacterData` GAS template (`UGASTemplate::AbilityMap`): per-character ability grants applied during `InitializeComponentsWithStats`. Logged as `"Grant ability from GAS Template: <name>"` in the output log. Same rule: no weapon combat GAs here.
-- `DefaultUnarmedWeaponDef` (`APlayerCharacterBase::DefaultUnarmedWeaponDef`): a `UWeaponDefinition` asset assigned in the player character Blueprint. Auto-equipped at `BeginPlay` if `EquippedWeaponDef` is still null after all init (i.e. no weapon loaded from save). Set `DefaultUnarmedWeaponDef` on the BP so the full weapon path (ability data + deck + special attack + weapon type tag) is initialized consistently.
+- `DefaultUnarmedWeaponDef` (`APlayerCharacterBase::DefaultUnarmedWeaponDef`): a `UWeaponDefinition` asset assigned in the player character Blueprint. Auto-equipped at `BeginPlay` if `EquippedWeaponDef` is still null after all init (i.e. no weapon loaded from save). Set `DefaultUnarmedWeaponDef` on the BP so the full weapon path (ability data + deck + weapon type tag) is initialized consistently.
 - `DA_DefaultCombatAbility` (`UYogAbilitySet'/Game/Docs/GlobalSet/CharacterBaseSet/DA_DefaultCombatAbility.DA_DefaultCombatAbility'`): player-only `UYogAbilitySet` assigned to `APlayerCharacterBase::DefaultCombatAbilitySet`. Granted once at `BeginPlay` (after `Super::BeginPlay`). These abilities are weapon-agnostic; the equipped weapon's AbilityData controls which montage each action plays. Do **not** grant or revoke these per weapon switch; they live for the entire play session.
 
 ## Combat Architecture
@@ -37,10 +38,11 @@ This guide captures current project direction and working assumptions. `AGENTS.m
 - Player input routing starts in `YogPlayerControllerBase`.
 - GAS abilities, gameplay tags, montage notifies, and data assets are all part of combat behavior; inspect all relevant pieces before changing a flow.
 - Combat cards and runes use `CombatDeckComponent`, `RuneDataAsset`, and BuffFlow assets.
-- Active skills use `PlayerActiveSkillComponent` and `ActiveSkillDataAsset`; prefer reusing this shape for weapon skills when practical.
-- WeaponSkill input is independent from Attack, Dash, and Special. The old heavy attack input path is now the WeaponSkill path.
-- Special attack montages can reuse `AN_MeleeDamage` with `GameplayEffect.DamageType.GeneralAttack`; `UGA_PlayerSpecialAttack` listens to that by default and applies the normal melee damage path.
-- To chain from an action montage into the next attack or weapon skill combo, add a montage combo window that grants `PlayerState.AbilityCast.CanCombo`; input routing only allows action montage interruption during that tag window.
+- Active skills use `PlayerActiveSkillComponent` and `ActiveSkillDataAsset`; this is the runtime path for the player's selected Skill action.
+- WeaponSkill input is independent from Attack, Dash, and Skill. The old heavy attack input path is now the WeaponSkill path.
+- Skill and WeaponSkill share `PlayerState.Cooldown.SkillShared`. Active skills start the shared cooldown from their selected skill config; WeaponSkill starts it from GAS cooldown time or the montage ability fallback duration, and recovery-cancel weapon switching clears both.
+- The old SpecialAttack data/ability/component classes are deprecated compatibility shells only. New skill behavior belongs in active skill assets/abilities.
+- `PlayerState.AbilityCast.CanCombo` is now treated as an action-interruption/cancel window. Do not use it to advance Attack/WeaponSkill Combo1-4 chains in player runtime input.
 
 ## Future Cleanup Markers
 
@@ -51,6 +53,8 @@ This guide captures current project direction and working assumptions. `AGENTS.m
 ## Finisher Notes
 
 - The old finisher system is deprecated; native finisher GAS classes, montage notifies, and QTE HUD code have been removed while legacy finisher tags/assets are kept only for compatibility unless explicitly needed.
+- Legacy finisher assets may remain in source control for old asset/save loading, but they must not be enabled as gameplay runtime entry points. Any remaining code path must either be guarded by `DevKit::Combat::IsFinisherAbilityDeprecated()`, prune/ignore deprecated finisher cards, or no-op immediately. Do not add new tutorial, card, input, UI, or reward flow that depends on `Card.ID.Finisher`, `Card.Effect.Finisher`, `PlayerState.AbilityCast.Finisher*`, or `Action.Finisher*`.
+- `AYogGameMode::bCountCombatClearsForTemporaryFinisherUnlock` is deprecated compatibility data. Even if an older Blueprint has it enabled, runtime finisher unlock counting is ignored while `IsFinisherAbilityDeprecated()` is true.
 - Heavy attack was previously hijacked during `Buff.Status.FinisherExecuting`; that route is deprecated and heavy attack should stay available for the weapon skill path.
 - If replacing heavy attack with weapon skills, avoid depending on the old finisher QTE path.
 - Deprecated native code removed/marked deleted:

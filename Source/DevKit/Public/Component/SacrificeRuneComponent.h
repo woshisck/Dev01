@@ -153,7 +153,7 @@ private:
 	void HandlePlayerDamageDealt(UYogAbilitySystemComponent* TargetASC, float Damage);
 
 	UFUNCTION()
-	void HandleCardConsumed(const FCombatCardInstance& Card, const FCombatCardResolveResult& Result);
+	void HandleCardResolved(const FCombatCardInstance& Card, const FCombatCardResolveResult& Result);
 
 	UPROPERTY()
 	TMap<FGuid, FSacrificeRunePassiveConfig> ActivePassives;

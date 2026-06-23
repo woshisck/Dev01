@@ -9,13 +9,13 @@
 UGA_Musket_LightAttack::UGA_Musket_LightAttack()
 {
     AbilityTags.AddTag(FGameplayTag::RequestGameplayTag("Ability.Musket.Light"));
-    AbilityTags.AddTag(FGameplayTag::RequestGameplayTag("PlayerState.AbilityCast.LightAtk"));
+    AbilityTags.AddTag(FGameplayTag::RequestGameplayTag("PlayerState.AbilityCast.Attack"));
 
     CancelAbilitiesWithTag.AddTag(FGameplayTag::RequestGameplayTag("Ability.Musket.Reload"));
 
     ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag("State.Musket.Aiming"));
     ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag("State.Musket.Reloading"));
-    // 冲刺中由 SprintAttack 处理，不激活普通轻攻击
+    // 冲刺中由 SprintAttack 处理，不激活普通攻击
     ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag("Buff.Status.DashInvincible"));
 }
 
@@ -88,10 +88,25 @@ void UGA_Musket_LightAttack::DoFire()
     const float TunedHalfAngleDeg = TuningData ? TuningData->LightHalfAngleDeg : HalfAngleDeg;
     const float Damage = GetBaseAttack() * TunedDamageMultiplier;
     const float Angle  = FMath::RandRange(-TunedHalfAngleDeg, TunedHalfAngleDeg);
-    const FGuid AttackGuid = ResolveCombatDeckOnFire(ECardRequiredAction::Light, false, false, Damage, Angle);
+    const FGuid AttackGuid = ResolveCombatDeckOnFire(
+        ECardRequiredAction::Any,
+        ECombatDeckActionSlot::Attack,
+        ECombatDeckFlowRole::Any,
+        false,
+        false,
+        Damage,
+        Angle);
     if (AMusketBullet* Bullet = SpawnBullet(Angle, Damage))
     {
-        ApplyCombatDeckContextToBullet(Bullet, ECardRequiredAction::Light, false, false, AttackGuid, Damage);
+        ApplyCombatDeckContextToBullet(
+            Bullet,
+            ECardRequiredAction::Any,
+            ECombatDeckActionSlot::Attack,
+            ECombatDeckFlowRole::Any,
+            false,
+            false,
+            AttackGuid,
+            Damage);
     }
     ConsumeOneAmmo();
     ExecuteFireCue();

@@ -1,19 +1,17 @@
-# TwoHandedSword 测试连招资产说明
+# TwoHandedSword 旧测试资产说明
+
+## 当前状态
+
+这些资产是旧 ComboGraph 连招测试资产，仅用于回归旧资产加载和迁移对照。当前新武器不要复制这套配置方式。
 
 ## 资产位置
 
 - 测试武器 DA：`/Game/Docs/Combat/TwoHandedSword/DA_WPN_THSword_ComboGraphTest`
-- 连招 Graph：`/Game/Docs/Combat/TwoHandedSword/CG_THSword_Test`
+- 旧 Graph：`/Game/Docs/Combat/TwoHandedSword/CG_THSword_Test`
 - MontageConfig：`/Game/Docs/Combat/TwoHandedSword/MC_THSword_*`
-
-## 当前连招
-
-- `Light -> Light -> Light`：`L1 -> L2 -> L3`
-- `Light -> Light -> Heavy`：`L1 -> L2 -> L2H`
-- `Heavy -> Heavy`：`H1 -> H2`
-
-`L3`、`L2H`、`H2` 已标记为 Finisher。所有节点暂用 `18-27 / 30` 帧作为 Combo Window。
 
 ## 使用方式
 
-测试时使用 `DA_WPN_THSword_ComboGraphTest`，不要直接替换原始 `/Game/Code/Weapon/TwoHandedSword/DA_WPN_THSword`。确认无误后再把原武器 DA 的 `GameplayAbilityComboGraph` 指到 `CG_THSword_Test`。
+- 只在排查旧 ComboGraph 兼容时使用。
+- 不要把原始 `/Game/Code/Weapon/TwoHandedSword/DA_WPN_THSword` 指回这套旧 Graph。
+- 新双手剑动作应迁移到 `AttackAbilityData` / `WeaponSkillAbilityData` 和 `MontageConfigMap`。

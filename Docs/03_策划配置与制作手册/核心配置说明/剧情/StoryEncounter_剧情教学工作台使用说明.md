@@ -228,7 +228,7 @@ EP_Wakeup -> EP_MoveHint -> EP_AttackEcho -> EP_DodgeHint -> EP_RuneCardHint -> 
 
 | Action | 用途 | 适合场景 |
 |--------|------|----------|
-| `WeakHint` | 显示弱提示 | 移动、攻击、闪避、符文卡牌消耗等轻引导 |
+| `WeakHint` | 显示弱提示 | 移动、攻击、闪避、符文卡牌结算等轻引导 |
 | `Dialogue` | 显示对话或旁白 | 黑夜少女、记忆残响、环境叙事 |
 | `RecordProgress` | 记录玩家已经历某点 | 防止重复提示、控制后续条件 |
 | `UnlockFeature` | 解锁功能 | 解锁炼金、神秘学、灵视等 |
@@ -330,7 +330,7 @@ EG_MemoryTutorial_PreRun
 | `EP_MoveHint` | `move_hint` | 玩家穿过残破通道 | `WeakHint` |
 | `EP_AttackEcho` | `attack_echo` | 玩家攻击战斗残影 | `WeakHint` + `RecordProgress` |
 | `EP_DodgeHint` | `dodge_hint` | 玩家躲避红光前摇 | `WeakHint` |
-| `EP_RuneCardHint` | `rune_card_hint` | 提示攻击会消耗符文卡牌能力 | `WeakHint` + `RecordProgress` |
+| `EP_RuneCardHint` | `rune_card_hint` | 提示攻击会按顺序结算符文卡牌能力 | `WeakHint` + `RecordProgress` |
 | `EP_StoryKill` | `story_kill` | 骑士团成员剧情杀玩家 | `Dialogue` + `PlayLevelFlow` + `RecordProgress` |
 
 流程图连接：
@@ -340,7 +340,7 @@ flowchart LR
     A["EP_Wakeup<br/>记忆苏醒"] --> B["EP_MoveHint<br/>移动"]
     B --> C["EP_AttackEcho<br/>攻击残影"]
     C --> D["EP_DodgeHint<br/>闪避"]
-    D --> E["EP_RuneCardHint<br/>符文卡牌消耗提示"]
+    D --> E["EP_RuneCardHint<br/>符文卡牌结算提示"]
     E --> F["EP_StoryKill<br/>剧情杀"]
 ```
 

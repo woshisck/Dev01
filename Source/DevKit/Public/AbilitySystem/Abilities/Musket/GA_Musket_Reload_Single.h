@@ -16,7 +16,7 @@
  *   → 恢复移动 → 结束
  *
  * 中途停止：
- *   轻/重攻击 GA 配置 CancelAbilitiesWithTag = Ability.Musket.Reload，
+ *   Attack / WeaponSkill GA 配置 CancelAbilitiesWithTag = Ability.Musket.Reload，
  *   激活攻击时会通过 GAS 自动取消此 GA（EndAbility bWasCancelled=true），
  *   已上好的子弹保留。
  *

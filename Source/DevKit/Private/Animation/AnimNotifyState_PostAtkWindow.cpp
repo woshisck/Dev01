@@ -71,7 +71,7 @@ void UAnimNotifyState_PostAtkWindow::NotifyTick(USkeletalMeshComponent* MeshComp
     const bool bHasAtkInput =
         Buffer->HasBufferedInputSince(EInputCommandType::Attack, BeginTime) ||
         Buffer->HasBufferedInputSince(EInputCommandType::WeaponSkill, BeginTime) ||
-        Buffer->HasBufferedInputSince(EInputCommandType::Special, BeginTime);
+        Buffer->HasBufferedInputSince(EInputCommandType::Skill, BeginTime);
 
     if (bHasAtkInput)
     {

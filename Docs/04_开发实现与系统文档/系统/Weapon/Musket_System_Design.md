@@ -15,8 +15,8 @@
 | 类 | 头文件 | 说明 |
 |---|---|---|
 | `UGA_MusketBase` | `Abilities/Musket/GA_MusketBase.h` | 基类，弹药/移动/子弹工具方法 |
-| `UGA_Musket_LightAttack` | `Abilities/Musket/GA_Musket_LightAttack.h` | 速射 |
-| `UGA_Musket_HeavyAttack` | `Abilities/Musket/GA_Musket_HeavyAttack.h` | 蓄力瞄准（TickAbility + WaitInputRelease） |
+| `UGA_Musket_LightAttack` | `Abilities/Musket/GA_Musket_LightAttack.h` | Musket Attack 速射（保留旧类名） |
+| `UGA_Musket_HeavyAttack` | `Abilities/Musket/GA_Musket_HeavyAttack.h` | Musket WeaponSkill 蓄力瞄准（保留旧类名） |
 | `UGA_Musket_Reload_Single` | `Abilities/Musket/GA_Musket_Reload_Single.h` | 单发循环上弹 |
 | `UGA_Musket_Reload_All` | `Abilities/Musket/GA_Musket_Reload_All.h` | 全换弹 |
 | `UGA_Musket_SprintAttack` | `Abilities/Musket/GA_Musket_SprintAttack.h` | 冲刺全弹扇射 |
@@ -34,11 +34,11 @@
 
 | Tag | 来源 | 用途 |
 |---|---|---|
-| `State.Musket.Aiming` | HeavyAttack ActivationOwnedTags | 蓄力期间标记，符文钩子 |
+| `State.Musket.Aiming` | Musket WeaponSkill ActivationOwnedTags | 蓄力期间标记，符文钩子 |
 | `State.Musket.Reloading` | Reload GAs ActivationOwnedTags | 换弹期间标记 |
-| `Ability.Musket.Light` | LightAttack AbilityTags | 用于 Cancel/Block |
-| `Ability.Musket.Heavy` | HeavyAttack AbilityTags | |
-| `Ability.Musket.Reload` | Reload GAs AbilityTags | Light/Heavy 激活时自动取消换弹 |
+| `Ability.Musket.Light` | Musket Attack AbilityTags | 用于 Cancel/Block |
+| `Ability.Musket.Heavy` | Musket WeaponSkill AbilityTags | |
+| `Ability.Musket.Reload` | Reload GAs AbilityTags | Attack / WeaponSkill 激活时自动取消换弹 |
 | `Ability.Musket.SprintAtk` | SprintAttack AbilityTags | |
 | `Ability.Musket.SprintReload` | SprintReload AbilityTags | |
 | `GameplayCue.Musket.Fire` | 开枪时执行 | 音效+枪口特效 |
@@ -70,7 +70,7 @@
 
 所有子类：父类选对应 C++ 类，**只在 Class Defaults 里填字段，不写任何 Blueprint 逻辑节点**。
 
-### BP_GA_Musket_LightAttack
+### BP_GA_Musket_LightAttack（当前 Musket Attack）
 
 | 字段 | 值 |
 |---|---|
@@ -78,7 +78,7 @@
 | `BulletClass` | `BP_MusketBullet` |
 | `BulletDamageEffectClass` | `GE_MusketBullet_Damage` |
 | `MuzzleSocketName` | `"Muzzle"` |
-| **轻攻击专属** | |
+| **Attack 速射专属** | |
 | `FireMontage` | 速射蒙太奇资产 |
 | `FireEventTag` | 蒙太奇 AnimNotify 发送的 Tag（可留空，留空=激活时立即开枪） |
 | `DamageMultiplier` | `0.8` |
@@ -86,13 +86,13 @@
 
 ---
 
-### BP_GA_Musket_HeavyAttack
+### BP_GA_Musket_HeavyAttack（当前 Musket WeaponSkill）
 
 | 字段 | 值 |
 |---|---|
 | **基类公用** | 同上 |
 | `AimArcClass` | `BP_AimArcActor` |
-| `FireMontage` | 重攻击开枪蒙太奇 |
+| `FireMontage` | 战技开枪蒙太奇 |
 | `ChargeTime` | `1.8` |
 | `StartHalfAngle` | `45.0` |
 | `EndHalfAngle` | `8.0` |
@@ -216,11 +216,11 @@ HUD Widget，绑定 `PlayerAttributeSet.CurrentAmmo` 和 `MaxAmmo`，显示 `当
 | 参数 | GAS 接口 | 典型符文 |
 |---|---|---|
 | 弹仓容量 | `PlayerAttributeSet.MaxAmmo` Additive | +2 弹仓 |
-| 满蓄弧度 | `HeavyAtk.EndHalfAngle` → 替换为更小值 | 神枪手 |
-| 速射散射 | `LightAtk.HalfAngleDeg` | 散弹手 |
+| 满蓄弧度 | `WeaponSkill.EndHalfAngle`（旧字段可能仍显示 HeavyAtk）→ 替换为更小值 | 神枪手 |
+| 速射散射 | `Attack.HalfAngleDeg`（旧字段可能仍显示 LightAtk） | 散弹手 |
 | 子弹穿透 | `BP_MusketBullet.BP_OnHitEnemy` 不 Destroy | 穿透符文 |
 | 缓慢移动 | 响应 `State.Musket.Aiming` 添加 → 解锁移动 + GE MoveSpeed ×0.3 | 游击手 |
-| 双管 | HeavyAtk 蓄力满后 SpawnBullet 调用两次 | 双管符文 |
+| 双管 | WeaponSkill 蓄力满后 SpawnBullet 调用两次 | 双管符文 |
 | 冲刺不换弹 | SprintReload 激活条件符文修改 | |
 
 ---

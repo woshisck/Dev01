@@ -4,7 +4,7 @@
 
 `WBP_CombatDeckBar` 是战斗卡组主显示条。
 
-它绑定玩家身上的 `CombatDeckComponent`，显示当前剩余卡牌、下一张牌、洗牌进度、卡牌消耗提示和奖励加入提示。
+它绑定玩家身上的 `CombatDeckComponent`，显示当前卡组顺序、下一张牌、洗牌进度、卡牌结算提示和奖励加入提示。
 
 ## 父类
 
@@ -33,7 +33,7 @@ Root: CanvasPanel
         ShuffleProgressBar: ProgressBar
         ShuffleText: Yog Common Rich Text Block
       StatusText: Yog Common Rich Text Block
-      ConsumedToastText: Yog Common Rich Text Block
+      ResolvedToastText: Yog Common Rich Text Block
       RewardToastText: Yog Common Rich Text Block
 ```
 
@@ -41,12 +41,12 @@ Root: CanvasPanel
 
 | 控件名 | 类型 | 用途 | 数据来源 |
 | --- | --- | --- | --- |
-| `CardSlot_0` 到 `CardSlot_7` | `WBP_CombatDeckCardSlot` | 显示最多 8 张剩余卡牌；`CardSlot_0` 是下一张牌 | `CombatDeckComponent -> GetRemainingDeckSnapshot()` |
+| `CardSlot_0` 到 `CardSlot_7` | `WBP_CombatDeckCardSlot` | 显示最多 8 张顺序卡牌；`CardSlot_0` 是下一张将被结算的牌 | `CombatDeckComponent -> GetRemainingDeckSnapshot()` |
 | `ShufflePanel` | `Border` 或 `Overlay` | 洗牌时显示，非洗牌时自动隐藏 | `CombatDeckComponent -> DeckState` |
 | `ShuffleProgressBar` | `ProgressBar` | 显示洗牌进度 | `CombatDeckComponent -> OnShuffleProgress` |
 | `ShuffleText` | `Yog Common Rich Text Block` | 显示洗牌百分比 | `OnShuffleProgress` 的归一化进度 |
 | `StatusText` | `Yog Common Rich Text Block` | 显示卡组状态 | `CombatDeckComponent -> DeckState` 和剩余卡牌数量 |
-| `ConsumedToastText` | `Yog Common Rich Text Block` | 显示刚消耗的卡牌 | `CombatDeckComponent -> OnCardConsumed`，卡名来自 `CombatCard.DisplayName` |
+| `ResolvedToastText` | `Yog Common Rich Text Block` | 显示刚结算的卡牌 | `CombatDeckComponent -> OnCardResolved`，卡名来自 `CombatCard.DisplayName` |
 | `RewardToastText` | `Yog Common Rich Text Block` | 显示刚加入卡组的奖励卡牌 | `CombatDeckComponent -> OnRewardAddedToDeck`，卡名来自 `CombatCard.DisplayName` |
 
 ## 推荐配置
@@ -69,7 +69,7 @@ Root: CanvasPanel
 | `ShuffleProgressBar` | `Percent=0; Fill Color=(0.95,0.72,0.22,1); Size Height=8` |
 | `ShuffleText` | `FontStyleClass=BP_InfoPopupTextStyle; OverrideFontSize=12; OverrideColor=(1,0.86,0.45,1); Justification=Center` |
 | `StatusText` | `FontStyleClass=BP_InfoPopupTextStyle; OverrideFontSize=12; OverrideColor=(0.78,0.82,0.90,1); Justification=Center` |
-| `ConsumedToastText` | `FontStyleClass=BP_InfoPopupTextStyle; OverrideFontSize=14; OverrideColor=(1,1,1,1); Justification=Center; Visibility=Collapsed` |
+| `ResolvedToastText` | `FontStyleClass=BP_InfoPopupTextStyle; OverrideFontSize=14; OverrideColor=(1,1,1,1); Justification=Center; Visibility=Collapsed` |
 | `RewardToastText` | `FontStyleClass=BP_InfoPopupTextStyle; OverrideFontSize=14; OverrideColor=(0.55,1.00,0.70,1); Justification=Center; Visibility=Collapsed` |
 
 ## Class Defaults 参数
@@ -81,17 +81,18 @@ Root: CanvasPanel
 
 ## C++ 自动动画
 
-`ConsumedToastText` 和 `RewardToastText` 的显示、保持、淡出由 C++ 自动处理，不需要在 WBP Graph 中写动画。
+`ResolvedToastText` 和 `RewardToastText` 的显示、保持、淡出由 C++ 自动处理，不需要在 WBP Graph 中写动画。
 
 | 触发 | C++ 行为 |
 | --- | --- |
-| 卡牌被消耗 | 写入 `Consumed: 卡名`，显示 `ConsumedToastText`，保持 `ToastVisibleDuration` 秒后淡出 |
+| 卡牌被结算 | 写入 `Resolved: 卡名`，显示 `ResolvedToastText`，保持 `ToastVisibleDuration` 秒后淡出 |
 | 奖励加入卡组 | 写入 `Added: 卡名`，显示 `RewardToastText`，保持 `ToastVisibleDuration` 秒后淡出 |
 | 淡出结束 | 自动把对应文本设为 `Collapsed` |
 
 ## 必须检查
 
 - `CardSlot_0` 到 `CardSlot_7` 按需要放置，并勾选 `Is Variable`。
-- `ShufflePanel / ShuffleProgressBar / ShuffleText / StatusText / ConsumedToastText / RewardToastText` 都勾选 `Is Variable`。
+- `ShufflePanel / ShuffleProgressBar / ShuffleText / StatusText / ResolvedToastText / RewardToastText` 都勾选 `Is Variable`。
+- 旧蓝图里如果还叫 `ConsumedToastText` 可以继续被 C++ 兼容读取；新制作统一命名为 `ResolvedToastText`。
 - 所有文字控件推荐使用 `Yog Common Rich Text Block`。
 - 不需要手写绑定逻辑和提示动画，HUD 会自动调用 `BindToCombatDeck`，C++ 会自动处理提示淡出。

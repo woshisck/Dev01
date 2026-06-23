@@ -135,7 +135,7 @@ void UBuffFlowComponent::StartCombatCardFlow(
 	LastCombatCardEffectContext.ActionSlot = ActionContext.ActionSlot;
 	LastCombatCardEffectContext.FlowRole = ActionContext.FlowRole;
 	LastCombatCardEffectContext.EffectMultiplier = ResolveResult.AppliedMultiplier;
-	LastCombatCardEffectContext.ComboBonusStacks = FMath::Max(0, ActionContext.ComboIndex - 1);
+	LastCombatCardEffectContext.ComboBonusStacks = 0;
 	LastCombatCardEffectContext.bFromLink = ResolveResult.bTriggeredLink || ResolveResult.bTriggeredForwardLink || ResolveResult.bTriggeredBackwardLink;
 	LastCombatCardEffectContext.bIsComboFinisher = ActionContext.bIsComboFinisher;
 	LastCombatCardEffectContext.bSourceCardFinisher = Card.Config.CardType == ECombatCardType::Finisher;
@@ -168,7 +168,7 @@ void UBuffFlowComponent::StartCombatCardFlowWithSourceTransform(
 	LastCombatCardEffectContext.ActionSlot = ActionContext.ActionSlot;
 	LastCombatCardEffectContext.FlowRole = ActionContext.FlowRole;
 	LastCombatCardEffectContext.EffectMultiplier = ResolveResult.AppliedMultiplier;
-	LastCombatCardEffectContext.ComboBonusStacks = FMath::Max(0, ActionContext.ComboIndex - 1);
+	LastCombatCardEffectContext.ComboBonusStacks = 0;
 	LastCombatCardEffectContext.bFromLink = ResolveResult.bTriggeredLink || ResolveResult.bTriggeredForwardLink || ResolveResult.bTriggeredBackwardLink;
 	LastCombatCardEffectContext.bIsComboFinisher = ActionContext.bIsComboFinisher;
 	LastCombatCardEffectContext.bSourceCardFinisher = Card.Config.CardType == ECombatCardType::Finisher;

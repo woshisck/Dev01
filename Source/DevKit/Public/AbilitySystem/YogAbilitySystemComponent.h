@@ -19,7 +19,7 @@ class UYogAbilitySystemComponent;
 // =========================================================
 
 /**
- * 一次伤害命中（或卡牌消耗事件）的完整构成数据。
+ * 一次伤害命中（或卡牌结算事件）的完整构成数据。
  * DamageExecution 或 CombatDeckComponent 填充后推入 CombatLogStatics 静态桥。
  */
 USTRUCT(BlueprintType)
@@ -36,7 +36,7 @@ struct DEVKIT_API FDamageBreakdown
 	/** 目标减伤系数（DmgTaken，>1 表示易伤，<1 表示减伤） */
 	UPROPERTY(BlueprintReadOnly) float DmgTakenMult = 1.f;
 
-	/** 最终伤害（含暴击加成；卡牌消耗行为 0） */
+	/** 最终伤害（含暴击加成；卡牌结算行为 0） */
 	UPROPERTY(BlueprintReadOnly) float FinalDamage = 0.f;
 
 	/** 是否暴击 */
@@ -47,7 +47,7 @@ struct DEVKIT_API FDamageBreakdown
 
 	/**
 	 * 伤害类型："Attack"、"Attack_Crit"、"Bleed"、"Rune_XXX"
-	 * 512版本新增："Card_Consume"、"Card_Shuffle"、"Card_Hit"、
+	 * 512版本新增："Card_Resolve"、"Card_Shuffle"、"Card_Hit"、
 	 *               "Card_Matched"、"Card_Link"、"Card_Finisher"
 	 */
 	UPROPERTY(BlueprintReadOnly) FName DamageType;
@@ -66,7 +66,11 @@ struct DEVKIT_API FDamageBreakdown
 	/** 本次攻击时有可用卡牌 */
 	UPROPERTY(BlueprintReadOnly) bool bHadCard = false;
 
-	/** 卡牌已被消耗（ConsumedCard.IsValidCard()） */
+	/** Card resolved from the combat deck sequence. Cards are not removed from the deck. */
+	UPROPERTY(BlueprintReadOnly) bool bResolvedCard = false;
+
+	/** Deprecated: old compatibility alias for resolved-card state. */
+	// Deprecated compatibility alias for older log widgets/Blueprints.
 	UPROPERTY(BlueprintReadOnly) bool bConsumedCard = false;
 
 	/** 动作类型与卡牌 RequiredAction 匹配 */
@@ -81,16 +85,19 @@ struct DEVKIT_API FDamageBreakdown
 	/** 终结技触发 */
 	UPROPERTY(BlueprintReadOnly) bool bTriggeredFinisher = false;
 
-	/** 本次消耗后进入洗牌（仅 Card_Consume/Card_Shuffle 行有效） */
+	/** 本次结算后进入洗牌（仅 Card_Resolve/Card_Shuffle 行有效） */
 	UPROPERTY(BlueprintReadOnly) bool bStartedShuffle = false;
 
-	/** 是否为纯卡牌消耗行（FinalDamage=0，无目标） */
+	/** 是否为纯卡牌结算行（FinalDamage=0，无目标） */
 	UPROPERTY(BlueprintReadOnly) bool bIsCardEventOnly = false;
 
 	/** 卡牌显示名称（来自 SourceData->RuneConfig.RuneName） */
 	UPROPERTY(BlueprintReadOnly) FName CardDisplayName;
 
-	/** 消耗时机（"OnCommit" / "OnHit"，调试用） */
+	/** 结算时机（"OnCommit" / "OnHit"，调试用） */
+	UPROPERTY(BlueprintReadOnly) FName CardResolveTiming;
+
+	// Deprecated compatibility alias for CardResolveTiming.
 	UPROPERTY(BlueprintReadOnly) FName CardConsumeTiming;
 
 	/** 是否携带目标生命/护甲快照（仅用于战斗日志展示，不参与结算） */
@@ -251,10 +258,10 @@ private:
 	void OnPoiseResetTimerEnd();
 	void OnSuperArmorTimerEnd();
 
-	// ── 冲刺连招保存内部状态 ───────────────────────────────────────────
-	/** 当前保存的连招 Tag 集合（ApplyDashSave 注入 / ConsumeDashSave 移除） */
+	// ── Deprecated DashSave compatibility state ─────────────────────────
+	/** Deprecated combo-tag cache kept for old tests/assets; current Dash no longer writes it. */
 	FGameplayTagContainer DashSaveComboTags;
-	/** 2s 后自动消费（未被攻击消费时清理） */
+	/** Deprecated auto-clean timer for legacy DashSave tags. */
 	FTimerHandle DashSaveExpireTimer;
 
 	void DashSaveExpired();
@@ -389,12 +396,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Abilities")
 	bool TryActivateAbilityByExactTag(const FGameplayTag& ExactTag, bool bAllowRemoteActivation = true);
 
+	/** Deprecated compatibility only. Player runtime input no longer advances Attack Combo1-4 chains. */
 	UFUNCTION(BlueprintCallable, Category = "Abilities")
 	bool TryActivateNextAttackComboAbility(bool bRequireComboWindow = true, bool bAllowRemoteActivation = true);
 
 	UFUNCTION(BlueprintPure, Category = "Abilities")
 	bool HasActiveAttackComboAbilityTag();
 
+	/** Deprecated compatibility only. Player runtime input no longer advances WeaponSkill Combo1-4 chains. */
 	UFUNCTION(BlueprintCallable, Category = "Abilities")
 	bool TryActivateNextWeaponSkillComboAbility(bool bRequireComboWindow = true, bool bAllowRemoteActivation = true);
 
@@ -403,6 +412,12 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Abilities")
 	bool IsPlayerActionMontageLocked() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Abilities|Cooldown")
+	int32 ClearCooldownsForAbilitiesByTag(const FGameplayTagContainer& AbilityTags);
+
+	UFUNCTION(BlueprintCallable, Category = "Abilities|Cooldown")
+	int32 ClearWeaponSkillCooldowns();
 
 
 
@@ -452,17 +467,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Rune")
 	void RemoveRuneModifiers(FActiveGameplayEffectHandle Handle);
 
-	// ── 冲刺连招保存 ────────────────────────────────────────────────────────
+	// ── Deprecated DashSave compatibility ────────────────────────────────
 	/**
-	 * 以 LooseGameplayTag 方式注入连招 Tag，使玩家冲刺后可直接接 X 招。
-	 * 自动在 2s 后过期；或由 ConsumeDashSave 主动消费。
-	 * GA_PlayerDash::EndAbility 在检测到处于 X-1 招位时调用。
+	 * Deprecated: injects legacy action-window tags for old tests/assets.
+	 * Current GA_PlayerDash no longer calls this path.
 	 */
 	void ApplyDashSave(const FGameplayTagContainer& Tags);
 
 	/**
-	 * 消费（移除）之前注入的连招 Tag，并清除过期计时器。
-	 * Attack / WeaponSkill combo finishers call this from ActivateAbility.
+	 * Deprecated: removes previously injected legacy DashSave tags and clears
+	 * the expiry timer.
 	 */
 	bool ConsumeDashSave();
 

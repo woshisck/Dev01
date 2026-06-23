@@ -2,25 +2,25 @@
 
 ## 1. 基础信息
 
-| 字段 | 内容 |
-| --- | --- |
-| 敌人ID | Enemy_L1_AlarmBellJailer |
-| 中文名 | 哨铃狱卒 |
-| 英文名 | Alarm Bell Jailer |
-| 所属关卡 | L1 维尔斯卡牢狱 |
-| 所属区域 | 底层监牢 / 中层蒸汽监牢 |
-| 所属阵营 | 狱卒 / 监狱秩序残留 |
-| 敌人类型 | 普通敌人 |
-| 战斗距离 | 辅助 / 中距离 |
-| 战斗角色 | 警报辅助 / 召唤干扰 / 优先击杀目标 |
-| 难度预算 | 3-4 |
-| 是否默认刷出 | 是 |
-| 是否可被召唤 | 否 |
-| 是否召唤其他敌人 | 是 |
-| 推荐出现数量 | 单只 |
-| 推荐搭配敌人 | 腐化看守A、脊骨猎枪看守、鼠刑囚犯 |
-| 不推荐搭配敌人 | 多个召唤源或多个哨铃同时出现 |
-| 当前状态 | 概念 |
+| 字段       | 内容                              |
+| -------- | ------------------------------- |
+| 敌人ID     | Enemy_L1_AlarmBellJailer        |
+| 中文名      | 哨铃狱卒                            |
+| 英文名      | Alarm Bell Jailer               |
+| 所属关卡     | L1 维尔斯卡牢狱                       |
+| 所属区域     | 底层监牢 / 中层蒸汽监牢                   |
+| 所属阵营     | 狱卒 / 监狱秩序残留                     |
+| 敌人类型     | 普通敌人                            |
+| 战斗距离     | 辅助 / 中距离                        |
+| 战斗角色     | 警报辅助 / 召唤干扰 / 优先击杀目标            |
+| 难度预算     | 3-4                             |
+| 是否默认刷出   | 是                               |
+| 是否可被召唤   | 否                               |
+| 是否召唤其他敌人 | 是                               |
+| 推荐出现数量   | 单只                              |
+| 推荐搭配敌人   | 腐化看守A、脊骨猎枪看守、鼠刑囚犯               |
+| 不推荐搭配敌人  | 多个召唤源或多个哨铃同时出现                  |
+| 当前状态     | 引擎基础配置已接入；BP、模型、动作、召唤和铃声技能效果待制作 |
 
 ## 2. 敌人需求定位
 
@@ -137,3 +137,19 @@ Victorian gothic jailer, corrupted prison bell keeper, brass alarm bell fused to
 | 可打断规则 | 敲铃前摇可被普通强攻击、击退、破甲、终结技打断 |
 | 霸体规则 | 无霸体 |
 | 抗性规则 | 低生命、低抗性，鼓励优先击杀 |
+
+## 5. 引擎落地状态
+
+当前已接入默认敌人 AI 生成器和 `AttackProfile` 基础配置：
+
+| 项目 | 状态 |
+| --- | --- |
+| `EnemyData` | 生成器会创建 `/Game/Docs/Data/Enemy/AlarmBellJailer/DA_AlarmBellJailer` |
+| `AbilityData` | 生成器会创建 `/Game/Docs/Data/Enemy/AlarmBellJailer/DA_AbilityMontage_AlarmBellJailer_01` |
+| 行为树 | 使用 `/Game/Code/Enemy/AI/Behaviour/BT_Enemy_DefaultMelee` |
+| 摇铃警报 | 已预留 `Enemy.Skill.Skill1` |
+| 铃声震荡 | 已预留 `Enemy.Skill.Skill2` |
+| 推击 / 后撤 | 已预留 `Enemy.Melee.LAtk1`、`Enemy.Melee.LAtk2`，推击结束后会请求后撤 |
+| `EnemyClass` | 待制作 `BP_Enemy_AlarmBellJailer` 后填写 |
+
+详细工程记录见：`Docs/04_开发实现与系统文档/系统/AI/EnemyAI_AlarmBellJailer_GuardCaptain_Implementation.md`。

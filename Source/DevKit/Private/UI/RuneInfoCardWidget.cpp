@@ -45,7 +45,7 @@ URuneInfoCardWidget::URuneInfoCardWidget(const FObjectInitializer& ObjectInitial
     TemporaryLockWarningFormat = NSLOCTEXT(
         "RuneInfoCard",
         "TemporaryFinisherLockWarningFmt",
-        "<key>终结技未解锁：{0}/{1}</key>\n还需完成 {2} 场战斗。锁定期间消耗此牌不会触发终结技。");
+        "<key>终结技未解锁：{0}/{1}</key>\n还需完成 {2} 场战斗。锁定期间结算此牌不会触发终结技。");
 }
 
 // ============================================================

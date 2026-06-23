@@ -76,7 +76,7 @@ struct FRunState
 	TArray<ECombatCardLinkOrientation> CombatDeckCardOrientations;
 
 	UPROPERTY()
-	float CombatDeckShuffleCooldownDuration = 1.0f;
+	float CombatDeckShuffleCooldownDuration = 0.0f;
 
 	UPROPERTY()
 	int32 CombatDeckMaxActiveSequenceSize = 0;
@@ -89,7 +89,7 @@ struct FRunState
 	TArray<ECombatCardLinkOrientation> InactiveCombatDeckCardOrientations;
 
 	UPROPERTY()
-	float InactiveCombatDeckShuffleCooldownDuration = 1.0f;
+	float InactiveCombatDeckShuffleCooldownDuration = 0.0f;
 
 	UPROPERTY()
 	int32 InactiveCombatDeckMaxActiveSequenceSize = 0;

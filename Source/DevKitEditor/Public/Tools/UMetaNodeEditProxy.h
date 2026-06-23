@@ -84,7 +84,7 @@ public:
 	int32 CompletedCombatBattleCount = 0;
 
 	UPROPERTY(EditAnywhere, Category = "Run Checkpoint|Combat Deck")
-	float CombatDeckShuffleCooldownDuration = 1.f;
+	float CombatDeckShuffleCooldownDuration = 0.f;
 
 	UPROPERTY(EditAnywhere, Category = "Run Checkpoint|Combat Deck")
 	int32 CombatDeckMaxActiveSequenceSize = 0;
