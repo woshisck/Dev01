@@ -34,7 +34,7 @@ namespace
 		return false;
 	}
 
-	bool HasConfiguredAction(TConstArrayView<const UAbilityData*> AbilityDataSources, const TCHAR* BroadTagName)
+	bool HasConfiguredActionForBroadTag(TConstArrayView<const UAbilityData*> AbilityDataSources, const TCHAR* BroadTagName)
 	{
 		const FGameplayTag BroadTag = FGameplayTag::RequestGameplayTag(FName(BroadTagName), false);
 		if (HasAbilityInAnyData(AbilityDataSources, BroadTag))
@@ -55,16 +55,26 @@ namespace
 		return false;
 	}
 
+	bool HasConfiguredAction(
+		TConstArrayView<const UAbilityData*> AbilityDataSources,
+		const TCHAR* BroadTagName,
+		const TCHAR* LegacyBroadTagName = nullptr)
+	{
+		return HasConfiguredActionForBroadTag(AbilityDataSources, BroadTagName)
+			|| (LegacyBroadTagName && HasConfiguredActionForBroadTag(AbilityDataSources, LegacyBroadTagName));
+	}
+
 	void AddActionSlotLine(
 		TArray<FString>& Lines,
 		TConstArrayView<const UAbilityData*> AbilityDataSources,
 		const TCHAR* BroadTagName,
+		const TCHAR* LegacyBroadTagName,
 		const TCHAR* InputActionName,
 		const TCHAR* Label,
 		const TCHAR* Description,
 		int32 MaxLines)
 	{
-		if (!HasConfiguredAction(AbilityDataSources, BroadTagName) || (MaxLines > 0 && Lines.Num() >= MaxLines))
+		if (!HasConfiguredAction(AbilityDataSources, BroadTagName, LegacyBroadTagName) || (MaxLines > 0 && Lines.Num() >= MaxLines))
 		{
 			return;
 		}
@@ -98,9 +108,9 @@ FText WeaponComboTextUtils::BuildComboHintText(
 		WeaponDefinition->WeaponSkillAbilityData.Get(),
 	};
 
-	AddActionSlotLine(ActionSlotLines, MakeArrayView(AttackSources), TEXT("PlayerState.AbilityCast.Attack"), TEXT("Attack"), TEXT("攻击"), TEXT("顺序结算攻击卡组"), EffectiveMaxLines);
-	AddActionSlotLine(ActionSlotLines, MakeArrayView(WeaponSkillSources), TEXT("PlayerState.AbilityCast.WeaponSkill"), TEXT("WeaponSkill"), TEXT("战技"), TEXT("结算战技槽并引爆连携"), EffectiveMaxLines);
-	AddActionSlotLine(ActionSlotLines, MakeArrayView(AttackSources), TEXT("PlayerState.AbilityCast.Dash"), TEXT("Dash"), TEXT("冲刺"), TEXT("结算冲刺槽"), EffectiveMaxLines);
+	AddActionSlotLine(ActionSlotLines, MakeArrayView(AttackSources), TEXT("Character.State.Skill.Attack"), TEXT("PlayerState.AbilityCast.Attack"), TEXT("Attack"), TEXT("攻击"), TEXT("顺序结算攻击卡组"), EffectiveMaxLines);
+	AddActionSlotLine(ActionSlotLines, MakeArrayView(WeaponSkillSources), TEXT("Character.State.Skill.WeaponSkill"), TEXT("PlayerState.AbilityCast.WeaponSkill"), TEXT("WeaponSkill"), TEXT("战技"), TEXT("结算战技槽并引爆连携"), EffectiveMaxLines);
+	AddActionSlotLine(ActionSlotLines, MakeArrayView(AttackSources), TEXT("Character.State.Movement.Dash"), TEXT("PlayerState.AbilityCast.Dash"), TEXT("Dash"), TEXT("冲刺"), TEXT("结算冲刺槽"), EffectiveMaxLines);
 
 	if ((EffectiveMaxLines == 0 || ActionSlotLines.Num() < EffectiveMaxLines) && HasAnyAbilityData(MakeArrayView(AttackSources)))
 	{

@@ -10,7 +10,7 @@
  * - 激活时记录触发位置 OriginLocation
  * - 每 0.2s 强制敌人向远离 Instigator 方向移动（AI MoveToLocation）
  * - 2 秒后检查：若距 OriginLocation < RequiredDistance(800) → 施加惩罚伤害
- * - 不适用于玩家（ApplicationBlockedTags = Character.State.IsPlayer，如有的话）
+ * - 不适用于玩家（用身份分类或阵营判断；不要新增玩家身份类 Character.State）
  *
  * Blueprint 子类需配置：
  *   PenaltyDamageEffect = GE 惩罚伤害（Instant DamageBuff）

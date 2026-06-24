@@ -274,8 +274,8 @@ bool ACombatItemAreaActor::ShouldInterruptAsMinion(AActor* TargetActor) const
 	}
 
 	const UAbilitySystemComponent* ASC = TargetActor->FindComponentByClass<UAbilitySystemComponent>();
-	static const FGameplayTag SuperArmorTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.SuperArmor"), false);
-	static const FGameplayTag DeadTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Dead"), false);
+	static const FGameplayTag SuperArmorTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.SuperArmor"), false);
+	static const FGameplayTag DeadTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Dead"), false);
 	if (ASC
 		&& ((SuperArmorTag.IsValid() && ASC->HasMatchingGameplayTag(SuperArmorTag))
 			|| (DeadTag.IsValid() && ASC->HasMatchingGameplayTag(DeadTag))))

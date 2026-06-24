@@ -4,6 +4,148 @@
 #include "Data/MontageConfigDA.h"
 #include "GameplayTagsManager.h"
 
+namespace
+{
+FGameplayTag GetEquivalentPlayerActionTag(const FGameplayTag& Tag)
+{
+	if (!Tag.IsValid())
+	{
+		return FGameplayTag();
+	}
+
+	const FString TagString = Tag.ToString();
+	FString EquivalentTagString;
+	if (TagString.StartsWith(TEXT("Character.State.Skill.Attack")))
+	{
+		EquivalentTagString = TagString.Replace(
+			TEXT("Character.State.Skill.Attack"),
+			TEXT("PlayerState.AbilityCast.Attack"));
+	}
+	else if (TagString.StartsWith(TEXT("PlayerState.AbilityCast.Attack")))
+	{
+		EquivalentTagString = TagString.Replace(
+			TEXT("PlayerState.AbilityCast.Attack"),
+			TEXT("Character.State.Skill.Attack"));
+	}
+	else if (TagString.StartsWith(TEXT("Character.State.Skill.WeaponSkill")))
+	{
+		EquivalentTagString = TagString.Replace(
+			TEXT("Character.State.Skill.WeaponSkill"),
+			TEXT("PlayerState.AbilityCast.WeaponSkill"));
+	}
+	else if (TagString.StartsWith(TEXT("PlayerState.AbilityCast.WeaponSkill")))
+	{
+		EquivalentTagString = TagString.Replace(
+			TEXT("PlayerState.AbilityCast.WeaponSkill"),
+			TEXT("Character.State.Skill.WeaponSkill"));
+	}
+	else if (TagString.StartsWith(TEXT("Character.State.Skill.Active")))
+	{
+		EquivalentTagString = TagString.Replace(
+			TEXT("Character.State.Skill.Active"),
+			TEXT("PlayerState.AbilityCast.Skill"));
+	}
+	else if (TagString.StartsWith(TEXT("PlayerState.AbilityCast.Skill")))
+	{
+		EquivalentTagString = TagString.Replace(
+			TEXT("PlayerState.AbilityCast.Skill"),
+			TEXT("Character.State.Skill.Active"));
+	}
+	else if (TagString.StartsWith(TEXT("PlayerState.AbilityCast.LightAtk")))
+	{
+		EquivalentTagString = TagString.Replace(
+			TEXT("PlayerState.AbilityCast.LightAtk"),
+			TEXT("Character.State.Skill.Attack"));
+	}
+	else if (TagString.StartsWith(TEXT("PlayerState.AbilityCast.HeavyAtk")))
+	{
+		EquivalentTagString = TagString.Replace(
+			TEXT("PlayerState.AbilityCast.HeavyAtk"),
+			TEXT("Character.State.Skill.WeaponSkill"));
+	}
+	else if (TagString == TEXT("Character.State.Skill.Reload"))
+	{
+		EquivalentTagString = TEXT("PlayerState.AbilityCast.Reload");
+	}
+	else if (TagString == TEXT("PlayerState.AbilityCast.Reload"))
+	{
+		EquivalentTagString = TEXT("Character.State.Skill.Reload");
+	}
+	else if (TagString.StartsWith(TEXT("Character.State.Movement.Dash")))
+	{
+		EquivalentTagString = TagString.Replace(
+			TEXT("Character.State.Movement.Dash"),
+			TEXT("PlayerState.AbilityCast.Dash"));
+	}
+	else if (TagString == TEXT("PlayerState.AbilityCast.Dash.Dash1")
+		|| TagString == TEXT("PlayerState.AbilityCast.Dash.DashATK1")
+		|| TagString == TEXT("PlayerState.AbilityCast.DashAtk"))
+	{
+		EquivalentTagString = TEXT("Character.State.Movement.Dash");
+	}
+	else if (TagString.StartsWith(TEXT("PlayerState.AbilityCast.Dash")))
+	{
+		EquivalentTagString = TagString.Replace(
+			TEXT("PlayerState.AbilityCast.Dash"),
+			TEXT("Character.State.Movement.Dash"));
+	}
+	else if (TagString == TEXT("Character.State.Equipment.SwitchWeapon"))
+	{
+		EquivalentTagString = TEXT("PlayerState.AbilityCast.SwitchWeapon");
+	}
+	else if (TagString == TEXT("PlayerState.AbilityCast.SwitchWeapon"))
+	{
+		EquivalentTagString = TEXT("Character.State.Equipment.SwitchWeapon");
+	}
+	else if (TagString == TEXT("Character.State.Window.CanCombo"))
+	{
+		EquivalentTagString = TEXT("PlayerState.AbilityCast.CanCombo");
+	}
+	else if (TagString == TEXT("PlayerState.AbilityCast.CanCombo"))
+	{
+		EquivalentTagString = TEXT("Character.State.Window.CanCombo");
+	}
+	else if (TagString == TEXT("Character.State.Window.PostAttackRecovery"))
+	{
+		EquivalentTagString = TEXT("PlayerState.AbilityCast.PostAttackRecovery");
+	}
+	else if (TagString == TEXT("PlayerState.AbilityCast.PostAttackRecovery"))
+	{
+		EquivalentTagString = TEXT("Character.State.Window.PostAttackRecovery");
+	}
+
+	return EquivalentTagString.IsEmpty()
+		? FGameplayTag()
+		: FGameplayTag::RequestGameplayTag(FName(*EquivalentTagString), false);
+}
+
+const FAbilityMontageConfigList* FindMontageConfigListWithFallback(
+	const TMap<FGameplayTag, FAbilityMontageConfigList>& MontageConfigMap,
+	const FGameplayTag& Key)
+{
+	if (const FAbilityMontageConfigList* ConfigList = MontageConfigMap.Find(Key))
+	{
+		return ConfigList;
+	}
+
+	const FGameplayTag EquivalentKey = GetEquivalentPlayerActionTag(Key);
+	return EquivalentKey.IsValid() ? MontageConfigMap.Find(EquivalentKey) : nullptr;
+}
+
+TObjectPtr<UAnimMontage> const* FindMontageWithFallback(
+	const TMap<FGameplayTag, TObjectPtr<UAnimMontage>>& MontageMap,
+	const FGameplayTag& Key)
+{
+	if (TObjectPtr<UAnimMontage> const* Found = MontageMap.Find(Key))
+	{
+		return Found;
+	}
+
+	const FGameplayTag EquivalentKey = GetEquivalentPlayerActionTag(Key);
+	return EquivalentKey.IsValid() ? MontageMap.Find(EquivalentKey) : nullptr;
+}
+}
+
 UAnimMontage* UAbilityData::GetMontage(const FGameplayTag& Key) const
 {
 	if (UMontageConfigDA* Config = GetMontageConfig(Key, FGameplayTagContainer()))
@@ -11,13 +153,13 @@ UAnimMontage* UAbilityData::GetMontage(const FGameplayTag& Key) const
 		return Config->Montage;
 	}
 
-	TObjectPtr<UAnimMontage> const* Found = MontageMap.Find(Key);
+	TObjectPtr<UAnimMontage> const* Found = FindMontageWithFallback(MontageMap, Key);
 	return Found ? Found->Get() : nullptr;
 }
 
 UMontageConfigDA* UAbilityData::GetMontageConfig(const FGameplayTag& Key, const FGameplayTagContainer& ContextTags) const
 {
-	const FAbilityMontageConfigList* ConfigList = MontageConfigMap.Find(Key);
+	const FAbilityMontageConfigList* ConfigList = FindMontageConfigListWithFallback(MontageConfigMap, Key);
 	if (!ConfigList)
 	{
 		return nullptr;
@@ -42,13 +184,13 @@ UMontageConfigDA* UAbilityData::GetMontageConfig(const FGameplayTag& Key, const 
 
 bool UAbilityData::HasAbility(const FGameplayTag& Key) const
 {
-	TObjectPtr<UAnimMontage> const* Found = MontageMap.Find(Key);
+	TObjectPtr<UAnimMontage> const* Found = FindMontageWithFallback(MontageMap, Key);
 	if (Found && Found->Get() != nullptr)
 	{
 		return true;
 	}
 
-	const FAbilityMontageConfigList* ConfigList = MontageConfigMap.Find(Key);
+	const FAbilityMontageConfigList* ConfigList = FindMontageConfigListWithFallback(MontageConfigMap, Key);
 	if (!ConfigList)
 	{
 		return false;
@@ -93,15 +235,13 @@ static void AddWeaponAttackDefaultKeys(
 	TMap<FGameplayTag, FPassiveActionData>& PassiveMap)
 {
 	static const FName MontageKeys[] = {
-		"PlayerState.AbilityCast.Attack.Combo1", "PlayerState.AbilityCast.Attack.Combo2",
-		"PlayerState.AbilityCast.Attack.Combo3", "PlayerState.AbilityCast.Attack.Combo4",
-		"PlayerState.AbilityCast.Dash.Combo1", "PlayerState.AbilityCast.Dash.Combo2",
-		"PlayerState.AbilityCast.Dash.Combo3", "PlayerState.AbilityCast.Dash.Combo4",
-		"PlayerState.AbilityCast.Dash",
-		"PlayerState.AbilityCast.Dash.Dash1",
-		"PlayerState.AbilityCast.Dash.DashATK1",
-		"PlayerState.AbilityCast.DashAtk",
-		"PlayerState.AbilityCast.SwitchWeapon",
+		"Character.State.Skill.Attack.Combo1", "Character.State.Skill.Attack.Combo2",
+		"Character.State.Skill.Attack.Combo3", "Character.State.Skill.Attack.Combo4",
+		"Character.State.Movement.Dash.Combo1", "Character.State.Movement.Dash.Combo2",
+		"Character.State.Movement.Dash.Combo3", "Character.State.Movement.Dash.Combo4",
+		"Character.State.Movement.Dash",
+		"Character.State.Skill.Reload",
+		"Character.State.Equipment.SwitchWeapon",
 	};
 	AddDefaultKeys(MontageMap, PassiveMap, MontageKeys, TArrayView<const FName>());
 }
@@ -138,18 +278,17 @@ void UPlayerAbilityMontageData::PostInitProperties()
 	if (HasAnyFlags(RF_ClassDefaultObject)) return;
 
 	static const FName MontageKeys[] = {
-		"PlayerState.AbilityCast.Attack.Combo1", "PlayerState.AbilityCast.Attack.Combo2",
-		"PlayerState.AbilityCast.Attack.Combo3", "PlayerState.AbilityCast.Attack.Combo4",
-		"PlayerState.AbilityCast.WeaponSkill.Combo1", "PlayerState.AbilityCast.WeaponSkill.Combo2",
-		"PlayerState.AbilityCast.WeaponSkill.Combo3", "PlayerState.AbilityCast.WeaponSkill.Combo4",
-		"PlayerState.AbilityCast.Dash.Combo1", "PlayerState.AbilityCast.Dash.Combo2",
-		"PlayerState.AbilityCast.Dash.Combo3", "PlayerState.AbilityCast.Dash.Combo4",
-		"PlayerState.AbilityCast.Dash",
-		"PlayerState.AbilityCast.Dash.Dash1",
-		"PlayerState.AbilityCast.Dash.DashATK1",
-		"PlayerState.AbilityCast.DashAtk",
-		"PlayerState.AbilityCast.Skill.Skill1",
-		"PlayerState.AbilityCast.Skill.Skill2",
+		"Character.State.Skill.Attack.Combo1", "Character.State.Skill.Attack.Combo2",
+		"Character.State.Skill.Attack.Combo3", "Character.State.Skill.Attack.Combo4",
+		"Character.State.Skill.WeaponSkill.Combo1", "Character.State.Skill.WeaponSkill.Combo2",
+		"Character.State.Skill.WeaponSkill.Combo3", "Character.State.Skill.WeaponSkill.Combo4",
+		"Character.State.Movement.Dash.Combo1", "Character.State.Movement.Dash.Combo2",
+		"Character.State.Movement.Dash.Combo3", "Character.State.Movement.Dash.Combo4",
+		"Character.State.Movement.Dash",
+		"Character.State.Skill.Reload",
+		"Character.State.Equipment.SwitchWeapon",
+		"Character.State.Skill.Active.Skill1",
+		"Character.State.Skill.Active.Skill2",
 	};
 	static const FName PassiveKeys[] = {
 		"Action.HitReact.Front", "Action.Dead", "Action.HitReact.Back",
@@ -187,8 +326,8 @@ void UWeaponSkillAbilityMontageData::PostInitProperties()
 	if (HasAnyFlags(RF_ClassDefaultObject)) return;
 
 	static const FName MontageKeys[] = {
-		"PlayerState.AbilityCast.WeaponSkill.Combo1", "PlayerState.AbilityCast.WeaponSkill.Combo2",
-		"PlayerState.AbilityCast.WeaponSkill.Combo3", "PlayerState.AbilityCast.WeaponSkill.Combo4",
+		"Character.State.Skill.WeaponSkill.Combo1", "Character.State.Skill.WeaponSkill.Combo2",
+		"Character.State.Skill.WeaponSkill.Combo3", "Character.State.Skill.WeaponSkill.Combo4",
 	};
 	AddDefaultKeys(MontageMap, PassiveMap, MontageKeys, TArrayView<const FName>());
 }

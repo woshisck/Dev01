@@ -9,7 +9,7 @@
  *
  * Per tick:
  *   HealthDamage = MaxHealth * PercentPerStack * StackCount + Data.Damage.
- *   ArmorDamage  = MaxHealth * ArmorPercentPerStack * StackCount when target has Buff.Status.Armored.
+ *   ArmorDamage  = MaxHealth * ArmorPercentPerStack * StackCount when target has Buff.Armored.
  *
  * Defaults:
  *   PercentPerStack = 0.02 (2% max health per poison stack).
@@ -20,7 +20,7 @@
  *   Data.Poison.PercentPerStack: override health percent per stack.
  *   Data.Poison.ArmorPercentPerStack: override armor percent per stack.
  *
- * GE_Poison should be HasDuration, Period=1s, GrantedTags=Buff.Status.Poisoned.
+ * GE_Poison should be HasDuration, Period=1s, GrantedTags=Buff.Poison.
  */
 UCLASS()
 class DEVKIT_API UGEExec_PoisonDamage : public UGameplayEffectExecutionCalculation

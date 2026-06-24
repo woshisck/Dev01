@@ -203,7 +203,7 @@ namespace StoryRuleSetSetup
 			EStoryRuleFirePolicy::OncePerSave);
 		FirstRune.Conditions.Add(NotHasSaveFlag(TEXT("Story.Flag.FirstRune.Obtained")));
 		FirstRune.Actions.Add(SetSaveFlag(TEXT("Story.Flag.FirstRune.Obtained")));
-		FirstRune.Actions.Add(SetSaveFlag(TEXT("Story.Encounter.Progress.EM_FirstRun_Tutorial.first_run.heavy_card_obtained")));
+		FirstRune.Actions.Add(SetSaveFlag(TEXT("Story.Encounter.Progress.EM_FirstRun_Tutorial.first_run.weapon_skill_finisher_obtained")));
 		FirstRune.Actions.Add(ShowTutorial(TEXT("tutorial_first_rune")));
 		FirstRune.Actions.Add(SetQuest(
 			TEXT("Story.Quest.Main"),
@@ -218,7 +218,7 @@ namespace StoryRuleSetSetup
 			EStoryRuleFirePolicy::OncePerSave);
 		FirstRewardCardEntered.Conditions.Add(NotHasSaveFlag(TEXT("Story.Flag.FirstRune.Obtained")));
 		FirstRewardCardEntered.Actions.Add(SetSaveFlag(TEXT("Story.Flag.FirstRune.Obtained")));
-		FirstRewardCardEntered.Actions.Add(SetSaveFlag(TEXT("Story.Encounter.Progress.EM_FirstRun_Tutorial.first_run.heavy_card_obtained")));
+		FirstRewardCardEntered.Actions.Add(SetSaveFlag(TEXT("Story.Encounter.Progress.EM_FirstRun_Tutorial.first_run.weapon_skill_finisher_obtained")));
 		FirstRewardCardEntered.Actions.Add(ShowTutorial(TEXT("tutorial_first_rune")));
 		FirstRewardCardEntered.Actions.Add(SetQuest(
 			TEXT("Story.Quest.Main"),
@@ -234,7 +234,7 @@ namespace StoryRuleSetSetup
 			EStoryRuleFirePolicy::OncePerSave);
 		LegacyReward.Conditions.Add(NotHasSaveFlag(TEXT("Story.Flag.FirstRune.Obtained")));
 		LegacyReward.Actions.Add(SetSaveFlag(TEXT("Story.Flag.FirstRune.Obtained")));
-		LegacyReward.Actions.Add(SetSaveFlag(TEXT("Story.Encounter.Progress.EM_FirstRun_Tutorial.first_run.heavy_card_obtained")));
+		LegacyReward.Actions.Add(SetSaveFlag(TEXT("Story.Encounter.Progress.EM_FirstRun_Tutorial.first_run.weapon_skill_finisher_obtained")));
 		LegacyReward.Actions.Add(SetQuest(
 			TEXT("Story.Quest.Main"),
 			TEXT("打开背包查看你的符文"),

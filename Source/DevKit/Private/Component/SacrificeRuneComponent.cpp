@@ -424,7 +424,7 @@ void USacrificeRuneComponent::AddShadowMark(AActor* Target, const FSacrificeRune
 		return;
 	}
 
-	const FGameplayTag MarkTag = TagOrFallback(Config.ShadowMarkTag, TEXT("Buff.Status.ShadowMark"));
+	const FGameplayTag MarkTag = TagOrFallback(Config.ShadowMarkTag, TEXT("Buff.ShadowMark"));
 	if (UAbilitySystemComponent* ASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Target))
 	{
 		ASC->AddLooseGameplayTag(MarkTag);
@@ -618,6 +618,9 @@ bool USacrificeRuneComponent::IsPlayerInAttackState() const
 	}
 
 	static const FName AttackStateTagNames[] = {
+		TEXT("Character.State.Skill.Attack"),
+		TEXT("Character.State.Skill.WeaponSkill"),
+		TEXT("Character.State.Movement.Dash"),
 		TEXT("PlayerState.AbilityCast.Attack"),
 		TEXT("PlayerState.AbilityCast.WeaponSkill"),
 		TEXT("PlayerState.AbilityCast.Dash"),

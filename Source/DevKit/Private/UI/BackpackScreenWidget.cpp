@@ -1,4 +1,4 @@
-#include "UI/BackpackScreenWidget.h"
+﻿#include "UI/BackpackScreenWidget.h"
 #include "UI/BackpackGridWidget.h"
 #include "UI/PendingGridWidget.h"
 #include "UI/RuneDragDropOperation.h"
@@ -86,7 +86,7 @@ FText UBackpackScreenWidget::BuildCancelButtonText() const
 {
     // Gamepad close uses B (Gamepad_FaceButton_Right). The "Back" decorator action resolves
     // to IA_WeaponSkill on gamepad (B icon); "Esc" resolves to IA_Esc which is mapped to the Start
-    // button glyph on gamepad 鈥?the wrong icon for this button.
+    // button glyph on gamepad -the wrong icon for this button.
     return bIsGamepadInputMode
         ? FText::FromString(TEXT("<input action=\"Back\"/> Cancel"))
         : FText::FromString(TEXT("<input action=\"Esc\"/> Cancel"));
@@ -551,7 +551,7 @@ void UBackpackScreenWidget::ClickCell(int32 Col, int32 Row)
 
     if (RuneIdx >= 0)
     {
-        // 棰勮妯″紡 / 鎴樻枟闃舵锛氫笌鎴樻枟涓€鑷?鈥?shake + 闂孩鍏夛紝涓嶅厑璁搁€変腑
+        // 棰勮妯″紡 / 鎴樻枟闃舵锛氫笌鎴樻枟涓€鑷?-shake + 闂孩鍏夛紝涓嶅厑璁搁€変腑
         if (IsInCombatPhase() || bIsPreviewMode)
         {
             if (BackpackGridWidget) BackpackGridWidget->FlashAndShakeCell(Col, Row);
@@ -763,7 +763,7 @@ void UBackpackScreenWidget::NativeOnActivated()
         LastMouseAbsPos = FVector2D(MouseX, MouseY);
     }
 
-    // SetUserFocus(player) was targeting the wrong root 鈥?focus is routed via GetDesiredFocusTarget
+    // SetUserFocus(player) was targeting the wrong root -focus is routed via GetDesiredFocusTarget
     // and the explicit ReleaseMouseCapture().SetUserFocus(TakeWidget()) calls in NativeOnKeyDown.
 
     // 姣忔鎵撳紑鏃堕噸寤烘牸瀛愶紝纭繚姝﹀櫒鍒囨崲鍚庣殑 GridWidth/GridHeight 鐢熸晥
@@ -968,7 +968,7 @@ void UBackpackScreenWidget::SetPreviewMode(bool bReadOnly)
         RefreshPendingGrid();
     }
 
-    // EndPreviewButton 涓?CloseButton 浜掓枼鏄鹃殣 鈥?蹇呴』鐢?Visible 鑰岄潪 SelfHitTestInvisible锛?
+    // EndPreviewButton 涓?CloseButton 浜掓枼鏄鹃殣 -蹇呴』鐢?Visible 鑰岄潪 SelfHitTestInvisible锛?
     // 鍚﹀垯鎸夐挳鏈綋涓嶅弬涓庡懡涓祴璇曪紝OnClicked 涓嶈Е鍙?
     if (EndPreviewButton)
         EndPreviewButton->SetVisibility(bIsPreviewMode
@@ -1044,7 +1044,7 @@ void UBackpackScreenWidget::UpdateShapePreviewPosition(const FGeometry& MyGeomet
 {
     if (!bShapePreviewActive || !ShapePreviewCanvas) return;
     const FVector2D LocalPos = MyGeometry.AbsoluteToLocal(ScreenAbsPos);
-    // 璁?anchor cell 鐨勪腑蹇冿紙涓嶆槸宸︿笂瑙掞級瀵归綈榧犳爣浣嶇疆 鈥?瑙嗚涓?Pivot 璺熸墜鎰熻鏇磋嚜鐒?
+    // 璁?anchor cell 鐨勪腑蹇冿紙涓嶆槸宸︿笂瑙掞級瀵归綈榧犳爣浣嶇疆 -瑙嗚涓?Pivot 璺熸墜鎰熻鏇磋嚜鐒?
     const FVector2D AnchorOffset(
         (ShapePreviewAnchorCell.X + 0.5f) * ShapePreviewCellPx,
         (ShapePreviewAnchorCell.Y + 0.5f) * ShapePreviewCellPx);
@@ -1188,7 +1188,7 @@ FReply UBackpackScreenWidget::NativeOnMouseButtonDown(const FGeometry& InGeometr
         // A is physically held AND NativeOnPreviewKeyDown already started the drag.
         // The LMB down here is the virtual click CommonUI generates from that same A press.
         // Calling HandleDeckSelectPressed again would immediately commit the drag (no-op at same
-        // position) before the user can move the card 鈥?skip this duplicate event entirely.
+        // position) before the user can move the card -skip this duplicate event entirely.
         if (bGamepadAIsDown && bDeckSelectButtonWasDown)
         {
             UE_LOG(LogTemp, Warning, TEXT("[CombatDeckInput][BackpackRoute] SkipVirtualMouseDuplicate ADown=1 WasDown=1"));
@@ -1368,7 +1368,7 @@ FReply UBackpackScreenWidget::NativeOnMouseButtonDown(const FGeometry& InGeometr
         GamepadCursorCell = ClickCell;
         OnSelectionChanged();
 
-        // 棰勮妯″紡 / 鎴樻枟闃舵锛氫笌鎴樻枟涓€鑷?鈥?shake + 闂孩鍏?+ 鐘舵€佹彁绀猴紝绂佹鎶撳彇
+        // 棰勮妯″紡 / 鎴樻枟闃舵锛氫笌鎴樻枟涓€鑷?-shake + 闂孩鍏?+ 鐘舵€佹彁绀猴紝绂佹鎶撳彇
         if (IsInCombatPhase() || bIsPreviewMode)
         {
             if (BackpackGridWidget) BackpackGridWidget->FlashAndShakeCell(Col, Row);
@@ -1523,7 +1523,7 @@ void UBackpackScreenWidget::NativeOnDragDetected(const FGeometry& InGeometry, co
     LastMouseAbsPos = InMouseEvent.GetScreenSpacePosition();
 
     // Phase 2: 涓绘牸瀛愭嫋鎷戒篃鏄惧畬鏁?Shape锛孉nchorCell = Pivot 鍦ㄦ棆杞悗 Shape 鐨勪綅缃?
-    // 锛堜笌 pending 璺緞涓€鑷?鈥?鐢ㄦ埛鍐崇瓥 Q5锛歅ivot 鍘熺偣瀵归綈榧犳爣锛?
+    // 锛堜笌 pending 璺緞涓€鑷?-鐢ㄦ埛鍐崇瓥 Q5锛歅ivot 鍘熺偣瀵归綈榧犳爣锛?
     if (ShapePreviewCanvas && BackpackGridWidget)
     {
         const FIntPoint AnchorCell = PR.Rune.Shape.GetPivotOffset(PR.Rune.Rotation);
@@ -2032,7 +2032,7 @@ void UBackpackScreenWidget::NativeTick(const FGeometry& MyGeometry, float InDelt
     }
     else if (bCursorInPendingArea)
     {
-        // Up/Down navigation is disabled in the backpack 鈥?only horizontal repeats are honored.
+        // Up/Down navigation is disabled in the backpack -only horizontal repeats are honored.
         if      (HeldDirKey == EKeys::Gamepad_DPad_Left)  MovePendingCursor(-1,  0);
         else if (HeldDirKey == EKeys::Gamepad_DPad_Right) MovePendingCursor( 1,  0);
     }
@@ -2241,7 +2241,7 @@ FReply UBackpackScreenWidget::NativeOnKeyDown(const FGeometry& InGeometry, const
         return FReply::Handled();
     };
 
-    // DPad / left-stick up & down are intentionally inert in the backpack screen 鈥?swallow
+    // DPad / left-stick up & down are intentionally inert in the backpack screen -swallow
     // the event so it doesn't trigger CommonUI focus navigation, but don't move the cursor.
     if (Key == EKeys::Gamepad_DPad_Up   || Key == EKeys::Gamepad_LeftStick_Up   ||
         Key == EKeys::Gamepad_DPad_Down || Key == EKeys::Gamepad_LeftStick_Down)

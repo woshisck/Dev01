@@ -1,4 +1,4 @@
-#include "AbilitySystem/ExecutionCalculation/DamageExecution.h"
+﻿#include "AbilitySystem/ExecutionCalculation/DamageExecution.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "Animation/HitStopManager.h"
 #include "AbilitySystemBlueprintLibrary.h"
@@ -117,7 +117,7 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 
 	const FGameplayTagContainer* SourceTags = EvaluationParameters.SourceTags;
 
-	// ── 基础属性捕获 ────────────────────────────────────────────────
+	// ── 基础属性捕────────────────────────────────────────────────
 	float SourceAttackPower = 0.f, SourceAttack = 0.f, TargetDmgTaken = 0.f;
 	float SourceCritRate = 0.f, SourceCritDamage = 0.f;
 	float TargetDodge = 0.f;
@@ -126,7 +126,7 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().AttackPowerDef, EvaluationParameters, SourceAttackPower);
 	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().AttackDef,      EvaluationParameters, SourceAttack);
 	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().DmgTakenDef,    EvaluationParameters, TargetDmgTaken);
-	// capture 失败（返回 0）时用 1.0 兜底；成功时允许 < 1.0（减伤符文/无畏符文）但不低于 0.01
+	// capture 失败（返0）时1.0 兜底；成功时允许 < 1.0（减伤符无畏符文）但不低0.01
 	TargetDmgTaken = (TargetDmgTaken <= 0.f) ? 1.f : FMath::Max(TargetDmgTaken, 0.01f);
 	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().Crit_RateDef,   EvaluationParameters, SourceCritRate);
 	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatics().Crit_DamageDef, EvaluationParameters, SourceCritDamage);
@@ -157,7 +157,7 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 	bool bForceCrit = false;
 	if (SourceASC)
 	{
-		static const FGameplayTag NextHitCritTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.NextHitCrit"), false);
+		static const FGameplayTag NextHitCritTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.NextHitCrit"), false);
 		if (NextHitCritTag.IsValid() && SourceASC->HasMatchingGameplayTag(NextHitCritTag))
 		{
 			bForceCrit = true;
@@ -174,7 +174,7 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 		RequestPlayerCritFreeze(SourceASC);
 	}
 
-	// 诊断：对比聚合器捕获值 vs ASC 直接读值
+	// 诊断：对比聚合器捕获vs ASC 直接读
 	if (SourceASC)
 	{
 		float DirectAttack = SourceASC->GetNumericAttribute(UBaseAttributeSet::GetAttackAttribute());
@@ -187,7 +187,7 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 	// ── 应用伤害 ──────────────────────────────────────────────────────
 	OutExecutionOutput.AddOutputModifier(FGameplayModifierEvaluatedData(DamageStatics().DamagePhysicalProperty, EGameplayModOp::Override, FinalDamage));
 
-	// ReceiveDamage 由 DamageAttributeSet.PostGameplayEffectExecute 在 DamagePhysical 落地时调用，此处不重复广播
+	// ReceiveDamage DamageAttributeSet.PostGameplayEffectExecute DamagePhysical 落地时调用，此处不重复广
 	if (bIsCrit && SourceASC)
 	{
 		SourceASC->OnCritHit.Broadcast(TargetASC, FinalDamage);
@@ -213,9 +213,24 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 	APawn* SourcePawn = Cast<APawn>(SourceActor);
 	if (SourceASC && SourcePawn && SourcePawn->IsPlayerControlled())
 	{
-		// 从 SourceTags 识别当前动作名称（源自 GA 的 AbilityTags 在 GE Spec 快照中）
+		// SourceTags 识别当前动作名称（源GA AbilityTags GE Spec 快照中）
 		static const struct { const TCHAR* Tag; const TCHAR* Name; } ActionMap[] =
 		{
+			{ TEXT("Character.State.Skill.Attack.Combo1"), TEXT("Attack 1") },
+			{ TEXT("Character.State.Skill.Attack.Combo2"), TEXT("Attack 2") },
+			{ TEXT("Character.State.Skill.Attack.Combo3"), TEXT("Attack 3") },
+			{ TEXT("Character.State.Skill.Attack.Combo4"), TEXT("Attack 4") },
+			{ TEXT("Character.State.Skill.WeaponSkill.Combo1"), TEXT("Weapon Skill 1") },
+			{ TEXT("Character.State.Skill.WeaponSkill.Combo2"), TEXT("Weapon Skill 2") },
+			{ TEXT("Character.State.Skill.WeaponSkill.Combo3"), TEXT("Weapon Skill 3") },
+			{ TEXT("Character.State.Skill.WeaponSkill.Combo4"), TEXT("Weapon Skill 4") },
+			{ TEXT("Character.State.Movement.Dash.Combo1"), TEXT("Dash 1") },
+			{ TEXT("Character.State.Movement.Dash.Combo2"), TEXT("Dash 2") },
+			{ TEXT("Character.State.Movement.Dash.Combo3"), TEXT("Dash 3") },
+			{ TEXT("Character.State.Movement.Dash.Combo4"), TEXT("Dash 4") },
+			{ TEXT("Character.State.Skill.Attack"), TEXT("Attack") },
+			{ TEXT("Character.State.Skill.WeaponSkill"), TEXT("Weapon Skill") },
+			{ TEXT("Character.State.Movement.Dash"), TEXT("Dash") },
 			{ TEXT("PlayerState.AbilityCast.Attack.Combo1"), TEXT("Attack 1") },
 			{ TEXT("PlayerState.AbilityCast.Attack.Combo2"), TEXT("Attack 2") },
 			{ TEXT("PlayerState.AbilityCast.Attack.Combo3"), TEXT("Attack 3") },
@@ -271,7 +286,7 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 			Breakdown.TargetArmorAfter = TargetArmorAfter;
 		}
 
-		// ── 512版本：从 BuffFlowComponent 读取卡牌上下文 ──────────────────
+		// ── 512版本：从 BuffFlowComponent 读取卡牌上下──────────────────
 		if (APlayerCharacterBase* PlayerChar = Cast<APlayerCharacterBase>(SourceActor))
 		{
 			if (UBuffFlowComponent* BFC = PlayerChar->BuffFlowComponent)

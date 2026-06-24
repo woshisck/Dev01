@@ -146,7 +146,9 @@ namespace CombatMontageSync
 
 	ECombatCardTriggerTiming TriggerTimingTagToEnum(const FGameplayTag& Tag)
 	{
-		if (Tag.IsValid() && Tag.GetTagName() == TEXT("Combo.TriggerTiming.OnHit"))
+		if (Tag.IsValid() &&
+			(Tag.GetTagName() == TEXT("Rune.Trigger.OnHit") ||
+			 Tag.GetTagName() == TEXT("Combo.TriggerTiming.OnHit")))
 		{
 			return ECombatCardTriggerTiming::OnHit;
 		}
@@ -161,19 +163,23 @@ namespace CombatMontageSync
 		}
 
 		const FName TagName = Tag.GetTagName();
-		if (TagName == TEXT("Combo.CombatDeck.ActionSlot.Attack"))
+		if (TagName == TEXT("Rune.Binding.Action.Attack") ||
+			TagName == TEXT("Combo.CombatDeck.ActionSlot.Attack"))
 		{
 			return ECombatDeckActionSlot::Attack;
 		}
-		if (TagName == TEXT("Combo.CombatDeck.ActionSlot.Skill"))
+		if (TagName == TEXT("Rune.Binding.Action.Skill") ||
+			TagName == TEXT("Combo.CombatDeck.ActionSlot.Skill"))
 		{
 			return ECombatDeckActionSlot::Skill;
 		}
-		if (TagName == TEXT("Combo.CombatDeck.ActionSlot.WeaponSkill"))
+		if (TagName == TEXT("Rune.Binding.Action.WeaponSkill") ||
+			TagName == TEXT("Combo.CombatDeck.ActionSlot.WeaponSkill"))
 		{
 			return ECombatDeckActionSlot::WeaponSkill;
 		}
-		if (TagName == TEXT("Combo.CombatDeck.ActionSlot.Dash"))
+		if (TagName == TEXT("Rune.Binding.Action.Dash") ||
+			TagName == TEXT("Combo.CombatDeck.ActionSlot.Dash"))
 		{
 			return ECombatDeckActionSlot::Dash;
 		}
@@ -188,15 +194,18 @@ namespace CombatMontageSync
 		}
 
 		const FName TagName = Tag.GetTagName();
-		if (TagName == TEXT("Combo.CombatDeck.FlowRole.Starter"))
+		if (TagName == TEXT("Rune.FlowRole.Starter") ||
+			TagName == TEXT("Combo.CombatDeck.FlowRole.Starter"))
 		{
 			return ECombatDeckFlowRole::Starter;
 		}
-		if (TagName == TEXT("Combo.CombatDeck.FlowRole.Catalyst"))
+		if (TagName == TEXT("Rune.FlowRole.Catalyst") ||
+			TagName == TEXT("Combo.CombatDeck.FlowRole.Catalyst"))
 		{
 			return ECombatDeckFlowRole::Catalyst;
 		}
-		if (TagName == TEXT("Combo.CombatDeck.FlowRole.Finisher"))
+		if (TagName == TEXT("Rune.FlowRole.Finisher") ||
+			TagName == TEXT("Combo.CombatDeck.FlowRole.Finisher"))
 		{
 			return ECombatDeckFlowRole::Finisher;
 		}
@@ -447,7 +456,8 @@ int32 UCombatMontageSyncCommandlet::Main(const FString& Params)
 	TMap<TObjectPtr<UAnimMontage>, FMontageRequest> Requests;
 	GatherFromGraph(Graph, Requests);
 
-	const FGameplayTag CanComboTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"));
+	const FGameplayTag CanComboTag = FGameplayTag::RequestGameplayTag(TEXT("Character.State.Window.CanCombo"));
+	const FGameplayTag LegacyCanComboTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"), false);
 	TArray<UPackage*> PackagesToSave;
 	TArray<FString> ReportLines;
 	ReportLines.Add(TEXT("# Combat Montage Sync Report"));
@@ -553,7 +563,9 @@ int32 UCombatMontageSyncCommandlet::Main(const FString& Params)
 			}
 
 			DuplicateMontage->Modify();
-			const int32 RemovedFromDuplicate = RemoveExistingCanComboNotifies(DuplicateMontage, CanComboTag);
+			const int32 RemovedFromDuplicate =
+				RemoveExistingCanComboNotifies(DuplicateMontage, CanComboTag) +
+				RemoveExistingCanComboNotifies(DuplicateMontage, LegacyCanComboTag);
 			if (RemovedFromDuplicate > 0)
 			{
 				DuplicateMontage->MarkPackageDirty();
@@ -586,7 +598,7 @@ int32 UCombatMontageSyncCommandlet::Main(const FString& Params)
 		int32 ExistingCanComboCount = 0;
 		for (const FAnimNotifyEvent& Event : Montage->Notifies)
 		{
-			if (NotifyHasCanCombo(Event, CanComboTag))
+			if (NotifyHasCanCombo(Event, CanComboTag) || NotifyHasCanCombo(Event, LegacyCanComboTag))
 			{
 				++ExistingCanComboCount;
 			}
@@ -618,7 +630,9 @@ int32 UCombatMontageSyncCommandlet::Main(const FString& Params)
 		if (bApply)
 		{
 			Montage->Modify();
-			const int32 Removed = RemoveExistingCanComboNotifies(Montage, CanComboTag);
+			const int32 Removed =
+				RemoveExistingCanComboNotifies(Montage, CanComboTag) +
+				RemoveExistingCanComboNotifies(Montage, LegacyCanComboTag);
 			if (Removed > 0)
 			{
 				bChanged = true;
@@ -630,7 +644,7 @@ int32 UCombatMontageSyncCommandlet::Main(const FString& Params)
 				if (AddCanComboNotify(Montage, Request.Window, CanComboTag))
 				{
 					bChanged = true;
-					ReportLines.Add(TEXT("- Added: `ANS_AddGameplayTag(PlayerState.AbilityCast.CanCombo)`"));
+					ReportLines.Add(TEXT("- Added: `ANS_AddGameplayTag(Character.State.Window.CanCombo)`"));
 				}
 				else
 				{

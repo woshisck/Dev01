@@ -1,4 +1,4 @@
-#include "AbilitySystem/Abilities/GA_Knockback.h"
+﻿#include "AbilitySystem/Abilities/GA_Knockback.h"
 
 #include "Abilities/GameplayAbilityTargetTypes.h"
 #include "Abilities/Tasks/AbilityTask_ApplyRootMotionMoveToForce.h"
@@ -27,18 +27,18 @@ FVector GetHorizontalSafeNormal(FVector Direction)
 UGA_Knockback::UGA_Knockback(const FObjectInitializer& ObjectInitializer)
     : Super(ObjectInitializer)
 {
-    // GA 激活期间自动挂到 ASC 上，结束时自动移除
+    // GA 激活期间自动挂ASC 上，结束时自动移
     // 注：AbilityTags 身份标签不设置——击退可作用于玩家/敌人任意角色，无需命名空间归属
-    ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag("Buff.Status.Knockback"));
+    ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag("Buff.Knockback"));
 
-    // 实例化模式：每次激活一个独立实例
+    // 实例化模式：每次激活一个独立实
     InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerExecution;
 
     // 击退激活时立即取消受击硬直 GA（GA_HitReaction），改为播放击退专用动画
     CancelAbilitiesWithTag.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Action.HitReact")));
-    ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Dead")));
+    ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Dead")));
 
-    // 监听 Action.Knockback 事件自动激活（FA 的 Send Gameplay Event 节点发出此 Tag）
+    // 监听 Action.Knockback 事件自动激活（FA Send Gameplay Event 节点发出Tag
     FAbilityTriggerData TriggerData;
     TriggerData.TriggerTag    = FGameplayTag::RequestGameplayTag(TEXT("Action.Knockback"));
     TriggerData.TriggerSource = EGameplayAbilityTriggerSource::GameplayEvent;
@@ -148,13 +148,13 @@ void UGA_Knockback::ActivateAbility(
     const AActor* DbgInstigator = TriggerEventData ? TriggerEventData->Instigator.Get() : nullptr;
     UE_LOG(LogTemp, Warning, TEXT("[GA_Knockback] ActivateAbility called | Target=%s | Instigator=%s"),
         DbgAvatar     ? *DbgAvatar->GetName()     : TEXT("NULL"),
-        DbgInstigator ? *DbgInstigator->GetName() : TEXT("NULL (方向将使用默认向后)"));
+        DbgInstigator ? *DbgInstigator->GetName() : TEXT("NULL (方向将使用默认向"));
     // ──────────────────────────────────────────────────────────────────────
 
     ACharacter* TargetChar = Cast<ACharacter>(ActorInfo->AvatarActor.Get());
     if (!TargetChar)
     {
-        UE_LOG(LogTemp, Error, TEXT("[GA_Knockback] AvatarActor 不是 ACharacter，提前结束"));
+        UE_LOG(LogTemp, Error, TEXT("[GA_Knockback] AvatarActor 不是 ACharacter，提前结"));
         EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
         return;
     }
@@ -172,8 +172,8 @@ void UGA_Knockback::ActivateAbility(
     const FVector TargetLocation = StartLocation + KnockbackDir * EffectiveKnockbackDistance;
 
     // ---- 创建 Root Motion Task ----
-    // MoveToForce 直接指定目标位置，距离精确可控（单位 cm）
-    // 函数签名：(OwningAbility, TaskName, TargetLocation, Duration,
+    // MoveToForce 直接指定目标位置，距离精确可控（单位 cm
+    // 函数签名OwningAbility, TaskName, TargetLocation, Duration,
     //            bSetNewMovementMode, NewMovementMode, bRestrictSpeedToExpected,
     //            PathOffsetCurve, VelocityOnFinishMode, SetVelocityOnFinish, ClampVelocityOnFinish)
     {
@@ -188,7 +188,7 @@ void UGA_Knockback::ActivateAbility(
         NAME_None,
         TargetLocation,
         KnockbackDuration,
-        true,                       // bSetNewMovementMode — 强制切到 Walking，避免 MOVE_None 跳过 Root Motion
+        true,                       // bSetNewMovementMode 强制切到 Walking，避MOVE_None 跳过 Root Motion
         EMovementMode::MOVE_Walking,// NewMovementMode
         true,                       // bRestrictSpeedToExpected
         nullptr,                    // PathOffsetCurve
@@ -203,9 +203,9 @@ void UGA_Knockback::ActivateAbility(
     KnockbackTask->OnTimedOutAndDestinationReached.AddDynamic(this, &UGA_Knockback::OnKnockbackFinished);
     KnockbackTask->ReadyForActivation();
 
-    // ---- 播放受击动画（与击退物理同步，不等待动画结束）----
-    // 击退方向是 TargetChar 被推离的方向，取反即指向攻击者
-    // Dot > 0：攻击者在正面 → Front；< 0：攻击者在背面 → Back
+    // ---- 播放受击动画（与击退物理同步，不等待动画结束---
+    // 击退方向TargetChar 被推离的方向，取反即指向攻击
+    // Dot > 0：攻击者在正面 Front 0：攻击者在背面 Back
     const float HitDot = FVector::DotProduct(
         TargetChar->GetActorForwardVector(), (-KnockbackDir).GetSafeNormal());
     const FGameplayTag HitTag = (HitDot >= 0.f)
@@ -231,7 +231,7 @@ void UGA_Knockback::ActivateAbility(
         MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
             this, NAME_None, HitMontage, 1.0f,
             NAME_None,
-            true); // bStopWhenAbilityEnds=true，击退结束时自动中断动画
+            true); // bStopWhenAbilityEnds=true，击退结束时自动中断动
         MontageTask->ReadyForActivation();
     }
 }

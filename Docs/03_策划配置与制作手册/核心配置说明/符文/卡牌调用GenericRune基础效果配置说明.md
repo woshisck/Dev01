@@ -1,4 +1,4 @@
-﻿# 核心卡牌调用 Generic Rune 基础效果配置说明
+# 核心卡牌调用 Generic Rune 基础效果配置说明
 
 ## 作用
 
@@ -16,16 +16,16 @@
 
 | 卡牌 | CardIdTag | CardEffectTags | BaseFlow 模板 | 当前用途 |
 | --- | --- | --- | --- | --- |
-| 燃烧 | `Card.ID.Burn` | `Card.Effect.Burn` | `FA_Effect_Burn` | 命中后赋予燃烧持续效果 |
-| 中毒 | `Card.ID.Poison` | `Card.Effect.Poison` | `FA_Effect_Poison` | 命中后赋予中毒持续效果 |
-| 流血 | `Card.ID.Bleed` | `Card.Effect.Bleed` | `FA_Effect_Bleed` | 命中后赋予流血 |
-| 撕裂 | `Card.ID.Rend` | `Card.Effect.Rend` | `FA_Effect_Rend` | 命中后赋予移动距离掉血 |
-| 伤口 | `Card.ID.Wound` | `Card.Effect.Wound` | `FA_Effect_Wound` | 命中后赋予受击额外扣血 |
-| 击退 | `Card.ID.Knockback` | `Card.Effect.Knockback` | `FA_Effect_Knockback` | 命中后赋予受击击退状态 |
-| 恐惧 | `Card.ID.Fear` | `Card.Effect.Fear` | `FA_Effect_Fear` | 命中后赋予逃离触发点效果 |
-| 冻结 | `Card.ID.Freeze` | `Card.Effect.Freeze` | `FA_Effect_Freeze` | 命中后赋予冻结预警 |
-| 眩晕 | `Card.ID.Stun` | `Card.Effect.Stun` | `FA_Effect_Stun` | 命中后尝试赋予眩晕 |
-| 诅咒 | `Card.ID.Curse` | `Card.Effect.Curse` | `FA_Effect_Curse` | 命中后赋予诅咒 |
+| 燃烧 | `Rune.ID.Burn` | `Rune.Effect.Burn` | `FA_Effect_Burn` | 命中后赋予燃烧持续效果 |
+| 中毒 | `Rune.ID.Poison` | `Rune.Effect.Poison` | `FA_Effect_Poison` | 命中后赋予中毒持续效果 |
+| 流血 | `Rune.ID.Bleed` | `Rune.Effect.Bleed` | `FA_Effect_Bleed` | 命中后赋予流血 |
+| 撕裂 | `Rune.ID.Rend` | `Rune.Effect.Rend` | `FA_Effect_Rend` | 命中后赋予移动距离掉血 |
+| 伤口 | `Rune.ID.Wound` | `Rune.Effect.Wound` | `FA_Effect_Wound` | 命中后赋予受击额外扣血 |
+| 击退 | `Rune.ID.Knockback` | `Rune.Effect.Knockback` | `FA_Effect_Knockback` | 命中后赋予受击击退状态 |
+| 恐惧 | `Rune.ID.Fear` | `Rune.Effect.Fear` | `FA_Effect_Fear` | 命中后赋予逃离触发点效果 |
+| 冻结 | `Rune.ID.Freeze` | `Rune.Effect.Freeze` | `FA_Effect_Freeze` | 命中后赋予冻结预警 |
+| 眩晕 | `Rune.ID.Stun` | `Rune.Effect.Stun` | `FA_Effect_Stun` | 命中后尝试赋予眩晕 |
+| 诅咒 | `Rune.ID.Curse` | `Rune.Effect.Curse` | `FA_Effect_Curse` | 命中后赋予诅咒 |
 
 所有这些卡牌都应保持：
 

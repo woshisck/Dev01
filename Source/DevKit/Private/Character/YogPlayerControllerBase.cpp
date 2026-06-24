@@ -31,6 +31,7 @@
 #include "Kismet/KismetMathLibrary.h"
 #include "GameFramework/PlayerInput.h"
 #include "InputCoreTypes.h"
+#include "GameplayTagContainer.h"
 
 #include "Component/BufferComponent.h"
 #include "Component/CombatDeckComponent.h"
@@ -42,6 +43,35 @@
 #if !UE_BUILD_SHIPPING || DEVKIT_ENABLE_SHIPPING_CHEATS
 #include "Cheater/Cheater.h"
 #endif
+
+namespace
+{
+	bool TryActivateAbilitiesByPrimaryThenFallback(
+		UAbilitySystemComponent* ASC,
+		const TCHAR* PrimaryTagName,
+		const TCHAR* FallbackTagName)
+	{
+		if (!ASC)
+		{
+			return false;
+		}
+
+		auto TryActivateBySingleTag = [ASC](const TCHAR* TagName) -> bool
+		{
+			const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TagName), false);
+			if (!Tag.IsValid())
+			{
+				return false;
+			}
+
+			FGameplayTagContainer TagContainer;
+			TagContainer.AddTag(Tag);
+			return ASC->TryActivateAbilitiesByTag(TagContainer, true);
+		};
+
+		return TryActivateBySingleTag(PrimaryTagName) || TryActivateBySingleTag(FallbackTagName);
+	}
+}
 
 
 
@@ -563,9 +593,10 @@ void AYogPlayerControllerBase::Attack(const FInputActionValue& Value)
 			return;
 		}
 
-		FGameplayTagContainer TagContainer;
-		TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("PlayerState.AbilityCast.Attack")));
-		player->GetASC()->TryActivateAbilitiesByTag(TagContainer, true);
+		TryActivateAbilitiesByPrimaryThenFallback(
+			player->GetASC(),
+			TEXT("Character.State.Skill.Attack"),
+			TEXT("PlayerState.AbilityCast.Attack"));
 	}
 }
 
@@ -587,9 +618,10 @@ void AYogPlayerControllerBase::WeaponSkill(const FInputActionValue& Value)
 			}
 		}
 
-		FGameplayTagContainer TagContainer;
-		TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("PlayerState.AbilityCast.WeaponSkill")));
-		player->GetASC()->TryActivateAbilitiesByTag(TagContainer, true);
+		TryActivateAbilitiesByPrimaryThenFallback(
+			player->GetASC(),
+			TEXT("Character.State.Skill.WeaponSkill"),
+			TEXT("PlayerState.AbilityCast.WeaponSkill"));
 	}
 }
 
@@ -625,9 +657,10 @@ void AYogPlayerControllerBase::Dash(const FInputActionValue& Value)
 			player->SetActorRotation(DashFacing);
 		}
 
-		FGameplayTagContainer TagContainer;
-		TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("PlayerState.AbilityCast.Dash")));
-		player->GetASC()->TryActivateAbilitiesByTag(TagContainer, true);
+		TryActivateAbilitiesByPrimaryThenFallback(
+			player->GetASC(),
+			TEXT("Character.State.Movement.Dash"),
+			TEXT("PlayerState.AbilityCast.Dash"));
 	}
 }
 
@@ -636,9 +669,10 @@ void AYogPlayerControllerBase::MusketReload(const FInputActionValue& Value)
 	if (IsGameplayInputBlocked()) return;
 	if (APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn()))
 	{
-		FGameplayTagContainer TagContainer;
-		TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName("PlayerState.AbilityCast.Reload")));
-		player->GetASC()->TryActivateAbilitiesByTag(TagContainer, true);
+		TryActivateAbilitiesByPrimaryThenFallback(
+			player->GetASC(),
+			TEXT("Character.State.Skill.Reload"),
+			TEXT("PlayerState.AbilityCast.Reload"));
 	}
 }
 
@@ -719,9 +753,10 @@ void AYogPlayerControllerBase::SwitchWeapon(const FInputActionValue& Value)
 
 		if (UAbilitySystemComponent* ASC = PlayerCharacter->GetASC())
 		{
-			FGameplayTagContainer TagContainer;
-			TagContainer.AddTag(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.SwitchWeapon")));
-			ASC->TryActivateAbilitiesByTag(TagContainer, true);
+			TryActivateAbilitiesByPrimaryThenFallback(
+				ASC,
+				TEXT("Character.State.Equipment.SwitchWeapon"),
+				TEXT("PlayerState.AbilityCast.SwitchWeapon"));
 		}
 	}
 }

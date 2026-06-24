@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "AbilitySystem/Abilities/YogGameplayAbility.h"
@@ -6,18 +6,18 @@
 #include "GA_Wound.generated.h"
 
 /**
- * 伤口 GA（GameplayEvent 触发，施加在目标身上）
+ * 伤口 GA（GameplayEvent 触发，施加在目标身上
  *
- * 工作原理：
- *   - FA 先 ApplyEffect GE_Wound_Marker（HasDuration, GrantedTags=Buff.Status.Wounded,
+ * 工作原理
+ *   - FA ApplyEffect GE_Wound_Marker（HasDuration, GrantedTags=Buff.Wound,
  *     GrantedAbilities=GA_Wound）到目标
- *   - FA 再 SendGameplayEvent Buff.Event.Wound（Magnitude=每次额外伤害）到目标，激活此GA
- *   - GA 激活后监听 Ability.Event.Damaged（目标受到攻击时广播）
- *   - 每次受攻击触发：对自身施加 WoundDamageEffect（DamageBuff 路径，绕过护甲）
- *   - Buff.Status.Wounded Tag 消失时自动结束
+ *   - FA SendGameplayEvent Buff.Event.Wound（Magnitude=每次额外伤害）到目标，激活此GA
+ *   - GA 激活后监听 Ability.Event.Damaged（目标受到攻击时广播
+ *   - 每次受攻击触发：对自身施WoundDamageEffect（DamageBuff 路径，绕过护甲）
+ *   - Buff.Wound Tag 消失时自动结
  *
- * Blueprint 子类需配置：
- *   WoundDamageEffect = GE_WoundDamage（HasDuration:Instant, Modifier: DamageBuff=SetByCaller）
+ * Blueprint 子类需配置
+ *   WoundDamageEffect = GE_WoundDamage（HasDuration:Instant, Modifier: DamageBuff=SetByCaller
  */
 UCLASS()
 class DEVKIT_API UGA_Wound : public UYogGameplayAbility
@@ -40,7 +40,7 @@ public:
 		bool bReplicateEndAbility,
 		bool bWasCancelled) override;
 
-	/** Blueprint 子类里设置为 GE_WoundDamage（Instant GE，DamageBuff Modifier） */
+	/** Blueprint 子类里设置为 GE_WoundDamage（Instant GE，DamageBuff Modifier*/
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Wound")
 	TSubclassOf<UGameplayEffect> WoundDamageEffect;
 

@@ -1,4 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+﻿// Fill out your copyright notice in the Description page of Project Settings.
 
 
 
@@ -24,15 +24,15 @@ namespace
 	bool ShouldSuppressDamageFeedbackForEffect(const FGameplayEffectSpec& Spec)
 	{
 		return UCombatItemComponent::IsNoHitReactItemDamage(Spec) ||
-			EffectGrantsTag(Spec, TEXT("Buff.Status.Burning")) ||
-			EffectGrantsTag(Spec, TEXT("Buff.Status.Poisoned")) ||
-			EffectGrantsTag(Spec, TEXT("Buff.Status.Bleeding"));
+			EffectGrantsTag(Spec, TEXT("Buff.Fire")) ||
+			EffectGrantsTag(Spec, TEXT("Buff.Poison")) ||
+			EffectGrantsTag(Spec, TEXT("Buff.Bleed"));
 	}
 
 	bool HasDamageAttributeInvulnerableTag(const UAbilitySystemComponent* ASC)
 	{
 		static const FGameplayTag InvulnerableTag =
-			FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Invulnerable"), false);
+			FGameplayTag::RequestGameplayTag(TEXT("Buff.Invulnerable"), false);
 		return InvulnerableTag.IsValid() && ASC && ASC->HasMatchingGameplayTag(InvulnerableTag);
 	}
 
@@ -104,7 +104,7 @@ namespace
 		}
 
 		FGameplayTagContainer ShieldStatusTags;
-		const FGameplayTag ShieldedTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Shielded"), false);
+		const FGameplayTag ShieldedTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Shield"), false);
 		if (ShieldedTag.IsValid())
 		{
 			ShieldStatusTags.AddTag(ShieldedTag);
@@ -302,10 +302,10 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 		const float LocalDamageDone = GetDamagePure();
 		SetDamagePure(0.f);
 
-		// 无敌帧：目标冲刺期间持有 Buff.Status.DashInvincible，跳过所有伤害
+		// 无敌帧：目标冲刺期间持有 Buff.DashInvincible，跳过所有伤
 		{
 			static const FGameplayTag TAG_DashInvincible =
-				FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.DashInvincible"));
+				FGameplayTag::RequestGameplayTag(TEXT("Buff.DashInvincible"));
 			UAbilitySystemComponent* TargetASC =
 				Data.Target.AbilityActorInfo->AbilitySystemComponent.Get();
 			if (HasDamageAttributeInvulnerableTag(TargetASC) || (TargetASC && TargetASC->HasMatchingGameplayTag(TAG_DashInvincible)))
@@ -349,7 +349,7 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 				TargetCharacter->OnCharacterHealthUpdate.Broadcast(percent, LocalDamageDone);
 				BroadcastDamageValues(TargetCharacter, DamageResult);
 
-				// 广播 Ability.Event.Damaged 给受击目标（GA_Wound 等监听此事件）
+				// 广播 Ability.Event.Damaged 给受击目标（GA_Wound 等监听此事件
 				{
 					static const FGameplayTag DamagedTag = FGameplayTag::RequestGameplayTag(TEXT("Ability.Event.Damaged"), false);
 					if (DamagedTag.IsValid() && SourceActor)
@@ -432,12 +432,20 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 
 		UAbilitySystemComponent* TargetASCForBlock =
 			Data.Target.AbilityActorInfo->AbilitySystemComponent.Get();
-		static const FGameplayTag TAG_BlockStart =
+		static const FGameplayTag TAG_CharacterBlockStart =
+			FGameplayTag::RequestGameplayTag(TEXT("Character.State.Block.Start"), false);
+		static const FGameplayTag TAG_CharacterBlockIdle =
+			FGameplayTag::RequestGameplayTag(TEXT("Character.State.Block.Idle"), false);
+		static const FGameplayTag TAG_LegacyBlockStart =
 			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.Block.Start"), false);
-		static const FGameplayTag TAG_BlockIdle =
+		static const FGameplayTag TAG_LegacyBlockIdle =
 			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.Block.Idle"), false);
-		const bool bJustBlocked = TargetASCForBlock && TAG_BlockStart.IsValid() && TargetASCForBlock->HasMatchingGameplayTag(TAG_BlockStart);
-		const bool bBlocked = bJustBlocked || (TargetASCForBlock && TAG_BlockIdle.IsValid() && TargetASCForBlock->HasMatchingGameplayTag(TAG_BlockIdle));
+		const bool bJustBlocked = TargetASCForBlock &&
+			((TAG_CharacterBlockStart.IsValid() && TargetASCForBlock->HasMatchingGameplayTag(TAG_CharacterBlockStart)) ||
+			 (TAG_LegacyBlockStart.IsValid() && TargetASCForBlock->HasMatchingGameplayTag(TAG_LegacyBlockStart)));
+		const bool bBlocked = bJustBlocked || (TargetASCForBlock &&
+			((TAG_CharacterBlockIdle.IsValid() && TargetASCForBlock->HasMatchingGameplayTag(TAG_CharacterBlockIdle)) ||
+			 (TAG_LegacyBlockIdle.IsValid() && TargetASCForBlock->HasMatchingGameplayTag(TAG_LegacyBlockIdle))));
 		if (LocalDamageDone > 0.f && bBlocked)
 		{
 			static const FGameplayTag BlockedReactTag =
@@ -495,10 +503,10 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 			return;
 		}
 
-		// 无敌帧：目标冲刺期间持有 Buff.Status.DashInvincible，跳过所有伤害
+		// 无敌帧：目标冲刺期间持有 Buff.DashInvincible，跳过所有伤
 		{
 			static const FGameplayTag TAG_DashInvincible =
-				FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.DashInvincible"));
+				FGameplayTag::RequestGameplayTag(TEXT("Buff.DashInvincible"));
 			UAbilitySystemComponent* TargetASC =
 				Data.Target.AbilityActorInfo->AbilitySystemComponent.Get();
 			if (HasDamageAttributeInvulnerableTag(TargetASC) || (TargetASC && TargetASC->HasMatchingGameplayTag(TAG_DashInvincible)))
@@ -536,7 +544,7 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 				TargetCharacter->OnCharacterHealthUpdate.Broadcast(percent, LocalDamageDone);
 				BroadcastDamageValues(TargetCharacter, DamageResult);
 
-				// 广播 Ability.Event.Damaged（不在 DamageBuff 路径广播，防止 GA_Wound 递归）
+				// 广播 Ability.Event.Damaged（不DamageBuff 路径广播，防GA_Wound 递归
 				{
 					static const FGameplayTag DamagedTag = FGameplayTag::RequestGameplayTag(TEXT("Ability.Event.Damaged"), false);
 					if (DamagedTag.IsValid() && SourceActor)
@@ -576,14 +584,14 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 		}
 	}
 
-	// ── DamageBuff：状态效果伤害，绕过护甲，不能击杀（中毒类），不重播 Damaged 事件 ──
+	// ── DamageBuff：状态效果伤害，绕过护甲，不能击杀（中毒类），不重Damaged 事件 ──
 	if (Data.EvaluatedData.Attribute == GetDamageBuffAttribute())
 	{
 		const float LocalDamageDone = GetDamageBuff();
 		SetDamageBuff(0.f);
 
 		static const FGameplayTag TAG_DashInvincible =
-			FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.DashInvincible"), false);
+			FGameplayTag::RequestGameplayTag(TEXT("Buff.DashInvincible"), false);
 		UAbilitySystemComponent* TargetASC =
 			Data.Target.AbilityActorInfo->AbilitySystemComponent.Get();
 		if (HasDamageAttributeInvulnerableTag(TargetASC) ||
@@ -614,7 +622,7 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 			}
 
 			const float OldHealth = TargetBaseSet->GetHealth();
-			// 不至死：Health 最低保留 1（GEExec_PoisonDamage 在输出前已Clamp，此处双重保险）
+			// 不至死：Health 最低保1（GEExec_PoisonDamage 在输出前已Clamp，此处双重保险）
 			const float NewHealth = FMath::Max(1.f, OldHealth - HealthDamage);
 			TargetBaseSet->SetHealth(NewHealth);
 

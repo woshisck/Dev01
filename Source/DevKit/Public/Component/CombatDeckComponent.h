@@ -508,6 +508,8 @@ private:
 	void StartPassiveFlowsForCard(const FCombatCardInstance& Card);
 	void StopPassiveFlowsForCard(const FGuid& CardGuid);
 	void StopAllCardPassiveFlows();
+	void ResetCombatSequenceProgress(ECombatLinkBreakReason Reason, const FCombatDeckActionContext* BreakContext = nullptr);
+	void AdvanceCombatSequenceAfterUse();
 	void ResetRuntimeStateAfterDeckEdit();
 	void StartDeckEditReload();
 	void StartShuffle();

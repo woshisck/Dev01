@@ -88,7 +88,7 @@
 | **效果** | 触发专属冲刺斩：玩家瞬间向目标加速，冲入目标造成 150% 伤害，结束后保持速度 |
 | **感知** | 专属攻击动作完全不同于普通连击，冲入时有明显速度线效果，打击感强烈 |
 | **代价** | 消耗冲刺的 i 帧窗口，冲刺融合中无无敌帧 |
-| **FA 实现** | 在 GA_MeleeAttack 检测 HasTag(Character.State.Dashing) → 分支选 Montage_SprintSlash → Apply 1.5x Damage GE；或在 GA_PlayerDash 内注入攻击监听 |
+| **FA 实现** | 在 GA_MeleeAttack 检测 HasTag(Character.State.Movement.Dash) → 分支选 Montage_SprintSlash → Apply 1.5x Damage GE；或在 GA_PlayerDash 内注入攻击监听 |
 
 ---
 

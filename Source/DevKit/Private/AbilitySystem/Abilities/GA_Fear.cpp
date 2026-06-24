@@ -1,4 +1,4 @@
-#include "AbilitySystem/Abilities/GA_Fear.h"
+﻿#include "AbilitySystem/Abilities/GA_Fear.h"
 #include "AbilitySystemComponent.h"
 #include "AIController.h"
 #include "GameFramework/Character.h"
@@ -9,8 +9,7 @@ UGA_Fear::UGA_Fear(const FObjectInitializer& ObjectInitializer)
 {
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerExecution;
 
-	ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Character.State.Feared")));
-	ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Feared")));
+	ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Fear")));
 
 	FAbilityTriggerData TriggerData;
 	TriggerData.TriggerTag    = FGameplayTag::RequestGameplayTag(TEXT("Buff.Event.Fear"));
@@ -43,12 +42,12 @@ void UGA_Fear::ActivateAbility(
 
 	if (UWorld* World = GetWorld())
 	{
-		// 每 MoveUpdateInterval 强制移动方向
+		// MoveUpdateInterval 强制移动方向
 		World->GetTimerManager().SetTimer(
 			MoveTimerHandle, this, &UGA_Fear::UpdateFearMovement,
 			MoveUpdateInterval, true, 0.f);
 
-		// FearDuration 后检查距离
+		// FearDuration 后检查距
 		World->GetTimerManager().SetTimer(
 			CheckTimerHandle, this, &UGA_Fear::OnFearTimeExpired,
 			FearDuration, false);
@@ -63,13 +62,13 @@ void UGA_Fear::UpdateFearMovement()
 	ACharacter* Character = Cast<ACharacter>(Avatar);
 	if (!Character) return;
 
-	// 逃离方向：远离 Instigator（持续更新 InstigatorLocation 可选，此处固定）
+	// 逃离方向：远Instigator（持续更InstigatorLocation 可选，此处固定
 	FVector AwayDir = (Avatar->GetActorLocation() - InstigatorLocation);
 	AwayDir.Z = 0.f;
 	if (AwayDir.IsNearlyZero()) AwayDir = Character->GetActorForwardVector();
 	AwayDir.Normalize();
 
-	// 对 AI 敌人：通过 AIController 发出 MoveToLocation
+	// AI 敌人：通过 AIController 发出 MoveToLocation
 	if (AAIController* AICon = Cast<AAIController>(Character->GetController()))
 	{
 		const FVector FleeTarget = Avatar->GetActorLocation() + AwayDir * 1200.f;
@@ -138,7 +137,7 @@ void UGA_Fear::EndAbility(
 		World->GetTimerManager().ClearTimer(MoveTimerHandle);
 	}
 
-	// 停止 AI 的 Fear 移动，让 BT 恢复控制
+	// 停止 AI Fear 移动，让 BT 恢复控制
 	if (ActorInfo && ActorInfo->AvatarActor.IsValid())
 	{
 		if (ACharacter* Character = Cast<ACharacter>(ActorInfo->AvatarActor.Get()))

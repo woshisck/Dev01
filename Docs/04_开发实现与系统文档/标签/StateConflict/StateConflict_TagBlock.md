@@ -50,16 +50,16 @@ GA_Dialogue → AbilityTags: Action.Dialogue
 
 | ActiveTag | BlockTags | CancelTags | Priority | 说明 |
 |-----------|-----------|------------|----------|------|
-| `Buff.Status.HitReact` | `PlayerState.AbilityCast.*` | `PlayerState.AbilityCast.*` | 20 | 受击硬直打断并阻止所有主动动作 |
-| `Buff.Status.Dead` | `PlayerState.AbilityCast.*` | `PlayerState.AbilityCast.*` | 999 | 死亡禁止一切行为，优先级最高 |
-| `Buff.Status.Knockback` | `PlayerState.AbilityCast.*` | `PlayerState.AbilityCast.*` | 50 | 击退期间取消全部玩家动作 |
+| `Buff.Status.HitReact` | `Character.State.*` | `Character.State.*` | 20 | 受击硬直打断并阻止所有主动动作 |
+| `Buff.Status.Dead` | `Character.State.*` | `Character.State.*` | 999 | 死亡禁止一切行为，优先级最高 |
+| `Buff.Status.Knockback` | `Character.State.*` | `Character.State.*` | 50 | 击退期间取消全部角色动作 |
 
 #### 符文类互斥
 
 | ActiveTag | BlockTags | CancelTags | Priority | 说明 |
 |-----------|-----------|------------|----------|------|
-| `Buff.Rune.Type.Attack` | `Buff.Rune.Type.Attack` | — | -1 | 同类攻击符文只能激活一个 |
-| `Buff.Rune.Type.Defense` | `Buff.Rune.Type.Defense` | — | -1 | 同类防御符文只能激活一个 |
+| `Rune.Type.Attack` | `Rune.Type.Attack` | — | -1 | 同类攻击符文只能激活一个 |
+| `Rune.Type.Defense` | `Rune.Type.Defense` | — | -1 | 同类防御符文只能激活一个 |
 
 > `Priority = -1` 表示符文互斥不参与优先级计算，纯粹阻止重复激活。
 
@@ -115,7 +115,7 @@ GA_Dialogue → AbilityTags: Action.Dialogue
 
 ## 新增状态互斥的流程
 
-1. **在 ini 里注册新 Tag**（例如 `PlayerState.AbilityCast.Dash`）
+1. **在 ini 里注册新 Tag**（例如 `Character.State.Movement.Dash`）
 2. **GA 的 `AbilityTags` 填写该 Tag**
 3. **在 Rules 新增一行**，填写该状态的冲突规则
 4. 如需同时阻断移动/AI，在 `BlockCategoryMap` 对应 Value 中添加触发 Tag

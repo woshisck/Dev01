@@ -1,4 +1,4 @@
-#include "AbilitySystem/Abilities/GA_Rend.h"
+﻿#include "AbilitySystem/Abilities/GA_Rend.h"
 #include "AbilitySystemComponent.h"
 #include "GameFramework/Actor.h"
 
@@ -6,7 +6,7 @@ UGA_Rend::UGA_Rend(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
-	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Dead")));
+	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Dead")));
 
 	FAbilityTriggerData TriggerData;
 	TriggerData.TriggerTag    = FGameplayTag::RequestGameplayTag(TEXT("Buff.Event.Rend"));
@@ -42,13 +42,13 @@ void UGA_Rend::ActivateAbility(
 			TriggerEventData->Instigator->FindComponentByClass<UAbilitySystemComponent>());
 	}
 
-	// 监听 Buff.Status.Rended 消失
-	const FGameplayTag RendedTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Rended"));
+	// 监听 Buff.Rend 消失
+	const FGameplayTag RendedTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Rend"));
 	TagChangeDelegateHandle = ASC->RegisterGameplayTagEvent(
 		RendedTag, EGameplayTagEventType::NewOrRemoved)
 		.AddUObject(this, &UGA_Rend::OnRendTagChanged);
 
-	// 启动 Tick 计时器
+	// 启动 Tick 计时
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().SetTimer(
@@ -80,7 +80,7 @@ void UGA_Rend::RendTick()
 		AccumulatedDistance += Delta;
 	}
 
-	// 每累计 DamagePerUnits 单位触发一次伤害
+	// 每累DamagePerUnits 单位触发一次伤
 	if (AccumulatedDistance >= DamagePerUnits && RendDamageEffect)
 	{
 		const int32 Triggers = FMath::FloorToInt(AccumulatedDistance / DamagePerUnits);
@@ -131,7 +131,7 @@ void UGA_Rend::EndAbility(
 	}
 	if (ActorInfo && ActorInfo->AbilitySystemComponent.IsValid())
 	{
-		const FGameplayTag RendedTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Rended"));
+		const FGameplayTag RendedTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Rend"));
 		ActorInfo->AbilitySystemComponent->RegisterGameplayTagEvent(
 			RendedTag, EGameplayTagEventType::NewOrRemoved).Remove(TagChangeDelegateHandle);
 	}

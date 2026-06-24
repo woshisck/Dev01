@@ -1,4 +1,4 @@
-ï»¿#include "AbilitySystem/YogAbilitySystemComponent.h"
+#include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "UI/CombatLogStatics.h"
 #include "AbilitySystem/Abilities/YogGameplayAbility.h"
@@ -24,9 +24,9 @@ namespace
 {
 	bool IsDefaultMovementBlockStateTag(const FGameplayTag& Tag)
 	{
-		static const FGameplayTag HitReactTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.HitReact"), false);
-		static const FGameplayTag DeadTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Dead"), false);
-		static const FGameplayTag KnockbackTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Knockback"), false);
+		static const FGameplayTag HitReactTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.HitReact"), false);
+		static const FGameplayTag DeadTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Dead"), false);
+		static const FGameplayTag KnockbackTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Knockback"), false);
 
 		return (HitReactTag.IsValid() && Tag.MatchesTagExact(HitReactTag)) ||
 			(DeadTag.IsValid() && Tag.MatchesTagExact(DeadTag)) ||
@@ -35,7 +35,7 @@ namespace
 
 	bool IsHitReactStateTag(const FGameplayTag& Tag)
 	{
-		static const FGameplayTag HitReactTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.HitReact"), false);
+		static const FGameplayTag HitReactTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.HitReact"), false);
 		return HitReactTag.IsValid() && Tag.MatchesTagExact(HitReactTag);
 	}
 
@@ -46,9 +46,9 @@ namespace
 			return false;
 		}
 
-		static const FGameplayTag HitReactTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.HitReact"), false);
-		static const FGameplayTag DeadTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Dead"), false);
-		static const FGameplayTag KnockbackTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Knockback"), false);
+		static const FGameplayTag HitReactTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.HitReact"), false);
+		static const FGameplayTag DeadTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Dead"), false);
+		static const FGameplayTag KnockbackTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Knockback"), false);
 
 		return (HitReactTag.IsValid() && ASC->HasMatchingGameplayTag(HitReactTag)) ||
 			(DeadTag.IsValid() && ASC->HasMatchingGameplayTag(DeadTag)) ||
@@ -63,6 +63,9 @@ namespace
 		}
 
 		static const FName AttackStateTagNames[] = {
+			TEXT("Character.State.Skill.Attack"),
+			TEXT("Character.State.Skill.WeaponSkill"),
+			TEXT("Character.State.Movement.Dash"),
 			TEXT("PlayerState.AbilityCast.Attack"),
 			TEXT("PlayerState.AbilityCast.WeaponSkill"),
 			TEXT("PlayerState.AbilityCast.Dash"),
@@ -81,12 +84,16 @@ namespace
 
 	FGameplayTag GetRecentlyDamagedTag()
 	{
-		return FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.RecentlyDamaged"), false);
+		return FGameplayTag::RequestGameplayTag(TEXT("Buff.RecentlyDamaged"), false);
 	}
 
 	TConstArrayView<FGameplayTag> GetPlayerAttackComboTags()
 	{
 		static const FGameplayTag AttackComboTags[] = {
+			FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.Attack.Combo1"), false),
+			FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.Attack.Combo2"), false),
+			FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.Attack.Combo3"), false),
+			FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.Attack.Combo4"), false),
 			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Attack.Combo1"), false),
 			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Attack.Combo2"), false),
 			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Attack.Combo3"), false),
@@ -98,6 +105,10 @@ namespace
 	TConstArrayView<FGameplayTag> GetPlayerWeaponSkillComboTags()
 	{
 		static const FGameplayTag WeaponSkillComboTags[] = {
+			FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.WeaponSkill.Combo1"), false),
+			FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.WeaponSkill.Combo2"), false),
+			FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.WeaponSkill.Combo3"), false),
+			FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.WeaponSkill.Combo4"), false),
 			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.WeaponSkill.Combo1"), false),
 			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.WeaponSkill.Combo2"), false),
 			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.WeaponSkill.Combo3"), false),
@@ -136,7 +147,7 @@ UYogAbilitySystemComponent::UYogAbilitySystemComponent(const FObjectInitializer&
 
 
 // =========================================================
-// çŠ¶æ€å†²çªç³»ç»Ÿ
+// ×´Ì¬³åÍ»ÏµÍ³
 // =========================================================
 
 void UYogAbilitySystemComponent::InitConflictTable()
@@ -145,7 +156,7 @@ void UYogAbilitySystemComponent::InitConflictTable()
 	BlockCategoryMap.Reset();
 	StateToBlockCategories.Reset();
 
-	// è‹¥è“å›¾æœªæ‰‹åŠ¨èµ‹å€¼ï¼Œè‡ªåŠ¨ä» DevAssetManager å…¨å±€é…ç½®åŠ è½½
+	// ÈôÀ¶Í¼Î´ÊÖ¶¯¸³Öµ£¬×Ô¶¯´Ó DevAssetManager È«¾ÖÅäÖÃ¼ÓÔØ
 	if (!ConflictTable)
 	{
 		ConflictTable = UDevAssetManager::Get().GetStateConflictData();
@@ -157,7 +168,7 @@ void UYogAbilitySystemComponent::InitConflictTable()
 		return;
 	}
 
-	// æ„å»ºå†²çªè§„åˆ™æŸ¥æ‰¾è¡¨
+	// ¹¹½¨³åÍ»¹æÔò²éÕÒ±í
 	for (const FStateConflictRule& Rule : ConflictTable->Rules)
 	{
 		if (!Rule.ActiveTag.IsValid())
@@ -168,7 +179,7 @@ void UYogAbilitySystemComponent::InitConflictTable()
 		ConflictMap.Add(Rule.ActiveTag, Rule);
 	}
 
-	// æ„å»ºé˜»æ–­åˆ†ç±»è¡¨ & åå‘ç´¢å¼•ï¼ˆStateTag â†’ æ‰€å±åˆ†ç±»åˆ—è¡¨ï¼‰
+	// ¹¹½¨×è¶Ï·ÖÀà±í & ·´ÏòË÷Òı£¨StateTag ¡ú ËùÊô·ÖÀàÁĞ±í£©
 	for (const auto& Pair : ConflictTable->BlockCategoryMap)
 	{
 		BlockCategoryMap.Add(Pair.Key, Pair.Value);
@@ -198,7 +209,7 @@ bool UYogAbilitySystemComponent::HasActiveStatusNiagaraForTag(FGameplayTag Tag) 
 UNiagaraSystem* UYogAbilitySystemComponent::GetStatusNiagaraSystemForTag(FGameplayTag Tag) const
 {
 	// Status visuals are configured by rune FA/Profile nodes. Tags such as
-	// Buff.Status.Burning should not auto-spawn Niagara here, otherwise the
+	// Buff.Fire should not auto-spawn Niagara here, otherwise the
 	// same effect can be played both by GE status and the calling FA.
 	return nullptr;
 }
@@ -348,7 +359,7 @@ void UYogAbilitySystemComponent::OnTagUpdated(const FGameplayTag& Tag, bool TagE
 	HandleStatusNiagaraTag(Tag, TagExists);
 
 	// =========================================================
-	// é˜»æ–­åˆ†ç±»ï¼šTag å‡ºç°/æ¶ˆå¤±æ—¶æŒ‰ BlockCategoryMap æ‰§è¡Œå¯¹åº”é˜»æ–­
+	// ×è¶Ï·ÖÀà£ºTag ³öÏÖ/ÏûÊ§Ê±°´ BlockCategoryMap Ö´ĞĞ¶ÔÓ¦×è¶Ï
 	// =========================================================
 	const TArray<FGameplayTag>* Categories = StateToBlockCategories.Find(Tag);
 	const bool bDefaultMovementBlockState = IsDefaultMovementBlockStateTag(Tag);
@@ -382,7 +393,7 @@ void UYogAbilitySystemComponent::OnTagUpdated(const FGameplayTag& Tag, bool TagE
 			}
 			else
 			{
-				// æ£€æŸ¥è¯¥åˆ†ç±»ä¸‹æ˜¯å¦è¿˜æœ‰å…¶ä»–é˜»æ–­ Tag ä»ç„¶æ¿€æ´»
+				// ¼ì²é¸Ã·ÖÀàÏÂÊÇ·ñ»¹ÓĞÆäËû×è¶Ï Tag ÈÔÈ»¼¤»î
 				bool bStillBlocked = false;
 				if (const FGameplayTagContainer* BlockTags = BlockCategoryMap.Find(MovementCategory))
 				{
@@ -426,7 +437,7 @@ void UYogAbilitySystemComponent::OnTagUpdated(const FGameplayTag& Tag, bool TagE
 					}
 					else
 					{
-						// æ£€æŸ¥è¯¥åˆ†ç±»ä¸‹æ˜¯å¦è¿˜æœ‰å…¶ä»– AI é˜»æ–­ Tag ä»ç„¶æ¿€æ´»
+						// ¼ì²é¸Ã·ÖÀàÏÂÊÇ·ñ»¹ÓĞÆäËû AI ×è¶Ï Tag ÈÔÈ»¼¤»î
 						bool bStillBlocked = false;
 						if (const FGameplayTagContainer* BlockTags = BlockCategoryMap.Find(AICategory))
 						{
@@ -435,7 +446,7 @@ void UYogAbilitySystemComponent::OnTagUpdated(const FGameplayTag& Tag, bool TagE
 								if (HasMatchingGameplayTag(BlockTag)) { bStillBlocked = true; break; }
 							}
 						}
-						UE_LOG(LogTemp, Warning, TEXT("[Block.AI] Tag=%s Exists=0 | bStillBlocked=%d â†’ %s"),
+						UE_LOG(LogTemp, Warning, TEXT("[Block.AI] Tag=%s Exists=0 | bStillBlocked=%d ¡ú %s"),
 							*Tag.ToString(), (int32)bStillBlocked,
 							bStillBlocked ? TEXT("SKIP ResumeLogic") : TEXT("ResumeLogic"));
 						if (!bStillBlocked)
@@ -447,12 +458,12 @@ void UYogAbilitySystemComponent::OnTagUpdated(const FGameplayTag& Tag, bool TagE
 	}
 
 	// =========================================================
-	// SuperArmor Fresnel é—ªå…‰ï¼štag åŠ /å‡è‡ªåŠ¨ Start/Stopï¼Œç»Ÿä¸€è¦†ç›–
-	// C++ Poise è‡ªåŠ¨éœ¸ä½“è·¯å¾„ä¸ FA AddTag è·¯å¾„ï¼ˆæ•Œäººæ— ç•ç¬¦æ–‡ E001ï¼‰
+	// SuperArmor Fresnel ÉÁ¹â£ºtag ¼Ó/¼õ×Ô¶¯ Start/Stop£¬Í³Ò»¸²¸Ç
+	// C++ Poise ×Ô¶¯°ÔÌåÂ·¾¶Óë FA AddTag Â·¾¶£¨µĞÈËÎŞÎ··ûÎÄ E001£©
 	// =========================================================
 	{
 		static const FGameplayTag SuperArmorTag =
-			FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.SuperArmor"), false);
+			FGameplayTag::RequestGameplayTag(TEXT("Buff.SuperArmor"), false);
 		if (SuperArmorTag.IsValid() && Tag == SuperArmorTag)
 		{
 			if (AYogCharacterBase* Char = Cast<AYogCharacterBase>(GetAvatarActor()))
@@ -477,7 +488,7 @@ void UYogAbilitySystemComponent::OnTagUpdated(const FGameplayTag& Tag, bool TagE
 	}
 
 	// =========================================================
-	// çŠ¶æ€å†²çªï¼šé˜²é€’å½’ï¼ŒBlockAbilitiesWithTags å†…éƒ¨ä¹Ÿä¼šè§¦å‘ OnTagUpdated
+	// ×´Ì¬³åÍ»£º·Àµİ¹é£¬BlockAbilitiesWithTags ÄÚ²¿Ò²»á´¥·¢ OnTagUpdated
 	// =========================================================
 	if (bProcessingConflict)
 		return;
@@ -490,7 +501,7 @@ void UYogAbilitySystemComponent::OnTagUpdated(const FGameplayTag& Tag, bool TagE
 
 	if (TagExists)
 	{
-		// Tag åŠ ä¸Š â†’ Block + Cancel
+		// Tag ¼ÓÉÏ ¡ú Block + Cancel
 		if (!Rule->BlockTags.IsEmpty())
 			BlockAbilitiesWithTags(Rule->BlockTags);
 
@@ -499,7 +510,7 @@ void UYogAbilitySystemComponent::OnTagUpdated(const FGameplayTag& Tag, bool TagE
 	}
 	else
 	{
-		// Tag ç§»é™¤ â†’ è§£é™¤ Block
+		// Tag ÒÆ³ı ¡ú ½â³ı Block
 		if (!Rule->BlockTags.IsEmpty())
 			UnBlockAbilitiesWithTags(Rule->BlockTags);
 	}
@@ -623,7 +634,7 @@ void UYogAbilitySystemComponent::AddGameplayTagWithCount(FGameplayTag Tag, int32
 	this->AddLooseGameplayTag(Tag, Count);
 }
 
-// â”€â”€ æ­¦å™¨ç±»å‹ Tag å®ˆå« â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ©¤©¤ ÎäÆ÷ÀàĞÍ Tag ÊØÎÀ ©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤
 namespace
 {
 	FGameplayTag GetWeaponTypeTag(EWeaponType Type)
@@ -641,7 +652,7 @@ namespace
 
 void UYogAbilitySystemComponent::ClearWeaponTypeTags()
 {
-	// ç”¨ SetLooseGameplayTagCount(Tag, 0) æ¸…é›¶ï¼Œé¿å… RemoveLooseGameplayTag åªå‡ä¸€æ¬¡è®¡æ•°å¯¼è‡´æ®‹ç•™
+	// ÓÃ SetLooseGameplayTagCount(Tag, 0) ÇåÁã£¬±ÜÃâ RemoveLooseGameplayTag Ö»¼õÒ»´Î¼ÆÊıµ¼ÖÂ²ĞÁô
 	static const FGameplayTag MeleeTag  = FGameplayTag::RequestGameplayTag(TEXT("Weapon.Type.Melee"),  false);
 	static const FGameplayTag RangedTag = FGameplayTag::RequestGameplayTag(TEXT("Weapon.Type.Ranged"), false);
 	if (MeleeTag.IsValid())  SetLooseGameplayTagCount(MeleeTag,  0);
@@ -650,7 +661,7 @@ void UYogAbilitySystemComponent::ClearWeaponTypeTags()
 
 void UYogAbilitySystemComponent::ApplyWeaponTypeTag(EWeaponType Type)
 {
-	// å…ˆæ¸…é›¶å†è®¾ 1ï¼Œç¡®ä¿ä»»æ„æ—¶åˆ»åªæŒæœ‰å½“å‰æ­¦å™¨ç±»å‹ Tagï¼ˆé‡å¤è£…å¤‡/æ¢å¤æ—¶æ— æ®‹ç•™ï¼‰
+	// ÏÈÇåÁãÔÙÉè 1£¬È·±£ÈÎÒâÊ±¿ÌÖ»³ÖÓĞµ±Ç°ÎäÆ÷ÀàĞÍ Tag£¨ÖØ¸´×°±¸/»Ö¸´Ê±ÎŞ²ĞÁô£©
 	ClearWeaponTypeTags();
 	const FGameplayTag NewTag = GetWeaponTypeTag(Type);
 	if (NewTag.IsValid())
@@ -682,9 +693,9 @@ void UYogAbilitySystemComponent::ReceiveDamage(
 {
 	ReceivedDamage.Broadcast(SourceASC, Damage);
 
-	// å¹¿æ’­å‰æ£€æŸ¥ TargetASC (this) åŠå…¶ Avatar æ˜¯å¦ä»ç„¶æœ‰æ•ˆ
-	// åŒå¸§å†…å¤šæ¬¡å‘½ä¸­å·²æ­»äº¡è§’è‰²ï¼ˆDoT/AoEï¼‰ä¼šå¯¼è‡´ TargetASC pending killï¼Œ
-	// Blueprint ä¾§çš„ GA_Passive_knockback è®¿é—® pending kill å¯¹è±¡ä¼šæŠ¥é”™
+	// ¹ã²¥Ç°¼ì²é TargetASC (this) ¼°Æä Avatar ÊÇ·ñÈÔÈ»ÓĞĞ§
+	// Í¬Ö¡ÄÚ¶à´ÎÃüÖĞÒÑËÀÍö½ÇÉ«£¨DoT/AoE£©»áµ¼ÖÂ TargetASC pending kill£¬
+	// Blueprint ²àµÄ GA_Passive_knockback ·ÃÎÊ pending kill ¶ÔÏó»á±¨´í
 	if (SourceASC && IsValid(this) && IsValid(GetAvatarActor()))
 	{
 		SourceASC->DealtDamage.Broadcast(this, Damage);
@@ -717,15 +728,15 @@ void UYogAbilitySystemComponent::ReceiveDamage(
 	}
 
 	// =========================================================
-	// éŸ§æ€§ï¼ˆPoiseï¼‰æ¯”è¾ƒï¼šå†³å®šæ˜¯å¦è§¦å‘å—å‡»åŠ¨ç”»
-	// æ”»å‡»æ–¹æœ‰æ•ˆéŸ§æ€§ = Resilienceå±æ€§ + åŠ¨ä½œéŸ§æ€§ï¼ˆç”± GA åœ¨å‘½ä¸­å‰è®¾ç½®ï¼‰
+	// ÈÍĞÔ£¨Poise£©±È½Ï£º¾ö¶¨ÊÇ·ñ´¥·¢ÊÜ»÷¶¯»­
+	// ¹¥»÷·½ÓĞĞ§ÈÍĞÔ = ResilienceÊôĞÔ + ¶¯×÷ÈÍĞÔ£¨ÓÉ GA ÔÚÃüÖĞÇ°ÉèÖÃ£©
 	// =========================================================
 	float AttackerPoise = 0.f;
 	if (SourceASC)
 	{
 		AttackerPoise = SourceASC->GetNumericAttribute(UBaseAttributeSet::GetResilienceAttribute())
 		              + SourceASC->CurrentActionPoiseBonus;
-		SourceASC->CurrentActionPoiseBonus = 0.f; // è¯»å–åç«‹å³æ¸…é›¶ï¼Œé¿å…è·¨å¸§æ®‹ç•™
+		SourceASC->CurrentActionPoiseBonus = 0.f; // ¶ÁÈ¡ºóÁ¢¼´ÇåÁã£¬±ÜÃâ¿çÖ¡²ĞÁô
 	}
 
 	const bool bPlayerAttackHitReactImmune = Cast<APlayerCharacterBase>(GetAvatarActor()) && HasPlayerAttackStateTag(this);
@@ -735,7 +746,7 @@ void UYogAbilitySystemComponent::ReceiveDamage(
 		? FMath::Max(DefenderBasePoise, PlayerAttackUninterruptiblePoise)
 		: DefenderBasePoise;
 	static const FGameplayTag SuperArmorTag =
-		FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.SuperArmor"), false);
+		FGameplayTag::RequestGameplayTag(TEXT("Buff.SuperArmor"), false);
 	const bool bHasSuperArmorTag = SuperArmorTag.IsValid() && HasMatchingGameplayTag(SuperArmorTag);
 	const bool bHadBlockingSuperArmor = bHasSuperArmorTag || bPoiseSuperArmorActive;
 	bool bActivatedSuperArmor = false;
@@ -753,7 +764,7 @@ void UYogAbilitySystemComponent::ReceiveDamage(
 		(int32)bEnemyDefender);
 
 	// =========================================================
-	// éœ¸ä½“è®¡æ•°ï¼ˆä»…éç©å®¶ï¼‰ï¼šè¿ç»­å—åˆ°çœŸå®ä¼¤å®³ â†’ è¿›å…¥éœ¸ä½“
+	// °ÔÌå¼ÆÊı£¨½ö·ÇÍæ¼Ò£©£ºÁ¬ĞøÊÜµ½ÕæÊµÉËº¦ ¡ú ½øÈë°ÔÌå
 	// =========================================================
 	if (bEnemyDefender && !bHadBlockingSuperArmor)
 	{
@@ -768,7 +779,7 @@ void UYogAbilitySystemComponent::ReceiveDamage(
 			PoiseHitCount = 0;
 			bActivatedSuperArmor = true;
 			bPoiseSuperArmorActive = true;
-			// AddLooseGameplayTag ä¼šè§¦å‘ OnTagUpdated â†’ è‡ªåŠ¨ StartSuperArmorFlash
+			// AddLooseGameplayTag »á´¥·¢ OnTagUpdated ¡ú ×Ô¶¯ StartSuperArmorFlash
 			if (SuperArmorTag.IsValid())
 			{
 				AddLooseGameplayTag(SuperArmorTag);
@@ -804,7 +815,7 @@ void UYogAbilitySystemComponent::ReceiveDamage(
 	}
 
 	// =========================================================
-	// è§¦å‘å—å‡»äº‹ä»¶ï¼ˆAction.HitReact.Front / .Back ç­‰å­çº§ï¼‰
+	// ´¥·¢ÊÜ»÷ÊÂ¼ş£¨Action.HitReact.Front / .Back µÈ×Ó¼¶£©
 	// =========================================================
 	FGameplayEventData EventData;
 	EventData.Instigator     = SourceASC ? SourceASC->GetAvatarActor() : nullptr;
@@ -923,8 +934,8 @@ void UYogAbilitySystemComponent::TriggerSuperArmorCounterAttack()
 void UYogAbilitySystemComponent::OnSuperArmorTimerEnd()
 {
 	bPoiseSuperArmorActive = false;
-	// RemoveLooseGameplayTag ä¼šè§¦å‘ OnTagUpdated â†’ è‡ªåŠ¨ StopSuperArmorFlash
-	RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.SuperArmor")));
+	// RemoveLooseGameplayTag »á´¥·¢ OnTagUpdated ¡ú ×Ô¶¯ StopSuperArmorFlash
+	RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.SuperArmor")));
 	UE_LOG(LogTemp, Warning, TEXT("[Poise] SuperArmor EXPIRED on %s"), *GetNameSafe(GetAvatarActor()));
 }
 
@@ -934,14 +945,14 @@ void UYogAbilitySystemComponent::OnSuperArmorTimerEnd()
 
 void UYogAbilitySystemComponent::ApplyDashSave(const FGameplayTagContainer& Tags)
 {
-	// å…ˆæ¸…ç†ä¸Šæ¬¡æ®‹ç•™ï¼ˆåŒå†²åˆºè¿æ‰“æ—¶ä¿æŠ¤ï¼‰
+	// ÏÈÇåÀíÉÏ´Î²ĞÁô£¨Ë«³å´ÌÁ¬´òÊ±±£»¤£©
 	ConsumeDashSave();
 
 	DashSaveComboTags = Tags;
 	for (const FGameplayTag& Tag : DashSaveComboTags)
 		AddLooseGameplayTag(Tag);
 
-	// 2s å†…æœªæ¶ˆè´¹åˆ™è‡ªåŠ¨æ¸…ç†ï¼ˆé˜²æ­¢ç©å®¶æ²¡æœ‰æ¥æ”»å‡»å¯¼è‡´ Tag æ®‹ç•™ï¼‰
+	// 2s ÄÚÎ´Ïû·ÑÔò×Ô¶¯ÇåÀí£¨·ÀÖ¹Íæ¼ÒÃ»ÓĞ½Ó¹¥»÷µ¼ÖÂ Tag ²ĞÁô£©
 	if (UWorld* W = GetWorld())
 		W->GetTimerManager().SetTimer(
 			DashSaveExpireTimer, this, &UYogAbilitySystemComponent::DashSaveExpired, 2.f, false);
@@ -986,9 +997,9 @@ bool UYogAbilitySystemComponent::TryActivateRandomAbilitiesByTag(const FGameplay
 
 	if (GameplayTagContainer.Num() > 1)
 	{
-		// å¤š Tag æ¨¡å¼ï¼šOR è¯­ä¹‰ï¼ŒæŠŠæ¯ä¸ª Tag è§†ä¸ºç‹¬ç«‹å€™é€‰ï¼Œåˆ†åˆ«æŸ¥æ‰¾åŒ¹é… GAï¼Œæ±‡æ€»å»é‡åéšæœºæ¿€æ´»ä¸€ä¸ª
-		// ç”¨æ³•ï¼šå¡« {Enemy.Melee.LAtk1, Enemy.Melee.LAtk2, Enemy.Melee.LAtk3}
-		//      â†’ ä»è¿™ä¸‰ç§æ”»å‡»é‡Œéšæœºé€‰ä¸€ç§
+		// ¶à Tag Ä£Ê½£ºOR ÓïÒå£¬°ÑÃ¿¸ö Tag ÊÓÎª¶ÀÁ¢ºòÑ¡£¬·Ö±ğ²éÕÒÆ¥Åä GA£¬»ã×ÜÈ¥ÖØºóËæ»ú¼¤»îÒ»¸ö
+		// ÓÃ·¨£ºÌî {Enemy.Melee.LAtk1, Enemy.Melee.LAtk2, Enemy.Melee.LAtk3}
+		//      ¡ú ´ÓÕâÈıÖÖ¹¥»÷ÀïËæ»úÑ¡Ò»ÖÖ
 		for (const FGameplayTag& Tag : GameplayTagContainer)
 		{
 			TArray<FGameplayAbilitySpec*> PerTagPtrs;
@@ -1001,8 +1012,8 @@ bool UYogAbilitySystemComponent::TryActivateRandomAbilitiesByTag(const FGameplay
 	}
 	else
 	{
-		// å• Tag æ¨¡å¼ï¼ˆåŸæœ‰è¡Œä¸ºï¼‰ï¼šæ”¯æŒçˆ¶ Tag åŒ¹é…æ‰€æœ‰å­çº§ GA
-		// ç”¨æ³•ï¼šå¡« {Enemy.Melee} â†’ ä»æ‰€æœ‰ Enemy.Melee.* GA é‡Œéšæœºé€‰ä¸€ä¸ª
+		// µ¥ Tag Ä£Ê½£¨Ô­ÓĞĞĞÎª£©£ºÖ§³Ö¸¸ Tag Æ¥ÅäËùÓĞ×Ó¼¶ GA
+		// ÓÃ·¨£ºÌî {Enemy.Melee} ¡ú ´ÓËùÓĞ Enemy.Melee.* GA ÀïËæ»úÑ¡Ò»¸ö
 		GetActivatableGameplayAbilitySpecsByAllMatchingTags(GameplayTagContainer, AbilitiesToActivatePtrs);
 	}
 
@@ -1062,12 +1073,17 @@ bool UYogAbilitySystemComponent::IsPlayerActionMontageLocked() const
 {
 	static const FGameplayTag CanComboTag =
 		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"), false);
+	static const FGameplayTag CharacterCanComboTag =
+		FGameplayTag::RequestGameplayTag(TEXT("Character.State.Window.CanCombo"), false);
 	static const FGameplayTag ActionTags[] = {
+		FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.Attack"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.WeaponSkill"), false),
 		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Attack"), false),
 		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.WeaponSkill"), false),
 	};
 
-	if (CanComboTag.IsValid() && HasMatchingGameplayTag(CanComboTag))
+	if ((CharacterCanComboTag.IsValid() && HasMatchingGameplayTag(CharacterCanComboTag)) ||
+		(CanComboTag.IsValid() && HasMatchingGameplayTag(CanComboTag)))
 	{
 		return false;
 	}
@@ -1135,10 +1151,15 @@ int32 UYogAbilitySystemComponent::ClearWeaponSkillCooldowns()
 {
 	FGameplayTagContainer WeaponSkillTags;
 	const FGameplayTag AbilityTag = FGameplayTag::RequestGameplayTag(TEXT("Ability.Player.WeaponSkill"), false);
+	const FGameplayTag CharacterActionTag = FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.WeaponSkill"), false);
 	const FGameplayTag ActionTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.WeaponSkill"), false);
 	if (AbilityTag.IsValid())
 	{
 		WeaponSkillTags.AddTag(AbilityTag);
+	}
+	if (CharacterActionTag.IsValid())
+	{
+		WeaponSkillTags.AddTag(CharacterActionTag);
 	}
 	if (ActionTag.IsValid())
 	{
@@ -1331,7 +1352,7 @@ void UYogAbilitySystemComponent::RemoveRuneModifiers(FActiveGameplayEffectHandle
 
 void UYogAbilitySystemComponent::LogDamageDealt(AActor* Target, float Damage, FName DamageType)
 {
-	// å±å¹•æ»šåŠ¨æ§½ï¼š3000-3029ï¼ˆ30 æ¡ï¼‰ï¼Œæ¯æ¡æ˜¾ç¤º 4 ç§’
+	// ÆÁÄ»¹ö¶¯²Û£º3000-3029£¨30 Ìõ£©£¬Ã¿ÌõÏÔÊ¾ 4 Ãë
 	static int32 RollingSlot = 0;
 	const int32 MsgKey = 3000 + (RollingSlot++ % 30);
 
@@ -1343,16 +1364,16 @@ void UYogAbilitySystemComponent::LogDamageDealt(AActor* Target, float Damage, FN
 	else if (DamageType == FName("Attack_Crit"))   MsgColor = FColor::Yellow;
 	else if (DamageType.ToString().StartsWith("Rune")) MsgColor = FColor::Purple;
 
-	const FString Msg = FString::Printf(TEXT("[DmgLog] %.1f  [%s]  â†’ %s"),
+	const FString Msg = FString::Printf(TEXT("[DmgLog] %.1f  [%s]  ¡ú %s"),
 		Damage, *DamageType.ToString(), *TargetName);
 
 	if (GEngine)
 		GEngine->AddOnScreenDebugMessage(MsgKey, 4.f, MsgColor, Msg);
 
-	UE_LOG(LogTemp, Log, TEXT("[DmgLog] %s â†’ %s | %.1f | %s"),
+	UE_LOG(LogTemp, Log, TEXT("[DmgLog] %s ¡ú %s | %.1f | %s"),
 		*SourceName, *TargetName, Damage, *DamageType.ToString());
 
-	// ç®€åŒ–å½¢å¼å¹¿æ’­ï¼ˆæ— åŠ¨ä½œç³»æ•°åˆ†è§£ï¼‰
+	// ¼ò»¯ĞÎÊ½¹ã²¥£¨ÎŞ¶¯×÷ÏµÊı·Ö½â£©
 	FDamageBreakdown Simple;
 	Simple.FinalDamage   = Damage;
 	Simple.DamageType    = DamageType;
@@ -1366,7 +1387,7 @@ void UYogAbilitySystemComponent::LogDamageDealt(AActor* Target, float Damage, FN
 
 void UYogAbilitySystemComponent::LogDamageDealtDetailed(AActor* Target, const FDamageBreakdown& Breakdown)
 {
-	// å±å¹•æ»šåŠ¨æ§½ï¼š3000-3029ï¼ˆ30 æ¡ï¼‰ï¼Œæ¯æ¡æ˜¾ç¤º 4 ç§’
+	// ÆÁÄ»¹ö¶¯²Û£º3000-3029£¨30 Ìõ£©£¬Ã¿ÌõÏÔÊ¾ 4 Ãë
 	static int32 RollingSlot = 0;
 	const int32 MsgKey = 3000 + (RollingSlot++ % 30);
 
@@ -1375,10 +1396,10 @@ void UYogAbilitySystemComponent::LogDamageDealtDetailed(AActor* Target, const FD
 	else if (Breakdown.bIsCrit)                              MsgColor = FColor::Yellow;
 	else if (Breakdown.DamageType.ToString().StartsWith("Rune")) MsgColor = FColor::Purple;
 
-	// æ ¼å¼ï¼š[è½»å‡»2]  25 Ã— 0.88 Ã— 1.00 â˜…CRIT = 44.0  â†’ BP_Enemy_Rat
-	const FString CritStr = Breakdown.bIsCrit ? TEXT(" â˜…CRIT") : TEXT("");
+	// ¸ñÊ½£º[Çá»÷2]  25 ¡Á 0.88 ¡Á 1.00 ¡ïCRIT = 44.0  ¡ú BP_Enemy_Rat
+	const FString CritStr = Breakdown.bIsCrit ? TEXT(" ¡ïCRIT") : TEXT("");
 	const FString Msg = FString::Printf(
-		TEXT("[%s]  %.0f Ã— %.2f Ã— %.2f%s = %.1f  â†’ %s"),
+		TEXT("[%s]  %.0f ¡Á %.2f ¡Á %.2f%s = %.1f  ¡ú %s"),
 		*Breakdown.ActionName.ToString(),
 		Breakdown.BaseAttack,
 		Breakdown.ActionMultiplier,
@@ -1390,7 +1411,7 @@ void UYogAbilitySystemComponent::LogDamageDealtDetailed(AActor* Target, const FD
 	if (GEngine)
 		GEngine->AddOnScreenDebugMessage(MsgKey, 4.f, MsgColor, Msg);
 
-	UE_LOG(LogTemp, Log, TEXT("[DmgLog] %s â†’ %s | %.1f | %s"),
+	UE_LOG(LogTemp, Log, TEXT("[DmgLog] %s ¡ú %s | %.1f | %s"),
 		*GetNameSafe(GetAvatarActor()), *Breakdown.TargetName, Breakdown.FinalDamage, *Breakdown.DamageType.ToString());
 
 	OnDamageBreakdown.Broadcast(Breakdown);

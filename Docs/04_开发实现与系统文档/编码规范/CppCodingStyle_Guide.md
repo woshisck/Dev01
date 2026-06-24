@@ -173,7 +173,7 @@ TWeakObjectPtr<UAbilitySystemComponent> WeakASC(CombatCardASC);
 ```cpp
 // 高频标签 → static const，避免每帧字符串查找
 static const FGameplayTag TAG_CanCombo =
-    FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"));
+    FGameplayTag::RequestGameplayTag(TEXT("Character.State.Window.CanCombo"));
 
 // 一次性使用 → 内联即可
 ASC->AddLooseGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Attacking")));

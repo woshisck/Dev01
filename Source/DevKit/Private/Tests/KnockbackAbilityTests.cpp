@@ -19,7 +19,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatResponseAbilitiesBlockWhileDeadTest,
 
 bool FCombatResponseAbilitiesBlockWhileDeadTest::RunTest(const FString& Parameters)
 {
-	const FGameplayTag DeadTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Dead"));
+	const FGameplayTag DeadTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Dead"));
 
 	UGA_Knockback* KnockbackAbility = NewObject<UGA_Knockback>();
 	UGA_HitReaction* HitReactionAbility = NewObject<UGA_HitReaction>();

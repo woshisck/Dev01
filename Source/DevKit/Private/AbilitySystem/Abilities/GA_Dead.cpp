@@ -1,4 +1,4 @@
-#include "AbilitySystem/Abilities/GA_Dead.h"
+﻿#include "AbilitySystem/Abilities/GA_Dead.h"
 
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "AbilitySystemComponent.h"
@@ -13,10 +13,10 @@ UGA_Dead::UGA_Dead(const FObjectInitializer& ObjectInitializer)
     : Super(ObjectInitializer)
 {
     AbilityTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Action.Dead")));
-    ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Dead")));
+    ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Dead")));
     InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 
-    // 监听 Action.Dead 事件自动激活（YogCharacterBase::Die() 在血量归零时发送此 Tag）
+    // 监听 Action.Dead 事件自动激活（YogCharacterBase::Die() 在血量归零时发送此 Tag
     FAbilityTriggerData TriggerData;
     TriggerData.TriggerTag    = FGameplayTag::RequestGameplayTag(TEXT("Action.Dead"));
     TriggerData.TriggerSource = EGameplayAbilityTriggerSource::GameplayEvent;
@@ -66,9 +66,9 @@ void UGA_Dead::ActivateAbility(
 
     if (DeathMontage)
     {
-        // ---- 有蒙太奇：先播放死亡蒙太奇，再取消其他技能 ----
-        // 顺序很重要：先播放死亡蒙太奇（让它抢占 AnimInstance），再 Cancel 其他 GA，
-        // 避免 Cancel → BT推进 → 攻击 GA 立刻覆盖死亡蒙太奇 的竞态。
+        // ---- 有蒙太奇：先播放死亡蒙太奇，再取消其他技----
+        // 顺序很重要：先播放死亡蒙太奇（让它抢AnimInstance），Cancel 其他 GA
+        // 避免 Cancel BT推进 攻击 GA 立刻覆盖死亡蒙太的竞态
         MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
             this, NAME_None, DeathMontage, 1.0f,
             NAME_None,
@@ -77,19 +77,19 @@ void UGA_Dead::ActivateAbility(
         MontageTask->OnCompleted.AddDynamic(this,    &UGA_Dead::OnDeathMontageCompleted);
         MontageTask->OnBlendOut.AddDynamic(this,     &UGA_Dead::OnDeathMontageBlendOut);
         MontageTask->OnCancelled.AddDynamic(this,    &UGA_Dead::OnDeathMontageCancelled);
-        // 被其他蒙太奇强行打断时触发 OnInterrupted（不是 OnCancelled），必须绑定否则死亡流程卡住
+        // 被其他蒙太奇强行打断时触OnInterrupted（不OnCancelled），必须绑定否则死亡流程卡住
         MontageTask->OnInterrupted.AddDynamic(this,  &UGA_Dead::OnDeathMontageCancelled);
         MontageTask->ReadyForActivation();
         UE_LOG(LogTemp, Warning, TEXT("[GA_Dead] MontageTask started"));
 
-        // 死亡蒙太奇已抢占 AnimInstance，再取消其他技能
+        // 死亡蒙太奇已抢占 AnimInstance，再取消其他技
         ActorInfo->AbilitySystemComponent->CancelAllAbilities(this);
     }
     else
     {
-        // ---- 无蒙太奇：取消其他技能后直接进入销毁流程 ----
+        // ---- 无蒙太奇：取消其他技能后直接进入销毁流----
         ActorInfo->AbilitySystemComponent->CancelAllAbilities(this);
-        UE_LOG(LogTemp, Warning, TEXT("GA_Dead [%s]: 未找到死亡蒙太奇（LookupTag=%s），直接进入销毁流程"),
+        UE_LOG(LogTemp, Warning, TEXT("GA_Dead [%s]: 未找到死亡蒙太奇（LookupTag=%s），直接进入销毁流"),
             *GetNameSafe(Character), *LookupTag.ToString());
         StartDeathDelay();
     }
@@ -101,12 +101,12 @@ void UGA_Dead::OnDeathMontageCompleted()
     StartDeathDelay();
 }
 
-// 蒙太奇 BlendOut（视为完成）→ 冻结 Mesh 保持死亡姿势，再开始销毁流程
+// 蒙太BlendOut（视为完成）冻结 Mesh 保持死亡姿势，再开始销毁流
 void UGA_Dead::OnDeathMontageBlendOut()
 {
     UE_LOG(LogTemp, Warning, TEXT("[GA_Dead] OnDeathMontageBlendOut"));
 
-    // BlendOut 开始时角色仍处于死亡动画最后一帧，立即冻结 Mesh 防止状态机把 idle 混进来
+    // BlendOut 开始时角色仍处于死亡动画最后一帧，立即冻结 Mesh 防止状态机idle 混进
     if (CurrentActorInfo && CurrentActorInfo->AvatarActor.IsValid())
     {
         if (ACharacter* Char = Cast<ACharacter>(CurrentActorInfo->AvatarActor.Get()))
@@ -121,7 +121,7 @@ void UGA_Dead::OnDeathMontageBlendOut()
     StartDeathDelay();
 }
 
-// 蒙太奇被取消（异常路径）→ 跳过延迟，立即销毁
+// 蒙太奇被取消（异常路径）跳过延迟，立即销
 void UGA_Dead::OnDeathMontageCancelled()
 {
     UE_LOG(LogTemp, Warning, TEXT("[GA_Dead] OnDeathMontageCancelled"));
@@ -133,7 +133,7 @@ void UGA_Dead::StartDeathDelay()
     UE_LOG(LogTemp, Warning, TEXT("[GA_Dead] StartDeathDelay: DissolveTag=%s TimerAlreadySet=%d"),
         *CachedDissolveTag.ToString(), (int32)DeathDelayTimer.IsValid());
 
-    // OnBlendOut 和 OnCompleted 都会回调此函数，只启动一次
+    // OnBlendOut OnCompleted 都会回调此函数，只启动一
     UWorld* World = GetWorld();
     if (!World || DeathDelayTimer.IsValid()) return;
 
@@ -204,12 +204,12 @@ void UGA_Dead::OnDeathDelayExpired()
 
     AYogCharacterBase* Char = Cast<AYogCharacterBase>(CurrentActorInfo->AvatarActor.Get());
 
-    // 先结束 GA（移除 Buff.Status.Dead 等 tag），再销毁角色
-    // 顺序很重要：若在 GAS 回调链中途（如 OnInterrupted）同步调用 Destroy()，
-    // 会导致调用栈中的 ActivateAbility 访问已销毁对象崩溃
+    // 先结GA（移Buff.Dead tag），再销毁角
+    // 顺序很重要：若在 GAS 回调链中途（OnInterrupted）同步调Destroy()
+    // 会导致调用栈中的 ActivateAbility 访问已销毁对象崩
     EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
 
-    // 推迟一帧销毁，确保当前 GAS 调用栈完全退出后再销毁 Actor
+    // 推迟一帧销毁，确保当前 GAS 调用栈完全退出后再销Actor
     if (Char && IsValid(Char))
     {
         TWeakObjectPtr<AYogCharacterBase> WeakChar = Char;

@@ -71,22 +71,22 @@ class DEVKIT_API UBFNode_CombatCardContextBranch : public UBFNode_Base
 	UPROPERTY(EditAnywhere, Category = "Combat Card|Source")
 	TArray<ECombatCardType> RequiredSourceCardTypes;
 
-	UPROPERTY(EditAnywhere, Category = "Combat Card|Source", meta = (Categories = "Card.ID"))
+	UPROPERTY(EditAnywhere, Category = "Combat Card|Source", meta = (Categories = "Buff"))
 	FGameplayTagContainer RequiredSourceCardIdTags;
 
-	UPROPERTY(EditAnywhere, Category = "Combat Card|Source", meta = (Categories = "Card.Effect"))
+	UPROPERTY(EditAnywhere, Category = "Combat Card|Source", meta = (Categories = "Buff"))
 	FGameplayTagContainer RequiredSourceCardEffectTags;
 
-	UPROPERTY(EditAnywhere, Category = "Combat Card|Linked Source", meta = (Categories = "Card.ID"))
+	UPROPERTY(EditAnywhere, Category = "Combat Card|Linked Source", meta = (Categories = "Buff"))
 	FGameplayTagContainer RequiredLinkedSourceCardIdTags;
 
-	UPROPERTY(EditAnywhere, Category = "Combat Card|Linked Source", meta = (Categories = "Card.Effect"))
+	UPROPERTY(EditAnywhere, Category = "Combat Card|Linked Source", meta = (Categories = "Buff"))
 	FGameplayTagContainer RequiredLinkedSourceCardEffectTags;
 
-	UPROPERTY(EditAnywhere, Category = "Combat Card|Linked Target", meta = (Categories = "Card.ID"))
+	UPROPERTY(EditAnywhere, Category = "Combat Card|Linked Target", meta = (Categories = "Buff"))
 	FGameplayTagContainer RequiredLinkedTargetCardIdTags;
 
-	UPROPERTY(EditAnywhere, Category = "Combat Card|Linked Target", meta = (Categories = "Card.Effect"))
+	UPROPERTY(EditAnywhere, Category = "Combat Card|Linked Target", meta = (Categories = "Buff"))
 	FGameplayTagContainer RequiredLinkedTargetCardEffectTags;
 
 	UPROPERTY(EditAnywhere, Category = "Combat Card|Action", meta = (Categories = ""))

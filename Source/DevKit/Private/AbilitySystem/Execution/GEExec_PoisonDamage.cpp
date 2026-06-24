@@ -88,7 +88,7 @@ void UGEExec_PoisonDamage::Execute_Implementation(
 				HealthDamage));
 	}
 
-	static const FGameplayTag ArmoredTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Armored"), false);
+	static const FGameplayTag ArmoredTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Armored"), false);
 	const bool bTargetIsArmored = ArmoredTag.IsValid()
 		&& EvalParams.TargetTags
 		&& EvalParams.TargetTags->HasTag(ArmoredTag)

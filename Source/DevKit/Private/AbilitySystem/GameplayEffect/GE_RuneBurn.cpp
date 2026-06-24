@@ -15,7 +15,7 @@ UGE_RuneBurn::UGE_RuneBurn()
 	ExecDef.CalculationClass = UGEExec_BurnDamage::StaticClass();
 	Executions.Add(ExecDef);
 
-	if (const FGameplayTag BurningTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Burning"), false);
+	if (const FGameplayTag BurningTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Fire"), false);
 		BurningTag.IsValid())
 	{
 		FInheritedTagContainer GrantedTagChanges;

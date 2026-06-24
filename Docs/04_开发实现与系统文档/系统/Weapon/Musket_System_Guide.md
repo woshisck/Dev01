@@ -116,12 +116,14 @@ float GetBaseAttack() const;   // BaseAttributeSet.Attack
 
 ### 3.2 输入激活 Tag（Controller 发出，GA AbilityTags 里接收）
 
+正式输入/动作状态使用 `Character.State.*`。旧 `PlayerState.AbilityCast.*` 只作为旧资产和旧存档兼容 fallback，不作为新配置入口。
+
 | Tag | 触发方式 | 激活哪个 GA |
 |-----|---------|------------|
-| `PlayerState.AbilityCast.Attack` | LMB 按下（Triggered） | Musket Attack（旧类名 `GA_Musket_LightAttack`；无 DashInvincible）/ `SprintAttack`（有 DashInvincible） |
-| `PlayerState.AbilityCast.WeaponSkill` | RMB 按下（Triggered） | Musket WeaponSkill（旧类名 `GA_Musket_HeavyAttack`） |
-| `PlayerState.AbilityCast.Reload` | R 键按下（Triggered） | `Reload_Single` / `Reload_All`（无 DashInvincible）/ `SprintReload`（有 DashInvincible） |
-| `PlayerState.AbilityCast.Dash` | Dash 键（已有） | 冲刺 GA |
+| `Character.State.Skill.Attack` | LMB 按下（Triggered） | Musket Attack（旧类名 `GA_Musket_LightAttack`；无 DashInvincible）/ `SprintAttack`（有 DashInvincible） |
+| `Character.State.Skill.WeaponSkill` | RMB 按下（Triggered） | Musket WeaponSkill（旧类名 `GA_Musket_HeavyAttack`） |
+| `Character.State.Skill.Reload` | R 键按下（Triggered） | `Reload_Single` / `Reload_All`（无 DashInvincible）/ `SprintReload`（有 DashInvincible） |
+| `Character.State.Movement.Dash` | Dash 键（已有） | 冲刺 GA |
 
 ### 3.3 状态 Tag（GA 持有期间自动添加）
 
@@ -153,12 +155,12 @@ float GetBaseAttack() const;   // BaseAttributeSet.Attack
 
 | GA | AbilityTags（含两组） | ActivationBlockedTags | ActivationRequiredTags | CancelAbilitiesWithTag |
 |----|----------------------|----------------------|----------------------|----------------------|
-| Musket Attack（旧类名 `LightAttack`） | `Ability.Musket.Light`<br>`PlayerState.AbilityCast.Attack` | `State.Musket.Aiming`<br>`State.Musket.Reloading`<br>`Buff.Status.DashInvincible` | — | `Ability.Musket.Reload` |
-| Musket WeaponSkill（旧类名 `HeavyAttack`） | `Ability.Musket.Heavy`<br>`PlayerState.AbilityCast.WeaponSkill` | `State.Musket.Reloading` | — | `Ability.Musket.Reload` |
-| `Reload_Single` | `Ability.Musket.Reload`<br>`PlayerState.AbilityCast.Reload` | `State.Musket.Aiming` | — | — |
-| `Reload_All` | `Ability.Musket.Reload`<br>`PlayerState.AbilityCast.Reload` | `State.Musket.Aiming` | — | — |
-| `SprintAttack` | `Ability.Musket.SprintAtk`<br>`PlayerState.AbilityCast.Attack` | — | `Buff.Status.DashInvincible` | `PlayerState.AbilityCast.Dash` |
-| `SprintReload` | `Ability.Musket.SprintReload`<br>`PlayerState.AbilityCast.Reload` | — | `Buff.Status.DashInvincible` | — |
+| Musket Attack（旧类名 `LightAttack`） | `Ability.Musket.Light`<br>`Character.State.Skill.Attack` | `State.Musket.Aiming`<br>`State.Musket.Reloading`<br>`Buff.Status.DashInvincible` | — | `Ability.Musket.Reload` |
+| Musket WeaponSkill（旧类名 `HeavyAttack`） | `Ability.Musket.Heavy`<br>`Character.State.Skill.WeaponSkill` | `State.Musket.Reloading` | — | `Ability.Musket.Reload` |
+| `Reload_Single` | `Ability.Musket.Reload`<br>`Character.State.Skill.Reload` | `State.Musket.Aiming` | — | — |
+| `Reload_All` | `Ability.Musket.Reload`<br>`Character.State.Skill.Reload` | `State.Musket.Aiming` | — | — |
+| `SprintAttack` | `Ability.Musket.SprintAtk`<br>`Character.State.Skill.Attack` | — | `Buff.Status.DashInvincible` | `Character.State.Movement.Dash` |
+| `SprintReload` | `Ability.Musket.SprintReload`<br>`Character.State.Skill.Reload` | — | `Buff.Status.DashInvincible` | — |
 
 ### 4.2 Attack 按键分支逻辑（`TryActivateAbilitiesByTag` 自动筛选）
 
@@ -178,7 +180,7 @@ Reload 按键按下
 │   └── 弹药已满 → ActivateAbility 内部检测，立即 EndAbility
 ```
 
-> **注**：`Reload_Single` 和 `Reload_All` 共用同一 `AbilityTag`（`PlayerState.AbilityCast.Reload`）。只 Grant 其中一个即可；如果两个都 Grant，`TryActivateAbilitiesByTag` 会同时尝试激活两个（可能冲突），建议只 Grant 一个。
+> **注**：`Reload_Single` 和 `Reload_All` 共用同一正式动作 Tag（`Character.State.Skill.Reload`）。只 Grant 其中一个即可；如果两个都 Grant，`TryActivateAbilitiesByTag` 会同时尝试激活两个（可能冲突），建议只 Grant 一个。
 
 ---
 
@@ -421,7 +423,7 @@ static float MusketAimArc_GetMask(float2 UV, float HalfAngleDeg, float Softness)
 | `GA_Musket_SprintAttack` | 可选，测试冲刺攻击 |
 | `GA_Musket_SprintReload` | 可选，测试冲刺换弹 |
 
-> **不要同时授予 Reload_Single 和 Reload_All**：两者共用 `PlayerState.AbilityCast.Reload` Tag，都被授予时同时激活会引发弹药逻辑冲突。
+> **不要同时授予 Reload_Single 和 Reload_All**：两者共用 `Character.State.Skill.Reload` Tag，都被授予时同时激活会引发弹药逻辑冲突。
 
 ---
 
@@ -553,11 +555,11 @@ WBP_AmmoCounter 的可调参数（Class Defaults）：
 
 | 输入 | 资产 | 键位 | Controller 函数 | 激活 Tag |
 |------|------|------|----------------|---------|
-| 攻击（按下） | `IA_Attack` | LMB | `Attack()` | `PlayerState.AbilityCast.Attack` |
-| 战技（按下） | `IA_WeaponSkill` | RMB | `WeaponSkill()` | `PlayerState.AbilityCast.WeaponSkill` |
+| 攻击（按下） | `IA_Attack` | LMB | `Attack()` | `Character.State.Skill.Attack` |
+| 战技（按下） | `IA_WeaponSkill` | RMB | `WeaponSkill()` | `Character.State.Skill.WeaponSkill` |
 | 战技（松手） | `IA_WeaponSkill` | RMB Completed | `WeaponSkillReleased()` | 发送 `GameplayEvent.WeaponSkill.Release` |
-| 换弹 | `IA_Reload` | R | `MusketReload()` | `PlayerState.AbilityCast.Reload` |
-| 冲刺 | `IA_Dash` | Space | `Dash()` | `PlayerState.AbilityCast.Dash` |
+| 换弹 | `IA_Reload` | R | `MusketReload()` | `Character.State.Skill.Reload` |
+| 冲刺 | `IA_Dash` | Space | `Dash()` | `Character.State.Movement.Dash` |
 
 ---
 
@@ -572,5 +574,5 @@ WBP_AmmoCounter 的可调参数（Class Defaults）：
 - **弹药用 GAS Attribute 不用变量**：弹药值必须存在 `UMusketAttributeSet::CurrentAmmo`，不要在 GA C++ 里用成员变量存弹药，否则跨 GA 同步会出问题
 - **瞄准弧材质参数名区分大小写**：`M_AimArc` 的 MPC 参数名（`ArcProgress`/`ArcColor` 等）与 C++ 里 `SetVectorParameterValue` 的字符串必须完全一致，大小写错误不报错但不生效
 - **子弹 Actor 生命周期**：`BP_MusketBullet` Hit 后必须调 `Destroy()`，不要依赖 LifeSpan 做清理（LifeSpan 在网络下行为不一致）
-- **SprintReload 能力激活条件**：`GA_Musket_SprintReload` 的 ActivationRequiredTags 必须包含 `Character.State.Sprinting`，否则普通站立状态也会触发错误动画
+- **SprintReload 能力激活条件**：`GA_Musket_SprintReload` 的 ActivationRequiredTags 必须包含 `Buff.Status.DashInvincible`，否则普通站立状态也会触发错误动画
 - **AmmoCounter 监听方式**：`AmmoCounter` Widget 通过 `GetAbilitySystemComponent()->GetGameplayAttributeValueChangeDelegate` 监听，不要用 Tick 轮询 Attribute 值

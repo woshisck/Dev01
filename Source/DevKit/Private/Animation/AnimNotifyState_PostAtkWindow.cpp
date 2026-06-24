@@ -8,8 +8,29 @@
 
 UAnimNotifyState_PostAtkWindow::UAnimNotifyState_PostAtkWindow()
 {
-    TagToClearOnActionInput = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"));
-    RecoveryWindowTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.PostAttackRecovery"), false);
+    TagToClearOnActionInput = FGameplayTag::RequestGameplayTag(TEXT("Character.State.Window.CanCombo"), false);
+    RecoveryWindowTag = FGameplayTag::RequestGameplayTag(TEXT("Character.State.Window.PostAttackRecovery"), false);
+}
+
+namespace
+{
+    FGameplayTag GetLegacyCanComboTag()
+    {
+        return FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"), false);
+    }
+
+    FGameplayTag GetLegacyPostAttackRecoveryTag()
+    {
+        return FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.PostAttackRecovery"), false);
+    }
+
+    void SetLooseTagCountIfValid(UAbilitySystemComponent* ASC, const FGameplayTag& Tag, int32 Count)
+    {
+        if (ASC && Tag.IsValid())
+        {
+            ASC->SetLooseGameplayTagCount(Tag, Count);
+        }
+    }
 }
 
 void UAnimNotifyState_PostAtkWindow::NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation,
@@ -23,28 +44,24 @@ void UAnimNotifyState_PostAtkWindow::NotifyBegin(USkeletalMeshComponent* MeshCom
     }
     bStopRequested = false;
 
-    if (RecoveryWindowTag.IsValid())
+    UAbilitySystemComponent* ASC =
+        UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(MeshComp ? MeshComp->GetOwner() : nullptr);
+    if (ASC)
     {
-        UAbilitySystemComponent* ASC =
-            UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(MeshComp ? MeshComp->GetOwner() : nullptr);
-        if (ASC)
-        {
-            ASC->SetLooseGameplayTagCount(RecoveryWindowTag, 1);
-        }
+        SetLooseTagCountIfValid(ASC, RecoveryWindowTag, 1);
+        SetLooseTagCountIfValid(ASC, GetLegacyPostAttackRecoveryTag(), 1);
     }
 }
 
 void UAnimNotifyState_PostAtkWindow::NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation,
     const FAnimNotifyEventReference& EventReference)
 {
-    if (RecoveryWindowTag.IsValid())
+    UAbilitySystemComponent* ASC =
+        UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(MeshComp ? MeshComp->GetOwner() : nullptr);
+    if (ASC)
     {
-        UAbilitySystemComponent* ASC =
-            UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(MeshComp ? MeshComp->GetOwner() : nullptr);
-        if (ASC)
-        {
-            ASC->SetLooseGameplayTagCount(RecoveryWindowTag, 0);
-        }
+        SetLooseTagCountIfValid(ASC, RecoveryWindowTag, 0);
+        SetLooseTagCountIfValid(ASC, GetLegacyPostAttackRecoveryTag(), 0);
     }
 
     Super::NotifyEnd(MeshComp, Animation, EventReference);
@@ -75,14 +92,12 @@ void UAnimNotifyState_PostAtkWindow::NotifyTick(USkeletalMeshComponent* MeshComp
 
     if (bHasAtkInput)
     {
-        if (TagToClearOnActionInput.IsValid())
+        UAbilitySystemComponent* ASC =
+            UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Owner);
+        if (ASC)
         {
-            UAbilitySystemComponent* ASC =
-                UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Owner);
-            if (ASC && ASC->GetTagCount(TagToClearOnActionInput) > 0)
-            {
-                ASC->SetLooseGameplayTagCount(TagToClearOnActionInput, 0);
-            }
+            SetLooseTagCountIfValid(ASC, TagToClearOnActionInput, 0);
+            SetLooseTagCountIfValid(ASC, GetLegacyCanComboTag(), 0);
         }
         return;
     }

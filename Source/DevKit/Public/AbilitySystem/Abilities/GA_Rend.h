@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "AbilitySystem/Abilities/YogGameplayAbility.h"
@@ -9,7 +9,7 @@
  * 撕裂 GA（施加在目标身上）
  *
  * 移动距离掉血：每移动 100 单位触发一次额外伤害（DamageBuff，绕过护甲）。
- * 原地静止 2 秒后自动消失（Buff.Status.Rended Tag 也会随 GE_Rend_Marker 一起消失）。
+ * 原地静止 2 秒后自动消失（Buff.Rend Tag 也会随 GE_Rend_Marker 一起消失）。
  *
  * Blueprint 子类需配置：
  *   RendDamageEffect = GE_RendDamage（Instant, DamageBuff SetByCaller）

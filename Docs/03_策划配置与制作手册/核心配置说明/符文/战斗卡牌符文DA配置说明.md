@@ -20,8 +20,8 @@
 | --- | --- | --- |
 | `bIsCombatCard` | 勾选 | 勾选后才会进入战斗卡组 |
 | `CardType` | `Normal` / `Link` / `Finisher` | 新资产不要再用旧 `Attack`；旧 `Attack` 会兼容为普通卡 |
-| `CardIdTag` | 例如 `Card.ID.Moonlight` | 卡牌唯一 ID，用于连携配方查找 |
-| `CardEffectTags` | 例如 `Card.Effect.Attack` | 表示卡牌效果类型，攻击卡通过这里标记 |
+| `CardIdTag` | 例如 `Rune.ID.Moonlight` | 卡牌唯一 ID，用于连携配方查找 |
+| `CardEffectTags` | 例如 `Rune.Effect.Attack` | 表示卡牌效果类型，攻击卡通过这里标记 |
 | `RequiredAction` | 普通卡填 `Any` | 高级字段；普通卡不依赖 Light / Heavy |
 | `TriggerTiming` | 当前建议 `OnHit` | 高级字段；卡牌会在 `AN_MeleeDamage` 命中帧结算 |
 | `RequiredActionSlot` | Attack / Skill / WeaponSkill / Dash | 推荐主条件；Attack 走顺序卡组，其他动作走单槽 |
@@ -43,8 +43,8 @@
 | 字段 | 值 |
 | --- | --- |
 | `CardType` | `Normal` |
-| `CardIdTag` | `Card.ID.AttackUp` |
-| `CardEffectTags` | `Card.Effect.Attack`, `Card.Effect.Buff.AttackUp` |
+| `CardIdTag` | `Rune.ID.AttackUp` |
+| `CardEffectTags` | `Rune.Effect.Attack`, `Rune.Effect.Buff.AttackUp` |
 | `BaseFlow` | `FA_Rune_AttackUp_01` |
 | `LinkRecipes` | 空 |
 
@@ -53,8 +53,8 @@
 | 字段 | 值 |
 | --- | --- |
 | `CardType` | `Link` |
-| `CardIdTag` | `Card.ID.Moonlight` |
-| `CardEffectTags` | `Card.Effect.Moonlight` |
+| `CardIdTag` | `Rune.ID.Moonlight` |
+| `CardEffectTags` | `Rune.Effect.Moonlight` |
 | `BaseFlow` | `FA_Moonlight_Base` |
 | `LinkRecipes` | 配正向、反向两条配方 |
 

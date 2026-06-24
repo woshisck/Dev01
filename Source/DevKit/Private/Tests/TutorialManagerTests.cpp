@@ -106,6 +106,8 @@ bool FTutorialManagerCoreFallbackPagesExistTest::RunTest(const FString& Paramete
 {
 	TestTrue(TEXT("Heavy card fallback has tutorial pages"),
 		UTutorialManager::GetFallbackTutorialPageCountForTest(FName(TEXT("tutorial_heavy_card"))) > 0);
+	TestTrue(TEXT("WeaponSkill finisher fallback has tutorial pages"),
+		UTutorialManager::GetFallbackTutorialPageCountForTest(FName(TEXT("tutorial_weapon_skill_finisher_card"))) > 0);
 	TestTrue(TEXT("Moonlight link fallback has tutorial pages"),
 		UTutorialManager::GetFallbackTutorialPageCountForTest(FName(TEXT("tutorial_card_link_moonlight"))) > 0);
 	TestTrue(TEXT("Backpack fallback has tutorial pages"),
@@ -147,11 +149,11 @@ bool FTutorialManagerMoonlightLinkContentConfiguredTest::RunTest(const FString& 
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTutorialManagerHeavyCardContentConfiguredTest,
-	"DevKit.TutorialManager.HeavyCardContentConfigured",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTutorialManagerWeaponSkillFinisherCardContentConfiguredTest,
+	"DevKit.TutorialManager.WeaponSkillFinisherCardContentConfigured",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FTutorialManagerHeavyCardContentConfiguredTest::RunTest(const FString& Parameters)
+bool FTutorialManagerWeaponSkillFinisherCardContentConfiguredTest::RunTest(const FString& Parameters)
 {
 	const UTutorialRegistryDA* Registry = LoadObject<UTutorialRegistryDA>(
 		nullptr,
@@ -161,13 +163,17 @@ bool FTutorialManagerHeavyCardContentConfiguredTest::RunTest(const FString& Para
 		return false;
 	}
 
-	const TArray<FTutorialPage>* Pages = Registry->FindPages(FName(TEXT("tutorial_heavy_card")));
-	if (!TestNotNull(TEXT("Heavy card tutorial is registered"), Pages))
+	const TArray<FTutorialPage>* Pages = Registry->FindPages(FName(TEXT("tutorial_weapon_skill_finisher_card")));
+	if (!Pages)
+	{
+		Pages = Registry->FindPages(FName(TEXT("tutorial_heavy_card")));
+	}
+	if (!TestNotNull(TEXT("WeaponSkill finisher card tutorial is registered"), Pages))
 	{
 		return false;
 	}
 
-	TestTrue(TEXT("Heavy card tutorial explains deck entry and card use"), Pages->Num() >= 2);
+	TestTrue(TEXT("WeaponSkill finisher card tutorial explains deck entry and card use"), Pages->Num() >= 2);
 	if (Pages->Num() < 2)
 	{
 		return false;
@@ -175,9 +181,9 @@ bool FTutorialManagerHeavyCardContentConfiguredTest::RunTest(const FString& Para
 
 	const FString FirstBody = (*Pages)[0].Body.ToString();
 	const FString FirstSubText = (*Pages)[0].SubText.ToString();
-	TestTrue(TEXT("First heavy card page says the card enters the deck"),
+	TestTrue(TEXT("First WeaponSkill finisher card page says the card enters the deck"),
 		FirstBody.Contains(TEXT("进入后台背包")) && FirstBody.Contains(TEXT("战斗卡组")));
-	TestTrue(TEXT("First heavy card page explains drag reorder"),
+	TestTrue(TEXT("First WeaponSkill finisher card page explains drag reorder"),
 		FirstBody.Contains(TEXT("拖动")) || FirstSubText.Contains(TEXT("拖动")));
 	return true;
 }
@@ -202,7 +208,7 @@ bool FTutorialManagerCoreTutorialIllustrationsConfiguredTest::RunTest(const FStr
 		FName(TEXT("tutorial_backpack")),
 		FName(TEXT("tutorial_card_link")),
 		FName(TEXT("tutorial_card_link_moonlight")),
-		FName(TEXT("tutorial_heavy_card")),
+		FName(TEXT("tutorial_weapon_skill_finisher_card")),
 		FName(TEXT("tutorial_finisher")),
 		FName(TEXT("tutorial_shuffle_hint")),
 	};
@@ -211,6 +217,10 @@ bool FTutorialManagerCoreTutorialIllustrationsConfiguredTest::RunTest(const FStr
 	for (const FName EventID : RequiredEventIDs)
 	{
 		const TArray<FTutorialPage>* Pages = Registry->FindPages(EventID);
+		if (!Pages && EventID == FName(TEXT("tutorial_weapon_skill_finisher_card")))
+		{
+			Pages = Registry->FindPages(FName(TEXT("tutorial_heavy_card")));
+		}
 		bAllConfigured &= TestNotNull(
 			FString::Printf(TEXT("%s tutorial is registered"), *EventID.ToString()),
 			Pages);

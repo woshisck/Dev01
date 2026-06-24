@@ -16,17 +16,17 @@ namespace
 
 	FGameplayTag TagOilBlade()
 	{
-		return FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.OilBlade"), false);
+		return FGameplayTag::RequestGameplayTag(TEXT("Buff.OilBlade"), false);
 	}
 
 	FGameplayTag TagStickyOil()
 	{
-		return FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.StickyOil"), false);
+		return FGameplayTag::RequestGameplayTag(TEXT("Buff.StickyOil"), false);
 	}
 
 	FGameplayTag TagInSmoke()
 	{
-		return FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.InSmoke"), false);
+		return FGameplayTag::RequestGameplayTag(TEXT("Buff.InSmoke"), false);
 	}
 
 	FGameplayTag TagNoHitReactItemDamage()
@@ -46,17 +46,12 @@ namespace
 
 	FGameplayTag TagBurning()
 	{
-		return FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Burning"), false);
+		return FGameplayTag::RequestGameplayTag(TEXT("Buff.Fire"), false);
 	}
 
 	FGameplayTag TagBurnDamage()
 	{
 		return FGameplayTag::RequestGameplayTag(TEXT("Data.Damage.Burn"), false);
-	}
-
-	FGameplayTag TagBurnCardEffect()
-	{
-		return FGameplayTag::RequestGameplayTag(TEXT("Card.Effect.Burn"), false);
 	}
 
 	bool SpecHasTag(const FGameplayEffectSpec& Spec, const FGameplayTag& Tag)
@@ -84,7 +79,8 @@ namespace
 
 	bool IsFireDamageSpec(const FGameplayEffectSpec& Spec)
 	{
-		if (SpecHasTag(Spec, TagFireDamage()) || SpecHasTag(Spec, TagBurning()) || SpecHasTag(Spec, TagBurnCardEffect()))
+		if (SpecHasTag(Spec, TagFireDamage())
+			|| SpecHasTag(Spec, TagBurning()))
 		{
 			return true;
 		}

@@ -54,13 +54,13 @@ BuffFlow | Visual -> Play Niagara
 | `Launch Niagara System` | `None` |
 | `Hit Niagara System` | `None` |
 | `Expire Niagara System` | `None` |
-| `Hit Gameplay Event Tag` | 根据连携填写，例如 `Action.Rune.MoonlightBurnHit` 或 `Action.Rune.MoonlightPoisonHit` |
+| `Hit Gameplay Event Tag` | 根据连携填写，例如 `Buff.Event.Moonlight.BurnHit` 或 `Buff.Event.Moonlight.PoisonHit` |
 
 月光 + 燃烧：
 
 ```text
 Spawn Slash Wave Projectile
-  -> Wait Gameplay Event(Action.Rune.MoonlightBurnHit)
+  -> Wait Gameplay Event(Buff.Event.Moonlight.BurnHit)
   -> Play Niagara(NS_Fire_Floor, Target=LastDamageTarget)
   -> Apply Gameplay Effect Class(UGE_RuneBurn)
 ```
@@ -69,7 +69,7 @@ Spawn Slash Wave Projectile
 
 ```text
 Spawn Slash Wave Projectile
-  -> Wait Gameplay Event(Action.Rune.MoonlightPoisonHit)
+  -> Wait Gameplay Event(Buff.Event.Moonlight.PoisonHit)
   -> Play Niagara(NS_Smoke_7_acid, Target=LastDamageTarget)
   -> Apply Gameplay Effect Class(GE_Poison, Target=LastDamageTarget, ApplicationCount=3)
   -> Play Niagara(NS_Smoke_7_acid, Target=LastDamageTarget, bAttachToTarget=false)
@@ -81,5 +81,5 @@ Spawn Slash Wave Projectile
 1. 月刃命中后，日志出现 `[PlayNiagara] Spawned`。
 2. `Spawn Slash Wave Projectile` 内的 Niagara 字段保持 `None`。
 3. 燃烧和中毒表现来自独立 `Play Niagara` 节点。
-4. 燃烧 GE 不随 FA 停止立刻清理，敌人应持续获得 `Buff.Status.Burning` 并周期掉血。
+4. 燃烧 GE 不随 FA 停止立刻清理，敌人应持续获得 `Buff.Fire` 并周期掉血。
 5. 如果特效过大，优先调 `Play Niagara.Scale`，不要改投射物碰撞体。

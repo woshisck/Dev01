@@ -70,10 +70,10 @@
 - **设计需求**：重攻击要能"按住蓄力松键发射"；R 键装填；项目用 `TryActivateAbilitiesByTag` 不走 InputID，旧 `WaitInputRelease` 不触发要换实现。
 - **状态**：✅ C++完成；⚙ 编辑器创建 IA_Reload + 赋给 BP_PlayerController + IMC_Default 加 IA_Reload
 - **核心文件**：
-  - `Public/Character/YogPlayerControllerBase.h` + `Private/Character/YogPlayerControllerBase.cpp`（`Input_HeavyAttack` 加 `ETriggerEvent::Completed` → `HeavyAttackReleased()` → `HandleGameplayEvent(GameplayEvent.Musket.HeavyRelease)`；`Input_Reload` 新增）
+  - `Public/Character/YogPlayerControllerBase.h` + `Private/Character/YogPlayerControllerBase.cpp`（`Input_WeaponSkill` 加 `ETriggerEvent::Completed` → `WeaponSkillReleased()` → 发送 `GameplayEvent.WeaponSkill.Release`；`Input_Reload` 新增）
   - `Public/AbilitySystem/Abilities/Musket/GA_Musket_HeavyAttack.h` + `.cpp`（改用 `UAbilityTask_WaitGameplayEvent` 等待 HeavyRelease）
-  - 6 个 Musket GA 在 `AbilityTags` 补 `PlayerState.AbilityCast.*`；LightAttack 加 `ActivationBlockedTags: Buff.Status.DashInvincible`
-  - 新 Tags：`GameplayEvent.Musket.HeavyRelease` / `PlayerState.AbilityCast.LightAtk/HeavyAtk/Dash/Reload`
+  - 6 个 Musket GA 在 `AbilityTags` 持有正式 `Character.State.Skill.Attack` / `Character.State.Skill.WeaponSkill` / `Character.State.Skill.Reload`；旧 `PlayerState.AbilityCast.*` 只作为兼容 fallback
+  - 新 Tags：`GameplayEvent.WeaponSkill.Release` / `Character.State.Skill.Attack` / `Character.State.Skill.WeaponSkill` / `Character.State.Skill.Reload` / `Character.State.Movement.Dash`
 - **验收方式**：
   1. 按住鼠标右键蓄力 → 松键应发射重击子弹
   2. 按 R 键应触发装填动画

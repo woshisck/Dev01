@@ -24,7 +24,7 @@
 
 ## 3. 燃烧配置规则
 
-燃烧状态使用 `UGE_RuneBurn`，但是表现不再由 `Buff.Status.Burning` 自动触发。
+燃烧状态使用 `UGE_RuneBurn`，但是表现不再由 `Buff.Fire` 自动触发。
 
 | 效果 | Profile | 主要调参 |
 | --- | --- | --- |

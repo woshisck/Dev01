@@ -1,4 +1,4 @@
-#include "DevKitEditor/Rune/RuneCardBatchGeneratorCommandlet.h"
+﻿#include "DevKitEditor/Rune/RuneCardBatchGeneratorCommandlet.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
@@ -77,9 +77,9 @@ namespace Rune512Batch
 	const FString BurnNiagaraPath = TEXT("/Game/Art/EnvironmentAsset/VFX/Niagara/Fire/NS_Fire_Floor");
 	const FString PoisonHitNiagaraPath = TEXT("/Game/Art/EnvironmentAsset/VFX/Niagara/Smoke/NS_Smoke_7_acid");
 	const FString PoisonSpreadNiagaraPath = TEXT("/Game/Art/EnvironmentAsset/VFX/Niagara/Smoke/NS_Smoke_7_acid");
-	const FString MoonlightBurnHitEventTag = TEXT("Action.Rune.MoonlightBurnHit");
-	const FString MoonlightPoisonHitEventTag = TEXT("Action.Rune.MoonlightPoisonHit");
-	const FString MoonlightPoisonExpireEventTag = TEXT("Action.Rune.MoonlightPoisonExpired");
+	const FString MoonlightBurnHitEventTag = TEXT("Buff.Event.Moonlight.BurnHit");
+	const FString MoonlightPoisonHitEventTag = TEXT("Buff.Event.Moonlight.PoisonHit");
+	const FString MoonlightPoisonExpireEventTag = TEXT("Buff.Event.Moonlight.PoisonExpired");
 	const FString PoisonEffectPath = TEXT("/Game/Code/GAS/Abilities/Shared/GE_Poison");
 	const FString PoisonSplashEffectPath = TEXT("/Game/Docs/BuffDocs/Playtest_GA/DeathPoison/GE_PoisonSplash");
 	const FString DeathPoisonFlowPath = TEXT("/Game/Docs/BuffDocs/Playtest_GA/DeathPoison/FA_Rune_DeathPoison");
@@ -96,7 +96,9 @@ namespace Rune512Batch
 	const FString ProductionHarquebusWeapon = TEXT("/Game/Code/Weapon/Harquebus/DA_WPN_Harquebus");
 	const FString MusketBulletBlueprintPath = TEXT("/Game/Code/Weapon/BP_MusketBullet");
 	const FString DamageBasicSetByCallerPath = TEXT("/Game/Code/GAS/GameplayEffects/GE_Damage_Basic_SetByCaller");
-	const FString HeavyBonusDamageEffectPath = TEXT("/Game/Code/GAS/Abilities/Finisher/GE_FinisherDamage");
+	const FString WeaponSkillFinisherBonusDamageEffectPath = DamageBasicSetByCallerPath;
+	const FString WeaponSkillFinisherBaseFlowName = TEXT("FA_Rune512_WeaponSkillFinisher_Base");
+	const FString LegacyWeaponSkillFinisherBaseFlowName = TEXT("FA_Rune512_Heavy_Base");
 
 	struct FIconImportSpec
 	{
@@ -234,7 +236,7 @@ namespace Rune512Batch
 		TArray<FString>& ReportLines,
 		TArray<UPackage*>& DirtyPackages)
 	{
-		const FGameplayTag PoisonedTag = RequestTag(TEXT("Buff.Status.Poisoned"), ReportLines);
+		const FGameplayTag PoisonedTag = RequestTag(TEXT("Buff.Poison"), ReportLines);
 		if (bDryRun)
 		{
 			ReportLines.Add(FString::Printf(
@@ -292,7 +294,7 @@ namespace Rune512Batch
 		}
 
 		ReportLines.Add(FString::Printf(
-			TEXT("- Configured `%s`: removed old modifiers, added GEExec_PoisonDamage, duration=%.1fs period=%.1fs executeOnApply=%s stackLimit=%d grantedTag=Buff.Status.Poisoned."),
+			TEXT("- Configured `%s`: removed old modifiers, added GEExec_PoisonDamage, duration=%.1fs period=%.1fs executeOnApply=%s stackLimit=%d grantedTag=Buff.Poison."),
 			*PackagePath,
 			Duration,
 			Period,
@@ -800,16 +802,16 @@ namespace Rune512Batch
 	{
 		const FString DirectionPrefix = Direction == ECombatCardLinkOrientation::Forward ? TEXT("Forward") : TEXT("Reversed");
 		TArray<TPair<FString, FString>> Effects = {
-			{ TEXT("Card.Effect.Burn"), TEXT("Burn") },
-			{ TEXT("Card.Effect.Poison"), TEXT("Poison") },
-			{ TEXT("Card.Effect.Shield"), TEXT("Shield") },
-			{ TEXT("Card.Effect.Pierce"), TEXT("Pierce") },
-			{ TEXT("Card.Effect.Attack"), TEXT("Attack") },
-			{ TEXT("Card.Effect.Defense.ReduceDamage"), TEXT("ReduceDamage") },
+			{ TEXT("Buff.Fire"), TEXT("Burn") },
+			{ TEXT("Buff.Poison"), TEXT("Poison") },
+			{ TEXT("Buff.Shield"), TEXT("Shield") },
+			{ TEXT("Buff.Pierce"), TEXT("Pierce") },
+			{ TEXT("Buff.Attack"), TEXT("Attack") },
+			{ TEXT("Buff.ReduceDamage"), TEXT("ReduceDamage") },
 		};
 		if (Direction == ECombatCardLinkOrientation::Reversed)
 		{
-			Effects.Emplace(TEXT("Card.Effect.SplashSplit"), TEXT("Split"));
+			Effects.Emplace(TEXT("Buff.SplashSplit"), TEXT("Split"));
 		}
 
 		TArray<FLinkRecipeSpec> Recipes;
@@ -870,149 +872,154 @@ namespace Rune512Batch
 		Specs.Add(MakeNormalCard(
 			TEXT("Burn"),
 			TEXT("燃烧"),
-			TEXT("对攻击的敌人造成燃烧。燃烧每秒对自身与附近敌人造成持续掉血，不可叠加；护甲会使燃烧持续时间减半。"),
-			TEXT("Card.ID.Burn"),
-			{ TEXT("Card.Effect.Burn") },
+			TEXT("对攻击的敌人造成燃烧。燃烧每秒对自身与附近敌人造成持续掉血，不可叠加；护甲会使燃烧持续时间减半"),
+			TEXT("Buff.Fire"),
+			{ TEXT("Buff.Fire") },
 			TEXT("T_Rune512_Burn"),
 			TEXT("/Game/Docs/BuffDocs/Playtest_GA/RuneBaseEffect/FA_Effect_Burn"),
 			TEXT("FA_Rune512_Burn_Base"),
 			ERuneType::Debuff,
-			{ TEXT("确认燃烧 GE 的持续时间、周围伤害半径和护甲减半逻辑。") }));
+			{ TEXT("确认燃烧 GE 的持续时间、周围伤害半径和护甲减半逻辑") }));
 
 		Specs.Add(MakeNormalCard(
 			TEXT("Poison"),
 			TEXT("中毒"),
-			TEXT("对攻击的敌人造成中毒。3 秒后按层数毒性爆发；移动留下毒液路径，踩中路径的敌人获得固定一层中毒。"),
-			TEXT("Card.ID.Poison"),
-			{ TEXT("Card.Effect.Poison") },
+			TEXT("对攻击的敌人造成中毒 秒后按层数毒性爆发；移动留下毒液路径，踩中路径的敌人获得固定一层中毒"),
+			TEXT("Buff.Poison"),
+			{ TEXT("Buff.Poison") },
 			TEXT("T_Rune512_Poison"),
 			TEXT("/Game/Docs/BuffDocs/Playtest_GA/RuneBaseEffect/FA_Effect_Poison"),
 			TEXT("FA_Rune512_Poison_Base"),
 			ERuneType::Debuff,
-			{ TEXT("补毒液路径碰撞体与 3 秒爆发 Execution；命中表现使用小尺寸 Play Niagara 节点。") }));
+			{ TEXT("补毒液路径碰撞体3 秒爆Execution；命中表现使用小尺寸 Play Niagara 节点") }));
 
 		Specs.Add(MakeNormalCard(
 			TEXT("Bleed"),
 			TEXT("流血"),
-			TEXT("命中敌人后赋予流血。流血每秒造成固定伤害；目标有护甲时不应触发。"),
-			TEXT("Card.ID.Bleed"),
-			{ TEXT("Card.Effect.Bleed") },
+			TEXT("命中敌人后赋予流血。流血每秒造成固定伤害；目标有护甲时不应触发"),
+			TEXT("Buff.Bleed"),
+			{ TEXT("Buff.Bleed") },
 			TEXT("T_Rune512_Burn"),
 			TEXT("/Game/Docs/BuffDocs/Playtest_GA/RuneBaseEffect/FA_Effect_Bleed"),
 			TEXT("FA_Rune512_Bleed_Base"),
 			ERuneType::Debuff,
-			{ TEXT("护甲目标不触发流血：如 FA_Effect_Bleed 内未做判断，需要在触发前增加 HasTag(Buff.Status.Armored) 阻断。") }));
+			{ TEXT("护甲目标不触发流血：如 FA_Effect_Bleed 内未做判断，需要在触发前增HasTag(Buff.Armored) 阻断") }));
 
 		Specs.Add(MakeNormalCard(
 			TEXT("Rend"),
 			TEXT("撕裂"),
-			TEXT("命中敌人后赋予撕裂。目标移动时按移动距离持续掉血，原地 2 秒后自动消失。"),
-			TEXT("Card.ID.Rend"),
-			{ TEXT("Card.Effect.Rend") },
+			TEXT("命中敌人后赋予撕裂。目标移动时按移动距离持续掉血，原2 秒后自动消失"),
+			TEXT("Buff.Rend"),
+			{ TEXT("Buff.Rend") },
 			TEXT("T_Rune512_Pierce"),
 			TEXT("/Game/Docs/BuffDocs/Playtest_GA/RuneBaseEffect/FA_Effect_Rend"),
 			TEXT("FA_Rune512_Rend_Base"),
 			ERuneType::Debuff,
-			{ TEXT("护甲目标触发概率下降 25%：基础 GA_Rend 已处理移动掉血和静止消失，概率门槛应在 FA 触发前配置。") }));
+			{ TEXT("护甲目标触发概率下降 25%：基础 GA_Rend 已处理移动掉血和静止消失，概率门槛应在 FA 触发前配置") }));
 
 		Specs.Add(MakeNormalCard(
 			TEXT("Wound"),
 			TEXT("伤口"),
-			TEXT("命中敌人后赋予伤口。目标再次受到攻击时额外扣血。"),
-			TEXT("Card.ID.Wound"),
-			{ TEXT("Card.Effect.Wound") },
+			TEXT("命中敌人后赋予伤口。目标再次受到攻击时额外扣血"),
+			TEXT("Buff.Wound"),
+			{ TEXT("Buff.Wound") },
 			TEXT("T_Rune512_Attack"),
 			TEXT("/Game/Docs/BuffDocs/Playtest_GA/RuneBaseEffect/FA_Effect_Wound"),
 			TEXT("FA_Rune512_Wound_Base"),
 			ERuneType::Debuff,
-			{ TEXT("护甲目标触发概率下降 25%；伤口额外伤害由 GA_Wound 监听 Ability.Event.Damaged。") }));
+			{ TEXT("护甲目标触发概率下降 25%；伤口额外伤害由 GA_Wound 监听 Ability.Event.Damaged") }));
 
 		Specs.Add(MakeNormalCard(
 			TEXT("Knockback"),
 			TEXT("击退"),
-			TEXT("命中敌人后赋予击退状态。目标受到攻击时会被击退；有护甲时额外造成护甲伤害。"),
-			TEXT("Card.ID.Knockback"),
-			{ TEXT("Card.Effect.Knockback") },
+			TEXT("命中敌人后赋予击退状态。目标受到攻击时会被击退；有护甲时额外造成护甲伤害"),
+			TEXT("Buff.Knockback"),
+			{ TEXT("Buff.Knockback") },
 			TEXT("T_Rune512_Split"),
 			TEXT("/Game/Docs/BuffDocs/Playtest_GA/RuneBaseEffect/FA_Effect_Knockback"),
 			TEXT("FA_Rune512_Knockback_Base"),
 			ERuneType::Debuff,
-			{ TEXT("已有 GA_KnockbackDebuff 处理 15% 额外护甲伤害；护甲时击退距离减少需要在 GA_Knockback 或专用节点中参数化。") }));
+			{ TEXT("已有 GA_KnockbackDebuff 处理 15% 额外护甲伤害；护甲时击退距离减少需要在 GA_Knockback 或专用节点中参数化") }));
 
-		FCardSpec Heavy = MakeNormalCard(
-			TEXT("Heavy"),
-			TEXT("终结击"),
-			TEXT("稀有终结卡。装备在战技槽位；战技命中时造成额外伤害并击退敌人。作为终结/引爆动作打出时，大幅提升本次额外伤害和击退距离。"),
-			TEXT("Card.ID.Heavy"),
-			{ TEXT("Card.Effect.Heavy"), TEXT("Card.Effect.Knockback"), TEXT("Card.Effect.Attack") },
+		const FString LegacyWeaponSkillFinisherBaseFlowPath = GeneratedFlowRoot + TEXT("/") + LegacyWeaponSkillFinisherBaseFlowName;
+		const FString WeaponSkillFinisherTemplateFlow = PackageExists(LegacyWeaponSkillFinisherBaseFlowPath)
+			? LegacyWeaponSkillFinisherBaseFlowPath
+			: TEXT("/Game/Docs/BuffDocs/Playtest_GA/RuneBaseEffect/FA_Effect_Knockback");
+
+		FCardSpec WeaponSkillFinisher = MakeNormalCard(
+			TEXT("WeaponSkillFinisher"),
+			TEXT("终结"),
+			TEXT("稀有终结卡。装备在战技槽位；战技命中时造成额外伤害并击退敌人。作为终引爆动作打出时，大幅提升本次额外伤害和击退距离"),
+			TEXT("Buff.WeaponSkillFinisher"),
+			{ TEXT("Buff.Detonate"), TEXT("Buff.Knockback"), TEXT("Buff.Attack") },
 			TEXT("T_Rune512_THSword_Cleave"),
-			TEXT("/Game/Docs/BuffDocs/Playtest_GA/RuneBaseEffect/FA_Effect_Knockback"),
-			TEXT("FA_Rune512_Heavy_Base"),
+			WeaponSkillFinisherTemplateFlow,
+			WeaponSkillFinisherBaseFlowName,
 			ERuneType::Buff,
 			{
-				TEXT("RequiredAction remains Any; the card is routed to the WeaponSkill slot and resolves as a Finisher. FA_Rune512_Heavy_Base adds a finisher-role branch for much higher bonus damage and knockback distance.")
+				TEXT("RequiredAction remains Any; the card is routed to the WeaponSkill slot and resolves as a Finisher. FA_Rune512_WeaponSkillFinisher_Base adds a finisher-role branch for much higher bonus damage and knockback distance.")
 			});
-		Heavy.TriggerTiming = ECombatCardTriggerTiming::OnHit;
-		Heavy.RequiredAction = ECardRequiredAction::Any;
-		Heavy.RequiredActionSlot = ECombatDeckActionSlot::WeaponSkill;
-		Heavy.RequiredFlowRole = ECombatDeckFlowRole::Finisher;
-		Heavy.Rarity = ERuneRarity::Rare;
-		Specs.Add(Heavy);
+		WeaponSkillFinisher.TriggerTiming = ECombatCardTriggerTiming::OnHit;
+		WeaponSkillFinisher.RequiredAction = ECardRequiredAction::Any;
+		WeaponSkillFinisher.RequiredActionSlot = ECombatDeckActionSlot::WeaponSkill;
+		WeaponSkillFinisher.RequiredFlowRole = ECombatDeckFlowRole::Finisher;
+		WeaponSkillFinisher.Rarity = ERuneRarity::Rare;
+		Specs.Add(WeaponSkillFinisher);
 
 		Specs.Add(MakeNormalCard(
 			TEXT("Fear"),
 			TEXT("恐惧"),
-			TEXT("命中敌人后赋予恐惧。敌人逃离触发点；2 秒内未离开 800 单位时受到惩罚伤害。"),
-			TEXT("Card.ID.Fear"),
-			{ TEXT("Card.Effect.Fear") },
+			TEXT("命中敌人后赋予恐惧。敌人逃离触发点；2 秒内未离开 800 单位时受到惩罚伤害"),
+			TEXT("Buff.Fear"),
+			{ TEXT("Buff.Fear") },
 			TEXT("T_Rune512_ReduceDamage"),
 			TEXT("/Game/Docs/BuffDocs/Playtest_GA/RuneBaseEffect/FA_Effect_Fear"),
 			TEXT("FA_Rune512_Fear_Base"),
 			ERuneType::Debuff,
-			{ TEXT("玩家不应获得恐惧：确认 FA_Effect_Fear 的目标筛选为敌人，或在卡牌触发层排除玩家。") }));
+			{ TEXT("玩家不应获得恐惧：确FA_Effect_Fear 的目标筛选为敌人，或在卡牌触发层排除玩家") }));
 
 		Specs.Add(MakeNormalCard(
 			TEXT("Freeze"),
 			TEXT("冻结"),
-			TEXT("命中敌人后赋予冻结预警。3 秒内未离开 800 单位时进入冻结眩晕并受到伤害。"),
-			TEXT("Card.ID.Freeze"),
-			{ TEXT("Card.Effect.Freeze") },
+			TEXT("命中敌人后赋予冻结预警 秒内未离开 800 单位时进入冻结眩晕并受到伤害"),
+			TEXT("Buff.Freeze"),
+			{ TEXT("Buff.Freeze") },
 			TEXT("T_Rune512_Shield"),
 			TEXT("/Game/Docs/BuffDocs/Playtest_GA/RuneBaseEffect/FA_Effect_Freeze"),
 			TEXT("FA_Rune512_Freeze_Base"),
 			ERuneType::Debuff,
-			{ TEXT("确认 FrozenStunEffect 已授予 Buff.Status.Frozen 和 Character.State.Stunned。") }));
+			{ TEXT("确认 FrozenStunEffect 已授Buff.Freeze Buff.Stun") }));
 
 		Specs.Add(MakeNormalCard(
 			TEXT("Stun"),
 			TEXT("眩晕"),
-			TEXT("命中敌人后尝试赋予眩晕。眩晕期间不能主动移动和攻击；霸体目标免疫。"),
-			TEXT("Card.ID.Stun"),
-			{ TEXT("Card.Effect.Stun") },
+			TEXT("命中敌人后尝试赋予眩晕。眩晕期间不能主动移动和攻击；霸体目标免疫"),
+			TEXT("Buff.Stun"),
+			{ TEXT("Buff.Stun") },
 			TEXT("T_Rune512_Shield"),
 			TEXT("/Game/Docs/BuffDocs/Playtest_GA/RuneBaseEffect/FA_Effect_Stun"),
 			TEXT("FA_Rune512_Stun_Base"),
 			ERuneType::Debuff,
-			{ TEXT("需要重点验收霸体交互：霸体免疫眩晕，获得霸体时驱散已有眩晕。") }));
+			{ TEXT("需要重点验收霸体交互：霸体免疫眩晕，获得霸体时驱散已有眩晕") }));
 
 		Specs.Add(MakeNormalCard(
 			TEXT("Curse"),
 			TEXT("诅咒"),
-			TEXT("命中敌人后赋予诅咒。每个负面效果降低最大生命值。"),
-			TEXT("Card.ID.Curse"),
-			{ TEXT("Card.Effect.Curse") },
+			TEXT("命中敌人后赋予诅咒。每个负面效果降低最大生命值"),
+			TEXT("Buff.Curse"),
+			{ TEXT("Buff.Curse") },
 			TEXT("T_Rune512_Poison"),
 			TEXT("/Game/Docs/BuffDocs/Playtest_GA/RuneBaseEffect/FA_Effect_Curse"),
 			TEXT("FA_Rune512_Curse_Base"),
 			ERuneType::Debuff,
-			{ TEXT("当前 Generic Curse 需要确认是否为“每个负面效果 -7% MaxHealth”；若仍是死亡诅咒版本，需要补负面状态计数逻辑。") }));
+			{ TEXT("当前 Generic Curse 需要确认是否为“每个负面效-7% MaxHealth”；若仍是死亡诅咒版本，需要补负面状态计数逻辑") }));
 
 		FCardSpec Splash = MakeNormalCard(
 			TEXT("Splash"),
 			TEXT("\u6e85\u5c04"),
 			TEXT("\u8fd1\u6218\u6b66\u5668\u5361\u3002\u653b\u51fb\u547d\u4e2d\u65f6\uff0c\u5bf9\u53d7\u4f24\u654c\u4eba\u5468\u56f4 300cm \u5185\u5176\u4ed6\u654c\u4eba\u9020\u6210\u672c\u6b21\u653b\u51fb 20% \u7684\u6e85\u5c04\u4f24\u5bb3\uff1b\u4e3b\u76ee\u6807\u4e0d\u91cd\u590d\u53d7\u5230\u6e85\u5c04\u3002"),
-			TEXT("Card.ID.SplashSplit"),
-			{ TEXT("Card.Effect.SplashSplit"), TEXT("Card.Effect.Splash") },
+			TEXT("Buff.SplashSplit"),
+			{ TEXT("Buff.SplashSplit"), TEXT("Buff.Splash") },
 			TEXT("T_Rune512_Splash"),
 			AttackTemplateFlow,
 			TEXT("FA_Rune512_Splash_Base"),
@@ -1024,69 +1031,69 @@ namespace Rune512Batch
 		Specs.Add(MakeNormalCard(
 			TEXT("Split"),
 			TEXT("溅射/分裂"),
-			TEXT("近战武器为溅射，攻击时对受伤敌人周围目标造成本次攻击 20% 伤害；远程武器为分裂，额外发射 2 个独立弹道。"),
-			TEXT("Card.ID.SplashSplit"),
-			{ TEXT("Card.Effect.SplashSplit"), TEXT("Card.Effect.Split") },
+			TEXT("近战武器为溅射，攻击时对受伤敌人周围目标造成本次攻击 20% 伤害；远程武器为分裂，额外发2 个独立弹道"),
+			TEXT("Buff.SplashSplit"),
+			{ TEXT("Buff.SplashSplit"), TEXT("Buff.Split") },
 			TEXT("T_Rune512_Split"),
 			MoonlightBaseTemplateFlow,
 			TEXT("FA_Rune512_Split_Base"),
 			ERuneType::Buff,
-			{ TEXT("按武器类型分近战溅射/远程分裂，现阶段 Flow 需要手工细化。") }));
+			{ TEXT("按武器类型分近战溅射/远程分裂，现阶段 Flow 需要手工细化") }));
 
 		Specs.Add(MakeNormalCard(
 			TEXT("Shield"),
 			TEXT("护盾"),
-			TEXT("触发后获得 20 点护甲。月光连携可获得 50 点月光护甲并反弹敌人攻击伤害。"),
-			TEXT("Card.ID.Shield"),
-			{ TEXT("Card.Effect.Shield") },
+			TEXT("触发后获20 点护甲。月光连携可获得 50 点月光护甲并反弹敌人攻击伤害"),
+			TEXT("Buff.Shield"),
+			{ TEXT("Buff.Shield") },
 			TEXT("T_Rune512_Shield"),
 			TEXT("/Game/Docs/BuffDocs/Playtest_GA/IronArmor/FA_Rune_IronArmor"),
 			TEXT("FA_Rune512_Shield_Base"),
 			ERuneType::Buff,
-			{ TEXT("确认护甲属性字段、反弹比例和护盾破碎反馈。") }));
+			{ TEXT("确认护甲属性字段、反弹比例和护盾破碎反馈") }));
 
 		Specs.Add(MakeNormalCard(
 			TEXT("Pierce"),
-			TEXT("穿透"),
-			TEXT("对护甲造成额外 25% 伤害并造成击退。月光连携可使月刃不被敌人消耗，碰撞静态物体时消失。"),
-			TEXT("Card.ID.Pierce"),
-			{ TEXT("Card.Effect.Pierce") },
+			TEXT("穿"),
+			TEXT("对护甲造成额外 25% 伤害并造成击退。月光连携可使月刃不被敌人消耗，碰撞静态物体时消失"),
+			TEXT("Buff.Pierce"),
+			{ TEXT("Buff.Pierce") },
 			TEXT("T_Rune512_Pierce"),
 			MoonlightBaseTemplateFlow,
 			TEXT("FA_Rune512_Pierce_Base"),
 			ERuneType::Buff,
-			{ TEXT("在月刃节点中启用 BonusArmorDamageMultiplier / bDestroyOnWorldStaticHit / bForcePureDamage。") }));
+			{ TEXT("在月刃节点中启用 BonusArmorDamageMultiplier / bDestroyOnWorldStaticHit / bForcePureDamage") }));
 
 		Specs.Add(MakeNormalCard(
 			TEXT("Attack"),
 			TEXT("攻击"),
-			TEXT("攻击伤害加成。月光连携可转为更快更强的竖向月光斩，或低速大月刃持续多段伤害。"),
-			TEXT("Card.ID.AttackUp"),
-			{ TEXT("Card.Effect.Attack"), TEXT("Card.Effect.Buff.AttackUp") },
+			TEXT("攻击伤害加成。月光连携可转为更快更强的竖向月光斩，或低速大月刃持续多段伤害"),
+			TEXT("Buff.AttackUp"),
+			{ TEXT("Buff.Attack"), TEXT("Buff.AttackUp") },
 			TEXT("T_Rune512_Attack"),
 			AttackTemplateFlow,
 			TEXT("FA_Rune512_Attack_Base"),
 			ERuneType::Buff,
-			{ TEXT("确认加成数值与战斗属性快照恢复逻辑。") }));
+			{ TEXT("确认加成数值与战斗属性快照恢复逻辑") }));
 
 		Specs.Add(MakeNormalCard(
 			TEXT("ReduceDamage"),
 			TEXT("减伤"),
-			TEXT("攻击过程中受到的伤害减少 15%。月光连携可提供短时自身减伤或降低敌人攻速、移速。"),
-			TEXT("Card.ID.ReduceDamage"),
-			{ TEXT("Card.Effect.Defense.ReduceDamage") },
+			TEXT("攻击过程中受到的伤害减少 15%。月光连携可提供短时自身减伤或降低敌人攻速、移速"),
+			TEXT("Buff.ReduceDamage"),
+			{ TEXT("Buff.ReduceDamage") },
 			TEXT("T_Rune512_ReduceDamage"),
 			TEXT("/Game/Docs/BuffDocs/Playtest_GA/Weakness_Unveiled/FA_Rune_WeaknessUnveiled"),
 			TEXT("FA_Rune512_ReduceDamage_Base"),
 			ERuneType::Buff,
-			{ TEXT("补临时减伤 GE 与敌方攻速/移速削弱 GE。") }));
+			{ TEXT("补临时减GE 与敌方攻移速削GE") }));
 
 		FCardSpec MoonlightForward;
 		MoonlightForward.Key = TEXT("Moonlight_Forward");
 		MoonlightForward.DisplayName = TEXT("月光 Forward");
-		MoonlightForward.Description = TEXT("玩家攻击时生成一道月光远程弹道。此测试卡默认正向连携，读取上一张卡的效果 Tag。");
-		MoonlightForward.CardIdTag = TEXT("Card.ID.Moonlight");
-		MoonlightForward.EffectTags = { TEXT("Card.Effect.Moonlight") };
+		MoonlightForward.Description = TEXT("玩家攻击时生成一道月光远程弹道。此测试卡默认正向连携，读取上一张卡的效Tag");
+		MoonlightForward.CardIdTag = TEXT("Buff.Moonlight");
+		MoonlightForward.EffectTags = { TEXT("Buff.Moonlight") };
 		MoonlightForward.CardType = ECombatCardType::Link;
 		MoonlightForward.DefaultLinkOrientation = ECombatCardLinkOrientation::Forward;
 		MoonlightForward.TargetAssetName = TEXT("DA_Rune512_Moonlight_Forward");
@@ -1097,14 +1104,14 @@ namespace Rune512Batch
 		MoonlightForward.LinkRecipes.Append(MakeMoonlightRecipes(ECombatCardLinkOrientation::Forward));
 		MoonlightForward.LinkRecipes.Append(MakeMoonlightRecipes(ECombatCardLinkOrientation::Reversed));
 		MoonlightForward.ManualTodos = {
-			TEXT("Forward/Reversed 配方 Flow 已按模板复制，复杂节点连接与表现节点参数需要按配置文档检查。")
+			TEXT("Forward/Reversed 配方 Flow 已按模板复制，复杂节点连接与表现节点参数需要按配置文档检查")
 		};
 		Specs.Add(MoonlightForward);
 
 		FCardSpec MoonlightReversed = MoonlightForward;
 		MoonlightReversed.Key = TEXT("Moonlight_Reversed");
 		MoonlightReversed.DisplayName = TEXT("月光 Reversed");
-		MoonlightReversed.Description = TEXT("玩家攻击时生成一道月光远程弹道。此测试卡默认反向连携，强化下一张满足条件的卡。");
+		MoonlightReversed.Description = TEXT("玩家攻击时生成一道月光远程弹道。此测试卡默认反向连携，强化下一张满足条件的卡");
 		MoonlightReversed.DefaultLinkOrientation = ECombatCardLinkOrientation::Reversed;
 		MoonlightReversed.TargetAssetName = TEXT("DA_Rune512_Moonlight_Reversed");
 		Specs.Add(MoonlightReversed);
@@ -2042,25 +2049,25 @@ namespace Rune512Batch
 		case EMoonlightFlowProfile::Base:
 		case EMoonlightFlowProfile::ForwardAttack:
 		case EMoonlightFlowProfile::ReversedAttack:
-			return TEXT("Card.Effect.Moonlight");
+			return TEXT("Buff.Moonlight");
 		case EMoonlightFlowProfile::ForwardBurn:
 		case EMoonlightFlowProfile::ReversedBurn:
-			return TEXT("Card.Effect.Burn");
+			return TEXT("Buff.Fire");
 		case EMoonlightFlowProfile::ForwardPoison:
 		case EMoonlightFlowProfile::ReversedPoison:
-			return TEXT("Card.Effect.Poison");
+			return TEXT("Buff.Poison");
 		case EMoonlightFlowProfile::ForwardSplit:
 		case EMoonlightFlowProfile::ReversedSplit:
-			return TEXT("Card.Effect.SplashSplit");
+			return TEXT("Buff.SplashSplit");
 		case EMoonlightFlowProfile::ForwardShield:
 		case EMoonlightFlowProfile::ReversedShield:
-			return TEXT("Card.Effect.Shield");
+			return TEXT("Buff.Shield");
 		case EMoonlightFlowProfile::ForwardPierce:
 		case EMoonlightFlowProfile::ReversedPierce:
-			return TEXT("Card.Effect.Pierce");
+			return TEXT("Buff.Pierce");
 		case EMoonlightFlowProfile::ForwardReduceDamage:
 		case EMoonlightFlowProfile::ReversedReduceDamage:
-			return TEXT("Card.Effect.Defense.ReduceDamage");
+			return TEXT("Buff.ReduceDamage");
 		default:
 			return FString();
 		}
@@ -3580,27 +3587,27 @@ namespace Rune512Batch
 		return BestNode;
 	}
 
-	void ConfigureHeavyBaseFlow(
+	void ConfigureWeaponSkillFinisherBaseFlow(
 		UFlowAsset* FlowAsset,
 		const FString& FlowName,
 		bool bDryRun,
 		TArray<FString>& ReportLines,
 		TArray<UPackage*>& DirtyPackages)
 	{
-		if (FlowName != TEXT("FA_Rune512_Heavy_Base"))
+		if (FlowName != WeaponSkillFinisherBaseFlowName && FlowName != LegacyWeaponSkillFinisherBaseFlowName)
 		{
 			return;
 		}
 
 		if (bDryRun)
 		{
-			ReportLines.Add(TEXT("- Would configure `FA_Rune512_Heavy_Base`: base knockback flow -> WeaponSkill/Finisher context branch -> bonus damage -> bonus knockback distance."));
+			ReportLines.Add(FString::Printf(TEXT("- Would configure `%s`: base knockback flow -> WeaponSkill/Finisher context branch -> bonus damage -> bonus knockback distance."), *FlowName));
 			return;
 		}
 
 		if (!FlowAsset)
 		{
-			ReportLines.Add(TEXT("- Cannot configure `FA_Rune512_Heavy_Base`: Flow asset was not loaded."));
+			ReportLines.Add(FString::Printf(TEXT("- Cannot configure `%s`: Flow asset was not loaded."), *FlowName));
 			return;
 		}
 
@@ -3608,11 +3615,11 @@ namespace Rune512Batch
 		UFlowNode* EntryNode = FlowAsset->GetDefaultEntryNode();
 		if (!FlowGraph || !EntryNode)
 		{
-			ReportLines.Add(TEXT("- Cannot configure `FA_Rune512_Heavy_Base`: missing FlowGraph or Entry node."));
+			ReportLines.Add(FString::Printf(TEXT("- Cannot configure `%s`: missing FlowGraph or Entry node."), *FlowName));
 			return;
 		}
 
-		UBFNode_CombatCardContextBranch* HeavyBranch = Cast<UBFNode_CombatCardContextBranch>(FindFirstNode(
+		UBFNode_CombatCardContextBranch* FinisherBranch = Cast<UBFNode_CombatCardContextBranch>(FindFirstNode(
 			FlowAsset,
 			[](UFlowNode* Node)
 			{
@@ -3642,7 +3649,7 @@ namespace Rune512Batch
 			}));
 		if (!BaseDamageNode)
 		{
-			UFlowNode* InsertAfterNode = HeavyBranch ? FindPreviousFlowNode(HeavyBranch) : TerminalNode;
+			UFlowNode* InsertAfterNode = FinisherBranch ? FindPreviousFlowNode(FinisherBranch) : TerminalNode;
 			if (!InsertAfterNode)
 			{
 				InsertAfterNode = EntryNode;
@@ -3656,10 +3663,10 @@ namespace Rune512Batch
 				FVector2D(InsertLocation.X + 260.f, InsertLocation.Y - 60.f)));
 		}
 
-		if (!HeavyBranch && BaseDamageNode)
+		if (!FinisherBranch && BaseDamageNode)
 		{
 			const FVector2D BaseDamageLocation = GetFlowNodeLocation(BaseDamageNode);
-			HeavyBranch = Cast<UBFNode_CombatCardContextBranch>(CreateFlowNodeAfter(
+			FinisherBranch = Cast<UBFNode_CombatCardContextBranch>(CreateFlowNodeAfter(
 				FlowGraph,
 				BaseDamageNode,
 				UBFNode_CombatCardContextBranch::StaticClass(),
@@ -3675,12 +3682,12 @@ namespace Rune512Batch
 					&& DamageNode->TargetSelector == EBFTargetSelector::LastDamageTarget
 					&& DamageNode->FlatDamage.Value > 0.f;
 			}));
-		if (!ExtraDamageNode && HeavyBranch)
+		if (!ExtraDamageNode && FinisherBranch)
 		{
-			const FVector2D BranchLocation = GetFlowNodeLocation(HeavyBranch);
+			const FVector2D BranchLocation = GetFlowNodeLocation(FinisherBranch);
 			ExtraDamageNode = Cast<UBFNode_DoDamage>(CreateFlowNodeAfter(
 				FlowGraph,
-				HeavyBranch,
+				FinisherBranch,
 				UBFNode_DoDamage::StaticClass(),
 				FVector2D(BranchLocation.X + 320.f, BranchLocation.Y - 40.f)));
 		}
@@ -3705,35 +3712,35 @@ namespace Rune512Batch
 				FVector2D(DamageLocation.X + 320.f, DamageLocation.Y)));
 		}
 
-		if (!BaseDamageNode || !HeavyBranch || !ExtraDamageNode || !BonusKnockbackNode)
+		if (!BaseDamageNode || !FinisherBranch || !ExtraDamageNode || !BonusKnockbackNode)
 		{
-			ReportLines.Add(TEXT("- Failed to configure `FA_Rune512_Heavy_Base`: missing generated base damage, WeaponSkill/Finisher branch, bonus damage, or bonus knockback node."));
+			ReportLines.Add(FString::Printf(TEXT("- Failed to configure `%s`: missing generated base damage, WeaponSkill/Finisher branch, bonus damage, or bonus knockback node."), *FlowName));
 			return;
 		}
 
-		const FGameplayTag HeavyCardIdTag = RequestTag(TEXT("Card.ID.Heavy"), ReportLines);
+		const FGameplayTag WeaponSkillFinisherCardIdTag = RequestTag(TEXT("Buff.WeaponSkillFinisher"), ReportLines);
 		BaseDamageNode->Modify();
 		BaseDamageNode->TargetSelector = EBFTargetSelector::LastDamageTarget;
 		BaseDamageNode->FlatDamage = FFlowDataPinInputProperty_Float(8.f);
 		BaseDamageNode->DamageMultiplier = FFlowDataPinInputProperty_Float(0.f);
-		BaseDamageNode->DamageEffect = LoadBlueprintClassByPackagePath<UGameplayEffect>(HeavyBonusDamageEffectPath);
+		BaseDamageNode->DamageEffect = LoadBlueprintClassByPackagePath<UGameplayEffect>(WeaponSkillFinisherBonusDamageEffectPath);
 
-		HeavyBranch->Modify();
-		HeavyBranch->RequiredAction = ECardRequiredAction::Any;
-		HeavyBranch->RequiredActionSlot = ECombatDeckActionSlot::WeaponSkill;
-		HeavyBranch->RequiredFlowRole = ECombatDeckFlowRole::Finisher;
-		HeavyBranch->RequiredSourceCardTypes = { ECombatCardType::Normal };
-		HeavyBranch->RequiredSourceCardIdTags.Reset();
-		if (HeavyCardIdTag.IsValid())
+		FinisherBranch->Modify();
+		FinisherBranch->RequiredAction = ECardRequiredAction::Any;
+		FinisherBranch->RequiredActionSlot = ECombatDeckActionSlot::WeaponSkill;
+		FinisherBranch->RequiredFlowRole = ECombatDeckFlowRole::Finisher;
+		FinisherBranch->RequiredSourceCardTypes = { ECombatCardType::Normal };
+		FinisherBranch->RequiredSourceCardIdTags.Reset();
+		if (WeaponSkillFinisherCardIdTag.IsValid())
 		{
-			HeavyBranch->RequiredSourceCardIdTags.AddTag(HeavyCardIdTag);
+			FinisherBranch->RequiredSourceCardIdTags.AddTag(WeaponSkillFinisherCardIdTag);
 		}
 
 		ExtraDamageNode->Modify();
 		ExtraDamageNode->TargetSelector = EBFTargetSelector::LastDamageTarget;
 		ExtraDamageNode->FlatDamage = FFlowDataPinInputProperty_Float(20.f);
 		ExtraDamageNode->DamageMultiplier = FFlowDataPinInputProperty_Float(0.f);
-		ExtraDamageNode->DamageEffect = LoadBlueprintClassByPackagePath<UGameplayEffect>(HeavyBonusDamageEffectPath);
+		ExtraDamageNode->DamageEffect = LoadBlueprintClassByPackagePath<UGameplayEffect>(WeaponSkillFinisherBonusDamageEffectPath);
 
 		BonusKnockbackNode->Modify();
 		BonusKnockbackNode->EventTag = RequestTag(TEXT("Action.Knockback"), ReportLines);
@@ -3743,11 +3750,11 @@ namespace Rune512Batch
 		BonusKnockbackNode->Magnitude = FFlowDataPinInputProperty_Float(520.f);
 
 		RefreshGraphNodePins(BaseDamageNode);
-		RefreshGraphNodePins(HeavyBranch);
+		RefreshGraphNodePins(FinisherBranch);
 		RefreshGraphNodePins(ExtraDamageNode);
 		RefreshGraphNodePins(BonusKnockbackNode);
-		LinkFlowNodes(BaseDamageNode, HeavyBranch);
-		LinkFlowNodes(HeavyBranch, ExtraDamageNode);
+		LinkFlowNodes(BaseDamageNode, FinisherBranch);
+		LinkFlowNodes(FinisherBranch, ExtraDamageNode);
 		LinkFlowNodes(ExtraDamageNode, BonusKnockbackNode);
 
 		FlowAsset->HarvestNodeConnections();
@@ -3755,7 +3762,7 @@ namespace Rune512Batch
 		DirtyPackages.AddUnique(FlowAsset->GetPackage());
 		FlowGraph->Modify();
 		FlowGraph->NotifyGraphChanged();
-		ReportLines.Add(TEXT("- Configured `FA_Rune512_Heavy_Base`: WeaponSkill/Finisher card adds +8 damage after base knockback; finisher-role branch adds +20 damage and 520cm knockback."));
+		ReportLines.Add(FString::Printf(TEXT("- Configured `%s`: WeaponSkill/Finisher card adds +8 damage after base knockback; finisher-role branch adds +20 damage and 520cm knockback."), *FlowName));
 	}
 
 	void ConfigureSplitBaseFlow(
@@ -4147,7 +4154,7 @@ namespace Rune512Batch
 		GrantNode->Config = Spec.Config;
 		if (GrantNode->Config.PassiveType == ESacrificeRunePassiveType::ShadowMark)
 		{
-			GrantNode->Config.ShadowMarkTag = RequestTag(TEXT("Buff.Status.ShadowMark"), ReportLines);
+			GrantNode->Config.ShadowMarkTag = RequestTag(TEXT("Buff.ShadowMark"), ReportLines);
 		}
 		RefreshGraphNodePins(GrantNode);
 		LinkFlowNodes(EntryNode, GrantNode);
@@ -4175,7 +4182,7 @@ namespace Rune512Batch
 		RequestTag(FString(TEXT("Rune.Sacrifice.")) + Spec.Key, ReportLines);
 		if (Spec.Config.PassiveType == ESacrificeRunePassiveType::ShadowMark)
 		{
-			RequestTag(TEXT("Buff.Status.ShadowMark"), ReportLines);
+			RequestTag(TEXT("Buff.ShadowMark"), ReportLines);
 		}
 
 		UFlowAsset* FlowAsset = EnsureFlowAssetAtPath(AttackTemplateFlow, FlowPath, bDryRun, ReportLines, DirtyPackages);
@@ -4248,7 +4255,7 @@ namespace Rune512Batch
 		ConfigureStandaloneNiagaraVfxFlow(BaseFlow, Spec.BaseFlowTargetName, bDryRun, ReportLines, DirtyPackages);
 		StripApplyAttributeInlineVfx(BaseFlow, Spec.BaseFlowTargetName, bDryRun, ReportLines, DirtyPackages);
 		ConfigureCombatCardAttributeMultiplierFlow(BaseFlow, Spec.BaseFlowTargetName, bDryRun, ReportLines, DirtyPackages);
-		ConfigureHeavyBaseFlow(BaseFlow, Spec.BaseFlowTargetName, bDryRun, ReportLines, DirtyPackages);
+		ConfigureWeaponSkillFinisherBaseFlow(BaseFlow, Spec.BaseFlowTargetName, bDryRun, ReportLines, DirtyPackages);
 		ConfigureSplitBaseFlow(BaseFlow, Spec.BaseFlowTargetName, bDryRun, ReportLines, DirtyPackages);
 		ConfigureSplashBaseFlow(BaseFlow, Spec.BaseFlowTargetName, bDryRun, ReportLines, DirtyPackages);
 		URuneCardEffectProfileDA* BaseProfile = ConfigureMoonlightEffectProfile(BaseFlow, Spec.BaseFlowTargetName, bDryRun, ReportLines, DirtyPackages);
@@ -4326,7 +4333,7 @@ namespace Rune512Batch
 		CombatCard.bUseComboEffectScaling = false;
 		CombatCard.ComboScalarPerIndex = 0.f;
 		CombatCard.MaxComboScalar = 0.f;
-		if (Spec.CardIdTag == TEXT("Card.ID.AttackUp"))
+		if (Spec.CardIdTag == TEXT("Buff.AttackUp"))
 		{
 			ReportLines.Add(TEXT("- Deprecated Combo Scaling remains disabled for AttackUp; card order and Link recipes drive build scaling."));
 		}
@@ -4424,7 +4431,7 @@ int32 URuneCardBatchGeneratorCommandlet::Main(const FString& Params)
 	ReportLines.Add(TEXT(""));
 
 	ReportLines.Add(TEXT("## Generic Rune status card integration"));
-	ReportLines.Add(TEXT("- Bleed, Rend, Wound, Knockback, Heavy, Fear, Freeze, Stun, and Curse are generated as Normal combat cards."));
+	ReportLines.Add(TEXT("- Bleed, Rend, Wound, Knockback, WeaponSkillFinisher, Fear, Freeze, Stun, and Curse are generated as Normal combat cards."));
 	ReportLines.Add(TEXT("- These cards reuse Playtest_GA/RuneBaseEffect FA templates. Tune the underlying Generic Rune GA/GE when the status rule itself needs to change."));
 	ReportLines.Add(TEXT("- Bloodvine remains design-only; no dedicated 512 card is generated in this pass."));
 	ReportLines.Add(TEXT(""));
@@ -4439,7 +4446,7 @@ int32 URuneCardBatchGeneratorCommandlet::Main(const FString& Params)
 	ReportLines.Add(TEXT("- Burn/Poison base VFX use compact Play Niagara nodes; stale Flipbook nodes are cleared when found."));
 	ReportLines.Add(TEXT("- Projectile inline Niagara fields remain empty. Link/status VFX must live in independent FA visual nodes."));
 	ReportLines.Add(TEXT("- Projectile visuals stay on projectile-spawn nodes; hit/status visuals should use separate visual nodes."));
-	ReportLines.Add(TEXT("- Splash/Split are one weapon-adaptive card family: both variants share Card.ID.SplashSplit and Card.Effect.SplashSplit; melee uses Splash BaseFlow, ranged uses Split BaseFlow; Moonlight Split only exists as reversed LinkFlow."));
+	ReportLines.Add(TEXT("- Splash/Split are one weapon-adaptive card family: both variants share Buff.SplashSplit and Buff.SplashSplit; melee uses Splash BaseFlow, ranged uses Split BaseFlow; Moonlight Split only exists as reversed LinkFlow."));
 	ReportLines.Add(TEXT("- Any Flow copied from a template must be opened once and checked against the 512 design doc before gameplay signoff."));
 
 	if (!bDryRun && DirtyPackages.Num() > 0)

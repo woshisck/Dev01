@@ -1,4 +1,4 @@
-# 月光毒素连携 FA 配置说明
+﻿# 月光毒素连携 FA 配置说明
 
 ## 1. 目标
 
@@ -16,7 +16,7 @@
 
 ```text
 Spawn Slash Wave Projectile
-  -> Wait Gameplay Event(Action.Rune.MoonlightPoisonHit)
+  -> Wait Gameplay Event(Buff.Event.Moonlight.PoisonHit)
   -> Play Niagara(Rune.Moonlight.PoisonHitNiagara)
   -> Apply Gameplay Effect Class(GE_Poison)
   -> Play Niagara(Rune.Moonlight.PoisonSpreadNiagara)
@@ -27,7 +27,7 @@ Spawn Slash Wave Projectile
 
 | 字段 | 值 |
 | --- | --- |
-| `Hit Gameplay Event Tag` | `Action.Rune.MoonlightPoisonHit` |
+| `Hit Gameplay Event Tag` | `Buff.Event.Moonlight.PoisonHit` |
 | `Launch Niagara System` | `None` |
 | `Hit Niagara System` | `None` |
 | `Expire Niagara System` | `None` |
@@ -87,7 +87,7 @@ Spawn Slash Wave Projectile
 ## 8. 验收
 
 1. 月光毒素连携成功时，命中主目标后出现 `[PlayNiagara] Spawned Effect=Rune.Moonlight.PoisonHitNiagara`。
-2. 主目标获得 `Buff.Status.Poisoned`。
+2. 主目标获得 `Buff.Poison`。
 3. 两个敌人靠近时，次级敌人能受到小额毒伤/毒层。
 4. 半径外敌人不受影响。
 5. 连携失败或连招断开时，不播放毒素 LinkFlow。

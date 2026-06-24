@@ -100,8 +100,8 @@ GA_Dead
 
 ```
 GA_Attack
-    Ability Tags:          PlayerState.AbilityCast.Attack
-    Activation Owned Tags: PlayerState.AbilityCast.Attack
+    Ability Tags:          Character.State.Skill.Attack
+    Activation Owned Tags: Character.State.Skill.Attack
 ```
 
 **两个字段填同一个 Tag 的原因**：
@@ -185,15 +185,15 @@ DA_Base_StateConflict_Initial → BlockCategoryMap
 
 ```
 DA_Base_StateConflict_Initial → Rules
-    ActiveTag:  PlayerState.AbilityCast.Attack
-    Block Tags: PlayerState.AbilityCast.Dash
+    ActiveTag:  Character.State.Skill.Attack
+    Block Tags: Character.State.Movement.Dash
 ```
 
 或在 GA_Dash 里：
 
 ```
 GA_Dash
-    Activation Blocked Tags: PlayerState.AbilityCast.Attack
+    Activation Blocked Tags: Character.State.Skill.Attack
 ```
 
 ---
@@ -315,14 +315,14 @@ ASC → Has Matching Gameplay Tag → Buff.Status.Shielded
 
 ```
 符文 GA（BP_Rune_OnHitAttack）
-    AssetTags: Buff.Trigger.OnHit        ← 触发条件：命中时
-               Buff.Rune.Type.Attack     ← 分类：攻击型
-               Buff.Rune.Rarity.Rare     ← 稀有度：稀有
-    AbilityTriggers: GameplayEvent → Buff.Trigger.OnHit
+    AssetTags: Rune.Trigger.OnHit        ← 触发条件：命中时
+               Rune.Type.Attack          ← 分类：攻击型
+               Rune.Rarity.Rare          ← 稀有度：稀有
+    AbilityTriggers: GameplayEvent → Rune.Trigger.OnHit
     （以上均不是 Ability Tags，是 AssetTags）
 ```
 
-**注意**：`Buff.Trigger.OnHit` 既是 AssetTags（描述符文特征）也是触发信号（AbilityTriggers 监听），但它不是 `Ability Tags`。
+**注意**：`Rune.Trigger.OnHit` 既是 AssetTags（描述符文特征）也是触发信号（AbilityTriggers 监听），但它不是 `Ability Tags`。
 
 ---
 
@@ -330,12 +330,12 @@ ASC → Has Matching Gameplay Tag → Buff.Status.Shielded
 
 ```
 DA_Base_StateConflict_Initial → Rules
-    ActiveTag:  Buff.Rune.Type.Attack
-    Block Tags: Buff.Rune.Type.Attack
+    ActiveTag:  Rune.Type.Attack
+    Block Tags: Rune.Type.Attack
     Priority:   -1
 
 对应符文 GA
-    Activation Owned Tags: Buff.Rune.Type.Attack   ← 激活时广播分类 Tag
+    Activation Owned Tags: Rune.Type.Attack   ← 激活时广播分类 Tag
 ```
 
 当一个攻击型符文激活时，StateConflict 屏蔽其他攻击型符文 GA
@@ -366,7 +366,7 @@ GA_Dead 激活后调用：
 | GA 激活期间广播状态 | `Buff.Status.*` | GA Activation Owned Tags |
 | GE 生效期间广播状态 | `Buff.Status.*` | GE Granted Tags |
 | 让 BT 能找到这个 GA | `Enemy.*` | GA Ability Tags |
-| StateConflict 能阻断这个 GA | `Enemy.*` / `PlayerState.*` | GA Ability Tags |
+| StateConflict 能阻断这个 GA | `Enemy.*` / `Character.State.*` | GA Ability Tags |
 | 死亡/受击时这个 GA 不能激活 | `Buff.Status.*` | GA Activation Blocked Tags |
 | 批量阻断同类 GA | StateConflict Rules Block Tags | DataAsset 配置 |
 | 停止 AI / 停止移动 | `Block.AI` / `Block.Movement` | BlockCategoryMap 的 Key（不挂 ASC）|
@@ -374,6 +374,6 @@ GA_Dead 激活后调用：
 | 查询死亡/受击动画数据 | `Action.*` | PassiveMap 的 Key（DataAsset） |
 | GE 传数值给 GA | `Attribute.*` / `Buff.Data.*` | SetByCallerMagnitude 的 Key |
 | Blueprint 查角色状态 | `Buff.Status.*` | Has Matching Gameplay Tag |
-| 符文分类/稀有度 | `Buff.Rune.*` | 符文 DA 的 AssetTags |
-| 符文触发条件 | `Buff.Trigger.*` | 符文 GA 的 AssetTags + AbilityTriggers |
+| 符文分类/稀有度 | `Rune.Type.*` / `Rune.Rarity.*` | 符文 DA 的 AssetTags |
+| 符文触发条件 | `Rune.Trigger.*` | 符文 GA 的 AssetTags + AbilityTriggers |
 | 触发消解/特效粒子 | `GameplayCue.*` | ExecuteGameplayCue 的 Key |

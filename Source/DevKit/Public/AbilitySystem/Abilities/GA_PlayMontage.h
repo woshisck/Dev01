@@ -128,6 +128,7 @@ private:
 	void StartSharedSkillCooldownIfConfigured() const;
 
 	FDelegateHandle CanComboTagHandle;
+	FDelegateHandle LegacyCanComboTagHandle;
 	float AbilityActivationTime = 0.0f;
 
 	UPROPERTY()

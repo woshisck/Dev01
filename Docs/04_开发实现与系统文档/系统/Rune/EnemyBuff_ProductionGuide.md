@@ -1,4 +1,4 @@
-# 敌人符文制作指南 v1.2
+﻿# 敌人符文制作指南 v1.2
 
 > 版本：v1.2（2026-04-28）
 > 范围：E001–E005 敌人专属 Buff
@@ -111,7 +111,7 @@
 | Modifier — Attribute                   | DamageAttributeSet.DamageBuff |
 | Modifier — Op                          | Additive                      |
 | Modifier — Magnitude                   | 5.0                           |
-| Granted Tags                           | Buff.Status.Poisoned          |
+| Granted Tags                           | Buff.Poison          |
 
 ### FA_EnemyBuff_DeathPoison — 节点连接
 

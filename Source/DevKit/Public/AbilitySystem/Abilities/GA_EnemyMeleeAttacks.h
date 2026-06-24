@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "AbilitySystem/Abilities/GA_MeleeAttack.h"
@@ -8,7 +8,7 @@
  * 敌人近战攻击 GA — 轻攻击系列
  * AbilityTags / AbilityData Key：Enemy.Melee.LAtk1~4
  * ActivationOwnedTags：空（敌人攻击不广播状态）
- * ActivationBlockedTags：Buff.Status.Dead
+ * ActivationBlockedTags：Buff.Dead
  *
  * 配表：给每个敌人类型的 AbilityData.AbilityMap 添加对应 Key 行，填写蒙太奇 + 命中框。
  * GASTemplate：给敌人 Grant 该角色实际使用的攻击 GA（如只用 LAtk1~2 就只给这两个）。

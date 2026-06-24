@@ -1,4 +1,4 @@
-# 燃烧 Base Effect 配置说明
+﻿# 燃烧 Base Effect 配置说明
 
 ## 1. 设计结论
 
@@ -6,10 +6,10 @@
 
 | 层级 | 职责 | 配置位置 |
 | --- | --- | --- |
-| 状态与掉血 | 授予 `Buff.Status.Burning`，周期掉血 | `UGE_RuneBurn` + `EffectProfile.Effect` |
+| 状态与掉血 | 授予 `Buff.Fire`，周期掉血 | `UGE_RuneBurn` + `EffectProfile.Effect` |
 | 表现 | 目标身上的火焰 Niagara、地面火焰 | FA 节点或 `EffectProfile.VFX / Area` |
 
-`Buff.Status.Burning` 不再自动播放 Niagara。不要再把燃烧特效写进 `YogAbilitySystemComponent` 的 Tag 监听里，否则会和 FA 的 `Play Niagara` 重复。
+`Buff.Fire` 不再自动播放 Niagara。不要再把燃烧特效写进 `YogAbilitySystemComponent` 的 Tag 监听里，否则会和 FA 的 `Play Niagara` 重复。
 
 ## 2. 当前 Base Effect
 
@@ -17,7 +17,7 @@
 | --- | --- |
 | GE 类 | `UGE_RuneBurn` |
 | C++ 路径 | `Source/DevKit/Public/AbilitySystem/GameplayEffect/GE_RuneBurn.h` |
-| 状态 Tag | `Buff.Status.Burning` |
+| 状态 Tag | `Buff.Fire` |
 | 伤害执行 | `GEExec_BurnDamage` |
 | 伤害输入 | `SetByCaller: Data.Damage.Burn` |
 | 默认持续 | `4.0s` |
@@ -70,7 +70,7 @@ Start
 
 ## 4. 验收
 
-1. 敌人进入月光火区域后获得 `Buff.Status.Burning`。
+1. 敌人进入月光火区域后获得 `Buff.Fire`。
 2. 敌人离开火区域后，燃烧仍持续到 `UGE_RuneBurn` 到期。
 3. 火焰地面表现来自 `Area.NiagaraSystem / DecalMaterial`。
 4. 敌人身上火焰表现来自 `EffectProfile.VFX` 或 FA 的 `Play Niagara`，不会再由 GE Tag 自动播放。

@@ -7,7 +7,9 @@
 UGA_Musket_Reload_All::UGA_Musket_Reload_All()
 {
     AbilityTags.AddTag(FGameplayTag::RequestGameplayTag("Ability.Musket.Reload"));
+    AbilityTags.AddTag(FGameplayTag::RequestGameplayTag("Character.State.Skill.Reload"));
     AbilityTags.AddTag(FGameplayTag::RequestGameplayTag("PlayerState.AbilityCast.Reload"));
+    ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag("Character.State.Skill.Reload"));
     ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag("State.Musket.Reloading"));
     ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag("State.Musket.Aiming"));
 }

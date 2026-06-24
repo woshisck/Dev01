@@ -1,4 +1,4 @@
-# 符文制作主指南 v1.1
+﻿# 符文制作主指南 v1.1
 
 > 版本：v1.1（2026-04-26）  
 > 变更：1019 燃烧印记改为纯 FA 方案；Section 十新增 TrackMovement/CheckDistance 节点  
@@ -66,7 +66,7 @@
 #### 逻辑层（已实现，简述）
 
 - FA：`On Damage Dealt` → `Send Gameplay Event(Action.Knockback, Target=LastHitTarget)`
-- GA_Knockback（C++）：接收事件 → `RootMotionMoveToForce`（500cm，0.3s）→ 结束时广播 `Event.Rune.KnockbackApplied`
+- GA_Knockback（C++）：接收事件 → `RootMotionMoveToForce`（500cm，0.3s）→ 结束时广播 `Buff.Event.KnockbackApplied`
 - DA：RuneID=1004，Shape=1×1
 
 #### 表现层规格
@@ -79,14 +79,14 @@
   位置         = 命中位置
 
 [目标位移过程 GameplayCue]
-  Tag          = GameplayCue.Rune.Knockback
+  Tag          = GameplayCue.Buff.Knockback
   位置         = 目标 Actor（Attached）
   Niagara      : 目标身上扬起白色/灰色残影拖尾（速度线方向，持续 0.3s）
   目标材质闪白 : Knockback 开始时 1 帧白色材质 Flash（可通过 GC 驱动 MI 参数）
   SFX          : "钝击+位移"组合音效（低频冲击声），播放于命中瞬间
 
 [落点 GameplayCue（可选，P2 再补）]
-  Tag          = GameplayCue.Rune.KnockbackLand
+  Tag          = GameplayCue.Buff.KnockbackLand
   位置         = 目标落点
   Niagara      : 尘埃小爆发（圆形扩散，0.2s）
   SFX          : 落地撞击声（短）
@@ -95,7 +95,7 @@ UI浮字    : 无（纯位移）
 角色反馈  : 无
 ```
 
-**当前遗漏：** GA_Knockback 结束时已广播 `Event.Rune.KnockbackApplied`，确认此事件在 C++ 代码中已发送（1007/1021 依赖此事件）。
+**当前遗漏：** GA_Knockback 结束时已广播 `Buff.Event.KnockbackApplied`，确认此事件在 C++ 代码中已发送（1007/1021 依赖此事件）。
 
 ---
 
@@ -113,7 +113,7 @@ FA：`FA_Rune_KillExplosion`
 [Has Tag(Action.Dead, Target=LastHitTarget)]
   ↓ Yes
 [Spawn Gameplay Cue at Location]
-  CueTag   = GameplayCue.Rune.KillExplosion
+  CueTag   = GameplayCue.Buff.KillExplosion
   Location = LastHitTarget.Location
   ↓
 [Apply GE to Targets in Radius]
@@ -129,7 +129,7 @@ FA：`FA_Rune_KillExplosion`
 |------|------|
 | `FA_Rune_KillExplosion` | 上述 Flow Graph |
 | `GE_RuneKillExplosionDamage` | Instant GE，HP Additive=-30；末尾向半径内所有敌人 Send Gameplay Event(Action.Knockback) |
-| `GameplayCue.Rune.KillExplosion` | 爆炸效果 GC（见表现层） |
+| `GameplayCue.Buff.KillExplosion` | 爆炸效果 GC（见表现层） |
 | `DA_Rune_KillExplosion` | RuneID=1017，Shape=1×1 |
 
 #### 表现层规格
@@ -138,7 +138,7 @@ FA：`FA_Rune_KillExplosion`
 触发点：击杀确认后（Has Tag(Action.Dead)=true），立即在死亡位置触发
 
 [爆炸核心 GameplayCue]
-  Tag          = GameplayCue.Rune.KillExplosion
+  Tag          = GameplayCue.Buff.KillExplosion
   位置         = 死亡位置（One-Shot，单次）
   
   Niagara 主体：
@@ -195,7 +195,7 @@ FA：`FA_Rune_LifeSteal`
   Target       = BuffOwner
   ↓
 [Spawn Gameplay Cue on Actor]
-  CueTag = GameplayCue.Rune.LifeSteal
+  CueTag = GameplayCue.Buff.LifeSteal
   Target = BuffOwner
 ```
 
@@ -204,7 +204,7 @@ FA：`FA_Rune_LifeSteal`
 | 资产 | 说明 |
 |------|------|
 | `FA_Rune_LifeSteal` | 上述 Flow Graph |
-| `GameplayCue.Rune.LifeSteal` | 回血效果 GC（见表现层） |
+| `GameplayCue.Buff.LifeSteal` | 回血效果 GC（见表现层） |
 | `DA_Rune_LifeSteal` | RuneID=1018，Shape=1×1 |
 
 #### 表现层规格
@@ -213,7 +213,7 @@ FA：`FA_Rune_LifeSteal`
 触发点：每次 Apply Attribute Modifier(HP 回复) 执行后立即触发 GC
 
 [回血 GameplayCue]
-  Tag          = GameplayCue.Rune.LifeSteal
+  Tag          = GameplayCue.Buff.LifeSteal
   位置         = 玩家角色（Attached，One-Shot）
 
   Niagara 主体：
@@ -268,23 +268,23 @@ FA：`FA_Rune_BurnMark`（纯 FA，无需 GA/GE）
   Duration               = 3.0
   Period                 = 0.5
   bFireImmediately       = false
-  GrantedTagsToASC       = Buff.Status.Burning, GameplayCue.Rune.Burn
+  GrantedTagsToASC       = Buff.Fire, GameplayCue.Buff.Fire
   StackMode              = Unique
   DurationRefreshPolicy  = RefreshOnSuccessfulApplication
   Target                 = LastDamageTarget
 ```
 
-> `GrantedTagsToASC` 中的 `GameplayCue.Rune.Burn` 在 GE 生效期间自动触发 Looping GC，GE 到期后自动 Remove。无需手动管理 GC 生命周期。
+> `GrantedTagsToASC` 中的 `GameplayCue.Buff.Fire` 在 GE 生效期间自动触发 Looping GC，GE 到期后自动 Remove。无需手动管理 GC 生命周期。
 
 **需要创建的资产：**
 
 | 资产 | 说明 |
 |------|------|
 | `FA_Rune_BurnMark` | 上述 Flow Graph |
-| `GameplayCue.Rune.Burn` | 持续火焰 GC（见表现层）|
+| `GameplayCue.Buff.Fire` | 持续火焰 GC（见表现层）|
 | `DA_Rune_BurnMark` | RuneID=1019，Shape=1×1 |
 
-**新增 Tag：** `Buff.Status.Burning`（BuffTag.ini）
+**新增 Tag：** `Buff.Fire`（BuffTag.ini）
 
 #### 表现层规格
 
@@ -294,7 +294,7 @@ FA：`FA_Rune_BurnMark`（纯 FA，无需 GA/GE）
 触发点③：燃烧结束（3s 到期或被消除）
 
 [燃烧持续 GameplayCue — Looping]
-  Tag          = GameplayCue.Rune.Burn
+  Tag          = GameplayCue.Buff.Fire
   位置         = 目标 Actor（Attached，LoopDuration = Buff 持续时间）
   
   Niagara 主体（Loop）：
@@ -342,7 +342,7 @@ SFX：
 
 #### 逻辑层（已实现，简述）
 
-- FA：`On Damage Dealt` → `Send Gameplay Event(Action.Rune.SlashWaveHit, Target=BuffOwner)`
+- FA：`On Damage Dealt` → `Send Gameplay Event(Buff.Event.SlashWaveHit, Target=BuffOwner)`
 - `GA_SlashWaveCounter`（C++）计数，每 3 次生成 `BP_SlashWaveProjectile`（速度 1400，穿透，寿命 1.2s）
 - 投射物命中：应用 `GE_SlashWaveDamage`（Instant，Damage=30）
 - DA：RuneID=1008，Shape=1×1
@@ -359,7 +359,7 @@ SFX：
   角色攻击音效末尾可叠加轻微"蓄力"高频音，每次计数递增
 
 [刀光波发射 GameplayCue]
-  Tag          = GameplayCue.Rune.SlashWaveFire（在 GA_SlashWaveCounter 中触发）
+  Tag          = GameplayCue.Buff.SlashWaveFire（在 GA_SlashWaveCounter 中触发）
   位置         = 玩家前方 80cm 处（SpawnOffset 位置）
   
   Niagara 主体（跟随 Projectile）：
@@ -373,13 +373,13 @@ SFX：
   - 消散时：轻微消散音（可省略）
 
 [投射物命中 GameplayCue]
-  Tag          = GameplayCue.Rune.SlashWaveHit
+  Tag          = GameplayCue.Buff.SlashWaveHit
   位置         = 命中点
   Niagara      : 小型白色冲击圆（直径约 60cm，0.15s 消散）
   浮字         : 正常伤害浮字（白色，与普通攻击一致，颜色可改为淡蓝加以区分）
 
 投射物 Blueprint（BP_SlashWaveProjectile）事件：
-  BP_OnHitEnemy → 触发 GameplayCue.Rune.SlashWaveHit + 播放命中音效
+  BP_OnHitEnemy → 触发 GameplayCue.Buff.SlashWaveHit + 播放命中音效
   BP_OnExpired  → 短暂消散粒子（可省略，投射物会自然消失）
 ```
 
@@ -402,7 +402,7 @@ SFX：
 
 [暴击触发击退附加 GameplayCue]
   在正常暴击打击特效基础上叠加：
-  Tag          = GameplayCue.Rune.Shockwave
+  Tag          = GameplayCue.Buff.Shockwave
   位置         = 命中点（One-Shot）
   
   Niagara 主体：
@@ -449,7 +449,7 @@ FA：`FA_Rune_Uppercut`
 |------|------|
 | `FA_Rune_Uppercut` | 上述 Flow Graph |
 | `C++ GA_Uppercut` | 复用 GA_Knockback，Launch 方向=UpVector，冲量=800 |
-| `GameplayCue.Rune.Uppercut` | 击飞 GC（见表现层） |
+| `GameplayCue.Buff.Uppercut` | 击飞 GC（见表现层） |
 | `DA_Rune_Uppercut` | RuneID=1020，Shape=1×1 |
 
 **新增 Tag：** `Buff.Status.Airborne`（BuffTag.ini）、`Action.Uppercut`（PlayerGameplayTag.ini）
@@ -462,7 +462,7 @@ FA：`FA_Rune_Uppercut`
 触发点③：敌人落地（Airborne Tag 到期后）
 
 [上弹命中 GameplayCue]
-  Tag          = GameplayCue.Rune.Uppercut
+  Tag          = GameplayCue.Buff.Uppercut
   位置         = 命中点（One-Shot）
   
   Niagara 主体：
@@ -475,7 +475,7 @@ FA：`FA_Rune_Uppercut`
   可以不做，落地效果更重要
 
 [落地 GameplayCue]
-  Tag          = GameplayCue.Rune.UppecrutLand
+  Tag          = GameplayCue.Buff.UppercutLand
   位置         = 目标落点（Airborne Tag 到期时触发）
   
   Niagara 主体：
@@ -514,11 +514,11 @@ FA：`FA_Rune_Aftershock`
 
 ```
 [Wait Gameplay Event]
-  EventTag = Event.Rune.KnockbackApplied
+  EventTag = Buff.Event.KnockbackApplied
   ↓ OnEventReceived
 
 [Spawn Gameplay Cue at Location]
-  CueTag   = GameplayCue.Rune.Aftershock
+  CueTag   = GameplayCue.Buff.Aftershock
   Location = Event.Payload.Location
 
 [Apply GE to Targets in Radius]
@@ -534,16 +534,16 @@ FA：`FA_Rune_Aftershock`
 |------|------|
 | `FA_Rune_Aftershock` | 上述 Flow Graph |
 | `GE_AfterShockSlow` | HasDuration 2s，MoveSpeed Additive -200，额外 Instant Damage 20 |
-| `GameplayCue.Rune.Aftershock` | 震荡圈 GC（见表现层） |
+| `GameplayCue.Buff.Aftershock` | 震荡圈 GC（见表现层） |
 | `DA_Rune_Aftershock` | RuneID=1021，Shape=1×1 |
 
 #### 表现层规格
 
 ```
-触发点：Event.Rune.KnockbackApplied 事件接收时（即击退结束、目标停止时）
+触发点：Buff.Event.KnockbackApplied 事件接收时（即击退结束、目标停止时）
 
 [震荡圈 GameplayCue]
-  Tag          = GameplayCue.Rune.Aftershock
+  Tag          = GameplayCue.Buff.Aftershock
   位置         = 落点（One-Shot，持续约 0.5s）
   
   Niagara 主体：
@@ -574,7 +574,7 @@ SFX：
 | Shape.Cells | `(0,0)` |
 | Flow.FlowAsset | `FA_Rune_Aftershock` |
 
-**已知限制：** 依赖 `GA_Knockback` 末尾广播 `Event.Rune.KnockbackApplied`，需确认 C++ 代码中已实现此广播。
+**已知限制：** 依赖 `GA_Knockback` 末尾广播 `Buff.Event.KnockbackApplied`，需确认 C++ 代码中已实现此广播。
 
 ---
 
@@ -596,7 +596,7 @@ SFX：
 触发点③：流血结束
 
 [流血持续 GameplayCue — Looping]
-  Tag          = GameplayCue.Rune.Bleed（或 GameplayCue.Status.Bleeding）
+  Tag          = GameplayCue.Buff.Bleed（或 GameplayCue.Buff.Bleed）
   位置         = 目标 Actor（Attached，LoopDuration 与 Bleeding Tag 同步）
   
   Niagara 主体（Loop）：
@@ -674,7 +674,7 @@ SFX：
   不做 GameplayCue，只通过 Tag 驱动角色蓝图内的材质参数
 
 [触发双倍伤害 GameplayCue]
-  Tag          = GameplayCue.Rune.DuoAssault
+  Tag          = GameplayCue.Buff.DuoAssault
   位置         = 命中点（One-Shot）
   
   Niagara：
@@ -706,7 +706,7 @@ SFX：
 触发点：末击（Combo4）命中且额外伤害触发时
 
 [末击强化 GameplayCue]
-  Tag          = GameplayCue.Rune.WeaknessUnveiled
+  Tag          = GameplayCue.Buff.WeaknessUnveiled
   位置         = 命中点（One-Shot）
   
   Niagara：
@@ -738,7 +738,7 @@ SFX：
 触发点：额外 Do Damage 触发时
 
 [满血追加 GameplayCue]
-  Tag          = GameplayCue.Rune.DeadlyStrike
+  Tag          = GameplayCue.Buff.DeadlyStrike
   位置         = 命中点（One-Shot）
   
   Niagara：
@@ -761,7 +761,7 @@ SFX：
 
 #### 逻辑层（已实现，测试版）
 
-- FA：`On Crit Hit` → `Apply Attribute Modifier(HP, -25, HasDuration=5, Period=1)` + `Grant Tag(Buff.Status.Poisoned, 5s)`
+- FA：`On Crit Hit` → `Apply Attribute Modifier(HP, -25, HasDuration=5, Period=1)` + `Grant Tag(Buff.Poison, 5s)`
 - DA：RuneID=1011，Shape=1×1
 
 #### 表现层规格
@@ -772,7 +772,7 @@ SFX：
 触发点③：中毒结束
 
 [中毒持续 GameplayCue — Looping]
-  Tag          = GameplayCue.Rune.VenomFang（或 GameplayCue.Status.Poisoned）
+  Tag          = GameplayCue.Buff.VenomFang（或 GameplayCue.Buff.Poison）
   位置         = 目标 Actor（Attached）
   
   Niagara（Loop）：
@@ -823,7 +823,7 @@ SFX：
 
 #### 逻辑层（已实现）
 
-- FA：`Wait Gameplay Event(Event.Rune.KnockbackApplied)` → `Apply Attribute Modifier(MoveSpeed, -300, HasDuration=1)`
+- FA：`Wait Gameplay Event(Buff.Event.KnockbackApplied)` → `Apply Attribute Modifier(MoveSpeed, -300, HasDuration=1)`
 - DA：RuneID=1007，Shape=1×1，**必须与 1004 同时装备**
 
 #### 表现层规格
@@ -933,31 +933,31 @@ SFX：
 
 | GC Tag | 优先级 | 类型 | 描述 |
 |--------|--------|------|------|
-| `GameplayCue.Rune.KillExplosion` | P0 | One-Shot | 橙红色爆炸圆环+火花+地面焦印 |
-| `GameplayCue.Rune.LifeSteal` | P0 | One-Shot | 绿色光点上升+绿色边缘光 |
-| `GameplayCue.Rune.Burn` | P0 | Looping | 橙红火焰柱附着于目标，含热浪 |
-| `GameplayCue.Rune.Knockback` | P0 | One-Shot | 目标拖尾+白色材质 Flash |
-| `GameplayCue.Rune.KnockbackLand` | P1 | One-Shot | 落点尘埃爆发（可选） |
-| `GameplayCue.Rune.Shockwave` | P1 | One-Shot | 更大的暴击冲击环+锐利光线 |
-| `GameplayCue.Rune.Uppercut` | P1 | One-Shot | 垂直白色冲击柱+落地尘埃 |
-| `GameplayCue.Rune.UppecrutLand` | P1 | One-Shot | 落地震荡圈+尘埃 |
-| `GameplayCue.Rune.Aftershock` | P1 | One-Shot | 地面震荡同心圆扩散 |
-| `GameplayCue.Rune.Bleed` | P1 | Looping | 红色液滴飘落+低强度红色自发光 |
-| `GameplayCue.Rune.SlashWaveFire` | P1 | One-Shot | 弧光+刀气拖尾 |
-| `GameplayCue.Rune.SlashWaveHit` | P1 | One-Shot | 白色冲击圆（命中点） |
-| `GameplayCue.Rune.DuoAssault` | P2 | One-Shot | 双层冲击圆+琥珀色高光 |
-| `GameplayCue.Rune.WeaknessUnveiled` | P2 | One-Shot | 青色裂纹扩散 |
-| `GameplayCue.Rune.DeadlyStrike` | P2 | One-Shot | 金色光芒爆发+金色裂纹 |
-| `GameplayCue.Rune.VenomFang` | P2 | Looping | 绿色毒液粒子+绿色自发光 |
+| `GameplayCue.Buff.KillExplosion` | P0 | One-Shot | 橙红色爆炸圆环+火花+地面焦印 |
+| `GameplayCue.Buff.LifeSteal` | P0 | One-Shot | 绿色光点上升+绿色边缘光 |
+| `GameplayCue.Buff.Fire` | P0 | Looping | 橙红火焰柱附着于目标，含热浪 |
+| `GameplayCue.Buff.Knockback` | P0 | One-Shot | 目标拖尾+白色材质 Flash |
+| `GameplayCue.Buff.KnockbackLand` | P1 | One-Shot | 落点尘埃爆发（可选） |
+| `GameplayCue.Buff.Shockwave` | P1 | One-Shot | 更大的暴击冲击环+锐利光线 |
+| `GameplayCue.Buff.Uppercut` | P1 | One-Shot | 垂直白色冲击柱+落地尘埃 |
+| `GameplayCue.Buff.UppercutLand` | P1 | One-Shot | 落地震荡圈+尘埃 |
+| `GameplayCue.Buff.Aftershock` | P1 | One-Shot | 地面震荡同心圆扩散 |
+| `GameplayCue.Buff.Bleed` | P1 | Looping | 红色液滴飘落+低强度红色自发光 |
+| `GameplayCue.Buff.SlashWaveFire` | P1 | One-Shot | 弧光+刀气拖尾 |
+| `GameplayCue.Buff.SlashWaveHit` | P1 | One-Shot | 白色冲击圆（命中点） |
+| `GameplayCue.Buff.DuoAssault` | P2 | One-Shot | 双层冲击圆+琥珀色高光 |
+| `GameplayCue.Buff.WeaknessUnveiled` | P2 | One-Shot | 青色裂纹扩散 |
+| `GameplayCue.Buff.DeadlyStrike` | P2 | One-Shot | 金色光芒爆发+金色裂纹 |
+| `GameplayCue.Buff.VenomFang` | P2 | Looping | 绿色毒液粒子+绿色自发光 |
 
 ### 需要新建的 Gameplay Tag
 
 | Tag | 文件 | 用途 | 优先级 |
 |-----|------|------|--------|
-| `Buff.Status.Burning` | BuffTag.ini | 燃烧状态守卫（1019）| P0 |
+| `Buff.Fire` | BuffTag.ini | 燃烧状态守卫（1019）| P0 |
 | `Buff.Status.Airborne` | BuffTag.ini | 空中状态守卫（1020）| P1 |
 | `Action.Uppercut` | PlayerGameplayTag.ini | 上弹事件（1020）| P1 |
-| `GameplayCue.Rune.*` | — | 各 GC 注册（全部）| 各级别 |
+| `GameplayCue.Buff.*` | — | 各 GC 注册（全部）| 各级别 |
 
 ---
 
@@ -965,11 +965,11 @@ SFX：
 
 ### 阶段一：本次引导测试前（P0）
 
-1. 确认 `GA_Knockback` 末尾已广播 `Event.Rune.KnockbackApplied`（1021/1007 依赖）
-2. 创建 `FA_Rune_Knockback` + `DA_Rune_Knockback` + `GameplayCue.Rune.Knockback`（1004）
-3. 创建 `GE_RuneKillExplosionDamage` + `FA_Rune_KillExplosion` + `DA_Rune_KillExplosion` + `GameplayCue.Rune.KillExplosion`（1017）
-4. 创建 `FA_Rune_LifeSteal` + `DA_Rune_LifeSteal` + `GameplayCue.Rune.LifeSteal`（1018）
-5. 创建 `FA_Rune_BurnMark` + `DA_Rune_BurnMark` + `GameplayCue.Rune.Burn`（1019，纯 FA）
+1. 确认 `GA_Knockback` 末尾已广播 `Buff.Event.KnockbackApplied`（1021/1007 依赖）
+2. 创建 `FA_Rune_Knockback` + `DA_Rune_Knockback` + `GameplayCue.Buff.Knockback`（1004）
+3. 创建 `GE_RuneKillExplosionDamage` + `FA_Rune_KillExplosion` + `DA_Rune_KillExplosion` + `GameplayCue.Buff.KillExplosion`（1017）
+4. 创建 `FA_Rune_LifeSteal` + `DA_Rune_LifeSteal` + `GameplayCue.Buff.LifeSteal`（1018）
+5. 创建 `FA_Rune_BurnMark` + `DA_Rune_BurnMark` + `GameplayCue.Buff.Fire`（1019，纯 FA）
 6. 配置 `DA_Campaign` 引导 FallbackLootPool = [1017, 1018, 1019]
 
 ### 阶段二：扩大测试符文池（P1）
@@ -1110,7 +1110,7 @@ SFX：
 [Start]
   ↓
 [Spawn Actor At Location]
-  ActorClass = BP_KillExplosion（自处理 AoE 伤害 + GameplayCue.Rune.KillExplosion）
+  ActorClass = BP_KillExplosion（自处理 AoE 伤害 + GameplayCue.Buff.KillExplosion）
   Target     = BuffGiver（BGC 传入 KilledTarget，即死亡敌人的位置）
   ↓
 [Finish Buff]
@@ -1163,13 +1163,13 @@ BGC 行为：`Ability.Event.Kill` 到达时，`BFC->StartBuffFlow(FA, NewGuid, P
   Duration               = 3.0
   Period                 = 0.5
   bFireImmediately       = false
-  GrantedTagsToASC       = Buff.Status.Burning, GameplayCue.Rune.Burn
+  GrantedTagsToASC       = Buff.Fire, GameplayCue.Buff.Fire
   StackMode              = Unique
   DurationRefreshPolicy  = RefreshOnSuccessfulApplication
   Target                 = LastDamageTarget
 ```
 
-> `GrantedTagsToASC` 中的 `GameplayCue.Rune.Burn` 在 GE 生效期间自动触发 Looping GC，GE 到期后自动 Remove。无需手动管理 GC 生命周期。
+> `GrantedTagsToASC` 中的 `GameplayCue.Buff.Fire` 在 GE 生效期间自动触发 Looping GC，GE 到期后自动 Remove。无需手动管理 GC 生命周期。
 
 **方案演进对比：**
 

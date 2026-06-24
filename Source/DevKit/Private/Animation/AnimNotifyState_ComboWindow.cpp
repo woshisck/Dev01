@@ -8,6 +8,11 @@ namespace
 {
 	FGameplayTag GetComboWindowTag()
 	{
+		return FGameplayTag::RequestGameplayTag(TEXT("Character.State.Window.CanCombo"), false);
+	}
+
+	FGameplayTag GetLegacyComboWindowTag()
+	{
 		return FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"), false);
 	}
 
@@ -28,15 +33,18 @@ void UAnimNotifyState_ComboWindow::NotifyBegin(USkeletalMeshComponent* MeshComp,
 {
 	Super::NotifyBegin(MeshComp, Animation, TotalDuration, EventReference);
 
-	const FGameplayTag ComboWindowTag = GetComboWindowTag();
-	if (!ComboWindowTag.IsValid())
-	{
-		return;
-	}
-
 	if (UAbilitySystemComponent* ASC = GetASC(MeshComp))
 	{
-		ASC->AddLooseGameplayTag(ComboWindowTag);
+		const FGameplayTag ComboWindowTag = GetComboWindowTag();
+		const FGameplayTag LegacyComboWindowTag = GetLegacyComboWindowTag();
+		if (ComboWindowTag.IsValid())
+		{
+			ASC->AddLooseGameplayTag(ComboWindowTag);
+		}
+		if (LegacyComboWindowTag.IsValid())
+		{
+			ASC->AddLooseGameplayTag(LegacyComboWindowTag);
+		}
 	}
 }
 
@@ -45,15 +53,18 @@ void UAnimNotifyState_ComboWindow::NotifyEnd(USkeletalMeshComponent* MeshComp,
 {
 	Super::NotifyEnd(MeshComp, Animation, EventReference);
 
-	const FGameplayTag ComboWindowTag = GetComboWindowTag();
-	if (!ComboWindowTag.IsValid())
-	{
-		return;
-	}
-
 	if (UAbilitySystemComponent* ASC = GetASC(MeshComp))
 	{
-		ASC->RemoveLooseGameplayTag(ComboWindowTag);
+		const FGameplayTag ComboWindowTag = GetComboWindowTag();
+		const FGameplayTag LegacyComboWindowTag = GetLegacyComboWindowTag();
+		if (ComboWindowTag.IsValid())
+		{
+			ASC->RemoveLooseGameplayTag(ComboWindowTag);
+		}
+		if (LegacyComboWindowTag.IsValid())
+		{
+			ASC->RemoveLooseGameplayTag(LegacyComboWindowTag);
+		}
 	}
 }
 

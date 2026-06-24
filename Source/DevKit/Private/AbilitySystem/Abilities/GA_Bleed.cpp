@@ -1,4 +1,4 @@
-#include "AbilitySystem/Abilities/GA_Bleed.h"
+﻿#include "AbilitySystem/Abilities/GA_Bleed.h"
 
 #include "AbilitySystemComponent.h"
 #include "GameFramework/Character.h"
@@ -8,11 +8,11 @@
 UGA_Bleed::UGA_Bleed(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	// 每个角色只保留一个实例
+	// 每个角色只保留一个实
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 
 	// GameplayEvent 触发：FA 通过 Send Gameplay Event（Tag=Buff.Event.Bleed）激活此 GA
-	// EventMagnitude 携带每秒伤害量，在 ActivateAbility 里读取
+	// EventMagnitude 携带每秒伤害量，ActivateAbility 里读
 	FAbilityTriggerData TriggerData;
 	TriggerData.TriggerTag    = FGameplayTag::RequestGameplayTag(TEXT("Buff.Event.Bleed"));
 	TriggerData.TriggerSource = EGameplayAbilityTriggerSource::GameplayEvent;
@@ -34,20 +34,20 @@ void UGA_Bleed::ActivateAbility(
 		return;
 	}
 
-	// 监听 Buff.Status.Bleeding 消失 → 自动结束 GA
-	// Tag 来源：FA_Rune_Bleed 的 GrantTag(Timed) 到期，或 StopBuffFlow 清理
-	const FGameplayTag BleedingTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Bleeding"));
+	// 监听 Buff.Bleed 消失 自动结束 GA
+	// Tag 来源：FA_Rune_Bleed GrantTag(Timed) 到期，或 StopBuffFlow 清理
+	const FGameplayTag BleedingTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Bleed"));
 	TagChangeDelegateHandle = ASC->RegisterGameplayTagEvent(
 		BleedingTag, EGameplayTagEventType::NewOrRemoved)
 		.AddUObject(this, &UGA_Bleed::OnBleedingTagChanged);
 
-	// 从 TriggerEventData 读取每秒伤害，FA 的 Send Gameplay Event.Magnitude 写入此值
+	// TriggerEventData 读取每秒伤害，FA Send Gameplay Event.Magnitude 写入此
 	DamagePerSecond = (TriggerEventData && TriggerEventData->EventMagnitude > 0.f)
 		? TriggerEventData->EventMagnitude
 		: DefaultDamagePerSecond;
 
-	// 缓存发起人 ASC（用于流血伤害日志）
-	// BFNode_SendGameplayEvent 将 EventData.Instigator 设为 BuffOwner（玩家）
+	// 缓存发起ASC（用于流血伤害日志
+	// BFNode_SendGameplayEvent EventData.Instigator 设为 BuffOwner（玩家）
 	InstigatorASC.Reset();
 	if (TriggerEventData && TriggerEventData->Instigator != nullptr)
 	{
@@ -65,7 +65,7 @@ void UGA_Bleed::ActivateAbility(
 	UE_LOG(LogTemp, Warning, TEXT("[GA_Bleed] Activated on %s | DamagePerSecond=%.1f"),
 		*GetNameSafe(ActorInfo->AvatarActor.Get()), DamagePerSecond);
 
-	// 启动定时扣血 Tick（首次延迟一个间隔，与蓝图 WaitDelay 行为一致）
+	// 启动定时扣血 Tick（首次延迟一个间隔，与蓝WaitDelay 行为一致）
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().SetTimer(
@@ -84,8 +84,8 @@ void UGA_Bleed::BleedTick()
 	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
 	if (!ASC) return;
 
-	// 每 Tick 扣血 = DamagePerSecond × BleedTickInterval（帧率无关）
-	// DamagePerSecond 由 FA 的 Send Gameplay Event.Magnitude 在激活时传入
+	// Tick 扣血 = DamagePerSecond × BleedTickInterval（帧率无关）
+	// DamagePerSecond FA Send Gameplay Event.Magnitude 在激活时传入
 	const float DamagePerTick = DamagePerSecond * BleedTickInterval;
 
 	if (DamagePerTick > 0.f)
@@ -98,7 +98,7 @@ void UGA_Bleed::BleedTick()
 		UE_LOG(LogTemp, Verbose, TEXT("[GA_Bleed] Tick: DPS=%.1f Damage=%.3f"),
 			DamagePerSecond, DamagePerTick);
 
-		// 流血伤害日志：转发给发起人（玩家）
+		// 流血伤害日志：转发给发起人（玩家
 		if (InstigatorASC.IsValid())
 		{
 			AActor* Target = GetAvatarActorFromActorInfo();
@@ -125,7 +125,7 @@ void UGA_Bleed::EndAbility(
 	bool bReplicateEndAbility,
 	bool bWasCancelled)
 {
-	// 停止 Tick 计时器
+	// 停止 Tick 计时
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(BleedTimerHandle);
@@ -134,7 +134,7 @@ void UGA_Bleed::EndAbility(
 	// 注销 Tag 监听
 	if (ActorInfo && ActorInfo->AbilitySystemComponent.IsValid())
 	{
-		const FGameplayTag BleedingTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Bleeding"));
+		const FGameplayTag BleedingTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Bleed"));
 		ActorInfo->AbilitySystemComponent->RegisterGameplayTagEvent(
 			BleedingTag, EGameplayTagEventType::NewOrRemoved).Remove(TagChangeDelegateHandle);
 	}

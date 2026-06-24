@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DevKit GameplayTag 重整方案</title>
+  <style>
+    :root {
+      --bg: #f7f5f0;
+      --panel: #ffffff;
+      --ink: #202326;
+      --muted: #667078;
+      --line: #d8d3c8;
+      --accent: #176b5c;
+      --warn: #a85a24;
+      --blue: #285b91;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Microsoft YaHei", "Segoe UI", Arial, sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      line-height: 1.6;
+    }
+    header {
+      padding: 36px 42px 24px;
+      background: #fbfaf7;
+      border-bottom: 1px solid var(--line);
+    }
+    main { max-width: 1280px; margin: 0 auto; padding: 28px 42px 48px; }
+    h1 { margin: 0 0 10px; font-size: clamp(30px, 4vw, 46px); line-height: 1.08; letter-spacing: 0; }
+    h2 { margin: 0 0 14px; font-size: 22px; letter-spacing: 0; }
+    h3 { margin: 0 0 8px; font-size: 17px; letter-spacing: 0; }
+    p { margin: 0; color: var(--muted); }
+    section {
+      margin-top: 22px;
+      padding: 22px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+    }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+    .chip {
+      display: inline-flex;
+      padding: 4px 9px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .note {
+      padding: 14px 16px;
+      border-left: 4px solid var(--accent);
+      background: #edf7f4;
+      border-radius: 6px;
+      color: #244540;
+      margin-bottom: 14px;
+    }
+    .warn { border-left-color: var(--warn); background: #fff2e8; color: #59341d; }
+    .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      background: #fff;
+    }
+    .card strong { display: block; margin-bottom: 6px; color: var(--accent); }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 10px 11px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { background: #f2eee6; }
+    code {
+      font-family: Consolas, "Courier New", monospace;
+      background: #f1efe9;
+      border-radius: 4px;
+      padding: 2px 5px;
+      color: #183f38;
+    }
+    pre {
+      margin: 0;
+      padding: 14px;
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fbfaf7;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 13px;
+    }
+    ul { margin: 0; padding-left: 18px; }
+    li { margin: 5px 0; }
+    @media (max-width: 900px) {
+      header { padding: 28px 22px 20px; }
+      main { padding: 22px; }
+      .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>DevKit GameplayTag 重整方案</h1>
+    <p>结合当前项目系统梳理、TagLevel.md 和 LOTF 分析报告后的命名结论。本文用于给同事同步：哪些根节点保留、哪些旧根迁移、后续清理按什么顺序执行。</p>
+    <div class="chips">
+      <span class="chip">日期：2026-06-23</span>
+      <span class="chip">状态：规范冻结草案</span>
+      <span class="chip">文档：Docs/04_开发实现与系统文档/标签/GameplayTag_ReorgPlan_LOTF.md</span>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <h2>一、LOTF 规范简述与评价</h2>
+      <div class="note">
+        LOTF 的核心不是照搬一堆根节点，而是把 Tag 当成工程资产治理：配置字典负责设计师可见 Tag，GameState.Flags 单独承载高频存档/任务 Flag，C++ Native Tag 负责代码安全访问，所有重命名必须通过 Redirect 保护旧资产和存档。
+      </div>
+      <div class="grid">
+        <div class="card"><strong>优点</strong><p>权威来源清晰、重命名安全、C++ 查询稳定、UI/状态/存档职责分开。</p></div>
+        <div class="card"><strong>风险</strong><p>如果职责表不清楚，根节点会越来越多，最后变成“什么都能放”的 Tag 池。</p></div>
+        <div class="card"><strong>DevKit 采用方式</strong><p>采用治理方式，不照抄根节点；按 DevKit 的角色、Buff、Rune、Director、Level 等系统重新划根。</p></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>二、最终一级根节点</h2>
+      <table>
+        <thead><tr><th>根节点</th><th>职责</th><th>示例</th></tr></thead>
+        <tbody>
+          <tr><td><code>Character.*</code></td><td>角色通用动作/运行时状态</td><td><code>Character.State.Skill.Attack</code></td></tr>
+          <tr><td><code>AI.*</code></td><td>AI 行为和决策状态</td><td><code>AI.State.Patrol</code></td></tr>
+          <tr><td><code>Enemy.*</code></td><td>敌人专属技能身份、敌人配置筛选</td><td><code>Enemy.Skill.Skill1</code></td></tr>
+          <tr><td><code>Interact.*</code></td><td>场景中的可交互对象</td><td><code>Interact.Weapon.Melee.SingleHandBlunt</code></td></tr>
+          <tr><td><code>Weapon.*</code></td><td>装备后的武器类型/运行时武器分类</td><td><code>Weapon.Type.Ranged.Bow</code></td></tr>
+          <tr><td><code>Combat.*</code></td><td>战斗事件、命中、击杀、伤害流程</td><td><code>Combat.Event.Attack.Hit</code></td></tr>
+          <tr><td><code>Buff.*</code></td><td>Buff/Debuff/状态效果系统</td><td><code>Buff.Status.Poisoned</code></td></tr>
+          <tr><td><code>Rune.*</code></td><td>符文身份、动作绑定、生效方式、触发时机</td><td><code>Rune.Binding.Action.Attack</code></td></tr>
+          <tr><td><code>GameplayEvent.*</code></td><td>GAS 事件总线</td><td><code>GameplayEvent.Combat.Damaged</code></td></tr>
+          <tr><td><code>GameplayCue.*</code></td><td>VFX/SFX/镜头表现</td><td><code>GameplayCue.Rune.Moonlight</code></td></tr>
+          <tr><td><code>Level.*</code></td><td>关卡、房间、局内循环</td><td><code>Level.Room.Type.Normal</code></td></tr>
+          <tr><td><code>Director.*</code></td><td>剧情、教程、任务、固定房间/掉落覆盖</td><td><code>Director.Event.Tutorial.Start</code></td></tr>
+          <tr><td><code>UI.*</code></td><td>UI 层级、输入动作、扩展点</td><td><code>UI.Layer.HUD</code></td></tr>
+          <tr><td><code>GameState.*</code></td><td>存档/世界/教程/任务 Flags</td><td><code>GameState.Flags.Tutorial.BasicAttackDone</code></td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>三、关键结论</h2>
+      <div class="grid">
+        <div class="card">
+          <h3>Buff 独立</h3>
+          <p><code>Buff.*</code> 是一级大系统。Buff 阻断动作时，StateConflict 直接读 <code>Buff.Status.*</code>，不复制到 <code>Character.State.*</code>。</p>
+        </div>
+        <div class="card">
+          <h3>状态不按玩家/敌人拆</h3>
+          <p>死亡、受击、击退、技能执行中都属于通用角色状态，统一使用 <code>Character.State.*</code>，减少 Block 规则和资产 Tag 数量。</p>
+        </div>
+        <div class="card">
+          <h3>Rune/Card 合并</h3>
+          <p>正式根统一为 <code>Rune.*</code>。旧 <code>Card.*</code> 和 <code>Combo.CombatDeck.*</code> 是迁移来源；正式命名不用 <code>Rune.Deck.*</code>，改用 Binding / Activation / Trigger / FlowRole。</p>
+        </div>
+        <div class="card">
+          <h3>Director 主系统</h3>
+          <p>Story/Tutorial 提升为 <code>Director.*</code>，可覆盖房间、掉落、任务、对话、教程步骤；Save 只记录结果。</p>
+        </div>
+        <div class="card">
+          <h3>UI 只表现</h3>
+          <p>HUD Buff 图标来自 ASC 的 ActiveGameplayEffect / GameplayTag，经 ViewModel 或事件显示，不在 UI 中保存业务状态。</p>
+        </div>
+        <div class="card">
+          <h3>重命名走 Redirect</h3>
+          <p>新增正式 Tag、添加 Redirect、迁移资产、确认无引用后再删除旧 Tag。不能直接硬替换。</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>四、核心迁移映射</h2>
+      <pre>PlayerState.AbilityCast.Attack      -> Character.State.Skill.Attack
+PlayerState.AbilityCast.WeaponSkill -> Character.State.Skill.WeaponSkill
+PlayerState.AbilityCast.Skill       -> Character.State.Skill.Active
+PlayerState.AbilityCast.Dash        -> Character.State.Movement.Dash
+
+Card.ID.*                           -> Rune.ID.*
+Card.Effect.*                       -> Rune.Effect.*
+Combo.CombatDeck.ActionSlot.*       -> Rune.Binding.Action.*
+Combo.CombatDeck.FlowRole.*         -> Rune.FlowRole.*
+Combo.TriggerTiming.*               -> Rune.Trigger.*</pre>
+    </section>
+
+    <section>
+      <h2>五、后续执行顺序</h2>
+      <ol>
+        <li>冻结本规范，后续新增 Tag 按本文执行。</li>
+        <li>扫描当前 Config/Tags，生成根节点清单和旧到新映射表。</li>
+        <li>把 C++ 硬编码 Tag 字符串收口到统一访问层。</li>
+        <li>新增正式 Tag 和 GameplayTagRedirects。</li>
+        <li>迁移 GA、AbilityData、RuneDataAsset、CombatDeck、BuffFlow、GE、UI 映射资产。</li>
+        <li>保留旧 QTE Finisher 资产但不启用运行时入口。</li>
+        <li>先做静态扫描验证；Unreal 编译/编辑器重保存只在明确要求时执行。</li>
+      </ol>
+      <div class="note warn">注意：<code>Rune.FlowRole.Finisher</code> 可以表示普通组合终结位，但不能重新接回已废弃的 QTE Finisher 系统。</div>
+    </section>
+  </main>
+</body>
+</html>

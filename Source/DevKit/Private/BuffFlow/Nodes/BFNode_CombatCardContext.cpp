@@ -42,14 +42,259 @@ namespace
 		}
 	}
 
+	FString BuffLeafFromLegacyLeaf(const FString& Leaf, const bool bIdentityTag)
+	{
+		if (Leaf == TEXT("Buff.AttackUp") || Leaf == TEXT("AttackUp"))
+		{
+			return TEXT("AttackUp");
+		}
+		if (Leaf == TEXT("Defense.ReduceDamage") || Leaf == TEXT("ReduceDamage"))
+		{
+			return TEXT("ReduceDamage");
+		}
+		if (Leaf == TEXT("Burn"))
+		{
+			return TEXT("Fire");
+		}
+		if (Leaf == TEXT("Burning"))
+		{
+			return TEXT("Fire");
+		}
+		if (Leaf == TEXT("Poisoned"))
+		{
+			return TEXT("Poison");
+		}
+		if (Leaf == TEXT("Bleeding"))
+		{
+			return TEXT("Bleed");
+		}
+		if (Leaf == TEXT("Frozen"))
+		{
+			return TEXT("Freeze");
+		}
+		if (Leaf == TEXT("Stunned"))
+		{
+			return TEXT("Stun");
+		}
+		if (Leaf == TEXT("Rended"))
+		{
+			return TEXT("Rend");
+		}
+		if (Leaf == TEXT("Wounded"))
+		{
+			return TEXT("Wound");
+		}
+		if (Leaf == TEXT("Feared"))
+		{
+			return TEXT("Fear");
+		}
+		if (Leaf == TEXT("Cursed"))
+		{
+			return TEXT("Curse");
+		}
+		if (Leaf == TEXT("Shielded"))
+		{
+			return TEXT("Shield");
+		}
+		if (Leaf == TEXT("Heavy"))
+		{
+			return bIdentityTag ? TEXT("WeaponSkillFinisher") : TEXT("Detonate");
+		}
+		return Leaf;
+	}
+
+	bool TryExtractLegacyCombatCardLeaf(const FString& TagString, FString& OutLeaf, bool& bOutIdentityTag)
+	{
+		static constexpr const TCHAR* RuneIdPrefix = TEXT("Rune.ID.");
+		static constexpr const TCHAR* CardIdPrefix = TEXT("Card.ID.");
+		static constexpr const TCHAR* RuneEffectPrefix = TEXT("Rune.Effect.");
+		static constexpr const TCHAR* CardEffectPrefix = TEXT("Card.Effect.");
+
+		if (TagString.StartsWith(RuneIdPrefix))
+		{
+			OutLeaf = TagString.RightChop(FCString::Strlen(RuneIdPrefix));
+			bOutIdentityTag = true;
+			return true;
+		}
+		if (TagString.StartsWith(CardIdPrefix))
+		{
+			OutLeaf = TagString.RightChop(FCString::Strlen(CardIdPrefix));
+			bOutIdentityTag = true;
+			return true;
+		}
+		if (TagString.StartsWith(RuneEffectPrefix))
+		{
+			OutLeaf = TagString.RightChop(FCString::Strlen(RuneEffectPrefix));
+			bOutIdentityTag = false;
+			return true;
+		}
+		if (TagString.StartsWith(CardEffectPrefix))
+		{
+			OutLeaf = TagString.RightChop(FCString::Strlen(CardEffectPrefix));
+			bOutIdentityTag = false;
+			return true;
+		}
+
+		return false;
+	}
+
+	void AddRequestedTag(TArray<FGameplayTag>& OutTags, const FString& TagString)
+	{
+		const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*TagString), false);
+		if (Tag.IsValid())
+		{
+			OutTags.AddUnique(Tag);
+		}
+	}
+
+	TArray<FGameplayTag> GetEquivalentCombatCardTags(const FGameplayTag& Tag)
+	{
+		TArray<FGameplayTag> EquivalentTags;
+		if (!Tag.IsValid())
+		{
+			return EquivalentTags;
+		}
+
+		const FString TagString = Tag.ToString();
+		FString Leaf;
+		bool bIdentityTag = false;
+		if (TryExtractLegacyCombatCardLeaf(TagString, Leaf, bIdentityTag))
+		{
+			AddRequestedTag(EquivalentTags, FString(TEXT("Buff.")) + BuffLeafFromLegacyLeaf(Leaf, bIdentityTag));
+			AddRequestedTag(EquivalentTags, FString(TEXT("Rune.ID.")) + Leaf);
+			AddRequestedTag(EquivalentTags, FString(TEXT("Card.ID.")) + Leaf);
+			AddRequestedTag(EquivalentTags, FString(TEXT("Rune.Effect.")) + Leaf);
+			AddRequestedTag(EquivalentTags, FString(TEXT("Card.Effect.")) + Leaf);
+			return EquivalentTags;
+		}
+
+		static constexpr const TCHAR* BuffStatusPrefix = TEXT("Buff.Status.");
+		if (TagString.StartsWith(BuffStatusPrefix))
+		{
+			Leaf = TagString.RightChop(FCString::Strlen(BuffStatusPrefix));
+			AddRequestedTag(EquivalentTags, FString(TEXT("Buff.")) + BuffLeafFromLegacyLeaf(Leaf, false));
+			return EquivalentTags;
+		}
+
+		static constexpr const TCHAR* BuffPrefix = TEXT("Buff.");
+		if (TagString.StartsWith(BuffPrefix))
+		{
+			const FString BuffLeaf = TagString.RightChop(FCString::Strlen(BuffPrefix));
+			TArray<FString> LegacyLeaves;
+			TArray<FString> LegacyStatusLeaves;
+			LegacyLeaves.Add(BuffLeaf);
+			if (BuffLeaf == TEXT("Fire"))
+			{
+				LegacyLeaves.Add(TEXT("Burn"));
+				LegacyStatusLeaves.Add(TEXT("Burning"));
+			}
+			else if (BuffLeaf == TEXT("Poison"))
+			{
+				LegacyStatusLeaves.Add(TEXT("Poisoned"));
+			}
+			else if (BuffLeaf == TEXT("Bleed"))
+			{
+				LegacyStatusLeaves.Add(TEXT("Bleeding"));
+			}
+			else if (BuffLeaf == TEXT("Freeze"))
+			{
+				LegacyStatusLeaves.Add(TEXT("Frozen"));
+			}
+			else if (BuffLeaf == TEXT("Stun"))
+			{
+				LegacyStatusLeaves.Add(TEXT("Stunned"));
+			}
+			else if (BuffLeaf == TEXT("Rend"))
+			{
+				LegacyStatusLeaves.Add(TEXT("Rended"));
+			}
+			else if (BuffLeaf == TEXT("Wound"))
+			{
+				LegacyStatusLeaves.Add(TEXT("Wounded"));
+			}
+			else if (BuffLeaf == TEXT("Fear"))
+			{
+				LegacyStatusLeaves.Add(TEXT("Feared"));
+			}
+			else if (BuffLeaf == TEXT("Curse"))
+			{
+				LegacyStatusLeaves.Add(TEXT("Cursed"));
+			}
+			else if (BuffLeaf == TEXT("Shield"))
+			{
+				LegacyStatusLeaves.Add(TEXT("Shielded"));
+			}
+			else if (BuffLeaf == TEXT("ShadowMark"))
+			{
+				LegacyStatusLeaves.Add(TEXT("ShadowMark"));
+			}
+			else if (BuffLeaf == TEXT("Detonate") || BuffLeaf == TEXT("WeaponSkillFinisher"))
+			{
+				LegacyLeaves.Add(TEXT("Heavy"));
+			}
+			else if (BuffLeaf == TEXT("ReduceDamage"))
+			{
+				LegacyLeaves.Add(TEXT("Defense.ReduceDamage"));
+			}
+
+			for (const FString& LegacyLeaf : LegacyLeaves)
+			{
+				AddRequestedTag(EquivalentTags, FString(TEXT("Rune.ID.")) + LegacyLeaf);
+				AddRequestedTag(EquivalentTags, FString(TEXT("Card.ID.")) + LegacyLeaf);
+				AddRequestedTag(EquivalentTags, FString(TEXT("Rune.Effect.")) + LegacyLeaf);
+				AddRequestedTag(EquivalentTags, FString(TEXT("Card.Effect.")) + LegacyLeaf);
+			}
+			for (const FString& LegacyStatusLeaf : LegacyStatusLeaves)
+			{
+				AddRequestedTag(EquivalentTags, FString(TEXT("Buff.Status.")) + LegacyStatusLeaf);
+			}
+		}
+		return EquivalentTags;
+	}
+
+	bool ContainerHasTagOrEquivalent(const FGameplayTagContainer& Container, const FGameplayTag& Tag)
+	{
+		if (!Tag.IsValid())
+		{
+			return false;
+		}
+
+		if (Container.HasTag(Tag))
+		{
+			return true;
+		}
+
+		for (const FGameplayTag& EquivalentTag : GetEquivalentCombatCardTags(Tag))
+		{
+			if (Container.HasTag(EquivalentTag))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
 	bool MatchesIdRequirement(const FGameplayTag& ActualTag, const FGameplayTagContainer& RequiredTags)
 	{
-		return RequiredTags.IsEmpty() || (ActualTag.IsValid() && RequiredTags.HasTag(ActualTag));
+		return RequiredTags.IsEmpty() || (ActualTag.IsValid() && ContainerHasTagOrEquivalent(RequiredTags, ActualTag));
 	}
 
 	bool MatchesEffectRequirement(const FGameplayTagContainer& ActualTags, const FGameplayTagContainer& RequiredTags)
 	{
-		return RequiredTags.IsEmpty() || ActualTags.HasAll(RequiredTags);
+		if (RequiredTags.IsEmpty())
+		{
+			return true;
+		}
+
+		for (const FGameplayTag& RequiredTag : RequiredTags)
+		{
+			if (!ContainerHasTagOrEquivalent(ActualTags, RequiredTag))
+			{
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 	bool IsAnyLinkTriggered(const FCombatCardResolveResult& Result)

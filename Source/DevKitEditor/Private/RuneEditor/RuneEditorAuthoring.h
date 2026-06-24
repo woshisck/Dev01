@@ -9,7 +9,7 @@ class URuneDataAsset;
 struct FRuneEditorCreateRuneRequest
 {
 	FString DisplayName = TEXT("New Rune");
-	FString RuneIdTag = TEXT("Rune.ID.NewRune");
+	FString RuneIdTag = TEXT("Buff.NewRune");
 	FString AssetFolder = TEXT("/Game/YogRuneEditor/Runes");
 	FString FlowAssetFolder = TEXT("/Game/YogRuneEditor/Flows");
 	ERuneType RuneType = ERuneType::Buff;

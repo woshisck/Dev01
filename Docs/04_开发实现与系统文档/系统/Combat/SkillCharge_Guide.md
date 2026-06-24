@@ -50,15 +50,15 @@ t=7s  CD 结束 → [2/2], 满格，Timer 停止
 
 ## 三、Tag 命名规范
 
-### 3.1 技能标识层 = `PlayerState.AbilityCast.*`
+### 3.1 技能标识层 = `Character.State.*`
 
 **SkillChargeComponent 的注册键与 GA 的 `AbilityTags` 使用同一个 Tag**，不需要额外命名空间。
 
 | Tag | 说明 |
 |-----|------|
-| `PlayerState.AbilityCast.Dash` | 冲刺技能（注册键 + GA AbilityTag） |
-| `PlayerState.AbilityCast.Skill1` | 主动技能槽1（按实际功能命名） |
-| `PlayerState.AbilityCast.Skill2` | 主动技能槽2 |
+| `Character.State.Movement.Dash` | 冲刺技能（注册键 + GA AbilityTag） |
+| `Character.State.Skill.Active.Skill1` | 主动技能槽1（按实际功能命名） |
+| `Character.State.Skill.Active.Skill2` | 主动技能槽2 |
 
 > ⚠️ 不要用 `Buff.*` 或 `Ability.*` 命名空间下的 Tag 作为注册键。  
 > `Ability.*` 在本项目中不作为独立根命名空间使用（见 [GameplayTag_MasterGuide.md](../../标签/GameplayTag_MasterGuide.md)）。
@@ -93,8 +93,8 @@ t=7s  CD 结束 → [2/2], 满格，Timer 停止
 
 | Tag | 命名空间 | 贴在哪里 | 运行时挂 ASC？ |
 |-----|---------|---------|--------------|
-| `PlayerState.AbilityCast.Dash` | 玩家状态层 | GA.AbilityTags + RegisterSkill 参数 | 激活期间挂（ActivationOwnedTags）|
-| `Buff.Trigger.OnDash` | 触发层 | GA.AssetTags | ❌ |
+| `Character.State.Movement.Dash` | 角色运行时状态层 | GA.AbilityTags + RegisterSkill 参数 | 激活期间挂（ActivationOwnedTags）|
+| `Rune.Trigger.OnDash` | 触发层 | GA.AssetTags | ❌ |
 | `Buff.Effect.Attribute.MaxCharge` | 行为层 | DA.RuneEffectTag | ❌ |
 | `Buff.Effect.Attribute.CooldownDuration` | 行为层 | DA.RuneEffectTag | ❌ |
 
@@ -128,7 +128,7 @@ Max{SkillName}Charge          → 最大充能格数（符文可 Additive +1）
 GetOwningActorFromActorInfo
     → Cast to APlayerCharacterBase
         → GetSkillChargeComponent
-            → HasCharge("PlayerState.AbilityCast.Dash")
+            → HasCharge("Character.State.Movement.Dash")
                 → True  → 允许激活
                 → False → 拒绝激活（可播放 CD 音效/UI 反馈）
 ```
@@ -139,7 +139,7 @@ GetOwningActorFromActorInfo
 GetOwningActorFromActorInfo
     → Cast to APlayerCharacterBase
         → GetSkillChargeComponent
-            → ConsumeCharge("PlayerState.AbilityCast.Dash")
+            → ConsumeCharge("Character.State.Movement.Dash")
 → 继续冲刺逻辑...
 ```
 
@@ -175,7 +175,7 @@ Skill1CooldownDuration = 8.0f;   // 默认8秒CD
 ```cpp
 // 在 RegisterSkill 区块追加一行即可，无需其他 C++ 改动
 SkillChargeComponent->RegisterSkill(
-    FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Skill1")),
+    FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.Active.Skill1")),
     UPlayerAttributeSet::GetMaxSkill1ChargeAttribute(),
     UPlayerAttributeSet::GetSkill1CooldownDurationAttribute()
 );
@@ -184,8 +184,8 @@ SkillChargeComponent->RegisterSkill(
 ### Step 3：Blueprint GA 接入（同冲刺 GA 配置方式，换 Tag）
 
 ```
-HasCharge("PlayerState.AbilityCast.Skill1")
-ConsumeCharge("PlayerState.AbilityCast.Skill1")
+HasCharge("Character.State.Skill.Active.Skill1")
+ConsumeCharge("Character.State.Skill.Active.Skill1")
 ```
 
 ---
@@ -258,15 +258,15 @@ ConsumeCharge("PlayerState.AbilityCast.Skill1")
 需要一个跟技能充能相关的新 Tag？
 │
 ├─ 标识"这是哪个技能"（RegisterSkill 的键 + GA.AbilityTags）？
-│   └─ → PlayerState.AbilityCast.<功能名>    （如 PlayerState.AbilityCast.Blink）
+│   └─ → Character.State.Skill.Active.<Name>    （例如自定义主动技能名）
 │
 ├─ 描述"这个符文修改了什么属性"（贴 DA.RuneEffectTag）？
 │   ├─ 修改最大格数 → Buff.Effect.Attribute.MaxCharge（已有，复用）
 │   └─ 修改 CD 间隔 → Buff.Effect.Attribute.CooldownDuration（已有，复用）
 │
 ├─ 描述"何时触发"（符文触发时机，贴 GA.AssetTags）？
-│   ├─ 冲刺时触发 → Buff.Trigger.OnDash（已有，复用）
-│   └─ 施放技能时触发 → Buff.Trigger.OnSkillCast（已有，复用）
+│   ├─ 冲刺时触发 → Rune.Trigger.OnDash（已有，复用）
+│   └─ 施放技能时触发 → Rune.Trigger.OnSkillCast（已有，复用）
 │
 └─ 描述"当前处于 CD 状态"？
     └─ ❌ 不需要 Status Tag。CD 状态由 SkillChargeComponent 内部管理，
@@ -285,8 +285,8 @@ ConsumeCharge("PlayerState.AbilityCast.Skill1")
                  └─ 自动钳制 CurrentCharge ≤ MaxCharge
 
 GA_PlayerDash（技能执行层）
-  └─ CanActivate → SkillChargeComponent.HasCharge("PlayerState.AbilityCast.Dash")
-  └─ Activate    → SkillChargeComponent.ConsumeCharge("PlayerState.AbilityCast.Dash")
+  └─ CanActivate → SkillChargeComponent.HasCharge("Character.State.Movement.Dash")
+  └─ Activate    → SkillChargeComponent.ConsumeCharge("Character.State.Movement.Dash")
                        └─ CurrentCharge-- ，启动 CDDuration Timer
                        └─ Timer 触发 → CurrentCharge++
                        └─ OnChargeChanged.Broadcast → UI 刷新

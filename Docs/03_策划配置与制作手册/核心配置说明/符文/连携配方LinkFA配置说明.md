@@ -13,8 +13,8 @@
 | 字段 | 怎么填 | 说明 |
 | --- | --- | --- |
 | `Direction` | `Forward` 或 `Reversed` | 正向读取前一张，反向等待后一张 |
-| `Condition.RequiredNeighborIdTags` | 例如 `Card.ID.Moonlight` | 要求邻卡是指定卡牌 ID |
-| `Condition.RequiredNeighborEffectTags` | 例如 `Card.Effect.Attack` | 要求邻卡带有指定效果 Tag |
+| `Condition.RequiredNeighborIdTags` | 例如 `Rune.ID.Moonlight` | 要求邻卡是指定卡牌 ID |
+| `Condition.RequiredNeighborEffectTags` | 例如 `Rune.Effect.Attack` | 要求邻卡带有指定效果 Tag |
 | `Condition.RequiredAction` | 通常 `Any` | 旧字段兼容；新配方不要用它区分轻/重攻击 |
 | `Condition.RequiredActionSlot` | `Attack` / `Skill` / `WeaponSkill` / `Dash` | 需要限制动作槽时填写 |
 | `Condition.RequiredFlowRole` | `Starter` / `Catalyst` / `Finisher` | 需要限制构筑流程角色时填写 |
@@ -32,7 +32,7 @@
 | 字段 | 值 |
 | --- | --- |
 | `Direction` | `Forward` |
-| `Condition.RequiredNeighborEffectTags` | `Card.Effect.Attack` |
+| `Condition.RequiredNeighborEffectTags` | `Rune.Effect.Attack` |
 | `LinkFlow` | `FA_Moonlight_Forward_Attack` |
 | `ReasonText` | 攻击牌强化月光 |
 
@@ -41,7 +41,7 @@
 | 字段 | 值 |
 | --- | --- |
 | `Direction` | `Reversed` |
-| `Condition.RequiredNeighborEffectTags` | `Card.Effect.Attack` |
+| `Condition.RequiredNeighborEffectTags` | `Rune.Effect.Attack` |
 | `LinkFlow` | `FA_Moonlight_Reversed_Attack` |
 | `ReasonText` | 月光赋能下一张攻击牌 |
 

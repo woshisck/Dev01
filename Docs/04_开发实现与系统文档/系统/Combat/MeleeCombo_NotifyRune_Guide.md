@@ -135,7 +135,7 @@ AN_MeleeDamage 命中
     Target   = Buff施加者 (敌人)
   ↓ Out
 [Send Gameplay Event]               ← 第二个：通知背包符文
-    EventTag = Action.Rune.KnockbackApplied
+    EventTag = Buff.Event.KnockbackApplied
     Target   = Buff拥有者 (玩家)
   ↓ Out         ↓ Failed
 [Finish]      [Finish]
@@ -146,7 +146,7 @@ AN_MeleeDamage 命中
 [Start]
   ↓
 [Wait Gameplay Event]
-    EventTag = Action.Rune.KnockbackApplied
+    EventTag = Buff.Event.KnockbackApplied
     Target   = Buff拥有者 (玩家)
   ↓
 [Apply Attribute Modifier]
@@ -176,7 +176,7 @@ AN_MeleeDamage 命中
 | Log 没有输出 | Notify 的 `AdditionalRuneEffects` 未填或没命中 | 检查命中框配置 |
 | 第二次命中无效 | FA 的 Out/Failed 没连 `[Finish]` | 两个管脚都接 `[Finish]` |
 | 晚一段才触发 | 用了背包符文的 FA（有 OnDamageDealt 等待） | 换用 Notify Flow Asset |
-| 减速没生效 | Wait 监听 Tag 与 Send 发出 Tag 不一致 | 确认两边都用 `Action.Rune.KnockbackApplied` |
+| 减速没生效 | Wait 监听 Tag 与 Send 发出 Tag 不一致 | 确认两边都用 `Buff.Event.KnockbackApplied` |
 | `BuffGiver` 解析失败 | Target 填错为 `Buff拥有者` | 改成 `Buff施加者` |
 
 ---

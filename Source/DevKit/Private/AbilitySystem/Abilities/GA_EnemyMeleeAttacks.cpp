@@ -4,7 +4,7 @@ namespace
 {
 	FGameplayTag DeadStatusTag()
 	{
-		return FGameplayTag::RequestGameplayTag(FName(TEXT("Buff.Status.Dead")));
+		return FGameplayTag::RequestGameplayTag(FName(TEXT("Buff.Dead")));
 	}
 }
 

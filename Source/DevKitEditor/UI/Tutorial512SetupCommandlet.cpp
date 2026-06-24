@@ -115,7 +115,7 @@ namespace Tutorial512Setup
 		{
 			return TEXT("T_Tutorial512_DeckReload");
 		}
-		if (EventID == TEXT("tutorial_heavy_card"))
+		if (EventID == TEXT("tutorial_heavy_card") || EventID == TEXT("tutorial_weapon_skill_finisher_card"))
 		{
 			return TEXT("T_Tutorial512_HeavyCard");
 		}
@@ -273,8 +273,8 @@ namespace Tutorial512Setup
 				}
 			},
 			{
-				TEXT("tutorial_heavy_card"),
-				TEXT("DA_Tutorial_HeavyCard"),
+				TEXT("tutorial_weapon_skill_finisher_card"),
+				TEXT("DA_Tutorial_WeaponSkillFinisherCard"),
 				{
 					{
 						TEXT("新的卡牌已入组"),

@@ -1,4 +1,4 @@
-#include "BuffFlow/Nodes/BFNode_HitStop.h"
+﻿#include "BuffFlow/Nodes/BFNode_HitStop.h"
 #include "Animation/HitStopManager.h"
 #include "Animation/AN_MeleeDamage.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
@@ -12,12 +12,12 @@ namespace HitStopTags
 {
 	static FGameplayTag Freeze()
 	{
-		return FGameplayTag::RequestGameplayTag("Buff.Status.HitStop.Freeze");
+		return FGameplayTag::RequestGameplayTag("Buff.HitStop.Freeze");
 	}
 
 	static FGameplayTag Slow()
 	{
-		return FGameplayTag::RequestGameplayTag("Buff.Status.HitStop.Slow");
+		return FGameplayTag::RequestGameplayTag("Buff.HitStop.Slow");
 	}
 }
 
@@ -43,7 +43,7 @@ void UBFNode_HitStop::ExecuteBuffFlowInput(const FName& PinName)
 	bool bCanFreeze = ASC->HasMatchingGameplayTag(FreezeTag);
 	bool bCanSlow   = ASC->HasMatchingGameplayTag(SlowTag);
 
-	// AN 配置的 HitStop 模式直接激活对应阶段（不依赖 FA 写 Tag）
+	// AN 配置HitStop 模式直接激活对应阶段（不依FA Tag
 	if (Override.bActive)
 	{
 		if (Override.Mode == EHitStopMode::Freeze) bCanFreeze = true;
@@ -65,11 +65,11 @@ void UBFNode_HitStop::ExecuteBuffFlowInput(const FName& PinName)
 		return;
 	}
 
-	// 消费 Tag（先消费再触发，防止同帧重入）
+	// 消费 Tag（先消费再触发，防止同帧重入
 	if (bCanFreeze) ASC->RemoveLooseGameplayTag(FreezeTag);
 	if (bCanSlow)   ASC->RemoveLooseGameplayTag(SlowTag);
 
-	// AN 覆盖参数只作用于 AN 指定的模式，Tag 触发的模式使用节点默认值
+	// AN 覆盖参数只作用于 AN 指定的模式，Tag 触发的模式使用节点默认
 	const bool bOverrideFreeze = Override.bActive && Override.Mode == EHitStopMode::Freeze;
 	const bool bOverrideSlow   = Override.bActive && Override.Mode == EHitStopMode::Slow;
 

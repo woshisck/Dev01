@@ -17,7 +17,9 @@ namespace
 UGA_Musket_HeavyAttack::UGA_Musket_HeavyAttack()
 {
     AbilityTags.AddTag(FGameplayTag::RequestGameplayTag("Ability.Musket.Heavy"));
+    AbilityTags.AddTag(FGameplayTag::RequestGameplayTag("Character.State.Skill.WeaponSkill"));
     AbilityTags.AddTag(FGameplayTag::RequestGameplayTag("PlayerState.AbilityCast.WeaponSkill"));
+    ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag("Character.State.Skill.WeaponSkill"));
 
     // C++ 默认值：无材质时弧不可见但不崩溃
     AimArcClass = AYogAimArcActor::StaticClass();

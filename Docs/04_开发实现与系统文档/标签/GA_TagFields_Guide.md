@@ -70,10 +70,10 @@
 | 填什么 | 说明 |
 |---|---|
 | `Buff.Status.*` 状态 Tag | 代表"当前正在做什么"，死亡填 Dead，受击填 HitReact |
-| `PlayerState.AbilityCast.*` | 玩家攻击 GA 填当前连招段，供 StateConflict 读取 |
+| `Character.State.*` | 玩家/敌人通用动作 GA 填当前动作状态，供 StateConflict 读取 |
 | 不填 | 这个 GA 不需要对外广播"我正在执行" |
 
-**规则**：只用 `Buff.Status.*` 或 `PlayerState.AbilityCast.*`，不用 `Action.*`（Action 是信号，不是持续状态）。
+**规则**：只用 `Buff.Status.*` 或 `Character.State.*`，不用 `Action.*`（Action 是信号，不是持续状态）。
 
 ---
 
@@ -116,10 +116,10 @@ Activation Blocked Tags: Buff.Status.Dead
 ### 类型 B：玩家 Attack GA
 
 ```
-Ability Tags:            PlayerState.AbilityCast.Attack
+Ability Tags:            Character.State.Skill.Attack
 Cancel Abilities With:   （空）
 Block Abilities With:    （空）
-Activation Owned Tags:   PlayerState.AbilityCast.Attack
+Activation Owned Tags:   Character.State.Skill.Attack
 Activation Blocked Tags: Buff.Status.Dead, Buff.Status.HitReact, Buff.Status.Knockback
 ```
 
@@ -170,7 +170,7 @@ Activation Blocked Tags: （空）
 - 符文 GA 通过 `AbilityTriggers` 监听 `Buff.Trigger.OnHit` 等信号触发。
 - 不需要 AbilityTags，因为没有系统需要通过 Tag 取消或查找符文 GA。
 - 不填 ActivationOwnedTags，因为符文效果的状态由 GE GrantedTags 管理，不归 GA 管。
-- AssetTags（不在这 5 个字段里）填 `Buff.Trigger.OnHit` + `Buff.Rune.Type.Attack` 等元数据，供背包系统筛选和触发条件匹配。
+- AssetTags（不在这 5 个字段里）填 `Rune.Trigger.OnHit` + `Rune.Type.Attack` 等元数据，供背包系统筛选和触发条件匹配。
 
 ---
 

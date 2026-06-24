@@ -1,4 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+﻿// Fill out your copyright notice in the Description page of Project Settings.
 
 #include "AbilitySystem/Abilities/Musket/GA_Musket_LightAttack.h"
 #include "AbilitySystem/AbilityTask/YogAbilityTask_PlayMontageAndWaitForEvent.h"
@@ -9,14 +9,16 @@
 UGA_Musket_LightAttack::UGA_Musket_LightAttack()
 {
     AbilityTags.AddTag(FGameplayTag::RequestGameplayTag("Ability.Musket.Light"));
+    AbilityTags.AddTag(FGameplayTag::RequestGameplayTag("Character.State.Skill.Attack"));
     AbilityTags.AddTag(FGameplayTag::RequestGameplayTag("PlayerState.AbilityCast.Attack"));
+    ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag("Character.State.Skill.Attack"));
 
     CancelAbilitiesWithTag.AddTag(FGameplayTag::RequestGameplayTag("Ability.Musket.Reload"));
 
     ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag("State.Musket.Aiming"));
     ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag("State.Musket.Reloading"));
-    // 冲刺中由 SprintAttack 处理，不激活普通攻击
-    ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag("Buff.Status.DashInvincible"));
+    // 冲刺中由 SprintAttack 处理，不激活普通攻
+    ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag("Buff.DashInvincible"));
 }
 
 void UGA_Musket_LightAttack::ActivateAbility(
@@ -36,13 +38,13 @@ void UGA_Musket_LightAttack::ActivateAbility(
     bFired = false;
     LockMovement();
 
-    // 若 FireEventTag 无效，立刻开枪（蒙太奇纯作视觉用）
+    // FireEventTag 无效，立刻开枪（蒙太奇纯作视觉用
     if (!FireEventTag.IsValid())
     {
         DoFire();
     }
 
-    // 无蒙太奇时直接结束
+    // 无蒙太奇时直接结
     if (!FireMontage)
     {
         UnlockMovement();

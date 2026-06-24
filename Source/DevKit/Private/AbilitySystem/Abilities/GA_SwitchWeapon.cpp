@@ -9,13 +9,20 @@ UGA_SwitchWeapon::UGA_SwitchWeapon(const FObjectInitializer& ObjectInitializer)
 {
 	const FGameplayTag SwitchWeaponTag =
 		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.SwitchWeapon"));
+	const FGameplayTag CharacterSwitchWeaponTag =
+		FGameplayTag::RequestGameplayTag(TEXT("Character.State.Equipment.SwitchWeapon"));
 
+	AbilityTags.AddTag(CharacterSwitchWeaponTag);
 	AbilityTags.AddTag(SwitchWeaponTag);
-	ActivationOwnedTags.AddTag(SwitchWeaponTag);
+	ActivationOwnedTags.AddTag(CharacterSwitchWeaponTag);
 	CancelAbilitiesWithTag.AddTag(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast")));
-	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Dead")));
-	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.HitReact")));
-	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Knockback")));
+	CancelAbilitiesWithTag.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill")));
+	CancelAbilitiesWithTag.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Character.State.Movement.Dash")));
+	CancelAbilitiesWithTag.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Character.State.Equipment.SwitchWeapon")));
+	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Dead")));
+	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.HitReact")));
+	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Knockback")));
+	ActivationBlockedTags.AddTag(CharacterSwitchWeaponTag);
 	ActivationBlockedTags.AddTag(SwitchWeaponTag);
 	bListenForComboWindow = false;
 }

@@ -124,7 +124,7 @@ SRuneEditorWidget::OnCreateRuneClicked()
   └─ FRuneEditorAuthoring::CreateRuneAuthoringAssets()
       ├─ 创建 UYogRuneFlowAsset：/Game/YogRuneEditor/Flows/FA_Rune_xxx
       ├─ 创建 URuneDataAsset：/Game/YogRuneEditor/Runes/DA_Rune_xxx
-      ├─ EnsureGameplayTag(Rune.ID.xxx)
+      ├─ EnsureGameplayTag(Rune.ID.<Name>)
       ├─ RuneInfo.Flow.FlowAsset = FlowAsset
       ├─ MarkPackageDirty()
       └─ 刷新左侧资源列表并选中新符文

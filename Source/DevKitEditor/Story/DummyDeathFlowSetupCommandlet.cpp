@@ -18,10 +18,11 @@
 
 namespace DummyDeathFlowSetup
 {
-const FString FlowPackagePath = TEXT("/Game/Story/Flows/Tutorial/FA_DummyDeath_DropHeavyCard");
+const FString FlowPackagePath = TEXT("/Game/Story/Flows/Tutorial/FA_DummyDeath_DropWeaponSkillFinisherCard");
 const FString PointObjectPath = TEXT("/Game/Story/EncounterPoints/Main_Tutorial_Demo/EG_FirstRun_Tutorial/EP_FirstRun_TrainingDummyCombo.EP_FirstRun_TrainingDummyCombo");
 const FString PickupClassPath = TEXT("/Game/Code/Dungeon/BP_RewardPickup.BP_RewardPickup_C");
-const FString RuneObjectPath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Heavy.DA_Rune512_Heavy");
+const FString RuneObjectPath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_WeaponSkillFinisher.DA_Rune512_WeaponSkillFinisher");
+const FString LegacyRuneObjectPath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Heavy.DA_Rune512_Heavy");
 
 FString ToObjectPath(const FString& PackagePath)
 {
@@ -165,7 +166,11 @@ bool ConfigureRewardNode(USNode_SpawnRewardPickup* SpawnNode)
 	URuneDataAsset* RuneAsset = LoadObject<URuneDataAsset>(nullptr, *RuneObjectPath);
 	if (!RuneAsset)
 	{
-		UE_LOG(LogTemp, Error, TEXT("Failed to load rune asset %s."), *RuneObjectPath);
+		RuneAsset = LoadObject<URuneDataAsset>(nullptr, *LegacyRuneObjectPath);
+	}
+	if (!RuneAsset)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Failed to load rune asset %s or legacy %s."), *RuneObjectPath, *LegacyRuneObjectPath);
 		return false;
 	}
 

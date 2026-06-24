@@ -655,19 +655,25 @@ bool FStoryEncounterWeaponPickupTutorialPointsAtDummyTest::RunTest(const FString
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStoryEncounterDummyDeathFlowDropsHeavyAndHintsPickupTest,
-	"DevKit.StoryEncounter.DummyDeathFlowDropsHeavyAndHintsPickup",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStoryEncounterDummyDeathFlowDropsWeaponSkillFinisherAndHintsPickupTest,
+	"DevKit.StoryEncounter.DummyDeathFlowDropsWeaponSkillFinisherAndHintsPickup",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStoryEncounterTutorialDummySpawnBindsKillPointTest,
 	"DevKit.StoryEncounter.TutorialDummySpawnBindsKillPoint",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FStoryEncounterDummyDeathFlowDropsHeavyAndHintsPickupTest::RunTest(const FString& Parameters)
+bool FStoryEncounterDummyDeathFlowDropsWeaponSkillFinisherAndHintsPickupTest::RunTest(const FString& Parameters)
 {
 	const UStoryFlowAsset* Flow = LoadObject<UStoryFlowAsset>(
 		nullptr,
-		TEXT("/Game/Story/Flows/Tutorial/FA_DummyDeath_DropHeavyCard.FA_DummyDeath_DropHeavyCard"));
+		TEXT("/Game/Story/Flows/Tutorial/FA_DummyDeath_DropWeaponSkillFinisherCard.FA_DummyDeath_DropWeaponSkillFinisherCard"));
+	if (!Flow)
+	{
+		Flow = LoadObject<UStoryFlowAsset>(
+			nullptr,
+			TEXT("/Game/Story/Flows/Tutorial/FA_DummyDeath_DropHeavyCard.FA_DummyDeath_DropHeavyCard"));
+	}
 
 	TestNotNull(TEXT("Dummy death Story FA loads"), Flow);
 	if (!Flow)
@@ -675,7 +681,7 @@ bool FStoryEncounterDummyDeathFlowDropsHeavyAndHintsPickupTest::RunTest(const FS
 		return false;
 	}
 
-	bool bDropsHeavy = false;
+	bool bDropsWeaponSkillFinisher = false;
 	bool bDropsKnockback = false;
 	bool bHasBackpackDeckHint = false;
 	bool bPlaysSpawnFocusCue = false;
@@ -687,7 +693,8 @@ bool FStoryEncounterDummyDeathFlowDropsHeavyAndHintsPickupTest::RunTest(const FS
 			for (const FLootOption& Option : SpawnNode->RewardLootOptions)
 			{
 				const FString RunePath = GetPathNameSafe(Option.RuneAsset);
-				bDropsHeavy |= RunePath.Contains(TEXT("DA_Rune512_Heavy"));
+				bDropsWeaponSkillFinisher |= RunePath.Contains(TEXT("DA_Rune512_WeaponSkillFinisher"))
+					|| RunePath.Contains(TEXT("DA_Rune512_Heavy"));
 				bDropsKnockback |= RunePath.Contains(TEXT("DA_Rune512_Knockback"));
 			}
 		}
@@ -701,7 +708,7 @@ bool FStoryEncounterDummyDeathFlowDropsHeavyAndHintsPickupTest::RunTest(const FS
 		}
 	}
 
-	TestTrue(TEXT("Dummy death flow drops Heavy card"), bDropsHeavy);
+	TestTrue(TEXT("Dummy death flow drops WeaponSkill finisher card"), bDropsWeaponSkillFinisher);
 	TestFalse(TEXT("Dummy death flow must not drop Knockback card"), bDropsKnockback);
 	TestTrue(TEXT("Dummy death flow plays the spawn focus cue"), bPlaysSpawnFocusCue);
 	TestTrue(TEXT("Dummy death flow shows backpack/deck weak hint after the drop"), bHasBackpackDeckHint);
@@ -757,8 +764,10 @@ bool FStoryEncounterTutorialDummySpawnBindsKillPointTest::RunTest(const FString&
 	TestNotNull(TEXT("Training dummy kill point runs the dummy death Story FA"), KillPoint->NodeEventFlow.Get());
 	if (KillPoint->NodeEventFlow)
 	{
-		TestTrue(TEXT("Training dummy kill point uses Heavy card drop flow"),
-			GetPathNameSafe(KillPoint->NodeEventFlow.Get()).Contains(TEXT("FA_DummyDeath_DropHeavyCard")));
+		const FString FlowPath = GetPathNameSafe(KillPoint->NodeEventFlow.Get());
+		TestTrue(TEXT("Training dummy kill point uses WeaponSkill finisher card drop flow"),
+			FlowPath.Contains(TEXT("FA_DummyDeath_DropWeaponSkillFinisherCard"))
+			|| FlowPath.Contains(TEXT("FA_DummyDeath_DropHeavyCard")));
 	}
 
 	const bool bHasInlineDelayedRewardDrop = KillPoint->Actions.ContainsByPredicate(

@@ -54,8 +54,23 @@ UGA_ActiveSkill_ShieldBurst::UGA_ActiveSkill_ShieldBurst(const FObjectInitialize
 	: Super(ObjectInitializer)
 {
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerExecution;
-	AbilityTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.ActiveSkill.ShieldBurst"), false));
-	ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.ActiveSkill.ShieldBurst"), false));
+	const FGameplayTag ActiveSkillTag = FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.Active"), false);
+	if (ActiveSkillTag.IsValid())
+	{
+		AbilityTags.AddTag(ActiveSkillTag);
+	}
+
+	const FGameplayTag ShieldBurstAbilityTag = FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.Active.ShieldBurst"), false);
+	if (ShieldBurstAbilityTag.IsValid())
+	{
+		AbilityTags.AddTag(ShieldBurstAbilityTag);
+	}
+
+	const FGameplayTag ShieldBurstStatusTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.ActiveSkill.ShieldBurst"), false);
+	if (ShieldBurstStatusTag.IsValid())
+	{
+		ActivationOwnedTags.AddTag(ShieldBurstStatusTag);
+	}
 }
 
 void UGA_ActiveSkill_ShieldBurst::ActivateAbility(

@@ -1,4 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+﻿// Fill out your copyright notice in the Description page of Project Settings.
 
 
 #include "Item/Weapon/WeaponSpawner.h"
@@ -145,11 +145,11 @@ void AWeaponSpawner::BeginPlay()
 			TEXT("/Game/UI/Playtest_UI/WeaponInfo/WBP_WeaponFloat.WBP_WeaponFloat_C"));
 		if (!WeaponFloatWidgetClass)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[WeaponSpawner] WBP_WeaponFloat 未找到，请检查资产路径"));
+			UE_LOG(LogTemp, Warning, TEXT("[WeaponSpawner] WBP_WeaponFloat 未找到，请检查资产路"));
 		}
 	}
 
-	// 初始化浮窗 Widget
+	// 初始化浮Widget
 	if (WeaponFloatWidgetClass && WeaponInfoWidgetComp && WeaponDefinition)
 	{
 		WeaponInfoWidgetComp->SetWidgetClass(WeaponFloatWidgetClass);
@@ -196,7 +196,7 @@ void AWeaponSpawner::Tick(float DeltaTime)
 		WeaponMesh->SetRelativeLocation(BaseMeshOffset + BobAxis.GetSafeNormal() * BobOffset);
 	}
 
-	// Tutorial 弹窗显示期间、或武器已被拾取后隐藏浮窗
+	// Tutorial 弹窗显示期间、或武器已被拾取后隐藏浮
 	if (bPickedUp)
 	{
 		if (WeaponInfoWidgetComp)
@@ -217,7 +217,7 @@ void AWeaponSpawner::Tick(float DeltaTime)
 		}
 	}
 
-	// 朝向判断：武器信息由 HUD 固定显示在关卡信息区，避免世界投影浮窗越界。
+	// 朝向判断：武器信息由 HUD 固定显示在关卡信息区，避免世界投影浮窗越界
 	if (bPlayerInRange && NearbyPlayer.IsValid())
 	{
 		FVector ToWeapon = GetActorLocation() - NearbyPlayer->GetActorLocation();
@@ -286,7 +286,7 @@ void AWeaponSpawner::OnPlayerEnterRange(APlayerCharacterBase* Player)
 	Player->PendingWeaponSpawner = this;
 	NearbyPlayer = Player;
 	bPlayerInRange = true;
-	// 浮窗可见性由 Tick 根据朝向动态控制
+	// 浮窗可见性由 Tick 根据朝向动态控
 }
 
 void AWeaponSpawner::OnPlayerLeaveRange(APlayerCharacterBase* Player)
@@ -348,8 +348,8 @@ void AWeaponSpawner::ResetToAvailable()
 		HUD->HideWeaponFloatInfo(WeaponDefinition);
 	}
 
-	// 还原浮窗内部状态：折叠动画把 InfoContainer 透明度降到 0、Visibility=Collapsed，
-	// 必须重新调 SetWeaponDefinition 把 RenderOpacity/Visibility/RenderTransform 全部还原
+	// 还原浮窗内部状态：折叠动画InfoContainer 透明度降0、Visibility=Collapsed
+	// 必须重新SetWeaponDefinition RenderOpacity/Visibility/RenderTransform 全部还原
 	if (WeaponInfoWidgetComp && WeaponDefinition)
 	{
 		if (UWeaponFloatWidget* FloatWidget = Cast<UWeaponFloatWidget>(WeaponInfoWidgetComp->GetWidget()))
@@ -374,7 +374,7 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 	}
 	if (!Player || !WeaponDefinition) return;
 
-	// ── 预览模式：仅弹 LevelInfoPopup，不执行拾取 ──────────────────
+	// ── 预览模式：仅LevelInfoPopup，不执行拾取 ──────────────────
 	if (WeaponDefinition->bPreviewOnly)
 	{
 		if (WeaponDefinition->PreviewPopup)
@@ -386,7 +386,7 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 		return;
 	}
 
-	// 拾取后浮窗永久隐藏
+	// 拾取后浮窗永久隐
 	bPickedUp = true;
 
 	// 网格变黑
@@ -445,14 +445,14 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 		return;
 	}
 
-	// ── 1. 处理旧武器 ────────────────────────────────────────────────
+	// ── 1. 处理旧武────────────────────────────────────────────────
 	if (Player->EquippedWeaponInstance)
 	{
 		// 恢复旧武器来源的 Spawner（让它重新可交互、材质恢复）
 		if (Player->EquippedFromSpawner && Player->EquippedFromSpawner != this)
 			Player->EquippedFromSpawner->ResetToAvailable();
 
-		// 解绑热度委托，再销毁
+		// 解绑热度委托，再销
 		Player->OnHeatPhaseChanged.RemoveDynamic(Player->EquippedWeaponInstance, &AWeaponInstance::OnHeatPhaseChanged);
 		Player->EquippedWeaponInstance->Destroy();
 		Player->EquippedWeaponInstance = nullptr;
@@ -481,7 +481,7 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 	// ── 3. 传入热度材质 + 绑定热度委托 ──────────────────────────────
 	if (NewWeapon && !bDisableLegacyHeatBackpackRuneForCardTestSpawner)
 	{
-		// 从 DA 把 Overlay 材质传给武器实例，无需在 BP 里手动赋值
+		// DA Overlay 材质传给武器实例，无需BP 里手动赋
 		NewWeapon->HeatOverlayMaterial = WeaponDefinition->HeatOverlayMaterial;
 
 		Player->OnHeatPhaseChanged.AddDynamic(NewWeapon, &AWeaponInstance::OnHeatPhaseChanged);
@@ -491,9 +491,9 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 		int32 CurrentPhase = 0;
 		if (UAbilitySystemComponent* ASC = Player->GetAbilitySystemComponent())
 		{
-			if      (ASC->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Heat.Phase.3")))) CurrentPhase = 3;
-			else if (ASC->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Heat.Phase.2")))) CurrentPhase = 2;
-			else if (ASC->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Heat.Phase.1")))) CurrentPhase = 1;
+			if      (ASC->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Heat.Phase.3")))) CurrentPhase = 3;
+			else if (ASC->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Heat.Phase.2")))) CurrentPhase = 2;
+			else if (ASC->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Heat.Phase.1")))) CurrentPhase = 1;
 		}
 		Player->OnHeatPhaseChanged.Broadcast(CurrentPhase);
 	}
@@ -541,14 +541,14 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 		UE_LOG(LogTemp, Warning, TEXT("[WeaponSpawner] Legacy backpack/rune config disabled for combat card test"));
 	}
 
-	// ── 5. 记录状态 ──────────────────────────────────────────────────
+	// ── 5. 记录状──────────────────────────────────────────────────
 	Player->EquippedWeaponDef    = WeaponDefinition;
 	Player->EquippedFromSpawner  = this;
 	Player->PendingWeaponSpawner = nullptr;
 
-	// ── 5.25 注入战斗卡组与 typed AbilityData ───────────────────────
-	// TryPickupWeapon 自己实现了装备流程，不走 WeaponDefinition::SetupWeaponToCharacter。
-	// 因此这里需要同步加载武器 DA 上的 InitialCombatDeck / InitialRunes / typed AbilityData。
+	// ── 5.25 注入战斗卡组typed AbilityData ───────────────────────
+	// TryPickupWeapon 自己实现了装备流程，不走 WeaponDefinition::SetupWeaponToCharacter
+	// 因此这里需要同步加载武DA 上的 InitialCombatDeck / InitialRunes / typed AbilityData
 	if (UCombatDeckComponent* CombatDeck = Player->CombatDeckComponent.Get())
 	{
 		CombatDeck->LoadDeckFromWeapon(WeaponDefinition);
@@ -558,15 +558,15 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 	Player->ApplyAbilityDataFromWeapon(WeaponDefinition);
 
 	// ── 5.5 武器类型 Tag 守卫：挂当前 WeaponType LooseTag ─────────────
-	// 让玩家专属攻击 GA 的 ActivationRequiredTags 能匹配通过；
-	// 注意：TryPickupWeapon 自己实现了装备流程未调 SetupWeaponToCharacter，
-	// 故此处必须手动 Apply（与 SetupWeaponToCharacter 装备完成段对应）
+	// 让玩家专属攻GA ActivationRequiredTags 能匹配通过
+	// 注意：TryPickupWeapon 自己实现了装备流程未SetupWeaponToCharacter
+	// 故此处必须手Apply（与 SetupWeaponToCharacter 装备完成段对应）
 	if (UYogAbilitySystemComponent* YogASC = Cast<UYogAbilitySystemComponent>(Player->GetAbilitySystemComponent()))
 	{
 		YogASC->ApplyWeaponTypeTag(WeaponDefinition->WeaponType);
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("WeaponSpawner: 武器已拾取 [%s]"), *WeaponDefinition->GetName());
+	UE_LOG(LogTemp, Log, TEXT("WeaponSpawner: 武器已拾[%s]"), *WeaponDefinition->GetName());
 
 	if (UTutorialManager* TM = GetGameInstance()->GetSubsystem<UTutorialManager>())
 	{
@@ -587,7 +587,7 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 		GameMode->NotifyPlayerWeaponEquipped(Player);
 	}
 
-	// HUD 信息区内折叠浮窗 → 缩略图飞向左下角武器图标
+	// HUD 信息区内折叠浮窗 缩略图飞向左下角武器图标
 	if (AYogHUD* HUD = GetYogHUDForPlayer(Player))
 	{
 		bCollapsingForPickup = true;
@@ -613,7 +613,7 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 	else
 	{
 		bCollapsingForPickup = false;
-		UE_LOG(LogTemp, Warning, TEXT("[WeaponPickup] HUD=NULL — 动画不会触发"));
+		UE_LOG(LogTemp, Warning, TEXT("[WeaponPickup] HUD=NULL 动画不会触发"));
 	}
 
 }

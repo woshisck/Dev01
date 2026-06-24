@@ -1,4 +1,4 @@
-#include "Item/Weapon/WeaponDefinition.h"
+﻿#include "Item/Weapon/WeaponDefinition.h"
 #include "Item/Weapon/WeaponInstance.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Component/CharacterDataComponent.h"
@@ -24,7 +24,7 @@ void UWeaponDefinition::SetupWeaponToCharacter(USkeletalMeshComponent* AttachTar
 		ReceivingChar->EquippedWeaponInstance = nullptr;
 	}
 
-	// ── 0.5 清理旧武器类型 Tag（避免装备替换时残留导致两类 GA 都通过）────
+	// ── 0.5 清理旧武器类Tag（避免装备替换时残留导致两类 GA 都通过）────
 	if (UYogAbilitySystemComponent* YogASC = Cast<UYogAbilitySystemComponent>(ReceivingChar->GetAbilitySystemComponent()))
 	{
 		YogASC->ClearWeaponTypeTags();
@@ -58,13 +58,13 @@ void UWeaponDefinition::SetupWeaponToCharacter(USkeletalMeshComponent* AttachTar
 		ReceivingChar->OnHeatPhaseChanged.AddDynamic(LastSpawnedWeapon, &AWeaponInstance::OnHeatPhaseChanged);
 		ReceivingChar->EquippedWeaponInstance = LastSpawnedWeapon;
 
-		// 查当前热度阶段并立刻同步（切关恢复时 Phase 可能已非 0）
+		// 查当前热度阶段并立刻同步（切关恢复时 Phase 可能已非 0
 		int32 CurrentPhase = 0;
 		if (UAbilitySystemComponent* ASC = ReceivingChar->GetAbilitySystemComponent())
 		{
-			if      (ASC->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Heat.Phase.3")))) CurrentPhase = 3;
-			else if (ASC->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Heat.Phase.2")))) CurrentPhase = 2;
-			else if (ASC->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Heat.Phase.1")))) CurrentPhase = 1;
+			if      (ASC->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Heat.Phase.3")))) CurrentPhase = 3;
+			else if (ASC->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Heat.Phase.2")))) CurrentPhase = 2;
+			else if (ASC->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Heat.Phase.1")))) CurrentPhase = 1;
 		}
 		ReceivingChar->OnHeatPhaseChanged.Broadcast(CurrentPhase);
 	}
@@ -74,11 +74,11 @@ void UWeaponDefinition::SetupWeaponToCharacter(USkeletalMeshComponent* AttachTar
 		UE_LOG(LogTemp, Warning, TEXT("[WeaponDefinition] Legacy heat weapon overlay disabled for combat card test"));
 	}
 
-	// 记录当前装备的武器 DA，供切关时写入 RunState
+	// 记录当前装备的武DA，供切关时写RunState
 	ReceivingChar->EquippedWeaponDef = this;
 	ReceivingChar->ApplyAbilityDataFromWeapon(this);
 
-	// ── 注入背包配置（格子尺寸 + 激活区） ───────────────────────────────
+	// ── 注入背包配置（格子尺+ 激活区───────────────────────────────
 	UE_LOG(LogTemp, Warning, TEXT("[WeaponDefinition] SetupWeaponToCharacter reached end. BackpackConfig W=%d H=%d, Char=%s"),
 		BackpackConfig.GridWidth, BackpackConfig.GridHeight,
 		ReceivingChar ? *ReceivingChar->GetName() : TEXT("null"));
@@ -104,8 +104,8 @@ void UWeaponDefinition::SetupWeaponToCharacter(USkeletalMeshComponent* AttachTar
 	}
 
 	// ── 武器类型 Tag 守卫：挂当前 WeaponType LooseTag ─────────────────
-	// 让玩家专属攻击 GA 的 ActivationRequiredTags 能匹配通过；
-	// ClearWeaponTypeTags 已在函数顶部清理过旧 Tag，此处只需 Apply 新 Tag
+	// 让玩家专属攻GA ActivationRequiredTags 能匹配通过
+	// ClearWeaponTypeTags 已在函数顶部清理过旧 Tag，此处只需 Apply Tag
 	if (UYogAbilitySystemComponent* YogASC = Cast<UYogAbilitySystemComponent>(ReceivingChar->GetAbilitySystemComponent()))
 	{
 		YogASC->ApplyWeaponTypeTag(WeaponType);

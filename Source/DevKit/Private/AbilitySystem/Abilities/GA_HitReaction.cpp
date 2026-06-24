@@ -35,9 +35,9 @@ UGA_HitReaction::UGA_HitReaction(const FObjectInitializer& ObjectInitializer)
 {
     AbilityTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Action.HitReact")));
 
-    ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.HitReact")));
-    ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Knockback")));
-    ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Dead")));
+    ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.HitReact")));
+    ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Knockback")));
+    ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Dead")));
 
     InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerExecution;
 
@@ -169,6 +169,8 @@ void UGA_HitReaction::InterruptForParriedReaction(AYogCharacterBase* Character) 
     if (UAbilitySystemComponent* ASC = Character->GetAbilitySystemComponent())
     {
         static const TCHAR* ActionTagNames[] = {
+            TEXT("Character.State.Skill.Attack"),
+            TEXT("Character.State.Skill.WeaponSkill"),
             TEXT("PlayerState.AbilityCast.Attack"),
             TEXT("PlayerState.AbilityCast.WeaponSkill"),
             TEXT("Enemy.Melee.LAtk1"),

@@ -37,8 +37,8 @@
 替代旧的 `int32 RuneID`，使用 `Rune.ID.*`：
 
 ```ini
-GameplayTagList=(Tag="Rune.ID.BurningEdge",DevComment="燃烧之刃")
-GameplayTagList=(Tag="Rune.ID.IronWill",DevComment="钢铁意志")
+GameplayTagList=(Tag="Rune.ID.Moonlight",DevComment="月光")
+GameplayTagList=(Tag="Rune.ID.Shield",DevComment="护盾")
 ```
 
 文件位置：[`Config/Tags/RuneIDs.ini`](../../../Config/Tags/RuneIDs.ini)

@@ -1,4 +1,4 @@
-# 中毒 GameplayEffect 配置说明
+﻿# 中毒 GameplayEffect 配置说明
 
 本说明用于 `GE_Poison` 和 `GE_PoisonSplash`。当前不再使用旧的 `B_MaxHealthDamage` Modifier，统一改为 `GEExec_PoisonDamage` 执行计算，避免资产缺失导致中毒不生效。
 
@@ -21,7 +21,7 @@
 | `Execute Periodic Effect On Application` | 关闭 |
 | `Executions` | `GEExec_PoisonDamage` |
 | `Modifiers` | 空 |
-| `Components` | 添加 `Grant Tags to Target Actor`，其中 `Add Tags` 填 `Buff.Status.Poisoned` |
+| `Components` | 添加 `Grant Tags to Target Actor`，其中 `Add Tags` 填 `Buff.Poison` |
 | `Stacking Type` | `Aggregate By Target` |
 | `Stack Limit Count` | `20` |
 | `Stack Duration Refresh Policy` | `Refresh On Successful Application` |
@@ -38,7 +38,7 @@
 | `Execute Periodic Effect On Application` | 开启 |
 | `Executions` | `GEExec_PoisonDamage` |
 | `Modifiers` | 空 |
-| `Components` | 添加 `Grant Tags to Target Actor`，其中 `Add Tags` 填 `Buff.Status.Poisoned` |
+| `Components` | 添加 `Grant Tags to Target Actor`，其中 `Add Tags` 填 `Buff.Poison` |
 | `Stacking Type` | `Aggregate By Target` |
 | `Stack Limit Count` | `10` |
 

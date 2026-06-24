@@ -30,8 +30,8 @@ C++ 自动写入：
 
 ```text
 分类：普通卡牌 / 连携卡牌 / 终结技卡牌
-CardId：Card.ID.Moonlight
-效果Tag：Card.Effect.Moonlight
+CardId：Rune.ID.Moonlight
+效果Tag：Rune.Effect.Moonlight
 当前方向：正向 / 反向
 连携配方：2 条
 ```

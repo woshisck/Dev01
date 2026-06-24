@@ -1,4 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+﻿// Fill out your copyright notice in the Description page of Project Settings.
 
 
 #include "Character/PlayerCharacterBase.h"
@@ -60,12 +60,24 @@ namespace
 {
 FGameplayTag GetPostAttackRecoveryTag()
 {
-	return FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.PostAttackRecovery"), false);
+	return FGameplayTag::RequestGameplayTag(TEXT("Character.State.Window.PostAttackRecovery"), false);
 }
 
 FGameplayTag GetRecoveryCancelBonusTag()
 {
-	return FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.RecoveryCancelBonus"), false);
+	return FGameplayTag::RequestGameplayTag(TEXT("Buff.RecoveryCancelBonus"), false);
+}
+
+bool CombatCardHasId(const FCombatCardConfig& Config, const TCHAR* TagName)
+{
+	const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(TagName, false);
+	return Tag.IsValid() && Config.CardIdTag == Tag;
+}
+
+bool CombatCardHasEffect(const FCombatCardConfig& Config, const TCHAR* TagName)
+{
+	const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(TagName, false);
+	return Tag.IsValid() && Config.CardEffectTags.HasTagExact(Tag);
 }
 
 void AddSacrificeCostModifier(UGameplayEffect* Effect, const FGameplayAttribute& Attribute, float Delta)
@@ -227,7 +239,7 @@ APlayerCharacterBase::APlayerCharacterBase(const FObjectInitializer& ObjectIniti
 	SkillChargeComponent = CreateDefaultSubobject<USkillChargeComponent>(TEXT("SkillChargeComponent"));
 	MontageVFXBindingComponent = CreateDefaultSubobject<UMontageVFXBindingComponent>(TEXT("MontageVFXBindingComponent"));
 
-	// 近战默认命中框：C++ 实现，无需在每个角色蓝图 Class Defaults 中单独配置
+	// 近战默认命中框：C++ 实现，无需在每个角色蓝Class Defaults 中单独配
 	DefaultMeleeTargetType = UYogTargetType_Player::StaticClass();
 }
 
@@ -280,7 +292,7 @@ void APlayerCharacterBase::ReviveFromDeath(float ReviveHealthPercent, float Prot
 	FGameplayTagContainer DeathTags;
 	DeathTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Action.Dead"), false));
 	ASC->CancelAbilities(&DeathTags);
-	ASC->SetLooseGameplayTagCount(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Dead"), false), 0);
+	ASC->SetLooseGameplayTagCount(FGameplayTag::RequestGameplayTag(TEXT("Buff.Dead"), false), 0);
 
 	bIsDead = false;
 	ResetDeathStartedBroadcast();
@@ -306,8 +318,8 @@ void APlayerCharacterBase::ReviveFromDeath(float ReviveHealthPercent, float Prot
 	const float ReviveHealth = AYogGameMode::CalculatePlayerReviveHealth(MaxHealth, ReviveHealthPercent);
 	ASC->SetNumericAttributeBase(UBaseAttributeSet::GetHealthAttribute(), ReviveHealth);
 
-	static const FGameplayTag SuperArmorTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.SuperArmor"), false);
-	static const FGameplayTag InvulnerableTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Invulnerable"), false);
+	static const FGameplayTag SuperArmorTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.SuperArmor"), false);
+	static const FGameplayTag InvulnerableTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Invulnerable"), false);
 	if (SuperArmorTag.IsValid())
 	{
 		ASC->AddLooseGameplayTag(SuperArmorTag);
@@ -333,8 +345,8 @@ void APlayerCharacterBase::EndReviveProtection()
 {
 	if (UYogAbilitySystemComponent* ASC = GetASC())
 	{
-		static const FGameplayTag SuperArmorTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.SuperArmor"), false);
-		static const FGameplayTag InvulnerableTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Invulnerable"), false);
+		static const FGameplayTag SuperArmorTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.SuperArmor"), false);
+		static const FGameplayTag InvulnerableTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Invulnerable"), false);
 		if (SuperArmorTag.IsValid())
 		{
 			ASC->RemoveLooseGameplayTag(SuperArmorTag);
@@ -833,13 +845,13 @@ void APlayerCharacterBase::RestoreRunStateFromGI()
 	}
 	if (!GI || !GI->PendingRunState.bIsValid)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[RunState] RESTORE skipped — no valid state (bIsValid=%d)"),
+		UE_LOG(LogTemp, Warning, TEXT("[RunState] RESTORE skipped no valid state (bIsValid=%d)"),
 			GI ? (int32)GI->PendingRunState.bIsValid : -1);
 		return;
 	}
 	bRunStateRestoredFromGI = true;
 
-	UE_LOG(LogTemp, Warning, TEXT("[RunState] RESTORE — HP=%.1f Gold=%d Phase=%d Runes=%d"),
+	UE_LOG(LogTemp, Warning, TEXT("[RunState] RESTORE HP=%.1f Gold=%d Phase=%d Runes=%d"),
 		GI->PendingRunState.CurrentHP, GI->PendingRunState.CurrentGold,
 		GI->PendingRunState.CurrentPhase, GI->PendingRunState.PlacedRunes.Num());
 
@@ -859,17 +871,17 @@ void APlayerCharacterBase::RestoreRunState(const FRunState& State)
 		ASC->SetNumericAttributeBase(UBaseAttributeSet::GetHealthAttribute(), RestoredHP);
 	}
 
-	// 恢复金币（现在由 BackpackGridComponent 持有）
+	// 恢复金币（现在由 BackpackGridComponent 持有
 	if (BackpackGridComponent)
 	{
 		BackpackGridComponent->Gold = FMath::Max(0, State.CurrentGold);
 		BackpackGridComponent->OnGoldChanged.Broadcast(BackpackGridComponent->Gold);
 	}
 
-	// 恢复整理阶段已选但尚未放置的符文
+	// 恢复整理阶段已选但尚未放置的符
 	PendingRunes = State.PendingRunes;
 
-	// 先恢复武器，让背包尺寸/激活区配置稳定后，再统一恢复符文效果和监听。
+	// 先恢复武器，让背包尺激活区配置稳定后，再统一恢复符文效果和监听
 	if (State.EquippedWeaponDef)
 	{
 		State.EquippedWeaponDef->SetupWeaponToCharacter(GetMesh(), this);
@@ -1051,31 +1063,31 @@ void APlayerCharacterBase::AddRuneToInventory(const FRuneInstance& Rune)
 {
 	if (BackpackGridComponent)
 	{
-		// 1. 升级检查：背包已有同名符文 → 升级而非新占格子
+		// 1. 升级检查：背包已有同名符文 升级而非新占格子
 		FPlacedRune* Existing = BackpackGridComponent->FindRuneByName(Rune.RuneConfig.RuneName);
 		if (Existing)
 		{
 			if (Existing->Rune.UpgradeLevel < 2)
 			{
 				Existing->Rune.UpgradeLevel++;
-				UE_LOG(LogTemp, Log, TEXT("AddRuneToInventory: %s 升级到 Lv.%d"),
+				UE_LOG(LogTemp, Log, TEXT("AddRuneToInventory: %s 升级Lv.%d"),
 					*Rune.RuneConfig.RuneName.ToString(), Existing->Rune.UpgradeLevel + 1);
 				BackpackGridComponent->NotifyRuneUpgraded(Existing->Rune.RuneGuid);
 			}
 			return;
 		}
 
-		// 2. 无形状符文：跳过格子系统，直接作为隐藏被动激活
+		// 2. 无形状符文：跳过格子系统，直接作为隐藏被动激
 		if (Rune.Shape.Cells.IsEmpty())
 		{
-			UE_LOG(LogTemp, Log, TEXT("AddRuneToInventory: %s 无形状 → 隐藏被动激活"),
+			UE_LOG(LogTemp, Log, TEXT("AddRuneToInventory: %s 无形隐藏被动激"),
 				*Rune.RuneConfig.RuneName.ToString());
 			BackpackGridComponent->AddHiddenPassiveRune(Rune);
 			return;
 		}
 
-		// 3. 普通符文：进入待放置列表（玩家在背包 UI 手动拖入格子）
-		UE_LOG(LogTemp, Log, TEXT("AddRuneToInventory: %s → 待放置列表"),
+		// 3. 普通符文：进入待放置列表（玩家在背UI 手动拖入格子
+		UE_LOG(LogTemp, Log, TEXT("AddRuneToInventory: %s 待放置列"),
 			*Rune.RuneConfig.RuneName.ToString());
 	}
 
@@ -1092,7 +1104,7 @@ void APlayerCharacterBase::AcquireSacrificeGrace(USacrificeGraceDA* DA)
 
 	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
 
-	// 立即将热度设为满值（Override GE）
+	// 立即将热度设为满值（Override GE
 	if (ASC)
 	{
 		const float MaxHeat = ASC->GetNumericAttribute(UBaseAttributeSet::GetMaxHeatAttribute());
@@ -1101,7 +1113,7 @@ void APlayerCharacterBase::AcquireSacrificeGrace(USacrificeGraceDA* DA)
 			ASC->SetNumericAttributeBase(UBaseAttributeSet::GetHeatAttribute(), MaxHeat);
 		}
 
-		// 施加奖励 GE（Infinite 类型，随 Run 持续）
+		// 施加奖励 GE（Infinite 类型，随 Run 持续
 		if (DA->BonusEffect)
 		{
 			FGameplayEffectContextHandle Ctx = ASC->MakeEffectContext();
@@ -1113,7 +1125,7 @@ void APlayerCharacterBase::AcquireSacrificeGrace(USacrificeGraceDA* DA)
 		}
 	}
 
-	// 启动衰退 FA（FA 内含 BFNode_SacrificeDecay，In 引脚自动触发）
+	// 启动衰退 FA（FA 内含 BFNode_SacrificeDecay，In 引脚自动触发
 	if (DA->FlowAsset)
 	{
 		BuffFlowComponent->StartBuffFlow(DA->FlowAsset, FGuid::NewGuid(), this);
@@ -1221,20 +1233,20 @@ void APlayerCharacterBase::BeginPlay()
 		FollowCamera->FieldOfView = DefaultCameraFOV;
 	}
 
-	// 将 BackpackGridComponent 与 ASC 关联，使符文激活时可施加 GE
+	// BackpackGridComponent ASC 关联，使符文激活时可施GE
 	if (BackpackGridComponent && GetAbilitySystemComponent())
 	{
 		BackpackGridComponent->InitWithASC(GetAbilitySystemComponent());
 	}
 
-	// 卡牌入组事件：C++ 统一识别卡牌类型并触发一次性教程提示
+	// 卡牌入组事件：C++ 统一识别卡牌类型并触发一次性教程提
 	if (CombatDeckComponent)
 	{
 		CombatDeckComponent->OnDeckCardsEntered.AddDynamic(
 			this, &APlayerCharacterBase::OnDeckCardsEnteredForTutorial);
 	}
 
-	// 初始化技能充能系统
+	// 初始化技能充能系
 	if (UYogAbilitySystemComponent* YogASC = Cast<UYogAbilitySystemComponent>(GetAbilitySystemComponent()))
 	{
 		YogASC->ReceivedDamage.AddUniqueDynamic(this, &APlayerCharacterBase::HandleDamageReceivedFeedback);
@@ -1245,19 +1257,23 @@ void APlayerCharacterBase::BeginPlay()
 		SkillChargeComponent->InitWithASC(GetAbilitySystemComponent());
 
 		// 注册冲刺充能（MaxDashCharge / DashCooldownDuration 均为 GAS 属性，符文可修改）
-		// 注册键与 GA.AbilityTags 保持一致：PlayerState.AbilityCast.Dash
+		// 正式注册键与 GA.AbilityTags 保持一致：Character.State.Movement.Dash；旧 Dash Tag 仅作 alias 兼容
 		SkillChargeComponent->RegisterSkill(
-			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Dash")),
+			FGameplayTag::RequestGameplayTag(TEXT("Character.State.Movement.Dash")),
 			UPlayerAttributeSet::GetMaxDashChargeAttribute(),
 			UPlayerAttributeSet::GetDashCooldownDurationAttribute()
+		);
+		SkillChargeComponent->RegisterSkillAlias(
+			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Dash"), false),
+			FGameplayTag::RequestGameplayTag(TEXT("Character.State.Movement.Dash"), false)
 		);
 		// 新技能在此处继续 RegisterSkill 即可，无需额外 C++ 改动
 	}
 
-	// 注册热度阶段 Tag 事件，驱动武器边缘发光材质
+	// 注册热度阶段 Tag 事件，驱动武器边缘发光材
 	SetupHeatPhaseTagListeners();
 
-	// 切关后重新激活献祭恩赐（热度重充满 + 衰退速率归零 + FA 重启）
+	// 切关后重新激活献祭恩赐（热度重充+ 衰退速率归零 + FA 重启
 	if (ActiveSacrificeGrace)
 	{
 		AcquireSacrificeGrace(ActiveSacrificeGrace);
@@ -1277,7 +1293,7 @@ void APlayerCharacterBase::BeginPlay()
 		}
 	}
 
-	// GAS Template 授能（在 Super::BeginPlay 中完成）可能覆盖切关前 Link 的武器动画层；
+	// GAS Template 授能（在 Super::BeginPlay 中完成）可能覆盖切关Link 的武器动画层
 	// 在此重新 Link，确保武器层优先级高于默认层
 	if (UYogAbilitySystemComponent* ASC = GetASC())
 	{
@@ -1391,7 +1407,7 @@ void APlayerCharacterBase::HandleDamageReceivedFeedback(UYogAbilitySystemCompone
 		return;
 	}
 
-	// [Disabled] DamageEdgeFlashWidget — kept for later use, do not delete.
+	// [Disabled] DamageEdgeFlashWidget kept for later use, do not delete.
 	// PlayDamageScreenFlash();
 	StartDamagePlayerGlow();
 
@@ -1422,7 +1438,7 @@ void APlayerCharacterBase::HandleDamageReceivedFeedback(UYogAbilitySystemCompone
 
 void APlayerCharacterBase::PlayDamageScreenFlash()
 {
-	// [Disabled] DamageEdgeFlashWidget — entire body commented out, kept for later use.
+	// [Disabled] DamageEdgeFlashWidget entire body commented out, kept for later use.
 	// To re-enable: uncomment this body AND the call site in TakeDamage (search for
 	// "[Disabled] DamageEdgeFlashWidget" above). Consider migrating creation through
 	// UYogUIManagerSubsystem rather than raw CreateWidget + AddToViewport.
@@ -1617,25 +1633,25 @@ void APlayerCharacterBase::SetupHeatPhaseTagListeners()
 	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
 	if (!ASC) return;
 
-	// 监听各阶段 tag 新增 → 广播对应 Phase
+	// 监听各阶tag 新增 广播对应 Phase
 	ASC->RegisterGameplayTagEvent(
-		FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Heat.Phase.1")),
+		FGameplayTag::RequestGameplayTag(TEXT("Buff.Heat.Phase.1")),
 		EGameplayTagEventType::NewOrRemoved)
 		.AddUObject(this, &APlayerCharacterBase::OnHeatPhaseTagChanged);
 
 	ASC->RegisterGameplayTagEvent(
-		FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Heat.Phase.2")),
+		FGameplayTag::RequestGameplayTag(TEXT("Buff.Heat.Phase.2")),
 		EGameplayTagEventType::NewOrRemoved)
 		.AddUObject(this, &APlayerCharacterBase::OnHeatPhaseTagChanged);
 
 	ASC->RegisterGameplayTagEvent(
-		FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Heat.Phase.3")),
+		FGameplayTag::RequestGameplayTag(TEXT("Buff.Heat.Phase.3")),
 		EGameplayTagEventType::NewOrRemoved)
 		.AddUObject(this, &APlayerCharacterBase::OnHeatPhaseTagChanged);
 
-	// 监听 parent tag 归零 → 广播 Phase=0（关闭发光）
+	// 监听 parent tag 归零 广播 Phase=0（关闭发光）
 	ASC->RegisterGameplayTagEvent(
-		FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Heat.Phase")),
+		FGameplayTag::RequestGameplayTag(TEXT("Buff.Heat.Phase")),
 		EGameplayTagEventType::NewOrRemoved)
 		.AddUObject(this, &APlayerCharacterBase::OnHeatPhaseParentTagChanged);
 }
@@ -1644,9 +1660,9 @@ void APlayerCharacterBase::OnHeatPhaseTagChanged(const FGameplayTag Tag, int32 N
 {
 	if (NewCount <= 0) return; // 移除事件交由 parent tag 回调处理
 
-	static const FGameplayTag Phase1 = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Heat.Phase.1"));
-	static const FGameplayTag Phase2 = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Heat.Phase.2"));
-	static const FGameplayTag Phase3 = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Heat.Phase.3"));
+	static const FGameplayTag Phase1 = FGameplayTag::RequestGameplayTag(TEXT("Buff.Heat.Phase.1"));
+	static const FGameplayTag Phase2 = FGameplayTag::RequestGameplayTag(TEXT("Buff.Heat.Phase.2"));
+	static const FGameplayTag Phase3 = FGameplayTag::RequestGameplayTag(TEXT("Buff.Heat.Phase.3"));
 
 	int32 BroadcastPhase = 0;
 	if      (Tag == Phase1) BroadcastPhase = 1;
@@ -1758,13 +1774,9 @@ void APlayerCharacterBase::OnDeckCardsEnteredForTutorial(const TArray<FCombatCar
 	APlayerController* PC = GetController<APlayerController>();
 	if (!PC) return;
 
-	static const FGameplayTag HeavyHintTag   = FGameplayTag::RequestGameplayTag(TEXT("Tutorial.Hint.HeavyCard"));
+	static const FGameplayTag WeaponSkillFinisherHintTag = FGameplayTag::RequestGameplayTag(TEXT("Tutorial.Hint.WeaponSkillFinisher"));
 	static const FGameplayTag LinkHintTag     = FGameplayTag::RequestGameplayTag(TEXT("Tutorial.Hint.LinkCard"));
 	static const FGameplayTag FinisherHintTag = FGameplayTag::RequestGameplayTag(TEXT("Tutorial.Hint.Finisher"));
-	static const FGameplayTag HeavyIdTag      = FGameplayTag::RequestGameplayTag(TEXT("Card.ID.Heavy"), false);
-	static const FGameplayTag HeavyEffectTag  = FGameplayTag::RequestGameplayTag(TEXT("Card.Effect.Heavy"), false);
-	static const FGameplayTag MoonlightIdTag  = FGameplayTag::RequestGameplayTag(TEXT("Card.ID.Moonlight"), false);
-	static const FGameplayTag MoonlightEffectTag = FGameplayTag::RequestGameplayTag(TEXT("Card.Effect.Moonlight"), false);
 	static const FName WeaponOwnerSource(TEXT("Weapon"));
 	bool bBroadcastedRewardCardEntered = false;
 
@@ -1794,17 +1806,26 @@ void APlayerCharacterBase::OnDeckCardsEnteredForTutorial(const TArray<FCombatCar
 			continue;
 		}
 
-		const bool bIsHeavyCard =
-			Card.Config.RequiredFlowRole == ECombatDeckFlowRole::Finisher
-			|| (HeavyIdTag.IsValid() && Card.Config.CardIdTag == HeavyIdTag)
-			|| (HeavyEffectTag.IsValid() && Card.Config.CardEffectTags.HasTagExact(HeavyEffectTag));
+		const bool bIsWeaponSkillFinisherCard =
+			CombatCardHasId(Card.Config, TEXT("Buff.WeaponSkillFinisher"))
+			|| CombatCardHasEffect(Card.Config, TEXT("Buff.Detonate"))
+			|| CombatCardHasId(Card.Config, TEXT("Rune.ID.WeaponSkillFinisher"))
+			|| CombatCardHasEffect(Card.Config, TEXT("Rune.Effect.Detonate"))
+			|| CombatCardHasId(Card.Config, TEXT("Rune.ID.Heavy"))
+			|| CombatCardHasId(Card.Config, TEXT("Card.ID.Heavy"))
+			|| CombatCardHasEffect(Card.Config, TEXT("Rune.Effect.Heavy"))
+			|| CombatCardHasEffect(Card.Config, TEXT("Card.Effect.Heavy"));
 		const bool bIsMoonlightLinkCard =
-			(MoonlightIdTag.IsValid() && Card.Config.CardIdTag == MoonlightIdTag)
-			|| (MoonlightEffectTag.IsValid() && Card.Config.CardEffectTags.HasTagExact(MoonlightEffectTag));
+			CombatCardHasId(Card.Config, TEXT("Buff.Moonlight"))
+			|| CombatCardHasEffect(Card.Config, TEXT("Buff.Moonlight"))
+			|| CombatCardHasId(Card.Config, TEXT("Rune.ID.Moonlight"))
+			|| CombatCardHasId(Card.Config, TEXT("Card.ID.Moonlight"))
+			|| CombatCardHasEffect(Card.Config, TEXT("Rune.Effect.Moonlight"))
+			|| CombatCardHasEffect(Card.Config, TEXT("Card.Effect.Moonlight"));
 
-		if (bIsHeavyCard)
+		if (bIsWeaponSkillFinisherCard)
 		{
-			TM->TryShowHintOnce(HeavyHintTag, TEXT("tutorial_heavy_card"), PC);
+			TM->TryShowHintOnce(WeaponSkillFinisherHintTag, TEXT("tutorial_weapon_skill_finisher_card"), PC);
 		}
 		else if (bIsMoonlightLinkCard)
 		{
@@ -1815,7 +1836,7 @@ void APlayerCharacterBase::OnDeckCardsEnteredForTutorial(const TArray<FCombatCar
 		{
 			TM->TryShowHintOnce(LinkHintTag, TEXT("tutorial_card_link"), PC);
 		}
-		// 终结技卡
+		// 终结技
 		else if (!DevKit::Combat::IsFinisherAbilityDeprecated()
 			&& Card.Config.CardType == ECombatCardType::Finisher)
 		{

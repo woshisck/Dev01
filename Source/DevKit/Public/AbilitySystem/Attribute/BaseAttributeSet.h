@@ -1,4 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+﻿// Fill out your copyright notice in the Description page of Project Settings.
 
 #pragma once
 
@@ -52,7 +52,7 @@ public:
 protected:
 	void AdjustAttributeForMaxChange(FGameplayAttributeData& AffectedAttribute, const FGameplayAttributeData& MaxAttribute, float NewMaxValue, const FGameplayAttribute& AffectedAttributeProperty);
 
-	/** GE 执行前缓存的热度值，用于阶段软上限判断 */
+	/** GE 执行前缓存的热度值，用于阶段软上限判*/
 	float CachedPreEffectHeat = 0.f;
 
     // Helper to create cue parameters
@@ -124,12 +124,12 @@ public:
     ATTRIBUTE_ACCESSORS(UBaseAttributeSet, Resist);
 
     // ─── 护甲 ─────────────────────────────────────────────────────────────────
-    /** 当前护甲值（独立血条）。归零时自动移除 Buff.Status.Armored Tag */
+    /** 当前护甲值（独立血条）。归零时自动移除 Buff.Armored Tag */
     UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_ArmorHP, Category = "Armor")
     FGameplayAttributeData ArmorHP;
     ATTRIBUTE_ACCESSORS(UBaseAttributeSet, ArmorHP);
 
-    /** 最大护甲值 */
+    /** 最大护甲*/
     UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_MaxArmorHP, Category = "Armor")
     FGameplayAttributeData MaxArmorHP;
     ATTRIBUTE_ACCESSORS(UBaseAttributeSet, MaxArmorHP);

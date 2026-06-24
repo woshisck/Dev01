@@ -420,7 +420,7 @@ void FRuneEditorAuthoring::SyncBrowserToAssets(const TArray<UObject*>& Assets)
 FString FRuneEditorAuthoring::BuildDefaultRuneTagFromName(const FString& DisplayName)
 {
 	const FString Token = MakeSafeAssetToken(DisplayName);
-	return Token.IsEmpty() ? TEXT("Rune.ID.NewRune") : FString::Printf(TEXT("Rune.ID.%s"), *StripAssetPrefix(Token));
+	return Token.IsEmpty() ? TEXT("Buff.NewRune") : FString::Printf(TEXT("Buff.%s"), *StripAssetPrefix(Token));
 }
 
 FString FRuneEditorAuthoring::MakeSafeAssetToken(const FString& Value)

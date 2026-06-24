@@ -1,10 +1,10 @@
-#include "AbilitySystem/Abilities/GA_Wound.h"
+﻿#include "AbilitySystem/Abilities/GA_Wound.h"
 #include "AbilitySystemComponent.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 
 // =====================================================================
-// GA_Wound is currently DISABLED — being replaced by a pure GameplayEffect
+// GA_Wound is currently DISABLED being replaced by a pure GameplayEffect
 // approach (tag check inside DamageExecution + GE-driven extra damage).
 // Class shell is kept so Blueprints / GE_Wound_Marker.GrantedAbilities
 // references still load. All trigger registration + behavior bodies are
@@ -17,7 +17,7 @@ UGA_Wound::UGA_Wound(const FObjectInitializer& ObjectInitializer)
 {
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 
-#if 0 // GA_Wound disabled — trigger registration suppressed
+#if 0 // GA_Wound disabled trigger registration suppressed
 	FAbilityTriggerData TriggerData;
 	TriggerData.TriggerTag    = FGameplayTag::RequestGameplayTag(TEXT("Buff.Event.Wound"));
 	TriggerData.TriggerSource = EGameplayAbilityTriggerSource::GameplayEvent;
@@ -33,12 +33,12 @@ void UGA_Wound::ActivateAbility(
 {
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 
-	// GA_Wound disabled — immediately end if it somehow gets activated
+	// GA_Wound disabled immediately end if it somehow gets activated
 	// (e.g., a stale BP still has the trigger configured at the BP level).
 	EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 	return;
 
-#if 0 // Original behavior — replaced by pure GE approach
+#if 0 // Original behavior replaced by pure GE approach
 	UAbilitySystemComponent* ASC = ActorInfo->AbilitySystemComponent.Get();
 	if (!ASC)
 	{
@@ -49,7 +49,7 @@ void UGA_Wound::ActivateAbility(
 	ExtraDamage = (TriggerEventData && TriggerEventData->EventMagnitude > 0.f)
 		? TriggerEventData->EventMagnitude : DefaultExtraDamage;
 
-	// 缓存发起者 ASC
+	// 缓存发起ASC
 	if (TriggerEventData && TriggerEventData->Instigator)
 	{
 		if (UYogAbilitySystemComponent* YASC = Cast<UYogAbilitySystemComponent>(
@@ -59,13 +59,13 @@ void UGA_Wound::ActivateAbility(
 		}
 	}
 
-	// 监听 Buff.Status.Wounded 消失 → 结束 GA
-	const FGameplayTag WoundedTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Wounded"));
+	// 监听 Buff.Wound 消失 结束 GA
+	const FGameplayTag WoundedTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Wound"));
 	TagChangeDelegateHandle = ASC->RegisterGameplayTagEvent(
 		WoundedTag, EGameplayTagEventType::NewOrRemoved)
 		.AddUObject(this, &UGA_Wound::OnWoundedTagChanged);
 
-	// 监听受击事件（Ability.Event.Damaged 由 DamageAttributeSet 广播给受伤角色）
+	// 监听受击事件（Ability.Event.Damaged DamageAttributeSet 广播给受伤角色）
 	const FGameplayTag DamagedTag = FGameplayTag::RequestGameplayTag(TEXT("Ability.Event.Damaged"));
 	UAbilityTask_WaitGameplayEvent* WaitTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(
 		this, DamagedTag, nullptr, false, true);
@@ -76,7 +76,7 @@ void UGA_Wound::ActivateAbility(
 
 void UGA_Wound::OnDamageTaken(FGameplayEventData Payload)
 {
-#if 0 // GA_Wound disabled — wound damage is now expected to come from a GE path
+#if 0 // GA_Wound disabled wound damage is now expected to come from a GE path
 	if (bIsApplyingWoundDamage) return;
 	if (!WoundDamageEffect || ExtraDamage <= 0.f) return;
 
@@ -87,7 +87,7 @@ void UGA_Wound::OnDamageTaken(FGameplayEventData Payload)
 	FGameplayEffectSpecHandle Spec = ASC->MakeOutgoingSpec(WoundDamageEffect, 1.f, Context);
 	if (!Spec.IsValid()) return;
 
-	// 用 SetByCaller 传入额外伤害值
+	// SetByCaller 传入额外伤害
 	static const FGameplayTag DataDamageTag = FGameplayTag::RequestGameplayTag(TEXT("Data.Damage"), false);
 	if (DataDamageTag.IsValid())
 	{
@@ -106,7 +106,7 @@ void UGA_Wound::OnDamageTaken(FGameplayEventData Payload)
 
 void UGA_Wound::OnWoundedTagChanged(const FGameplayTag Tag, int32 NewCount)
 {
-#if 0 // GA_Wound disabled — no tag listener was registered
+#if 0 // GA_Wound disabled no tag listener was registered
 	if (NewCount <= 0)
 	{
 		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
@@ -121,10 +121,10 @@ void UGA_Wound::EndAbility(
 	bool bReplicateEndAbility,
 	bool bWasCancelled)
 {
-#if 0 // GA_Wound disabled — no tag listener was registered, nothing to clean up
+#if 0 // GA_Wound disabled no tag listener was registered, nothing to clean up
 	if (ActorInfo && ActorInfo->AbilitySystemComponent.IsValid())
 	{
-		const FGameplayTag WoundedTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Wounded"));
+		const FGameplayTag WoundedTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Wound"));
 		ActorInfo->AbilitySystemComponent->RegisterGameplayTagEvent(
 			WoundedTag, EGameplayTagEventType::NewOrRemoved).Remove(TagChangeDelegateHandle);
 	}

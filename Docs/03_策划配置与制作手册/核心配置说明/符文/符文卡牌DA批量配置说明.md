@@ -1,4 +1,4 @@
-﻿# 符文卡牌 DA 批量配置说明
+# 符文卡牌 DA 批量配置说明
 
 ## 作用
 
@@ -37,8 +37,8 @@
 | `RuneInfo -> Flow -> FlowAsset` | 对应基础 Flow 模板副本 |
 | `RuneInfo -> CombatCard -> bIsCombatCard` | 勾选 |
 | `RuneInfo -> CombatCard -> CardType` | 普通卡为 `Normal`，月光为 `Link` |
-| `RuneInfo -> CombatCard -> CardIdTag` | `Card.ID.*` |
-| `RuneInfo -> CombatCard -> CardEffectTags` | `Card.Effect.*` |
+| `RuneInfo -> CombatCard -> CardIdTag` | `Rune.ID.*` |
+| `RuneInfo -> CombatCard -> CardEffectTags` | `Rune.Effect.*` |
 | `RuneInfo -> CombatCard -> BaseFlow` | 对应基础 Flow 模板副本 |
 | `RuneInfo -> CombatCard -> LinkRecipes` | 仅月光卡填写 |
 | `RuneInfo -> CombatCard -> DefaultLinkOrientation` | `Moonlight_Forward` 为 `Forward`，`Moonlight_Reversed` 为 `Reversed` |

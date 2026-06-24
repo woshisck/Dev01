@@ -35,10 +35,10 @@
 ## GA Tag 字段模板
 
 ```
-AbilityTags              = PlayerState.AbilityCast.Attack.Light
-ActivationOwnedTags      = Buff.Status.Attacking          ← GA 激活期间持有
+AbilityTags              = Character.State.Skill.Attack
+ActivationOwnedTags      = Character.State.Skill.Attack   ← GA 激活期间持有
 ActivationBlockedTags    = Buff.Status.Dead, Buff.Status.Stunned
-CancelAbilitiesWithTag   = PlayerState.AbilityCast        ← 激活时取消同类 GA
+CancelAbilitiesWithTag   = Character.State.Skill          ← 激活时取消同类 GA
 BlockAbilitiesWithTag    = （通常不填）
 ```
 

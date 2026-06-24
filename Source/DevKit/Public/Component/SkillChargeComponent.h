@@ -68,6 +68,9 @@ public:
 	 */
 	void RegisterSkill(FGameplayTag SkillTag, FGameplayAttribute MaxChargeAttr, FGameplayAttribute CDDurationAttr);
 
+	/** Register a legacy query tag that should resolve to an already registered canonical skill tag. */
+	void RegisterSkillAlias(FGameplayTag AliasTag, FGameplayTag CanonicalSkillTag);
+
 	/** GA CanActivate 里调用 */
 	UFUNCTION(BlueprintCallable, Category = "SkillCharge")
 	bool HasCharge(FGameplayTag SkillTag) const;
@@ -97,6 +100,7 @@ public:
 
 private:
 	TMap<FGameplayTag, FSkillChargeState> ChargeStates;
+	TMap<FGameplayTag, FGameplayTag> SkillTagAliases;
 	TWeakObjectPtr<UAbilitySystemComponent> ASC;
 
 	int32 GetMaxChargeValue(const FSkillChargeState& State) const;
@@ -104,4 +108,6 @@ private:
 
 	/** 队列式回复 Tick：回复 1 格，若还有待回复格则继续启动 Timer */
 	void RecoveryTick(FGameplayTag SkillTag);
+	FGameplayTag ResolveSkillTag(FGameplayTag SkillTag) const;
+	void BroadcastChargeChanged(FGameplayTag CanonicalSkillTag, int32 NewCharge);
 };

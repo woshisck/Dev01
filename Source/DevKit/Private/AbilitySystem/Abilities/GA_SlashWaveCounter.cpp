@@ -41,7 +41,7 @@ void UGA_SlashWaveCounter::ActivateAbility(
 	// 命中模式：FA_Rune_SlashWave 的 OnDamageDealt 发送此 Tag 到玩家 ASC
 	// 挥刀模式：AN_MeleeDamage::Notify 每次挥刀时发送此 Tag 到玩家 ASC
 	const FGameplayTag ListenTag = bHitRequired
-		? FGameplayTag::RequestGameplayTag(FName("Action.Rune.SlashWaveHit"))
+		? FGameplayTag::RequestGameplayTag(FName("Buff.Event.SlashWaveHit"))
 		: FGameplayTag::RequestGameplayTag(FName("Action.Attack.Swing"));
 
 	// 创建持续监听任务（OnlyTriggerOnce=false，永久监听直到 GA 结束）

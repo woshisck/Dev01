@@ -36,7 +36,7 @@ public:
 
     /**
      * 检测到攻击输入（Attack/WeaponSkill/Skill）时要清零的 Loose Tag。
-     * 默认填写 PlayerState.AbilityCast.CanCombo。
+     * 默认填写 Character.State.Window.CanCombo；代码会同步清理旧 PlayerState.AbilityCast.CanCombo。
      * 清空后新 Ability 激活，由其内部 EndAbility 流程停止蒙太奇。
      */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PostAtkWindow")

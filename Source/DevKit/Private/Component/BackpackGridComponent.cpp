@@ -1,4 +1,4 @@
-#include "Component/BackpackGridComponent.h"
+﻿#include "Component/BackpackGridComponent.h"
 #include "Engine/Engine.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemBlueprintLibrary.h"
@@ -28,23 +28,23 @@ FActivationZoneConfig FActivationZoneConfig::MakeDefault()
 	FActivationZoneConfig Config;
 	Config.HeatTierThresholds = { 0.33f, 0.66f };
 
-	// Tier1：中心 1×1，格子 (2,2)
+	// Tier1：中1×1，格(2,2)
 	FRuneShape Tier1Shape;
 	Tier1Shape.Cells = { FIntPoint(2, 2) };
 
-	// Tier2：2×2，格子 (2,2)-(3,3)
+	// Tier2×2，格(2,2)-(3,3)
 	FRuneShape Tier2Shape;
 	for (int32 Y = 2; Y <= 3; Y++)
 		for (int32 X = 2; X <= 3; X++)
 			Tier2Shape.Cells.Add(FIntPoint(X, Y));
 
-	// Tier3：4×4，格子 (1,1)-(4,4)
+	// Tier3×4，格(1,1)-(4,4)
 	FRuneShape Tier3Shape;
 	for (int32 Y = 1; Y <= 4; Y++)
 		for (int32 X = 1; X <= 4; X++)
 			Tier3Shape.Cells.Add(FIntPoint(X, Y));
 
-	// Transcendence：激活区同 Tier3（4×4）
+	// Transcendence：激活区Tier3×4
 	FRuneShape TranscendenceShape = Tier3Shape;
 
 	Config.ZoneShapes = { Tier1Shape, Tier2Shape, Tier3Shape, TranscendenceShape };
@@ -64,7 +64,7 @@ void UBackpackGridComponent::EditorCenterOnGrid()
 }
 
 // =========================================================
-// 金币（Economy）
+// 金币（Economy
 // =========================================================
 
 void UBackpackGridComponent::AddGold(int32 Amount)
@@ -145,19 +145,19 @@ void UBackpackGridComponent::BeginPlay()
 	// 若已被提前初始化（切关恢复路径在 BeginPlay 前调用了 TryPlaceRune），跳过重置
 	EnsureGridInitialized();
 
-	// 自动放置符文（延迟一帧，确保 ASC 已初始化）
+	// 自动放置符文（延迟一帧，确保 ASC 已初始化
 	if (!bDisableLegacyBackpackRuneRuntimeForCardTest && (PermanentRunes.Num() > 0 || DebugTestRunes.Num() > 0))
 	{
 		GetWorld()->GetTimerManager().SetTimerForNextTick(this, &UBackpackGridComponent::DebugPlaceTestRunes);
 	}
 
-	// 隐藏被动符文：延迟一帧启动 BuffFlow，不占格子，不进 UI
+	// 隐藏被动符文：延迟一帧启BuffFlow，不占格子，不进 UI
 	if (HiddenPassiveRunes.Num() > 0)
 	{
 		GetWorld()->GetTimerManager().SetTimerForNextTick(this, &UBackpackGridComponent::ActivateHiddenPassiveRunes);
 	}
 
-	// Tutorial ④：监听热度阶段变化，首次入相 (Phase >= 1) 触发激活区教程
+	// Tutorial ④：监听热度阶段变化，首次入(Phase >= 1) 触发激活区教程
 	if (!bDisableLegacyBackpackRuneRuntimeForCardTest)
 	{
 		OnHeatBarUpdate.AddDynamic(this, &UBackpackGridComponent::HandleHeatTutorial);
@@ -168,10 +168,10 @@ void UBackpackGridComponent::HandleHeatTutorial(float NormalizedHeat, int32 NewP
 {
 	if (NewPhase < 1) return;
 
-	// 改走事件总线：用户在 BP_GameMode_Default 配 LifecycleEventFlows[HeatPhaseEntered]
-	// 才会触发对应 Flow（默认未配 -> 沉默，解决"ActivationZone 教程不出"诉求）。
-	// 一次性去重交给 GameMode::FiredOnceEvents 处理，本组件不主动 RemoveDynamic —
-	// 这样用户运行时补配 LFA 后，下次 phase 变化仍能触发一次（成功后才写入去重集合）。
+	// 改走事件总线：用户在 BP_GameMode_Default LifecycleEventFlows[HeatPhaseEntered]
+	// 才会触发对应 Flow（默认未-> 沉默，解ActivationZone 教程不出"诉求）
+	// 一次性去重交GameMode::FiredOnceEvents 处理，本组件不主RemoveDynamic
+	// 这样用户运行时补LFA 后，下次 phase 变化仍能触发一次（成功后才写入去重集合）
 	if (AYogGameMode* GM = Cast<AYogGameMode>(UGameplayStatics::GetGameMode(this)))
 	{
 		GM->TriggerLifecycleEvent(EGameLifecycleEvent::HeatPhaseEntered);
@@ -180,7 +180,7 @@ void UBackpackGridComponent::HandleHeatTutorial(float NormalizedHeat, int32 NewP
 
 void UBackpackGridComponent::DebugPlaceTestRunes()
 {
-	// 永久符文：自动寻位放置，并标记 bIsPermanent（始终激活，跳过区域检查）
+	// 永久符文：自动寻位放置，并标bIsPermanent（始终激活，跳过区域检查）
 	for (URuneDataAsset* DA : PermanentRunes)
 	{
 		if (!DA) continue;
@@ -192,14 +192,14 @@ void UBackpackGridComponent::DebugPlaceTestRunes()
 			{
 				if (TryPlaceRune(Instance, FIntPoint(X, Y)))
 				{
-					// 标记为永久（TryPlaceRune 内部 RefreshAllActivations 时 bIsPermanent 还是 false，
+					// 标记为永久（TryPlaceRune 内部 RefreshAllActivations bIsPermanent 还是 false
 					// 需要标记后再触发一次激活）
 					for (int32 i = PlacedRunes.Num() - 1; i >= 0; i--)
 					{
 						if (PlacedRunes[i].Rune.RuneGuid == Instance.RuneGuid)
 						{
 							PlacedRunes[i].bIsPermanent = true;
-							ActivateRune(PlacedRunes[i]); // 直接激活，跳过区域检查
+							ActivateRune(PlacedRunes[i]); // 直接激活，跳过区域检
 							break;
 						}
 					}
@@ -214,7 +214,7 @@ void UBackpackGridComponent::DebugPlaceTestRunes()
 		}
 	}
 
-	// Debug 符文：可选指定位置
+	// Debug 符文：可选指定位
 	for (int32 i = 0; i < DebugTestRunes.Num(); i++)
 	{
 		if (!DebugTestRunes[i])
@@ -342,7 +342,7 @@ bool UBackpackGridComponent::TryPlaceRune(const FRuneInstance& Rune, FIntPoint P
 	if (bIsLocked)
 		return false;
 
-	// 懒初始化：BeginPlay 前（如切关恢复）调用时，主动初始化网格
+	// 懒初始化：BeginPlay 前（如切关恢复）调用时，主动初始化网
 	EnsureGridInitialized();
 
 	if (!CanPlaceRune(Rune, Pivot))
@@ -356,7 +356,7 @@ bool UBackpackGridComponent::TryPlaceRune(const FRuneInstance& Rune, FIntPoint P
 	Placed.bIsActivated = false;
 	PlacedRunes.Add(Placed);
 
-	// 更新占用图
+	// 更新占用
 	for (const FIntPoint Cell : GetRuneCells(Rune, Pivot))
 	{
 		GridOccupancy[CellToIndex(Cell)] = NewIndex;
@@ -384,10 +384,10 @@ bool UBackpackGridComponent::RemoveRune(FGuid RuneGuid)
 	if (FoundIndex == INDEX_NONE)
 		return false;
 
-	// 先取消激活（移除 GE）
+	// 先取消激活（移除 GE
 	DeactivateRune(PlacedRunes[FoundIndex]);
 
-	// 清空占用图
+	// 清空占用
 	for (const FIntPoint Cell : GetRuneCells(PlacedRunes[FoundIndex].Rune, PlacedRunes[FoundIndex].Pivot))
 	{
 		GridOccupancy[CellToIndex(Cell)] = -1;
@@ -395,7 +395,7 @@ bool UBackpackGridComponent::RemoveRune(FGuid RuneGuid)
 
 	PlacedRunes.RemoveAt(FoundIndex);
 
-	// 更新后续符文在占用图中的下标（RemoveAt 导致下标偏移）
+	// 更新后续符文在占用图中的下标（RemoveAt 导致下标偏移
 	for (int32 i = FoundIndex; i < PlacedRunes.Num(); i++)
 	{
 		for (const FIntPoint Cell : GetRuneCells(PlacedRunes[i].Rune, PlacedRunes[i].Pivot))
@@ -485,7 +485,7 @@ bool UBackpackGridComponent::MoveRune(FGuid RuneGuid, FIntPoint NewPivot)
 
 bool UBackpackGridComponent::CanPlaceRune(const FRuneInstance& Rune, FIntPoint Pivot) const
 {
-	// 网格未初始化时（BeginPlay 尚未执行）拒绝查询，由 TryPlaceRune 的 EnsureGridInitialized 保证初始化
+	// 网格未初始化时（BeginPlay 尚未执行）拒绝查询，TryPlaceRune EnsureGridInitialized 保证初始
 	if (GridOccupancy.IsEmpty())
 		return false;
 
@@ -533,13 +533,13 @@ void UBackpackGridComponent::OnHeatValueChanged(float HeatValue)
 		return;
 	}
 
-	// 边沿触发 + Phase>0 保护：
-	// 只在热度从 >0 跌落到 <=0、且当前已有阶段时广播，避免：
-	//   1. 游戏开始 Phase=0 时启动无意义的计时器
-	//   2. Timer 被反复启动（"Timer already active"）
+	// 边沿触发 + Phase>0 保护
+	// 只在热度>0 跌落<=0、且当前已有阶段时广播，避免
+	//   1. 游戏开Phase=0 时启动无意义的计时器
+	//   2. Timer 被反复启动（"Timer already active"
 	if (HeatValue <= 0.f && PreviousHeatValue > 0.f && CurrentPhase > 0)
 	{
-		UE_LOG(LogTemp, Log, TEXT("[BackpackGrid] Heat→0 edge (Phase=%d) → OnHeatReachedZero"), CurrentPhase);
+		UE_LOG(LogTemp, Log, TEXT("[BackpackGrid] Heat edge (Phase=%d) OnHeatReachedZero"), CurrentPhase);
 		OnHeatReachedZero.Broadcast();
 	}
 	else if (HeatValue > 0.f && PreviousHeatValue <= 0.f)
@@ -548,7 +548,7 @@ void UBackpackGridComponent::OnHeatValueChanged(float HeatValue)
 	}
 	PreviousHeatValue = HeatValue;
 
-	// 通知热度条 UI
+	// 通知热度UI
 	BroadcastHeatUI(HeatValue);
 }
 
@@ -579,43 +579,43 @@ void UBackpackGridComponent::IncrementPhase()
 
 	UAbilitySystemComponent* ASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(GetOwner());
 
-	// 移除旧阶段 Tag
+	// 移除旧阶Tag
 	if (ASC && CurrentPhase > 0)
 	{
 		FGameplayTag OldTag = FGameplayTag::RequestGameplayTag(
-			FName(*FString::Printf(TEXT("Buff.Status.Heat.Phase.%d"), CurrentPhase)), false);
+			FName(*FString::Printf(TEXT("Buff.Heat.Phase.%d"), CurrentPhase)), false);
 		if (OldTag.IsValid())
 			ASC->RemoveLooseGameplayTag(OldTag);
 	}
 
 	CurrentPhase++;
 
-	// 授予新阶段 Tag
+	// 授予新阶Tag
 	if (ASC)
 	{
 		FGameplayTag NewTag = FGameplayTag::RequestGameplayTag(
-			FName(*FString::Printf(TEXT("Buff.Status.Heat.Phase.%d"), CurrentPhase)), false);
+			FName(*FString::Printf(TEXT("Buff.Heat.Phase.%d"), CurrentPhase)), false);
 		if (NewTag.IsValid())
 			ASC->AddLooseGameplayTag(NewTag);
 	}
 
 	RefreshAllActivations();
 
-	// 输出激活区格子，方便调试
+	// 输出激活区格子，方便调
 	{
 		TSet<FIntPoint> Zone = ComputeActivationZone();
 		FString ZoneStr;
 		for (const FIntPoint& C : Zone)
 			ZoneStr += FString::Printf(TEXT("(%d,%d) "), C.X, C.Y);
-		UE_LOG(LogTemp, Warning, TEXT("[Heat] Phase %d → %d 完成 | 激活区 %d 格: %s"),
+		UE_LOG(LogTemp, Warning, TEXT("[Heat] Phase %d %d 完成 | 激活区 %d  %s"),
 			CurrentPhase - 1, CurrentPhase, Zone.Num(), *ZoneStr);
 		if (GEngine)
 			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Orange,
-				FString::Printf(TEXT("[热度升阶] Phase %d → %d  激活区 %d 格"),
+				FString::Printf(TEXT("[热度升阶] Phase %d %d  激活区 %d "),
 					CurrentPhase - 1, CurrentPhase, Zone.Num()));
 	}
 
-	// 通知热度条 UI（阶段变化时热度已被重置为 0）
+	// 通知热度UI（阶段变化时热度已被重置0
 	BroadcastHeatUI(0.f);
 }
 
@@ -639,31 +639,31 @@ void UBackpackGridComponent::DecrementPhase()
 	if (ASC)
 	{
 		FGameplayTag OldTag = FGameplayTag::RequestGameplayTag(
-			FName(*FString::Printf(TEXT("Buff.Status.Heat.Phase.%d"), CurrentPhase)), false);
+			FName(*FString::Printf(TEXT("Buff.Heat.Phase.%d"), CurrentPhase)), false);
 		if (OldTag.IsValid())
 			ASC->RemoveLooseGameplayTag(OldTag);
 	}
 
 	CurrentPhase--;
 
-	// 授予新阶段 Tag（Phase 0 无 Tag）
+	// 授予新阶Tag（Phase 0 Tag
 	if (ASC && CurrentPhase > 0)
 	{
 		FGameplayTag NewTag = FGameplayTag::RequestGameplayTag(
-			FName(*FString::Printf(TEXT("Buff.Status.Heat.Phase.%d"), CurrentPhase)), false);
+			FName(*FString::Printf(TEXT("Buff.Heat.Phase.%d"), CurrentPhase)), false);
 		if (NewTag.IsValid())
 			ASC->AddLooseGameplayTag(NewTag);
 	}
 
 	RefreshAllActivations();
 
-	// 输出激活区格子，方便调试
+	// 输出激活区格子，方便调
 	{
 		TSet<FIntPoint> Zone = ComputeActivationZone();
 		FString ZoneStr;
 		for (const FIntPoint& C : Zone)
 			ZoneStr += FString::Printf(TEXT("(%d,%d) "), C.X, C.Y);
-		UE_LOG(LogTemp, Log, TEXT("[BackpackGrid] Phase DOWN → %d | ActivationZone [%d cells]: %s"),
+		UE_LOG(LogTemp, Log, TEXT("[BackpackGrid] Phase DOWN %d | ActivationZone [%d cells]: %s"),
 			CurrentPhase, Zone.Num(), *ZoneStr);
 	}
 
@@ -687,7 +687,7 @@ void UBackpackGridComponent::ResetHeatToPhaseFloor()
 	for (int32 PhaseIndex = 1; PhaseIndex <= 3; ++PhaseIndex)
 	{
 		const FGameplayTag PhaseTag = FGameplayTag::RequestGameplayTag(
-			FName(*FString::Printf(TEXT("Buff.Status.Heat.Phase.%d"), PhaseIndex)), false);
+			FName(*FString::Printf(TEXT("Buff.Heat.Phase.%d"), PhaseIndex)), false);
 		if (PhaseTag.IsValid())
 		{
 			ASC->SetLooseGameplayTagCount(PhaseTag, 0);
@@ -713,7 +713,7 @@ void UBackpackGridComponent::RestorePhase(int32 Phase)
 		for (int32 PhaseIndex = 1; PhaseIndex <= 3; ++PhaseIndex)
 		{
 			const FGameplayTag PhaseTag = FGameplayTag::RequestGameplayTag(
-				FName(*FString::Printf(TEXT("Buff.Status.Heat.Phase.%d"), PhaseIndex)), false);
+				FName(*FString::Printf(TEXT("Buff.Heat.Phase.%d"), PhaseIndex)), false);
 			if (PhaseTag.IsValid())
 			{
 				ASC->SetLooseGameplayTagCount(PhaseTag, 0);
@@ -725,7 +725,7 @@ void UBackpackGridComponent::RestorePhase(int32 Phase)
 	if (ASC && CurrentPhase > 0)
 	{
 		const FGameplayTag PhaseTag = FGameplayTag::RequestGameplayTag(
-			FName(*FString::Printf(TEXT("Buff.Status.Heat.Phase.%d"), CurrentPhase)), false);
+			FName(*FString::Printf(TEXT("Buff.Heat.Phase.%d"), CurrentPhase)), false);
 		if (PhaseTag.IsValid())
 		{
 			ASC->SetLooseGameplayTagCount(PhaseTag, 1);
@@ -999,7 +999,7 @@ bool UBackpackGridComponent::IsRuneInActivationZone(const FPlacedRune& Placed) c
 	if (ZoneSet.IsEmpty())
 		return false;
 
-	// 全部格子都在激活区内才算激活
+	// 全部格子都在激活区内才算激
 	for (const FIntPoint Cell : GetRuneCells(Placed.Rune, Placed.Pivot))
 	{
 		if (!ZoneSet.Contains(Cell))
@@ -1033,7 +1033,7 @@ void UBackpackGridComponent::ActivateRune(FPlacedRune& Placed)
 		Placed.bIsPermanent ? 1 : 0,
 		IsRuneInActivationZone(Placed) ? 1 : 0);
 
-	// Shape 空检查：没有 Cells 时符文仍可激活，但无法参与背包格子系统
+	// Shape 空检查：没有 Cells 时符文仍可激活，但无法参与背包格子系
 	if (Placed.Rune.Shape.Cells.IsEmpty())
 	{
 		const FString DAName = GetNameSafe(Placed.Rune.SourceDA);
@@ -1056,7 +1056,7 @@ void UBackpackGridComponent::ActivateRune(FPlacedRune& Placed)
 
 	if (TriggerType == ERuneTriggerType::Passive)
 	{
-		// Passive：进激活区立即启动 FA（常驻型，FA 持续运行直到离区）
+		// Passive：进激活区立即启动 FA（常驻型，FA 持续运行直到离区
 		UBuffFlowComponent* BFC = GetOwner()->FindComponentByClass<UBuffFlowComponent>();
 		if (!BFC)
 		{
@@ -1072,7 +1072,7 @@ void UBackpackGridComponent::ActivateRune(FPlacedRune& Placed)
 	}
 	else
 	{
-		// 事件驱动型：注册 ASC 监听器，每次事件触发时启动一次性 FA 实例
+		// 事件驱动型：注册 ASC 监听器，每次事件触发时启动一次FA 实例
 		UAbilitySystemComponent* ASC = GetOwner()->FindComponentByClass<UAbilitySystemComponent>();
 		if (!ASC)
 		{
@@ -1109,7 +1109,7 @@ void UBackpackGridComponent::ActivateRune(FPlacedRune& Placed)
 			TriggeredRuneListeners.Remove(RuneGuid);
 		}
 
-		// 用 operator= 而非拷贝构造，绕开 UE5.4 TWeakObjectPtr 构造模板的 SFINAE 推导问题
+		// operator= 而非拷贝构造，绕开 UE5.4 TWeakObjectPtr 构造模板的 SFINAE 推导问题
 		TWeakObjectPtr<UFlowAsset> WeakFA;
 		WeakFA = static_cast<UFlowAsset*>(Placed.Rune.Flow.FlowAsset);
 		TWeakObjectPtr<URuneDataAsset> WeakSourceRune = Placed.Rune.SourceDA;
@@ -1126,8 +1126,8 @@ void UBackpackGridComponent::ActivateRune(FPlacedRune& Placed)
 
 				AActor* InstigatorActor = const_cast<AActor*>(Payload->Instigator.Get());
 				AActor* TargetActor = const_cast<AActor*>(Payload->Target.Get());
-				// BuffGiver 永远是符文承载者（GetOwner），事件来源/受害者通过 LastEventContext 传递
-				// 否则 OnDamageReceived 触发时 Payload.Instigator=攻击者，会把 BuffGiver 错置成敌人
+				// BuffGiver 永远是符文承载者（GetOwner），事件来源/受害者通过 LastEventContext 传
+				// 否则 OnDamageReceived 触发Payload.Instigator=攻击者，会把 BuffGiver 错置成敌
 				AActor* GiverActor = GetOwner();
 				const FGameplayTag EffectiveEventTag = Payload->EventTag.IsValid() ? Payload->EventTag : EventTag;
 
@@ -1209,7 +1209,7 @@ void UBackpackGridComponent::DeactivateRune(FPlacedRune& Placed)
 		}
 		else
 		{
-			// 事件驱动型：注销 ASC 监听器
+			// 事件驱动型：注销 ASC 监听
 			if (FDelegateHandle* Handle = TriggeredRuneListeners.Find(Placed.Rune.RuneGuid))
 			{
 				const FGameplayTag EventTag = GetEventTagForTriggerType(TriggerType);
@@ -1274,15 +1274,15 @@ void UBackpackGridComponent::RefreshAllActivations()
 
 	// 直接激活区
 	const TSet<FIntPoint> DirectZone = ComputeActivationZone();
-	// 链路传导扩展（BFS，Producer 向外传播）
+	// 链路传导扩展（BFS，Producer 向外传播
 	const TSet<FIntPoint> ChainZone  = ComputeChainActivatedCells(DirectZone);
-	// 有效激活区 = 直接激活区 ∪ 链路激活区
+	// 有效激活区 = 直接激活区 链路激活区
 	TSet<FIntPoint> EffectiveZone = DirectZone;
 	EffectiveZone.Append(ChainZone);
 
 	for (FPlacedRune& Placed : PlacedRunes)
 	{
-		// 永久符文跳过激活区检查，始终激活
+		// 永久符文跳过激活区检查，始终激
 		const bool bShouldActivate = Placed.bIsPermanent || IsRuneInZone(Placed, EffectiveZone);
 
 		if (bShouldActivate && !Placed.bIsActivated)
@@ -1313,7 +1313,7 @@ void UBackpackGridComponent::NotifyRuneUpgraded(FGuid RuneGuid)
 	{
 		if (Placed.Rune.RuneGuid == RuneGuid)
 		{
-			// 重启 BuffFlow 使新的 UpgradeLevel 立即生效
+			// 重启 BuffFlow 使新UpgradeLevel 立即生效
 			if (Placed.bIsActivated)
 			{
 				DeactivateRune(Placed);
@@ -1380,11 +1380,11 @@ TSet<FIntPoint> UBackpackGridComponent::ComputeChainActivatedCells(const TSet<FI
 {
 	TSet<FIntPoint> ChainZone;
 
-	// BFS 队列：存放已确认"处于有效区内"的 Producer 的 PlacedRunes 下标
+	// BFS 队列：存放已确认"处于有效区内"Producer PlacedRunes 下标
 	TQueue<int32> Queue;
 	TSet<int32>   Visited;
 
-	// 将 DirectZone 内所有 Producer 符文作为种子
+	// DirectZone 内所Producer 符文作为种子
 	for (int32 i = 0; i < PlacedRunes.Num(); i++)
 	{
 		const FPlacedRune& Placed = PlacedRunes[i];
@@ -1393,7 +1393,7 @@ TSet<FIntPoint> UBackpackGridComponent::ComputeChainActivatedCells(const TSet<FI
 		if (Placed.Rune.RuneConfig.ChainDirections.IsEmpty())
 			continue;
 
-		// Producer 的所有格子必须都在 DirectZone 内才能传导
+		// Producer 的所有格子必须都DirectZone 内才能传
 		bool bAllInZone = true;
 		for (const FIntPoint Cell : GetRuneCells(Placed.Rune, Placed.Pivot))
 		{
@@ -1413,19 +1413,19 @@ TSet<FIntPoint> UBackpackGridComponent::ComputeChainActivatedCells(const TSet<FI
 		Queue.Dequeue(Idx);
 		const FPlacedRune& Producer = PlacedRunes[Idx];
 
-		// 从 Producer 的每个格子，向每个配置方向传播
+		// Producer 的每个格子，向每个配置方向传
 		for (const FIntPoint SrcCell : GetRuneCells(Producer.Rune, Producer.Pivot))
 		{
 			for (const EChainDirection Dir : Producer.Rune.RuneConfig.ChainDirections)
 			{
 				const FIntPoint Adj = SrcCell + ChainDirectionToOffset(Dir);
 				if (!IsCellValid(Adj)) continue;
-				if (DirectZone.Contains(Adj)) continue;   // 已在直接激活区，跳过
-				if (ChainZone.Contains(Adj)) continue;    // 已传播过，跳过
+				if (DirectZone.Contains(Adj)) continue;   // 已在直接激活区，跳
+				if (ChainZone.Contains(Adj)) continue;    // 已传播过，跳
 
 				ChainZone.Add(Adj);
 
-				// 若邻格内有 Producer，将其加入 BFS（实现多跳）
+				// 若邻格内Producer，将其加BFS（实现多跳）
 				const int32 AdjRuneIdx = GridOccupancy[CellToIndex(Adj)];
 				if (AdjRuneIdx != INDEX_NONE && !Visited.Contains(AdjRuneIdx))
 				{
@@ -1433,8 +1433,8 @@ TSet<FIntPoint> UBackpackGridComponent::ComputeChainActivatedCells(const TSet<FI
 					if (AdjPlaced.Rune.RuneConfig.ChainRole == ERuneChainRole::Producer
 						&& !AdjPlaced.Rune.RuneConfig.ChainDirections.IsEmpty())
 					{
-						// 邻格 Producer 被链路激活，检查其所有格子是否都在有效区内
-						// （有效区 = DirectZone ∪ ChainZone，取近似：只要 Adj 在 ChainZone 即可进入队列）
+						// 邻格 Producer 被链路激活，检查其所有格子是否都在有效区
+						// （有效区 = DirectZone ChainZone，取近似：只Adj ChainZone 即可进入队列
 						Visited.Add(AdjRuneIdx);
 						Queue.Enqueue(AdjRuneIdx);
 					}

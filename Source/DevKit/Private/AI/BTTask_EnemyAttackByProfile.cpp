@@ -125,7 +125,7 @@ namespace
 	{
 		const IAbilitySystemInterface* ASCInterface = Cast<IAbilitySystemInterface>(TargetActor);
 		const UAbilitySystemComponent* TargetASC = ASCInterface ? ASCInterface->GetAbilitySystemComponent() : nullptr;
-		const FGameplayTag InSmokeTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.InSmoke"), false);
+		const FGameplayTag InSmokeTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.InSmoke"), false);
 		return TargetASC && InSmokeTag.IsValid() && TargetASC->HasMatchingGameplayTag(InSmokeTag);
 	}
 

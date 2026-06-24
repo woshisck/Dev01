@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
@@ -6,27 +6,27 @@
 #include "StateConflictDataAsset.generated.h"
 
 /**
- * 单条状态冲突规则
- * 当 ActiveTag 出现在 ASC 上时，对 BlockTags / CancelTags 执行对应操作
+ * 单条状态冲突规
+ * ActiveTag 出现ASC 上时，对 BlockTags / CancelTags 执行对应操作
  */
 USTRUCT(BlueprintType)
 struct DEVKIT_API FStateConflictRule
 {
 	GENERATED_BODY()
 
-	// 触发本条规则的状态 Tag（出现在 ASC 上时生效）
+	// 触发本条规则的状Tag（出现在 ASC 上时生效
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "StateConflict")
 	FGameplayTag ActiveTag;
 
-	// 阻止激活：AbilityTags 含有这些 Tag 的 GA 无法激活
+	// 阻止激活：AbilityTags 含有这些 Tag GA 无法激
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "StateConflict")
 	FGameplayTagContainer BlockTags;
 
-	// 立即取消：AbilityTags 含有这些 Tag 的 GA 立即被取消
+	// 立即取消：AbilityTags 含有这些 Tag GA 立即被取
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "StateConflict")
 	FGameplayTagContainer CancelTags;
 
-	// 优先级（数值越高越强势，-1 = 不参与优先级判断）
+	// 优先级（数值越高越强势1 = 不参与优先级判断
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "StateConflict")
 	int32 Priority = 0;
 };
@@ -47,12 +47,12 @@ public:
 	/**
 	 * 阻断分类表（策划在此统一配置，无需逐个角色蓝图赋值）
 	 * Key   = 阻断类别 Tag，当前支持：
-	 *           Block.Movement — 停止角色移动组件 + AI StopMovement
-	 *           Block.AI       — 暂停行为树逻辑（PauseLogic）
-	 * Value = 触发该阻断的状态 Tag 列表
-	 * 示例：
-	 *   Block.Movement → [Buff.Status.HitReact, Buff.Status.Dead, Buff.Status.Knockback]
-	 *   Block.AI       → [Buff.Status.HitReact, Buff.Status.Dead, Buff.Status.Knockback]
+	 *           Block.Movement 停止角色移动组件 + AI StopMovement
+	 *           Block.AI       暂停行为树逻辑（PauseLogic
+	 * Value = 触发该阻断的状Tag 列表
+	 * 示例
+	 *   Block.Movement [Buff.HitReact, Buff.Dead, Buff.Knockback]
+	 *   Block.AI       [Buff.HitReact, Buff.Dead, Buff.Knockback]
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "BlockConfig", meta = (ForceInlineRow))
 	TMap<FGameplayTag, FGameplayTagContainer> BlockCategoryMap;

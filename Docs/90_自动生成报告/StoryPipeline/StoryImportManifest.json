@@ -389,7 +389,7 @@
           "placementName": "Portal_TutorialStart",
           "condition": {
             "kind": "ProgressCompleted",
-            "progressKey": "first_run.heavy_card_obtained",
+            "progressKey": "first_run.weapon_skill_finisher_obtained",
             "progressLabel": "已获得重击卡",
             "featureTag": "",
             "runCount": 0

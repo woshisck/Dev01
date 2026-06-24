@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "AbilitySystemComponent.h"
@@ -15,53 +15,53 @@ class UYogAbilitySystemComponent;
 
 
 // =========================================================
-// 伤害明细结构体（CombatLogStatics 使用）
+// 伤害明细结构体（CombatLogStatics 使用
 // =========================================================
 
 /**
- * 一次伤害命中（或卡牌结算事件）的完整构成数据。
- * DamageExecution 或 CombatDeckComponent 填充后推入 CombatLogStatics 静态桥。
+ * 一次伤害命中（或卡牌结算事件）的完整构成数据
+ * DamageExecution CombatDeckComponent 填充后推CombatLogStatics 静态桥
  */
 USTRUCT(BlueprintType)
 struct DEVKIT_API FDamageBreakdown
 {
 	GENERATED_BODY()
 
-	/** 来源的 Attack 属性（基础攻击力） */
+	/** 来源Attack 属性（基础攻击力） */
 	UPROPERTY(BlueprintReadOnly) float BaseAttack = 0.f;
 
-	/** 动作系数（AttackPower，由动作 Notify 的 ActDamage 设置） */
+	/** 动作系数（AttackPower，由动作 Notify ActDamage 设置*/
 	UPROPERTY(BlueprintReadOnly) float ActionMultiplier = 1.f;
 
-	/** 目标减伤系数（DmgTaken，>1 表示易伤，<1 表示减伤） */
+	/** 目标减伤系数（DmgTaken1 表示易伤1 表示减伤*/
 	UPROPERTY(BlueprintReadOnly) float DmgTakenMult = 1.f;
 
-	/** 最终伤害（含暴击加成；卡牌结算行为 0） */
+	/** 最终伤害（含暴击加成；卡牌结算行为 0*/
 	UPROPERTY(BlueprintReadOnly) float FinalDamage = 0.f;
 
 	/** 是否暴击 */
 	UPROPERTY(BlueprintReadOnly) bool bIsCrit = false;
 
-	/** 动作名称，如 "轻击1"、"重击2"；流血/符文时为对应名称 */
+	/** 动作名称，如 "轻击1"重击2"；流血/符文时为对应名称 */
 	UPROPERTY(BlueprintReadOnly) FName ActionName;
 
 	/**
-	 * 伤害类型："Attack"、"Attack_Crit"、"Bleed"、"Rune_XXX"
-	 * 512版本新增："Card_Resolve"、"Card_Shuffle"、"Card_Hit"、
-	 *               "Card_Matched"、"Card_Link"、"Card_Finisher"
+	 * 伤害类型Attack"Attack_Crit"Bleed"Rune_XXX"
+	 * 512版本新增Card_Resolve"Card_Shuffle"Card_Hit"
+	 *               "Card_Matched"Card_Link"Card_Finisher"
 	 */
 	UPROPERTY(BlueprintReadOnly) FName DamageType;
 
-	/** 目标名称（调试用） */
+	/** 目标名称（调试用*/
 	UPROPERTY(BlueprintReadOnly) FString TargetName;
 
-	/** 来源Actor名称（调试用） */
+	/** 来源Actor名称（调试用*/
 	UPROPERTY(BlueprintReadOnly) FString SourceName;
 
-	/** 伤害发生时的游戏时间（秒） */
+	/** 伤害发生时的游戏时间（秒*/
 	UPROPERTY(BlueprintReadOnly) float GameTime = 0.f;
 
-	// ── 512版本：卡牌字段（默认值均为 false/空，向后兼容） ────────────
+	// ── 512版本：卡牌字段（默认值均false/空，向后兼容────────────
 
 	/** 本次攻击时有可用卡牌 */
 	UPROPERTY(BlueprintReadOnly) bool bHadCard = false;
@@ -73,46 +73,46 @@ struct DEVKIT_API FDamageBreakdown
 	// Deprecated compatibility alias for older log widgets/Blueprints.
 	UPROPERTY(BlueprintReadOnly) bool bConsumedCard = false;
 
-	/** 动作类型与卡牌 RequiredAction 匹配 */
+	/** 动作类型与卡RequiredAction 匹配 */
 	UPROPERTY(BlueprintReadOnly) bool bActionMatched = false;
 
 	/** 匹配奖励 Flow 实际触发 */
 	UPROPERTY(BlueprintReadOnly) bool bTriggeredMatchedFlow = false;
 
-	/** 连携触发（含正向/反向） */
+	/** 连携触发（含正向/反向*/
 	UPROPERTY(BlueprintReadOnly) bool bTriggeredLink = false;
 
 	/** 终结技触发 */
 	UPROPERTY(BlueprintReadOnly) bool bTriggeredFinisher = false;
 
-	/** 本次结算后进入洗牌（仅 Card_Resolve/Card_Shuffle 行有效） */
+	/** 本次结算后进入洗牌（Card_Resolve/Card_Shuffle 行有效） */
 	UPROPERTY(BlueprintReadOnly) bool bStartedShuffle = false;
 
-	/** 是否为纯卡牌结算行（FinalDamage=0，无目标） */
+	/** 是否为纯卡牌结算行（FinalDamage=0，无目标*/
 	UPROPERTY(BlueprintReadOnly) bool bIsCardEventOnly = false;
 
-	/** 卡牌显示名称（来自 SourceData->RuneConfig.RuneName） */
+	/** 卡牌显示名称（来SourceData->RuneConfig.RuneName*/
 	UPROPERTY(BlueprintReadOnly) FName CardDisplayName;
 
-	/** 结算时机（"OnCommit" / "OnHit"，调试用） */
+	/** 结算时机OnCommit" / "OnHit"，调试用*/
 	UPROPERTY(BlueprintReadOnly) FName CardResolveTiming;
 
 	// Deprecated compatibility alias for CardResolveTiming.
 	UPROPERTY(BlueprintReadOnly) FName CardConsumeTiming;
 
-	/** 是否携带目标生命/护甲快照（仅用于战斗日志展示，不参与结算） */
+	/** 是否携带目标生命/护甲快照（仅用于战斗日志展示，不参与结算*/
 	UPROPERTY(BlueprintReadOnly) bool bHasTargetVitals = false;
 
-	/** 本次伤害结算前的目标生命值估算 */
+	/** 本次伤害结算前的目标生命值估*/
 	UPROPERTY(BlueprintReadOnly) float TargetHealthBefore = 0.f;
 
-	/** 本次伤害结算后的目标生命值估算 */
+	/** 本次伤害结算后的目标生命值估*/
 	UPROPERTY(BlueprintReadOnly) float TargetHealthAfter = 0.f;
 
-	/** 本次伤害结算前的目标护甲值估算 */
+	/** 本次伤害结算前的目标护甲值估*/
 	UPROPERTY(BlueprintReadOnly) float TargetArmorBefore = 0.f;
 
-	/** 本次伤害结算后的目标护甲值估算 */
+	/** 本次伤害结算后的目标护甲值估*/
 	UPROPERTY(BlueprintReadOnly) float TargetArmorAfter = 0.f;
 };
 
@@ -132,7 +132,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FCritHitDelegate, UYogAbilitySystem
 /** 冲刺成功时在 Owner ASC 广播 */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FDashExecutedDelegate);
 
-/** 击杀目标时在 Source ASC 广播，携带目标 Actor 和死亡位置 */
+/** 击杀目标时在 Source ASC 广播，携带目Actor 和死亡位*/
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FKilledTargetDelegate, AActor*, Target, FVector, DeathLocation);
 
 
@@ -191,21 +191,21 @@ public:
 
 
 	// =========================================================
-	// 状态冲突系统
+	// 状态冲突系
 	// =========================================================
 
 	/**
-	 * 状态冲突规则表（DataAsset）
-	 * 推荐在角色蓝图 CDO 上统一赋值（EditDefaultsOnly），
-	 * 或在 GameInstance / GameData 中持有一份全局引用后调用 InitConflictTable()。
-	 * 不赋值时系统静默跳过，不会崩溃。
+	 * 状态冲突规则表（DataAsset
+	 * 推荐在角色蓝CDO 上统一赋值（EditDefaultsOnly），
+	 * 或在 GameInstance / GameData 中持有一份全局引用后调InitConflictTable()
+	 * 不赋值时系统静默跳过，不会崩溃
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "StateConflict")
 	TObjectPtr<UStateConflictDataAsset> ConflictTable;
 
 	/**
-	 * 手动触发冲突表初始化（可在 InitAbilityActorInfo 之后或 BeginPlay 中调用）。
-	 * 内部会自动构建 O(1) 查找用的 ConflictMap。
+	 * 手动触发冲突表初始化（可InitAbilityActorInfo 之后BeginPlay 中调用）
+	 * 内部会自动构O(1) 查找用的 ConflictMap
 	 */
 	UFUNCTION(BlueprintCallable, Category = "StateConflict")
 	void InitConflictTable();
@@ -221,20 +221,20 @@ public:
 	UNiagaraSystem* GetStatusNiagaraSystemForTag(FGameplayTag Tag) const;
 
 protected:
-	// OnTagUpdated override：tag 变化时自动查表执行 block / cancel
+	// OnTagUpdated override：tag 变化时自动查表执block / cancel
 	virtual void OnTagUpdated(const FGameplayTag& Tag, bool TagExists) override;
 
 private:
-	// 预处理后的查找表（ActiveTag → Rule），由 InitConflictTable() 构建
+	// 预处理后的查找表（ActiveTag Rule），InitConflictTable() 构建
 	TMap<FGameplayTag, FStateConflictRule> ConflictMap;
 
-	// 阻断分类表（BlockCategory → 触发该阻断的 State Tags），从 DA 复制
+	// 阻断分类表（BlockCategory 触发该阻断的 State Tags），DA 复制
 	TMap<FGameplayTag, FGameplayTagContainer> BlockCategoryMap;
 
-	// 反向索引（StateTag → 所属阻断分类列表），OnTagUpdated O(1) 查找
+	// 反向索引（StateTag 所属阻断分类列表），OnTagUpdated O(1) 查找
 	TMap<FGameplayTag, TArray<FGameplayTag>> StateToBlockCategories;
 
-	// 防止 OnTagUpdated 递归（BlockAbilitiesWithTags 内部也会触发 tag 变化）
+	// 防止 OnTagUpdated 递归（BlockAbilitiesWithTags 内部也会触发 tag 变化
 	bool bProcessingConflict = false;
 	bool bSuppressNextDamageFeedback = false;
 
@@ -246,8 +246,8 @@ private:
 		const TArray<FName>& FallbackSocketNames, FVector LocationOffset, FRotator RotationOffset, FVector Scale);
 	void StopStatusNiagara(const FGameplayTag& Tag);
 
-	// ── 韧性系统内部状态 ──────────────────────────────────────────────
-	/** 连续触发受击次数（RecentlyDamaged 状态到期后归零，达到 SuperArmorThreshold 时触发霸体） */
+	// ── 韧性系统内部状──────────────────────────────────────────────
+	/** 连续触发受击次数（RecentlyDamaged 状态到期后归零，达SuperArmorThreshold 时触发霸体） */
 	int32 PoiseHitCount = 0;
 	FTimerHandle PoiseResetTimer;
 	FTimerHandle SuperArmorTimer;
@@ -284,9 +284,9 @@ public:
 	void AddGameplayTagWithCount(FGameplayTag Tag, int32 Count);
 
 	// ── 武器类型 Tag 守卫 ─────────────────────────────────────────────
-	// 装备时挂 Weapon.Type.Melee/Ranged LooseTag，使对应类型的攻击 GA 才能激活。
-	// 内部使用 SetLooseGameplayTagCount(Tag, 0) 清零避免计数残留；未来切多人时
-	// 把这两个函数内部从 LooseTag 改成 ReplicatedLooseTag 即可，调用方零改动。
+	// 装备时挂 Weapon.Type.Melee/Ranged LooseTag，使对应类型的攻GA 才能激活
+	// 内部使用 SetLooseGameplayTagCount(Tag, 0) 清零避免计数残留；未来切多人
+	// 把这两个函数内部LooseTag 改成 ReplicatedLooseTag 即可，调用方零改动
 
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
 	void ApplyWeaponTypeTag(EWeaponType Type);
@@ -298,36 +298,36 @@ public:
 
 
 	/**
-	 * 受击时自动发送的 GameplayEvent Tag（供 GA_GetHit 通过 Trigger 监听）
-	 * 在角色蓝图 CDO 上设置，留空则不发送事件（可用于无受击反应的对象）
+	 * 受击时自动发送的 GameplayEvent Tag（供 GA_GetHit 通过 Trigger 监听
+	 * 在角色蓝CDO 上设置，留空则不发送事件（可用于无受击反应的对象）
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HitReact")
 	FGameplayTag HitReactEventTag;
 
-	// ── 韧性（Poise）系统 ─────────────────────────────────────────────
+	// ── 韧性（Poise）系─────────────────────────────────────────────
 	/**
-	 * 动作韧性：GA_MeleeAttack 在命中 Notify 触发前设置（= AN_MeleeDamage.ActResilience），
-	 * ReceiveDamage 读取后立即清零。无需手动维护，GA 自动管理。
+	 * 动作韧性：GA_MeleeAttack 在命Notify 触发前设置（= AN_MeleeDamage.ActResilience），
+	 * ReceiveDamage 读取后立即清零。无需手动维护，GA 自动管理
 	 */
 	UPROPERTY(BlueprintReadWrite, Category = "Poise")
 	float CurrentActionPoiseBonus = 0.f;
 
 	/**
-	 * 连续触发受击多少次后进入霸体（仅对非玩家生效）。
-	 * 默认 3 次。
+	 * 连续触发受击多少次后进入霸体（仅对非玩家生效）
+	 * 默认 3 次
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Poise")
 	int32 SuperArmorThreshold = 3;
 
 	/**
-	 * 霸体持续时间（秒）。
+	 * 霸体持续时间（秒）
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Poise")
 	float SuperArmorDuration = 2.f;
 
 	/**
-	 * 敌人受到攻击后保持 Buff.Status.RecentlyDamaged 的时间。
-	 * 到期时会移除状态并清空被动霸体的受击计数。
+	 * 敌人受到攻击后保Buff.RecentlyDamaged 的时间
+	 * 到期时会移除状态并清空被动霸体的受击计数
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Poise", meta = (ClampMin = "0.0"))
 	float RecentlyDamagedStateDuration = 3.f;
@@ -366,20 +366,20 @@ public:
 	bool ConsumeSuppressNextDamageFeedback();
 
 	/**
-	 * 玩家伤害日志（基础版，向后兼容）。
-	 * 写入 Output Log，推入 CombatLogStatics，并广播 OnDamageBreakdown。
+	 * 玩家伤害日志（基础版，向后兼容）
+	 * 写入 Output Log，推CombatLogStatics，并广播 OnDamageBreakdown
 	 */
 	UFUNCTION(BlueprintCallable, Category = "DamageLog")
 	void LogDamageDealt(AActor* Target, float Damage, FName DamageType);
 
 	/**
-	 * 玩家伤害日志（详细版，DamageExecution 调用）。
-	 * 携带完整的伤害构成数据，广播 OnDamageBreakdown 并推入 CombatLogStatics。
+	 * 玩家伤害日志（详细版，DamageExecution 调用）
+	 * 携带完整的伤害构成数据，广播 OnDamageBreakdown 并推CombatLogStatics
 	 */
 	UFUNCTION(BlueprintCallable, Category = "DamageLog")
 	void LogDamageDealtDetailed(AActor* Target, const FDamageBreakdown& Breakdown);
 
-	/** 伤害明细事件（保留供外部系统订阅） */
+	/** 伤害明细事件（保留供外部系统订阅*/
 	UPROPERTY(BlueprintAssignable, Category = "DamageLog")
 	FOnDamageBreakdown OnDamageBreakdown;
 
@@ -422,8 +422,8 @@ public:
 
 
 	/**
-	 * [Debug] 检查某个 Actor 是否已被赋予指定 GA class。
-	 * 静态函数，可在任意类中调用。Actor 无 ASC 或 Class 为空时返回 false。
+	 * [Debug] 检查某Actor 是否已被赋予指定 GA class
+	 * 静态函数，可在任意类中调用。Actor ASC Class 为空时返false
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Abilities|Debug", meta = (DisplayName = "Has Ability Class (Debug)"))
 	static bool DebugHasAbilityClass(AActor* Actor, TSubclassOf<UGameplayAbility> AbilityClass);
@@ -463,7 +463,7 @@ public:
 	void SetAbilityRetriggerable(FGameplayAbilitySpecHandle Handle, bool bCanRetrigger);
 
 
-	// 移除之前 Apply 的符文 GE
+	// 移除之前 Apply 的符GE
 	UFUNCTION(BlueprintCallable, Category = "Rune")
 	void RemoveRuneModifiers(FActiveGameplayEffectHandle Handle);
 

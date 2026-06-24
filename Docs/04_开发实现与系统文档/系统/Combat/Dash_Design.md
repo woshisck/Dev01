@@ -106,10 +106,10 @@ IsValidDashLocation(Hits):
 
 | 字段 | Tag |
 |-----|-----|
-| `AbilityTags` | `PlayerState.AbilityCast.Dash.Dash1` |
+| `AbilityTags` | `Character.State.Movement.Dash` |
 | `ActivationOwnedTags` | `Buff.Status.DashInvincible` |
-| `ActivationBlockedTags` | `Buff.Status.Dead`、`PlayerState.AbilityCast.Dash` |
-| `CancelAbilitiesWithTag` | `PlayerState.AbilityCast` |
+| `ActivationBlockedTags` | `Buff.Status.Dead`、`Character.State.Movement.Dash` |
+| `CancelAbilitiesWithTag` | `Character.State.Skill` / `Character.State.Movement.Dash` |
 
 ### 4.3 蒙太奇配置
 
@@ -206,7 +206,7 @@ if (TargetASC && TargetASC->HasMatchingGameplayTag(TAG_DashInvincible))
 ### Blueprint 子类创建
 1. 新建 Blueprint，Parent Class = `GA_PlayerDash`
 2. Class Defaults 填写 Tag（见 4.2 节）
-3. 蒙太奇在 `CharacterData → AbilityData` MontageMap 中配置（Key = `PlayerState.AbilityCast.Dash.Dash1`）
+3. 蒙太奇在 `CharacterData → AbilityData` MontageMap 中配置（Key = `Character.State.Movement.Dash`）
 
 ---
 

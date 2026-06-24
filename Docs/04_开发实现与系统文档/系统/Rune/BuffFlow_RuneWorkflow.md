@@ -166,15 +166,15 @@
 
 ```
 符文A - FA（持续监听伤害）：
-  [Start] → [On Damage Dealt] → [Send Gameplay Event]（Tag=Action.Rune.XXX, Target=BuffOwner）
+  [Start] → [On Damage Dealt] → [Send Gameplay Event]（Tag=Buff.Event.XXX, Target=BuffOwner）
 
 符文B - FA（等待信号）：
-  [Start] → [Wait Gameplay Event]（Tag=Action.Rune.XXX, Target=BuffOwner）→ Out → [效果节点]
+  [Start] → [Wait Gameplay Event]（Tag=Buff.Event.XXX, Target=BuffOwner）→ Out → [效果节点]
 ```
 
 **关键：Target 填 BuffOwner（玩家自身）**，不是敌人。两个符文通过玩家 ASC 通信，效果再通过 `LastDamageTarget` 指向敌人。
 
-*示例：击退 1004（发 `Action.Rune.KnockbackApplied` 到 BuffOwner）+ 击退减速 1007（Wait 监听后对 LastDamageTarget 施加减速）*
+*示例：击退 1004（发 `Buff.Event.KnockbackApplied` 到 BuffOwner）+ 击退减速 1007（Wait 监听后对 LastDamageTarget 施加减速）*
 
 ---
 

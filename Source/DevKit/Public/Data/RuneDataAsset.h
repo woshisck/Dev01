@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
@@ -228,12 +228,12 @@ struct DEVKIT_API FCombatCardLinkCondition
     UPROPERTY()
     FGameplayTagContainer RequiredNeighborTags;
 
-    /** Empty = no card id requirement. Any configured tag may identify the neighbor card, such as Card.ID.Moonlight. */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Link Condition")
+    /** Empty = no card id requirement. New content should use formal Buff.* tags, such as Buff.Moonlight. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Link Condition", meta = (Categories = "Buff"))
     FGameplayTagContainer RequiredNeighborIdTags;
 
-    /** Empty = no effect requirement. All configured tags must be present on the neighbor card's CardEffectTags. */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Link Condition")
+    /** Empty = no effect requirement. All configured tags must be present on the neighbor rune/card effect tags. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Link Condition", meta = (Categories = "Buff"))
     FGameplayTagContainer RequiredNeighborEffectTags;
 
     /** Empty = no combo tag requirement. All configured tags must be present in the action context. */
@@ -332,12 +332,12 @@ struct DEVKIT_API FCombatCardConfig
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Basic")
     ECombatCardType CardType = ECombatCardType::Normal;
 
-    /** GameplayTag ID for recipe lookup, for example Card.ID.Moonlight. */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Basic")
+    /** GameplayTag identity for recipe lookup. New assets should use formal Buff.* tags, for example Buff.Moonlight. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Basic", meta = (Categories = "Buff"))
     FGameplayTag CardIdTag;
 
-    /** Effect tags used by link recipes, for example Card.Effect.Attack or Card.Effect.Moonlight. */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Basic")
+    /** Effect tags used by link recipes. New assets should use formal Buff.* tags, for example Buff.Fire. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Basic", meta = (Categories = "Buff"))
     FGameplayTagContainer CardEffectTags;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Basic", meta = (AdvancedDisplay))
@@ -352,7 +352,7 @@ struct DEVKIT_API FCombatCardConfig
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Card|Basic", meta = (AdvancedDisplay))
     ECombatCardTriggerTiming TriggerTiming = ECombatCardTriggerTiming::OnCommit;
 
-    /** Legacy compatibility only. New recipes should use CardIdTag / CardEffectTags. */
+    /** Legacy compatibility only. New recipes should use CardIdTag / CardEffectTags with Buff.* values. */
     UPROPERTY()
     FGameplayTagContainer CardTags;
 
@@ -588,11 +588,11 @@ struct DEVKIT_API FRuneConfig
     ERuneType RuneType = ERuneType::Buff;
 
     /**
-     * 符文身份 Tag（推荐使用，命名空间 Rune.ID.*，如 Rune.ID.BurningEdge）
+     * 符文身份 Tag（推荐使用，命名空间 Buff.*，如 Buff.Moonlight）
      * 替代 int32 RuneID，提供稳定且可读的身份标识。
      * 业务代码请通过 URuneDataAsset::GetRuneIdTag() 读取，避免直接访问字段。
      */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (Categories = "Rune.ID"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (Categories = "Buff"))
     FGameplayTag RuneIdTag;
 
     /** 编辑器资源栏分类标签，例如 Rune.Library.Base / Rune.Library.Enemy。 */

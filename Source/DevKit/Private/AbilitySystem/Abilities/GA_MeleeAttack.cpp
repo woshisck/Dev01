@@ -74,6 +74,24 @@ namespace
 		return true;
 	}
 
+	bool TryActivateAbilityByTagName(UAbilitySystemComponent* ASC, const TCHAR* TagName)
+	{
+		if (!ASC || !TagName)
+		{
+			return false;
+		}
+
+		const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TagName), false);
+		if (!Tag.IsValid())
+		{
+			return false;
+		}
+
+		FGameplayTagContainer TagContainer;
+		TagContainer.AddTag(Tag);
+		return ASC->TryActivateAbilitiesByTag(TagContainer, true);
+	}
+
 }
 
 UGA_MeleeAttack::UGA_MeleeAttack()
@@ -86,11 +104,13 @@ UGA_MeleeAttack::UGA_MeleeAttack()
 
 	// Runtime guards that should not depend on Blueprint class defaults.
 	const FGameplayTag AttackTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Attack"));
+	const FGameplayTag CharacterAttackTag = FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.Attack"));
+	AbilityTags.AddTag(CharacterAttackTag);
 	AbilityTags.AddTag(AttackTag);
-	ActivationOwnedTags.AddTag(AttackTag);
-	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag("Buff.Status.Dead"));
-	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag("Buff.Status.HitReact"));
-	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag("Buff.Status.Knockback"));
+	ActivationOwnedTags.AddTag(CharacterAttackTag);
+	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag("Buff.Dead"));
+	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag("Buff.HitReact"));
+	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag("Buff.Knockback"));
 }
 
 
@@ -290,7 +310,10 @@ FCombatCardResolveResult UGA_MeleeAttack::ResolveCombatDeck(ECombatCardTriggerTi
 
 	FCombatDeckActionContext Context;
 	Context.ActionType = GetCombatDeckActionType();
-	Context.ActionSlot = AbilityTags.HasTag(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.WeaponSkill"), false))
+	const FGameplayTag CharacterWeaponSkillTag = FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.WeaponSkill"), false);
+	const FGameplayTag LegacyWeaponSkillTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.WeaponSkill"), false);
+	Context.ActionSlot = (CharacterWeaponSkillTag.IsValid() && AbilityTags.HasTag(CharacterWeaponSkillTag))
+		|| (LegacyWeaponSkillTag.IsValid() && AbilityTags.HasTag(LegacyWeaponSkillTag))
 		? ECombatDeckActionSlot::WeaponSkill
 		: ECombatDeckActionSlot::Attack;
 	// Legacy Combo1/2/3/4 tags may still select montages, but combat cards no
@@ -381,10 +404,10 @@ void UGA_MeleeAttack::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCoun
 	if (!Buffer->ConsumeLatestActionInputSince(AbilityActivationTime, BufferedActionType))
 	{
 		// === DIAG: attack-stuck repro (CL564) ===
-		// 旧版会两次独立尝试 Light/Heavy；新版只看最近一次 action。
-		// 若卡攻击是因为此处早退而 CanCombo tag 未清，这条会出现并跟随玩家"卡住"。
+		// Current attack no longer chains Light/Heavy; the combo window is only
+		// retained for cancel/interruption inputs.
 		UE_LOG(LogTemp, Warning,
-			TEXT("[Melee][DIAG564] OnCanComboTagChanged EARLY-RETURN — no buffered action since AbilityActivationTime=%.3f Tag=%s NewCount=%d"),
+			TEXT("[Melee][DIAG564] OnCanComboTagChanged EARLY-RETURN: no buffered action since AbilityActivationTime=%.3f Tag=%s NewCount=%d"),
 			AbilityActivationTime, *Tag.ToString(), NewCount);
 		return;
 	}
@@ -392,7 +415,8 @@ void UGA_MeleeAttack::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCoun
 	bool bActivated = false;
 	if (UAbilitySystemComponent* PlayerASC = PlayerOwner->GetASC())
 	{
-		const TCHAR* FallbackTagName = TEXT("PlayerState.AbilityCast.Attack");
+		const TCHAR* CharacterTagName = TEXT("Character.State.Skill.Attack");
+		const TCHAR* LegacyTagName = TEXT("PlayerState.AbilityCast.Attack");
 		bool bUseFallbackTag = true;
 		switch (BufferedActionType)
 		{
@@ -401,10 +425,12 @@ void UGA_MeleeAttack::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCoun
 			// window for cancel actions, but do not chain Attack into another GA.
 			return;
 		case EInputCommandType::WeaponSkill:
-			FallbackTagName = TEXT("PlayerState.AbilityCast.WeaponSkill");
+			CharacterTagName = TEXT("Character.State.Skill.WeaponSkill");
+			LegacyTagName = TEXT("PlayerState.AbilityCast.WeaponSkill");
 			break;
 		case EInputCommandType::Dash:
-			FallbackTagName = TEXT("PlayerState.AbilityCast.Dash");
+			CharacterTagName = TEXT("Character.State.Movement.Dash");
+			LegacyTagName = TEXT("PlayerState.AbilityCast.Dash");
 			break;
 		case EInputCommandType::Skill:
 			bUseFallbackTag = false;
@@ -418,9 +444,8 @@ void UGA_MeleeAttack::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCoun
 
 		if (bUseFallbackTag)
 		{
-			FGameplayTagContainer TagContainer;
-			TagContainer.AddTag(FGameplayTag::RequestGameplayTag(FName(FallbackTagName)));
-			bActivated = PlayerASC->TryActivateAbilitiesByTag(TagContainer, true);
+			bActivated = TryActivateAbilityByTagName(PlayerASC, CharacterTagName)
+				|| TryActivateAbilityByTagName(PlayerASC, LegacyTagName);
 		}
 	}
 
@@ -434,7 +459,7 @@ void UGA_MeleeAttack::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCoun
 	{
 		ASC->SetLooseGameplayTagCount(Tag, 0);
 		UE_LOG(LogTemp, Warning,
-			TEXT("[Melee][DIAG564] OnCanComboTagChanged ACTIVATION FAILED — cleared %s tag count"),
+			TEXT("[Melee][DIAG564] OnCanComboTagChanged ACTIVATION FAILED: cleared %s tag count"),
 			*Tag.ToString());
 	}
 }
@@ -570,22 +595,34 @@ void UGA_MeleeAttack::ActivateAbility(
 
 	if (UAbilitySystemComponent* ASC = ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr)
 	{
-		const FGameplayTag CanComboTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"));
-		if (ASC->GetTagCount(CanComboTag) > 0)
+		const FGameplayTag CharacterCanComboTag = FGameplayTag::RequestGameplayTag(TEXT("Character.State.Window.CanCombo"));
+		const FGameplayTag LegacyCanComboTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"));
+		if (ASC->GetTagCount(CharacterCanComboTag) > 0)
 		{
-			ASC->SetLooseGameplayTagCount(CanComboTag, 0);
+			ASC->SetLooseGameplayTagCount(CharacterCanComboTag, 0);
+		}
+		if (ASC->GetTagCount(LegacyCanComboTag) > 0)
+		{
+			ASC->SetLooseGameplayTagCount(LegacyCanComboTag, 0);
 		}
 
 		if (CanComboTagHandle.IsValid())
 		{
-			ASC->UnregisterGameplayTagEvent(CanComboTagHandle, CanComboTag, EGameplayTagEventType::NewOrRemoved);
+			ASC->UnregisterGameplayTagEvent(CanComboTagHandle, CharacterCanComboTag, EGameplayTagEventType::NewOrRemoved);
 			CanComboTagHandle.Reset();
 		}
-		CanComboTagHandle = ASC->RegisterGameplayTagEvent(CanComboTag, EGameplayTagEventType::NewOrRemoved)
+		if (LegacyCanComboTagHandle.IsValid())
+		{
+			ASC->UnregisterGameplayTagEvent(LegacyCanComboTagHandle, LegacyCanComboTag, EGameplayTagEventType::NewOrRemoved);
+			LegacyCanComboTagHandle.Reset();
+		}
+		CanComboTagHandle = ASC->RegisterGameplayTagEvent(CharacterCanComboTag, EGameplayTagEventType::NewOrRemoved)
+			.AddUObject(this, &UGA_MeleeAttack::OnCanComboTagChanged);
+		LegacyCanComboTagHandle = ASC->RegisterGameplayTagEvent(LegacyCanComboTag, EGameplayTagEventType::NewOrRemoved)
 			.AddUObject(this, &UGA_MeleeAttack::OnCanComboTagChanged);
 	}
 
-	// 鐜╁ GA锛氭鏌ユ秷鑰?鍐峰嵈
+	// 玩家 GA：检查消冷却
 	if (bRequireCommit && !CommitAbility(Handle, ActorInfo, ActivationInfo))
 	{
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
@@ -634,6 +671,18 @@ void UGA_MeleeAttack::ActivateAbility(
 		FGameplayTag::RequestGameplayTag(TEXT("Enemy.Skill.Skill2"), false),
 		FGameplayTag::RequestGameplayTag(TEXT("Enemy.Skill.Skill3"), false),
 		FGameplayTag::RequestGameplayTag(TEXT("Enemy.Skill.Skill4"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.Attack.Combo1"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.Attack.Combo2"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.Attack.Combo3"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.Attack.Combo4"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.WeaponSkill.Combo1"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.WeaponSkill.Combo2"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.WeaponSkill.Combo3"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.WeaponSkill.Combo4"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Character.State.Movement.Dash.Combo1"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Character.State.Movement.Dash.Combo2"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Character.State.Movement.Dash.Combo3"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Character.State.Movement.Dash.Combo4"), false),
 		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Attack.Combo1"), false),
 		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Attack.Combo2"), false),
 		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Attack.Combo3"), false),
@@ -697,10 +746,10 @@ void UGA_MeleeAttack::ActivateAbility(
 		}
 	}
 
-	// 缂撳瓨绗竴涓?AN_MeleeDamage锛屽悗缁?GetAbilityActionData / StatAfterATK 浣跨敤
+	// 缓存第一AN_MeleeDamage，后GetAbilityActionData / StatAfterATK 使用
 	CachedDamageNotify = GetFirstDamageNotify(Montage);
 
-	// 鏂藉姞鏀诲嚮鍓嶆憞 GE锛堢帺瀹?GA 閰嶇疆锛屾晫浜?GA 鐣欑┖璺宠繃锛?	if (StatBeforeATKEffect)
+	// 施加攻击前摇 GE（玩GA 配置，敌GA 留空跳过	if (StatBeforeATKEffect)
 	if (StatBeforeATKEffect)
 	{
 		if (UAbilitySystemComponent* ASC = ActorInfo->AbilitySystemComponent.Get())
@@ -758,7 +807,7 @@ void UGA_MeleeAttack::ActivateAbility(
 		}
 	}
 
-	// 閲嶇疆鍛戒腑鏍囧織锛堜负鏈鏀诲嚮鐨勭涓€鑺傚仛鍑嗗锛?
+	// 重置命中标志（为本次攻击的第一节做准备
 	if (ActivateOwner)
 	{
 		ActivateOwner->bComboHitConnected = false;
@@ -782,14 +831,14 @@ void UGA_MeleeAttack::ActivateAbility(
 		return;
 	}
 
-	// 鐩戝惉 AnimNotify 浼ゅ浜嬩欢锛氬繀椤绘槑纭紶鍏?Tag锛岀┖瀹瑰櫒涓嶄細娉ㄥ唽浠讳綍鐩戝惉
+	// 监听 AnimNotify 伤害事件：必须明确传Tag，空容器不会注册任何监听
 	// Combat cards resolve from AN_MeleeDamage, so effects and UI resolve state
 	// happen on the actual attack notify frame instead of montage start.
 
 	FGameplayTagContainer DamageEventTags;
 	DamageEventTags.AddTag(FGameplayTag::RequestGameplayTag(FName("GameplayEffect.DamageType.GeneralAttack")));
 
-	// 璇诲彇 AttackSpeed 灞炴€т綔涓鸿挋澶鎾斁閫熺巼
+	// 读取 AttackSpeed 属性作为蒙太奇播放速率
 	float AttackSpeedRate = 1.0f;
 	if (UAbilitySystemComponent* ASC = ActorInfo->AbilitySystemComponent.Get())
 	{
@@ -801,7 +850,7 @@ void UGA_MeleeAttack::ActivateAbility(
 		}
 	}
 
-	// 鍒涘缓澶嶅悎浠诲姟锛氭挱鏀捐挋澶 + 鐩戝惉 GameplayEvent锛圓nimNotify 瑙﹀彂浼ゅ浜嬩欢锛?
+	// 创建复合任务：播放蒙太奇 + 监听 GameplayEvent（AnimNotify 触发伤害事件
 	UYogAbilityTask_PlayMontageAndWaitForEvent* Task =
 		UYogAbilityTask_PlayMontageAndWaitForEvent::PlayMontageAndWaitForEvent(
 			this,
@@ -841,13 +890,20 @@ void UGA_MeleeAttack::EndAbility(
 	UAbilitySystemComponent* ASC = ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr;
 	if (ASC && CanComboTagHandle.IsValid())
 	{
-		const FGameplayTag CanComboTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"));
-		ASC->UnregisterGameplayTagEvent(CanComboTagHandle, CanComboTag, EGameplayTagEventType::NewOrRemoved);
+		const FGameplayTag CharacterCanComboTag = FGameplayTag::RequestGameplayTag(TEXT("Character.State.Window.CanCombo"));
+		ASC->UnregisterGameplayTagEvent(CanComboTagHandle, CharacterCanComboTag, EGameplayTagEventType::NewOrRemoved);
 		CanComboTagHandle.Reset();
+	}
+	if (ASC && LegacyCanComboTagHandle.IsValid())
+	{
+		const FGameplayTag LegacyCanComboTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"));
+		ASC->UnregisterGameplayTagEvent(LegacyCanComboTagHandle, LegacyCanComboTag, EGameplayTagEventType::NewOrRemoved);
+		LegacyCanComboTagHandle.Reset();
 	}
 
 	if (ASC)
 	{
+		ASC->SetLooseGameplayTagCount(FGameplayTag::RequestGameplayTag(TEXT("Character.State.Window.CanCombo")), 0);
 		ASC->SetLooseGameplayTagCount(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo")), 0);
 	}
 
@@ -857,7 +913,7 @@ void UGA_MeleeAttack::EndAbility(
 		EnemyLungeTask = nullptr;
 	}
 
-	// 瀹夊叏娓呯悊锛氭妧鑳界粨鏉熸椂娓呯┖鏈秷璐圭殑鏆傚瓨鏁版嵁锛堣挋澶琚墦鏂湭瑙﹀彂 OnEventReceived 鏃朵繚鎶ょ敤锛?
+	// 安全清理：技能结束时清空未消费的暂存数据（蒙太奇被打断未触发 OnEventReceived 时保护用
 	if (AYogCharacterBase* Owner = Cast<AYogCharacterBase>(GetOwningActorFromActorInfo()))
 	{
 		Owner->PendingAdditionalHitRunes.Empty();
@@ -865,7 +921,7 @@ void UGA_MeleeAttack::EndAbility(
 		Owner->PendingHitImpactCueTag = FGameplayTag();
 	}
 
-	// 绉婚櫎鏀诲嚮鍓嶆憞 GE
+	// 移除攻击前摇 GE
 	if (StatBeforeATKHandle.IsValid())
 	{
 		if (ASC) ASC->RemoveActiveGameplayEffect(StatBeforeATKHandle);
@@ -911,8 +967,8 @@ void UGA_MeleeAttack::EndAbility(
 		}
 	}
 
-	// 鏂藉姞鏀诲嚮鍚庢憞 GE锛堜粎姝ｅ父缁撴潫鏃讹紝Cancel/Interrupt 涓嶈Е鍙戯級
-	// 浼樺厛鐢ㄦ渶鍚庡懡涓殑 Notify 鏁版嵁锛堝娈靛懡涓唬琛ㄦ渶鍚庝竴鍑伙級锛屾湭鍛戒腑杩囧垯 fallback 鍒扮涓€涓?Notify銆?
+	// 施加攻击后摇 GE（仅正常结束时，Cancel/Interrupt 不触发）
+	// 优先用最后命中的 Notify 数据（多段命中代表最后一击），未命中过则 fallback 到第一Notify
 	if (!bWasCancelled && StatAfterATKEffect && ASC)
 	{
 		static const FGameplayTag TAG_ActDamage    = FGameplayTag::RequestGameplayTag("Attribute.ActDamage");

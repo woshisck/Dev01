@@ -527,7 +527,7 @@
             <thead><tr><th>层级</th><th>包含</th><th>Tag 建议</th></tr></thead>
             <tbody>
               <tr><td>Character.Control</td><td>输入、控制器、输入缓存、输入屏蔽</td><td><code>Character.Input.*</code> 或保留输入系统不打 ASC Tag</td></tr>
-              <tr><td>Character.Movement</td><td>移动组件、Dash、RootMotion、冲刺无敌</td><td><code>Character.State.Moving</code>、<code>Character.Action.Dash</code></td></tr>
+              <tr><td>Character.Movement</td><td>移动组件、Dash、RootMotion、冲刺无敌</td><td><code>Character.State.Movement.Dash</code></td></tr>
               <tr><td>Character.Camera</td><td>玩家相机、相机体积、遮挡淡出</td><td>一般不需要 GameplayTag</td></tr>
           <tr><td>Character.Combat</td><td>GAS 视角下 Attack、Skill、WeaponSkill 都是 Ability；受击、死亡是状态反应</td><td>建议动作身份用 <code>Character.Skill.Attack</code> / <code>Character.Skill.WeaponSkill</code>，执行中状态用 <code>Character.State.Skill.Attack</code></td></tr>
             </tbody>
@@ -569,8 +569,8 @@
             <td>角色持续状态</td>
             <td><code>Buff.Status.*</code>、<code>State.*</code>、<code>PlayerState.Block.*</code></td>
             <td><code>Character.State.*</code></td>
-            <td><code>Character.State.Idle</code><br><code>Character.State.Dead</code><br><code>Character.State.CrowdControl.Stunned</code></td>
-            <td>用于 block/cancel 黑白名单的状态建议统一进 Character.State；例如执行攻击时挂 <code>Character.State.Skill.Attack</code>，死亡挂 <code>Character.State.Dead</code>。</td>
+            <td><code>Character.State.Skill.Attack</code><br><code>Character.State.Movement.Dash</code><br><code>Buff.Status.Dead</code></td>
+            <td>用于 block/cancel 的动作状态进入 Character.State；效果造成的死亡、受击、击退继续直接使用 <code>Buff.Status.*</code>。</td>
           </tr>
           <tr>
             <td>动作瞬时事件</td>
@@ -623,9 +623,8 @@
       <div class="cols">
         <div class="card">
           <h3>角色 / 战斗动作</h3>
-          <p>你写的 <code>Character.State.Skil</code> 建议修为 Skill。若用于 Block/Cancel，就放在 State；若用于查找/激活 GA，就放在 Skill。</p>
+          <p>旧拼写 Skil 建议修为 Skill。若用于 Block/Cancel，就放在 State；若用于查找/激活 GA，就放在 Skill。</p>
           <ul class="list">
-            <li><code>Character.State.Idle</code></li>
             <li><code>Character.State.Skill.Attack</code></li>
             <li><code>Character.State.Skill.Active</code></li>
             <li><code>Character.State.Skill.WeaponSkill</code></li>
@@ -695,7 +694,7 @@
           </tr>
           <tr>
             <td>Character.State 与 block 规则</td>
-            <td>建议把 block/cancel 的主状态统一进 <code>Character.State.*</code>：<code>Character.State.Dead</code>、<code>Character.State.HitReact</code>、<code>Character.State.Skill.Attack</code>。当前 StateConflictDataAsset 已支持任意 ActiveTag，迁移可分阶段做。</td>
+            <td>建议把动作执行状态统一进 <code>Character.State.*</code>，例如 <code>Character.State.Skill.Attack</code>；死亡、受击、击退等效果状态继续使用 <code>Buff.Status.Dead</code>、<code>Buff.Status.HitReact</code>。当前 StateConflictDataAsset 已支持任意 ActiveTag，迁移可分阶段做。</td>
             <td><span class="status review">命名迁移待做</span></td>
           </tr>
           <tr>

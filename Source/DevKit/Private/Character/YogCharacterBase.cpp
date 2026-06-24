@@ -1,4 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+﻿// Fill out your copyright notice in the Description page of Project Settings.
 
 
 #include "Character/YogCharacterBase.h"
@@ -132,8 +132,8 @@ void AYogCharacterBase::BeginPlay()
 	EnsureCoreAttributeSetsRegistered();
 
 	// ── 基础通用技能（路径固定，无需编辑器配置）────────────────────────────
-	// 资产路径：Content/Core/Data/DA_Base_AbilitySet（GASTemplate DataAsset）
-	// 填写内容：GA_Knockback / GA_HitReaction / GA_Dead 等所有角色共享的响应型 GA
+	// 资产路径：Content/Core/Data/DA_Base_AbilitySet（GASTemplate DataAsset
+	// 填写内容：GA_Knockback / GA_HitReaction / GA_Dead 等所有角色共享的响应GA
 	if (UGASTemplate* BaseSet = LoadObject<UGASTemplate>(nullptr, BaseAbilitySetPath))
 	{
 		for (const TSubclassOf<UYogGameplayAbility>& AbilityClass : BaseSet->AbilityMap)
@@ -145,7 +145,7 @@ void AYogCharacterBase::BeginPlay()
 		}
 	}
 
-	// ── 角色个性化数据（属性 / 技能 / 动画层，各角色 CharacterData 单独配置）──
+	// ── 角色个性化数据（属/ 技/ 动画层，各角CharacterData 单独配置）──
 	UCharacterData* pCharacterData = CharacterDataComponent->GetCharacterData();
 	if (pCharacterData != nullptr)
 	{
@@ -169,7 +169,7 @@ void AYogCharacterBase::PostInitializeComponents()
 		CapsuleComp->SetCollisionResponseToChannel(DashThroughChannel, ECR_Block);
 	}
 
-	// 蓝图序列化可能导致 UPROPERTY 指针为 null，组件本身仍在 actor 上，自动修复
+	// 蓝图序列化可能导UPROPERTY 指针null，组件本身仍actor 上，自动修复
 	if (!AttributeStatsComponent)
 	{
 		AttributeStatsComponent = FindComponentByClass<UAttributeStatComponent>();
@@ -471,16 +471,16 @@ void AYogCharacterBase::HealthChanged(const FOnAttributeChangeData& Data)
 	OnCharacterHealthUpdate.Broadcast(percent, DamageTaken);
 	UE_LOG(LogTemp, Log, TEXT("Health Changed to: %f"), Health);
 
-	// 血量减少且角色存活 → 自动触发受击动画
-	// 流血状态跳过：Buff.Status.Bleeding 存在时不播放受击动画，避免流血 Tick 每次打断动作
-	// 注：此处无法可靠拿到攻击者引用，受击方向默认走 Front；
-	// 若 FA 层需要精确前/后方向，可改由 FA 直接 SendGameplayEvent 并传入 Instigator
+	// 血量减少且角色存活 自动触发受击动画
+	// 流血状态跳过：Buff.Bleed 存在时不播放受击动画，避免流血 Tick 每次打断动作
+	// 注：此处无法可靠拿到攻击者引用，受击方向默认Front
+	// FA 层需要精确前/后方向，可改FA 直接 SendGameplayEvent 并传Instigator
 	const bool bSuppressDamageFeedback = AbilitySystemComponent && AbilitySystemComponent->ConsumeSuppressNextDamageFeedback();
 	if (Data.NewValue < Data.OldValue && IsAlive() && AbilitySystemComponent && !bSuppressDamageFeedback)
 	{
 		// HitReact is driven by ReceiveDamage so poise and super-armor can gate it.
 		if (!AbilitySystemComponent->HasMatchingGameplayTag(
-			FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.SuperArmor"), false)))
+			FGameplayTag::RequestGameplayTag(TEXT("Buff.SuperArmor"), false)))
 		{
 			StartHitFlash();
 		}
@@ -510,10 +510,10 @@ void AYogCharacterBase::ReceiveOnHitRune_Implementation(URuneDataAsset* RuneDA, 
 	UFlowAsset* FlowAsset = RuneDA->RuneInfo.Flow.FlowAsset;
 	if (!FlowAsset) return;
 
-	// 在攻击者（玩家）的 BFC 上启动 FA：
+	// 在攻击者（玩家）的 BFC 上启FA
 	//   BuffOwner = 玩家（符文逻辑视角与背包符文一致）
-	//   BuffGiver = 被命中的敌人（this），FA 可通过 BuffGiver 选择器引用目标
-	//   LastDamageTarget 已由 OnDamageDealt 写入玩家 BFC，击退/减速等节点可直接使用
+	//   BuffGiver = 被命中的敌人（this），FA 可通过 BuffGiver 选择器引用目
+	//   LastDamageTarget 已由 OnDamageDealt 写入玩家 BFC，击退/减速等节点可直接使
 	// 一次性符文（如击退）FA 执行完自动结束，无需手动清理
 	UBuffFlowComponent* BFC = AttackInstigator->FindComponentByClass<UBuffFlowComponent>();
 	if (!BFC)
@@ -572,13 +572,13 @@ void AYogCharacterBase::Die()
 	bIsDead = true;
 	BroadcastDeathStarted();
 
-	// 死亡时立即关闭胶囊碰撞，防止尸体阻挡玩家移动和敌人寻路
+	// 死亡时立即关闭胶囊碰撞，防止尸体阻挡玩家移动和敌人寻
 	if (UCapsuleComponent* Capsule = GetCapsuleComponent())
 	{
 		Capsule->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	}
 
-	// 发送 Action.Dead 事件 → 触发 GA_Dead 播放死亡动画，动画结束后 GA 调用 FinishDying()
+	// 发Action.Dead 事件 触发 GA_Dead 播放死亡动画，动画结束后 GA 调用 FinishDying()
 	if (AbilitySystemComponent)
 	{
 		FGameplayEventData EventData;
@@ -586,7 +586,7 @@ void AYogCharacterBase::Die()
 		AbilitySystemComponent->HandleGameplayEvent(
 			FGameplayTag::RequestGameplayTag(TEXT("Action.Dead")), &EventData);
 	}
-	// OnCharacterDied 已移至 FinishDying()，避免在动画播放前触发销毁逻辑
+	// OnCharacterDied 已移FinishDying()，避免在动画播放前触发销毁逻辑
 }
 
 void AYogCharacterBase::InitializeComponentsWithStats(UCharacterData* characterData)
@@ -618,7 +618,7 @@ void AYogCharacterBase::InitializeComponentsWithStats(UCharacterData* characterD
 			UE_LOG(LogTemp, Log, TEXT("Grant ability from GAS Template: %s"), *abilityTemp->GetName());
 		}
 
-		// 应用 GasTemplate 里的 Passive GE（如热度衰减）
+		// 应用 GasTemplate 里的 Passive GE（如热度衰减
 		for (const TSubclassOf<UGameplayEffect> PassiveGE : characterData->GetGASTemplate()->PassiveEffect)
 		{
 			if (PassiveGE)
@@ -662,7 +662,7 @@ void AYogCharacterBase::InitializeStats(const FYogBaseAttributeData* attributeDa
 	{
 		if (!AttributeStatsComponent)
 		{
-			UE_LOG(LogTemp, Error, TEXT("[InitializeStats] AttributeStatsComponent is NULL on %s — Blueprint needs recompile after C++ changes."), *GetName());
+			UE_LOG(LogTemp, Error, TEXT("[InitializeStats] AttributeStatsComponent is NULL on %s Blueprint needs recompile after C++ changes."), *GetName());
 			return;
 		}
 		AttributeStatsComponent->OverrideAttribute(BaseAttributeSet->GetAttackAttribute(), attributeData->Attack);

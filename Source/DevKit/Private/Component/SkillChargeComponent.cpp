@@ -15,7 +15,8 @@ void USkillChargeComponent::RegisterSkill(FGameplayTag SkillTag, FGameplayAttrib
 {
 	if (!ASC.IsValid()) return;
 
-	FSkillChargeState& State = ChargeStates.Add(SkillTag);
+	const FGameplayTag CanonicalSkillTag = ResolveSkillTag(SkillTag);
+	FSkillChargeState& State = ChargeStates.Add(CanonicalSkillTag);
 	State.MaxChargeAttr    = MaxChargeAttr;
 	State.CDDurationAttr   = CDDurationAttr;
 	State.ChargesInRecovery = 0;
@@ -25,9 +26,9 @@ void USkillChargeComponent::RegisterSkill(FGameplayTag SkillTag, FGameplayAttrib
 
 	// 监听 MaxCharge 变化：符文入区 Max 上升时补充格数，符文离区 Max 下降时钳制
 	ASC->GetGameplayAttributeValueChangeDelegate(MaxChargeAttr)
-		.AddLambda([this, SkillTag](const FOnAttributeChangeData& Data)
+		.AddLambda([this, CanonicalSkillTag](const FOnAttributeChangeData& Data)
 		{
-			FSkillChargeState* StatePtr = ChargeStates.Find(SkillTag);
+			FSkillChargeState* StatePtr = ChargeStates.Find(CanonicalSkillTag);
 			if (!StatePtr) return;
 
 			const int32 NewMax = FMath::Max(1, FMath::RoundToInt(Data.NewValue));
@@ -37,31 +38,42 @@ void USkillChargeComponent::RegisterSkill(FGameplayTag SkillTag, FGameplayAttrib
 			{
 				// 最大值增加（符文赋予新充能格）→ 立即补充对应格数
 				StatePtr->CurrentCharge = FMath::Min(StatePtr->CurrentCharge + (NewMax - OldMax), NewMax);
-				OnChargeChanged.Broadcast(SkillTag, StatePtr->CurrentCharge);
+				BroadcastChargeChanged(CanonicalSkillTag, StatePtr->CurrentCharge);
 			}
 			else if (StatePtr->CurrentCharge > NewMax)
 			{
 				// 最大值减少（符文移除）→ 钳制 Current 不超过新上限
 				StatePtr->CurrentCharge = NewMax;
-				OnChargeChanged.Broadcast(SkillTag, StatePtr->CurrentCharge);
+				BroadcastChargeChanged(CanonicalSkillTag, StatePtr->CurrentCharge);
 			}
 		});
 }
 
+void USkillChargeComponent::RegisterSkillAlias(FGameplayTag AliasTag, FGameplayTag CanonicalSkillTag)
+{
+	if (!AliasTag.IsValid() || !CanonicalSkillTag.IsValid() || AliasTag == CanonicalSkillTag)
+	{
+		return;
+	}
+
+	SkillTagAliases.Add(AliasTag, ResolveSkillTag(CanonicalSkillTag));
+}
+
 bool USkillChargeComponent::HasCharge(FGameplayTag SkillTag) const
 {
-	const FSkillChargeState* State = ChargeStates.Find(SkillTag);
+	const FSkillChargeState* State = ChargeStates.Find(ResolveSkillTag(SkillTag));
 	return State && State->CurrentCharge > 0;
 }
 
 bool USkillChargeComponent::ConsumeCharge(FGameplayTag SkillTag)
 {
-	FSkillChargeState* State = ChargeStates.Find(SkillTag);
+	const FGameplayTag CanonicalSkillTag = ResolveSkillTag(SkillTag);
+	FSkillChargeState* State = ChargeStates.Find(CanonicalSkillTag);
 	if (!State || State->CurrentCharge <= 0) return false;
 
 	State->CurrentCharge--;
 	State->ChargesInRecovery++;
-	OnChargeChanged.Broadcast(SkillTag, State->CurrentCharge);
+	BroadcastChargeChanged(CanonicalSkillTag, State->CurrentCharge);
 
 	// 队列模式：只有从 0→1 时才需要启动 Timer；
 	// 已有 Timer 在跑时，它结束后会自动检查 ChargesInRecovery 并继续。
@@ -69,7 +81,7 @@ bool USkillChargeComponent::ConsumeCharge(FGameplayTag SkillTag)
 	{
 		const float CDDuration = GetCDDurationValue(*State);
 		FTimerDelegate Delegate = FTimerDelegate::CreateUObject(
-			this, &USkillChargeComponent::RecoveryTick, SkillTag);
+			this, &USkillChargeComponent::RecoveryTick, CanonicalSkillTag);
 		GetWorld()->GetTimerManager().SetTimer(State->RecoveryTimer, Delegate, CDDuration, false);
 	}
 
@@ -78,19 +90,19 @@ bool USkillChargeComponent::ConsumeCharge(FGameplayTag SkillTag)
 
 int32 USkillChargeComponent::GetCurrentCharge(FGameplayTag SkillTag) const
 {
-	const FSkillChargeState* State = ChargeStates.Find(SkillTag);
+	const FSkillChargeState* State = ChargeStates.Find(ResolveSkillTag(SkillTag));
 	return State ? State->CurrentCharge : 0;
 }
 
 int32 USkillChargeComponent::GetMaxCharge(FGameplayTag SkillTag) const
 {
-	const FSkillChargeState* State = ChargeStates.Find(SkillTag);
+	const FSkillChargeState* State = ChargeStates.Find(ResolveSkillTag(SkillTag));
 	return State ? GetMaxChargeValue(*State) : 0;
 }
 
 float USkillChargeComponent::GetCDRemaining(FGameplayTag SkillTag) const
 {
-	const FSkillChargeState* State = ChargeStates.Find(SkillTag);
+	const FSkillChargeState* State = ChargeStates.Find(ResolveSkillTag(SkillTag));
 	if (!State || State->ChargesInRecovery <= 0) return 0.f;
 
 	UWorld* World = GetWorld();
@@ -118,14 +130,15 @@ float USkillChargeComponent::GetCDDurationValue(const FSkillChargeState& State) 
 
 void USkillChargeComponent::RecoveryTick(FGameplayTag SkillTag)
 {
-	FSkillChargeState* State = ChargeStates.Find(SkillTag);
+	const FGameplayTag CanonicalSkillTag = ResolveSkillTag(SkillTag);
+	FSkillChargeState* State = ChargeStates.Find(CanonicalSkillTag);
 	if (!State) return;
 
 	// 回复一格
 	const int32 Max = GetMaxChargeValue(*State);
 	State->CurrentCharge = FMath::Min(State->CurrentCharge + 1, Max);
 	State->ChargesInRecovery--;
-	OnChargeChanged.Broadcast(SkillTag, State->CurrentCharge);
+	BroadcastChargeChanged(CanonicalSkillTag, State->CurrentCharge);
 
 	// 队列中还有待回复的格，继续启动下一个 Timer
 	// 每次重新读取 CDDuration，支持符文动态改 CDR
@@ -133,7 +146,29 @@ void USkillChargeComponent::RecoveryTick(FGameplayTag SkillTag)
 	{
 		const float CDDuration = GetCDDurationValue(*State);
 		FTimerDelegate Delegate = FTimerDelegate::CreateUObject(
-			this, &USkillChargeComponent::RecoveryTick, SkillTag);
+			this, &USkillChargeComponent::RecoveryTick, CanonicalSkillTag);
 		GetWorld()->GetTimerManager().SetTimer(State->RecoveryTimer, Delegate, CDDuration, false);
+	}
+}
+
+FGameplayTag USkillChargeComponent::ResolveSkillTag(FGameplayTag SkillTag) const
+{
+	if (const FGameplayTag* CanonicalTag = SkillTagAliases.Find(SkillTag))
+	{
+		return *CanonicalTag;
+	}
+	return SkillTag;
+}
+
+void USkillChargeComponent::BroadcastChargeChanged(FGameplayTag CanonicalSkillTag, int32 NewCharge)
+{
+	OnChargeChanged.Broadcast(CanonicalSkillTag, NewCharge);
+
+	for (const TPair<FGameplayTag, FGameplayTag>& AliasPair : SkillTagAliases)
+	{
+		if (AliasPair.Value == CanonicalSkillTag && AliasPair.Key != CanonicalSkillTag)
+		{
+			OnChargeChanged.Broadcast(AliasPair.Key, NewCharge);
+		}
 	}
 }

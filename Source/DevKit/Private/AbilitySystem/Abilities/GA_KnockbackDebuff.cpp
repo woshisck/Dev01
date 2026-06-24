@@ -1,4 +1,4 @@
-#include "AbilitySystem/Abilities/GA_KnockbackDebuff.h"
+﻿#include "AbilitySystem/Abilities/GA_KnockbackDebuff.h"
 #include "AbilitySystem/Abilities/GA_Knockback.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemBlueprintLibrary.h"
@@ -107,8 +107,8 @@ void UGA_KnockbackDebuff::ActivateAbility(
 		return;
 	}
 
-	// 监听 Buff.Status.KnockbackDebuff 消失 → 结束 GA
-	const FGameplayTag KBDebuffTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.KnockbackDebuff"));
+	// 监听 Buff.KnockbackDebuff 消失 结束 GA
+	const FGameplayTag KBDebuffTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.KnockbackDebuff"));
 	TagChangeDelegateHandle = ASC->RegisterGameplayTagEvent(
 		KBDebuffTag, EGameplayTagEventType::NewOrRemoved)
 		.AddUObject(this, &UGA_KnockbackDebuff::OnKnockbackDebuffTagChanged);
@@ -163,8 +163,8 @@ void UGA_KnockbackDebuff::OnDamageTaken(FGameplayEventData Payload)
 		UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(AvatarActor, KnockbackTag, KBPayload);
 	}
 
-	// 若目标有护甲：额外扣护甲（15%攻击伤害）
-	static const FGameplayTag ArmoredTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Armored"), false);
+	// 若目标有护甲：额外扣护甲5%攻击伤害
+	static const FGameplayTag ArmoredTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Armored"), false);
 	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
 	if (ASC && ArmoredTag.IsValid() && ASC->HasMatchingGameplayTag(ArmoredTag) && ArmorDamageEffect)
 	{
@@ -203,7 +203,7 @@ void UGA_KnockbackDebuff::EndAbility(
 {
 	if (ActorInfo && ActorInfo->AbilitySystemComponent.IsValid())
 	{
-		const FGameplayTag KBDebuffTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.KnockbackDebuff"));
+		const FGameplayTag KBDebuffTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.KnockbackDebuff"));
 		ActorInfo->AbilitySystemComponent->RegisterGameplayTagEvent(
 			KBDebuffTag, EGameplayTagEventType::NewOrRemoved).Remove(TagChangeDelegateHandle);
 	}

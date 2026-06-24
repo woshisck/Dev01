@@ -1,4 +1,4 @@
-#include "AbilitySystem/Abilities/GA_PlayerDash.h"
+﻿#include "AbilitySystem/Abilities/GA_PlayerDash.h"
 #include "AbilitySystem/AbilityTask/YogAbilityTask_PlayMontageAndWaitForEvent.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "Camera/YogPlayerCameraManager.h"
@@ -22,13 +22,13 @@
 static TAutoConsoleVariable<int32> CVarDashDebugTrace(
 	TEXT("Dash.DebugTrace"),
 	0,
-	TEXT("1 = 绘制冲刺扫描路径和命中信息"));
+	TEXT("1 = 绘制冲刺扫描路径和命中信"));
 
-// ECC_GameTraceChannel1 = DashTrace（用于障碍 SphereTrace）
+// ECC_GameTraceChannel1 = DashTrace（用于障SphereTrace
 static const ECollisionChannel DashTraceChannel   = ECC_GameTraceChannel1;
-// ECC_GameTraceChannel3 = Enemy（冲刺期间 Overlap）
+// ECC_GameTraceChannel3 = Enemy（冲刺期Overlap
 static const ECollisionChannel EnemyChannel       = ECC_GameTraceChannel3;
-// ECC_GameTraceChannel5 = DashThrough（可穿越薄墙/家具，冲刺期间 Overlap）
+// ECC_GameTraceChannel5 = DashThrough（可穿越薄墙/家具，冲刺期Overlap
 static const ECollisionChannel DashThroughChannel = ECC_GameTraceChannel5;
 
 namespace
@@ -38,7 +38,7 @@ namespace
 
 	FGameplayTag DashChargeTag()
 	{
-		return FGameplayTag::RequestGameplayTag(FName(TEXT("PlayerState.AbilityCast.Dash")));
+		return FGameplayTag::RequestGameplayTag(FName(TEXT("Character.State.Movement.Dash")));
 	}
 
 	bool IsEnemyOrPawnDashHit(const FHitResult& Hit)
@@ -118,20 +118,26 @@ UGA_PlayerDash::UGA_PlayerDash()
 	// Keep the interrupt contract in C++ so Blueprint defaults cannot silently
 	// make dash fail to cancel attacks or become usable after death.
 	const FGameplayTag DashTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Dash"));
+	const FGameplayTag CharacterDashTag = FGameplayTag::RequestGameplayTag(TEXT("Character.State.Movement.Dash"));
+	AbilityTags.AddTag(CharacterDashTag);
 	AbilityTags.AddTag(DashTag);
-	ActivationOwnedTags.AddTag(DashTag);
-	ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.DashInvincible")));
+	ActivationOwnedTags.AddTag(CharacterDashTag);
+	ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.DashInvincible")));
 	CancelAbilitiesWithTag.AddTag(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast")));
-	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Dead")));
+	CancelAbilitiesWithTag.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill")));
+	CancelAbilitiesWithTag.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Character.State.Movement.Dash")));
+	CancelAbilitiesWithTag.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Character.State.Equipment.SwitchWeapon")));
+	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Dead")));
+	ActivationBlockedTags.AddTag(CharacterDashTag);
 	ActivationBlockedTags.AddTag(DashTag);
 
-	// 受击硬直 / 击退期间不允许冲刺
-	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag("Buff.Status.HitReact"));
-	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag("Buff.Status.Knockback"));
+	// 受击硬直 / 击退期间不允许冲
+	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag("Buff.HitReact"));
+	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag("Buff.Knockback"));
 
-	// 持续 buff 类 GA（ActivationOwnedTags 含 Buff.Status.*）不被冲刺的 CancelAbilitiesWithTag 取消。
-	// 策划若需扩展豁免范围，可在 Blueprint 子类的 Class Defaults 中追加标签。
-	DashCancelProtectedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Status"), false));
+	// 持续 buff GA（ActivationOwnedTags Buff.*）不被冲刺的 CancelAbilitiesWithTag 取消
+	// 策划若需扩展豁免范围，可Blueprint 子类Class Defaults 中追加标签
+	DashCancelProtectedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Buff"), false));
 }
 
 UAnimMontage* UGA_PlayerDash::ResolveDashMontage(APlayerCharacterBase* Player, const FGameplayTag& AbilityTag) const
@@ -150,14 +156,14 @@ void UGA_PlayerDash::PreActivate(
 	FOnGameplayAbilityEnded::FDelegate* OnGameplayAbilityEndedDelegate,
 	const FGameplayEventData* TriggerEventData)
 {
-	// 若没有配置豁免标签，或 CancelAbilitiesWithTag 为空，走默认逻辑
+	// 若没有配置豁免标签，CancelAbilitiesWithTag 为空，走默认逻辑
 	if (DashCancelProtectedTags.IsEmpty() || CancelAbilitiesWithTag.IsEmpty())
 	{
 		Super::PreActivate(Handle, ActorInfo, ActivationInfo, OnGameplayAbilityEndedDelegate, TriggerEventData);
 		return;
 	}
 
-	// 临时清空 CancelAbilitiesWithTag，阻止 Super::PreActivate 执行宽泛取消
+	// 临时清空 CancelAbilitiesWithTag，阻Super::PreActivate 执行宽泛取消
 	const FGameplayTagContainer SavedCancelTags = CancelAbilitiesWithTag;
 	CancelAbilitiesWithTag.Reset();
 
@@ -165,31 +171,31 @@ void UGA_PlayerDash::PreActivate(
 
 	CancelAbilitiesWithTag = SavedCancelTags;
 
-	// 精细取消：手动遍历，同时检查 AbilityTags 与 ActivationOwnedTags。
-	// 注：GAS 的 CancelAbilities(WithTags, WithoutTags) 只对 AbilityTags 做 WithoutTags
-	// 过滤，不检查 ActivationOwnedTags，因此需要自行迭代来保护通过
-	// ActivationOwnedTags 提供持续 buff 的 GA。
+	// 精细取消：手动遍历，同时检AbilityTags ActivationOwnedTags
+	// 注：GAS CancelAbilities(WithTags, WithoutTags) 只对 AbilityTags WithoutTags
+	// 过滤，不检ActivationOwnedTags，因此需要自行迭代来保护通过
+	// ActivationOwnedTags 提供持续 buff GA
 	UAbilitySystemComponent* ASC = ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr;
 	if (!ASC || SavedCancelTags.IsEmpty())
 	{
 		return;
 	}
 
-	// 先收集 handle，再取消——避免迭代过程中修改列表导致指针失效
+	// 先收handle，再取消——避免迭代过程中修改列表导致指针失效
 	TArray<FGameplayAbilitySpecHandle> HandlesToCancel;
 	for (const FGameplayAbilitySpec& Spec : ASC->GetActivatableAbilities())
 	{
 		if (!Spec.IsActive() || !Spec.Ability) continue;
-		if (Spec.Handle == Handle) continue; // 不取消冲刺 GA 自身
+		if (Spec.Handle == Handle) continue; // 不取消冲GA 自身
 
-		// AbilityTags 是 public UPROPERTY，可直接访问
+		// AbilityTags public UPROPERTY，可直接访问
 		const FGameplayTagContainer& AbilityOwnedTags = Spec.Ability->AbilityTags;
 		if (!AbilityOwnedTags.HasAny(SavedCancelTags)) continue;
 
-		// 豁免：AbilityTags 含保护标签
+		// 豁免：AbilityTags 含保护标
 		if (AbilityOwnedTags.HasAny(DashCancelProtectedTags)) continue;
 
-		// 豁免：ActivationOwnedTags 含保护标签（通过 UYogGameplayAbility 公开接口访问）
+		// 豁免：ActivationOwnedTags 含保护标签（通过 UYogGameplayAbility 公开接口访问
 		if (UYogGameplayAbility* YogAbility = Cast<UYogGameplayAbility>(Spec.Ability))
 		{
 			if (YogAbility->GetActivationOwnedTags().HasAny(DashCancelProtectedTags)) continue;
@@ -216,7 +222,7 @@ bool UGA_PlayerDash::CanActivateAbility(
 		return false;
 	}
 
-	// 检查充能次数（SkillChargeComponent 管理多段冲刺）
+	// 检查充能次数（SkillChargeComponent 管理多段冲刺
 	if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(ActorInfo->AvatarActor.Get()))
 	{
 		if (Player->SkillChargeComponent &&
@@ -242,7 +248,7 @@ void UGA_PlayerDash::ActivateAbility(
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 
 	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(ActorInfo->AvatarActor.Get());
-	ACharacter* Character = Player; // PlayerCharacterBase 继承自 ACharacter
+	ACharacter* Character = Player; // PlayerCharacterBase 继承ACharacter
 
 	if (!Character)
 	{
@@ -260,9 +266,8 @@ void UGA_PlayerDash::ActivateAbility(
 			DashChargeTag());
 	}
 
-	// ── 2. 优先从 Combo Graph Dash 节点读取蒙太奇；为空则回退到 AbilityDA ─────
-	FGameplayTag FirstTag;
-	for (const FGameplayTag& Tag : AbilityTags) { FirstTag = Tag; break; }
+	// ── 2. 优先Combo Graph Dash 节点读取蒙太奇；为空则回退AbilityDA ─────
+	const FGameplayTag FirstTag = DashChargeTag();
 
 	UAnimMontage* DashMontage = ResolveDashMontage(Player, FirstTag);
 	const TCHAR* DashMontageSource = TEXT("None");
@@ -280,7 +285,7 @@ void UGA_PlayerDash::ActivateAbility(
 
 	UE_LOG(LogTemp, Log, TEXT("[GA_PlayerDash] DashMontage=%s source=%s"), *GetNameSafe(DashMontage), DashMontageSource);
 
-	// ── 3. 确定冲刺方向（Controller 已在激活前旋转好角色，直接用 ForwardVector）─
+	// ── 3. 确定冲刺方向（Controller 已在激活前旋转好角色，直接ForwardVector）─
 	const FVector DashDirection = Character->GetActorForwardVector();
 	LastDashDirection = DashDirection.GetSafeNormal2D();
 
@@ -291,20 +296,20 @@ void UGA_PlayerDash::ActivateAbility(
 	const FVector DashEnd    = StartLocation + DashDirection * DashMaxDistance;
 	const float EffectiveDist = GetFurthestValidDashDistance(StartLocation, DashEnd);
 	const float AnimScale     = EffectiveDist / FMath::Max(DashMontageRootMotionLength, 1.f);
-	DashAnimScale = AnimScale; // 记录供 EndAbility Z 下沉诊断
+	DashAnimScale = AnimScale; // 记录EndAbility Z 下沉诊断
 
 	// ── 5. 修改碰撞：穿敌人 + 穿可穿越几何（全程无刚体阻挡，由根运动驱动）───
 	ApplyDashMoveIgnores(Character);
 	SetDashCollision(Character, ECR_Overlap);
 
 	// ── 6. 播放冲刺蒙太奇（AnimRootMotionTranslationScale 控制位移距离）───────
-	// AnimScale > 1 时根运动超出满距，Capsule Overlap 使玩家穿越障碍落在背后
+	// AnimScale > 1 时根运动超出满距，Capsule Overlap 使玩家穿越障碍落在背
 	UYogAbilityTask_PlayMontageAndWaitForEvent* Task =
 		UYogAbilityTask_PlayMontageAndWaitForEvent::PlayMontageAndWaitForEvent(
 			this,
 			NAME_None,
 			DashMontage,
-			FGameplayTagContainer(), // 不监听 GameplayEvent，纯蒙太奇等待
+			FGameplayTagContainer(), // 不监GameplayEvent，纯蒙太奇等
 			1.0f,
 			NAME_None,
 			true,
@@ -338,7 +343,7 @@ void UGA_PlayerDash::ActivateAbility(
 		}
 	}
 
-	// 广播 Ability.Event.Dash 给玩家（BGC 事件驱动型符文监听此事件）
+	// 广播 Ability.Event.Dash 给玩家（BGC 事件驱动型符文监听此事件
 	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
 	{
 		static const FGameplayTag DashEventTag = FGameplayTag::RequestGameplayTag(TEXT("Ability.Event.Dash"));
@@ -347,7 +352,7 @@ void UGA_PlayerDash::ActivateAbility(
 		UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(Character, DashEventTag, DashPayload);
 	}
 
-	// ── 7. 通知相机进入冲刺模式（1:1 无延迟跟随）────────────────────────────
+	// ── 7. 通知相机进入冲刺模式:1 无延迟跟随）────────────────────────────
 	if (Player && Player->SacrificeRuneComponent)
 	{
 		Player->SacrificeRuneComponent->NotifyDashExecuted(
@@ -386,7 +391,7 @@ void UGA_PlayerDash::EndAbility(
 	ActiveCombatCardResult = FCombatCardResolveResult();
 	ActiveCombatDeckGuid = FGuid();
 
-	// 恢复碰撞（必须在 Super 之前，此时 ActorInfo 仍有效）
+	// 恢复碰撞（必须在 Super 之前，此ActorInfo 仍有效）
 	if (Character)
 	{
 		ResolveEnemyOverlapAfterDash(Character);
@@ -400,7 +405,7 @@ void UGA_PlayerDash::EndAbility(
 		CM->SetDashMode(false);
 	}
 
-	// DEBUG: 蒙太奇结束后画线，此时根运动已完成，终点是真实位置
+	// DEBUG: 蒙太奇结束后画线，此时根运动已完成，终点是真实位
 	if (Character && DashDebugStartLocation != FVector::ZeroVector)
 	{
 		const FVector EndLocation = Character->GetActorLocation();
@@ -415,19 +420,19 @@ void UGA_PlayerDash::EndAbility(
 		if (GEngine)
 		{
 			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Cyan,
-				FString::Printf(TEXT("[Dash] 总位移: %.0f UU (≈%.1f m) | 配置最大: %.0f UU"),
+				FString::Printf(TEXT("[Dash] 总位 %.0f UU (.1f m) | 配置最 %.0f UU"),
 					TotalDist, TotalDist * 0.01f, DashMaxDistance));
 		}
 
 		// ── Z 下沉诊断 ──────────────────────────────────────────────────────
 		const float ZDelta = EndLocation.Z - DashDebugStartLocation.Z;
-		UE_LOG(LogTemp, Warning, TEXT("[Dash] Z移位=%.1f cm | AnimScale=%.3f | StartZ=%.1f → EndZ=%.1f"),
+		UE_LOG(LogTemp, Warning, TEXT("[Dash] Z移位=%.1f cm | AnimScale=%.3f | StartZ=%.1f EndZ=%.1f"),
 			ZDelta, DashAnimScale, DashDebugStartLocation.Z, EndLocation.Z);
 		if (GEngine)
 			GEngine->AddOnScreenDebugMessage(-1, 5.f, ZDelta < -10.f ? FColor::Red : FColor::White,
 				FString::Printf(TEXT("[Dash] Z移位: %.1fcm  Scale=%.2f"), ZDelta, DashAnimScale));
 
-		// ── 地板吸附修正：若 Z 明显下沉（>10cm）强制归位 ──────────────────
+		// ── 地板吸附修正：若 Z 明显下沉10cm）强制归──────────────────
 		if (ZDelta < -10.f)
 		{
 			const FVector CheckStart = EndLocation + FVector(0.f, 0.f, 200.f);
@@ -448,15 +453,15 @@ void UGA_PlayerDash::EndAbility(
 				const float HalfHeight = Character->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
 				const FVector Corrected = FVector(EndLocation.X, EndLocation.Y, FloorHit.ImpactPoint.Z + HalfHeight);
 				Character->SetActorLocation(Corrected, false, nullptr, ETeleportType::TeleportPhysics);
-				UE_LOG(LogTemp, Warning, TEXT("[Dash] FloorCorrect: Z %.1f → %.1f (地板 ImpactZ=%.1f)"),
+				UE_LOG(LogTemp, Warning, TEXT("[Dash] FloorCorrect: Z %.1f %.1f (地板 ImpactZ=%.1f)"),
 					EndLocation.Z, Corrected.Z, FloorHit.ImpactPoint.Z);
 				if (GEngine)
 					GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Yellow,
-						FString::Printf(TEXT("[Dash] 已修正地板 Z: %.1f → %.1f"), EndLocation.Z, Corrected.Z));
+						FString::Printf(TEXT("[Dash] 已修正地Z: %.1f %.1f"), EndLocation.Z, Corrected.Z));
 			}
 			else
 			{
-				UE_LOG(LogTemp, Warning, TEXT("[Dash] FloorCorrect: Z下沉但未找到地板，跳过修正"));
+				UE_LOG(LogTemp, Warning, TEXT("[Dash] FloorCorrect: Z下沉但未找到地板，跳过修"));
 			}
 		}
 
@@ -725,10 +730,10 @@ void UGA_PlayerDash::SetDashCollision(ACharacter* Character, ECollisionResponse 
 	UCapsuleComponent* Capsule = Character ? Character->GetCapsuleComponent() : nullptr;
 	if (!Capsule) return;
 
-	// 只改"允许被穿越"的通道；WorldDynamic/WorldStatic 保持不变，防止穿地板/动态关卡几何体。
-	// 如需某物体可被穿越，在该 Mesh 的 Collision Profile 里手动将 DashThrough 设为 Overlap 即可。
-	Capsule->SetCollisionResponseToChannel(ECC_Pawn,           Response); // 穿透其他 Pawn
-	Capsule->SetCollisionResponseToChannel(EnemyChannel,       Response); // 穿透敌人（自定义通道）
+	// 只改"允许被穿的通道；WorldDynamic/WorldStatic 保持不变，防止穿地板/动态关卡几何体
+	// 如需某物体可被穿越，在该 Mesh Collision Profile 里手动将 DashThrough 设为 Overlap 即可
+	Capsule->SetCollisionResponseToChannel(ECC_Pawn,           Response); // 穿透其Pawn
+	Capsule->SetCollisionResponseToChannel(EnemyChannel,       Response); // 穿透敌人（自定义通道
 	if (Response == ECR_Block)
 	{
 		Capsule->SetCollisionResponseToChannel(DashThroughChannel, ECR_Block);
@@ -873,7 +878,7 @@ void UGA_PlayerDash::OnAvatarSet(const FGameplayAbilityActorInfo* ActorInfo, con
 {
 	Super::OnAvatarSet(ActorInfo, Spec);
 
-	// 每 0.1s 打印冲刺充能/CD 调试信息
+	// 0.1s 打印冲刺充能/CD 调试信息
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().SetTimer(DebugPrintTimer, this, &UGA_PlayerDash::PrintDashDebugInfo, 0.1f, true);
@@ -901,8 +906,8 @@ void UGA_PlayerDash::PrintDashDebugInfo()
 	const float CDRemaining     = Player->SkillChargeComponent->GetCDRemaining(DashTag);
 
 	const FString Msg = (CDRemaining > 0.f)
-		? FString::Printf(TEXT("冲刺: %d/%d 次 | CD: %.1fs"), CurCharge, MaxCharge, CDRemaining)
-		: FString::Printf(TEXT("冲刺: %d/%d 次 | CD: 就绪"),  CurCharge, MaxCharge);
+		? FString::Printf(TEXT("冲刺: %d/%d | CD: %.1fs"), CurCharge, MaxCharge, CDRemaining)
+		: FString::Printf(TEXT("冲刺: %d/%d | CD: 就绪"),  CurCharge, MaxCharge);
 
 	if (GEngine)
 	{

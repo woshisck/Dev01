@@ -76,7 +76,7 @@ bool FFearlessRuneLowHealthTradeoffTest::RunTest(const FString& Parameters)
 		return false;
 	}
 
-	const FGameplayTag SuperArmorTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.SuperArmor"), false);
+	const FGameplayTag SuperArmorTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.SuperArmor"), false);
 	bool bHasHealthThresholdGate = false;
 	bool bGrantsSuperArmor = false;
 	bool bAppliesDmgTakenVulnerability = false;

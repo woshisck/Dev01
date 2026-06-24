@@ -113,6 +113,301 @@ namespace
 		return FMath::Clamp(MaxProjectileLifetime + 0.35f, 0.25f, 5.0f);
 	}
 
+	bool CombatCardHasId(const FCombatCardConfig& Config, const TCHAR* TagName)
+	{
+		const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(TagName, false);
+		return Tag.IsValid() && Config.CardIdTag == Tag;
+	}
+
+	bool CombatCardHasEffect(const FCombatCardConfig& Config, const TCHAR* TagName)
+	{
+		const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(TagName, false);
+		return Tag.IsValid() && Config.CardEffectTags.HasTagExact(Tag);
+	}
+
+	FString BuffLeafFromLegacyLeaf(const FString& Leaf, const bool bIdentityTag)
+	{
+		if (Leaf == TEXT("Buff.AttackUp") || Leaf == TEXT("AttackUp"))
+		{
+			return TEXT("AttackUp");
+		}
+		if (Leaf == TEXT("Defense.ReduceDamage") || Leaf == TEXT("ReduceDamage"))
+		{
+			return TEXT("ReduceDamage");
+		}
+		if (Leaf == TEXT("Burn"))
+		{
+			return TEXT("Fire");
+		}
+		if (Leaf == TEXT("Burning"))
+		{
+			return TEXT("Fire");
+		}
+		if (Leaf == TEXT("Poisoned"))
+		{
+			return TEXT("Poison");
+		}
+		if (Leaf == TEXT("Bleeding"))
+		{
+			return TEXT("Bleed");
+		}
+		if (Leaf == TEXT("Frozen"))
+		{
+			return TEXT("Freeze");
+		}
+		if (Leaf == TEXT("Stunned"))
+		{
+			return TEXT("Stun");
+		}
+		if (Leaf == TEXT("Rended"))
+		{
+			return TEXT("Rend");
+		}
+		if (Leaf == TEXT("Wounded"))
+		{
+			return TEXT("Wound");
+		}
+		if (Leaf == TEXT("Feared"))
+		{
+			return TEXT("Fear");
+		}
+		if (Leaf == TEXT("Cursed"))
+		{
+			return TEXT("Curse");
+		}
+		if (Leaf == TEXT("Shielded"))
+		{
+			return TEXT("Shield");
+		}
+		if (Leaf == TEXT("Heavy"))
+		{
+			return bIdentityTag ? TEXT("WeaponSkillFinisher") : TEXT("Detonate");
+		}
+		return Leaf;
+	}
+
+	bool TryExtractLegacyCombatCardLeaf(const FString& TagString, FString& OutLeaf, bool& bOutIdentityTag)
+	{
+		static constexpr const TCHAR* RuneIdPrefix = TEXT("Rune.ID.");
+		static constexpr const TCHAR* CardIdPrefix = TEXT("Card.ID.");
+		static constexpr const TCHAR* RuneEffectPrefix = TEXT("Rune.Effect.");
+		static constexpr const TCHAR* CardEffectPrefix = TEXT("Card.Effect.");
+
+		if (TagString.StartsWith(RuneIdPrefix))
+		{
+			OutLeaf = TagString.RightChop(FCString::Strlen(RuneIdPrefix));
+			bOutIdentityTag = true;
+			return true;
+		}
+		if (TagString.StartsWith(CardIdPrefix))
+		{
+			OutLeaf = TagString.RightChop(FCString::Strlen(CardIdPrefix));
+			bOutIdentityTag = true;
+			return true;
+		}
+		if (TagString.StartsWith(RuneEffectPrefix))
+		{
+			OutLeaf = TagString.RightChop(FCString::Strlen(RuneEffectPrefix));
+			bOutIdentityTag = false;
+			return true;
+		}
+		if (TagString.StartsWith(CardEffectPrefix))
+		{
+			OutLeaf = TagString.RightChop(FCString::Strlen(CardEffectPrefix));
+			bOutIdentityTag = false;
+			return true;
+		}
+
+		return false;
+	}
+
+	void AddRequestedTag(TArray<FGameplayTag>& OutTags, const FString& TagString)
+	{
+		const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*TagString), false);
+		if (Tag.IsValid())
+		{
+			OutTags.AddUnique(Tag);
+		}
+	}
+
+	TArray<FGameplayTag> GetEquivalentCombatCardTags(const FGameplayTag& Tag)
+	{
+		TArray<FGameplayTag> EquivalentTags;
+		if (!Tag.IsValid())
+		{
+			return EquivalentTags;
+		}
+
+		const FString TagString = Tag.ToString();
+		FString Leaf;
+		bool bIdentityTag = false;
+		if (TryExtractLegacyCombatCardLeaf(TagString, Leaf, bIdentityTag))
+		{
+			AddRequestedTag(EquivalentTags, FString(TEXT("Buff.")) + BuffLeafFromLegacyLeaf(Leaf, bIdentityTag));
+			AddRequestedTag(EquivalentTags, FString(TEXT("Rune.ID.")) + Leaf);
+			AddRequestedTag(EquivalentTags, FString(TEXT("Card.ID.")) + Leaf);
+			AddRequestedTag(EquivalentTags, FString(TEXT("Rune.Effect.")) + Leaf);
+			AddRequestedTag(EquivalentTags, FString(TEXT("Card.Effect.")) + Leaf);
+			return EquivalentTags;
+		}
+
+		static constexpr const TCHAR* BuffStatusPrefix = TEXT("Buff.Status.");
+		if (TagString.StartsWith(BuffStatusPrefix))
+		{
+			Leaf = TagString.RightChop(FCString::Strlen(BuffStatusPrefix));
+			AddRequestedTag(EquivalentTags, FString(TEXT("Buff.")) + BuffLeafFromLegacyLeaf(Leaf, false));
+			return EquivalentTags;
+		}
+
+		static constexpr const TCHAR* BuffPrefix = TEXT("Buff.");
+		if (TagString.StartsWith(BuffPrefix))
+		{
+			const FString BuffLeaf = TagString.RightChop(FCString::Strlen(BuffPrefix));
+			TArray<FString> LegacyLeaves;
+			TArray<FString> LegacyStatusLeaves;
+			LegacyLeaves.Add(BuffLeaf);
+			if (BuffLeaf == TEXT("Fire"))
+			{
+				LegacyLeaves.Add(TEXT("Burn"));
+				LegacyStatusLeaves.Add(TEXT("Burning"));
+			}
+			else if (BuffLeaf == TEXT("Poison"))
+			{
+				LegacyStatusLeaves.Add(TEXT("Poisoned"));
+			}
+			else if (BuffLeaf == TEXT("Bleed"))
+			{
+				LegacyStatusLeaves.Add(TEXT("Bleeding"));
+			}
+			else if (BuffLeaf == TEXT("Freeze"))
+			{
+				LegacyStatusLeaves.Add(TEXT("Frozen"));
+			}
+			else if (BuffLeaf == TEXT("Stun"))
+			{
+				LegacyStatusLeaves.Add(TEXT("Stunned"));
+			}
+			else if (BuffLeaf == TEXT("Rend"))
+			{
+				LegacyStatusLeaves.Add(TEXT("Rended"));
+			}
+			else if (BuffLeaf == TEXT("Wound"))
+			{
+				LegacyStatusLeaves.Add(TEXT("Wounded"));
+			}
+			else if (BuffLeaf == TEXT("Fear"))
+			{
+				LegacyStatusLeaves.Add(TEXT("Feared"));
+			}
+			else if (BuffLeaf == TEXT("Curse"))
+			{
+				LegacyStatusLeaves.Add(TEXT("Cursed"));
+			}
+			else if (BuffLeaf == TEXT("Shield"))
+			{
+				LegacyStatusLeaves.Add(TEXT("Shielded"));
+			}
+			else if (BuffLeaf == TEXT("ShadowMark"))
+			{
+				LegacyStatusLeaves.Add(TEXT("ShadowMark"));
+			}
+			else if (BuffLeaf == TEXT("Detonate"))
+			{
+				LegacyLeaves.Add(TEXT("Heavy"));
+			}
+			else if (BuffLeaf == TEXT("WeaponSkillFinisher"))
+			{
+				LegacyLeaves.Add(TEXT("Heavy"));
+			}
+			else if (BuffLeaf == TEXT("ReduceDamage"))
+			{
+				LegacyLeaves.Add(TEXT("Defense.ReduceDamage"));
+			}
+
+			for (const FString& LegacyLeaf : LegacyLeaves)
+			{
+				AddRequestedTag(EquivalentTags, FString(TEXT("Rune.ID.")) + LegacyLeaf);
+				AddRequestedTag(EquivalentTags, FString(TEXT("Card.ID.")) + LegacyLeaf);
+				AddRequestedTag(EquivalentTags, FString(TEXT("Rune.Effect.")) + LegacyLeaf);
+				AddRequestedTag(EquivalentTags, FString(TEXT("Card.Effect.")) + LegacyLeaf);
+			}
+			for (const FString& LegacyStatusLeaf : LegacyStatusLeaves)
+			{
+				AddRequestedTag(EquivalentTags, FString(TEXT("Buff.Status.")) + LegacyStatusLeaf);
+			}
+		}
+		return EquivalentTags;
+	}
+
+	FGameplayTag GetFormalCombatCardTag(const FGameplayTag& Tag)
+	{
+		if (!Tag.IsValid())
+		{
+			return FGameplayTag();
+		}
+
+		const FString TagString = Tag.ToString();
+		if (TagString.StartsWith(TEXT("Buff.")))
+		{
+			return Tag;
+		}
+
+		FString Leaf;
+		bool bIdentityTag = false;
+		if (TryExtractLegacyCombatCardLeaf(TagString, Leaf, bIdentityTag))
+		{
+			const FString FormalTagString = FString(TEXT("Buff.")) + BuffLeafFromLegacyLeaf(Leaf, bIdentityTag);
+			const FGameplayTag FormalTag = FGameplayTag::RequestGameplayTag(FName(*FormalTagString), false);
+			return FormalTag.IsValid() ? FormalTag : Tag;
+		}
+
+		return Tag;
+	}
+
+	bool ContainerHasTagOrEquivalent(const FGameplayTagContainer& Container, const FGameplayTag& Tag)
+	{
+		if (!Tag.IsValid())
+		{
+			return false;
+		}
+
+		if (Container.HasTag(Tag))
+		{
+			return true;
+		}
+
+		for (const FGameplayTag& EquivalentTag : GetEquivalentCombatCardTags(Tag))
+		{
+			if (Container.HasTag(EquivalentTag))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	bool ContainerHasAllTagsOrEquivalent(const FGameplayTagContainer& ActualTags, const FGameplayTagContainer& RequiredTags)
+	{
+		for (const FGameplayTag& RequiredTag : RequiredTags)
+		{
+			if (!ContainerHasTagOrEquivalent(ActualTags, RequiredTag))
+			{
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	void AddCombatCardEffect(FCombatCardConfig& Config, const TCHAR* TagName)
+	{
+		const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(TagName, false);
+		if (Tag.IsValid())
+		{
+			Config.CardEffectTags.AddTag(Tag);
+		}
+	}
+
 	bool IsDeprecatedFinisherCardConfig(const FCombatCardConfig& Config)
 	{
 		if (!DevKit::Combat::IsFinisherAbilityDeprecated())
@@ -120,12 +415,13 @@ namespace
 			return false;
 		}
 
-		static const FGameplayTag FinisherCardIdTag = FGameplayTag::RequestGameplayTag(TEXT("Card.ID.Finisher"), false);
-		static const FGameplayTag FinisherCardEffectTag = FGameplayTag::RequestGameplayTag(TEXT("Card.Effect.Finisher"), false);
-
 		return Config.CardType == ECombatCardType::Finisher
-			|| (FinisherCardIdTag.IsValid() && Config.CardIdTag == FinisherCardIdTag)
-			|| (FinisherCardEffectTag.IsValid() && Config.CardEffectTags.HasTagExact(FinisherCardEffectTag));
+			|| CombatCardHasId(Config, TEXT("Buff.Finisher"))
+			|| CombatCardHasId(Config, TEXT("Rune.ID.Finisher"))
+			|| CombatCardHasId(Config, TEXT("Card.ID.Finisher"))
+			|| CombatCardHasEffect(Config, TEXT("Buff.Finisher"))
+			|| CombatCardHasEffect(Config, TEXT("Rune.Effect.Finisher"))
+			|| CombatCardHasEffect(Config, TEXT("Card.Effect.Finisher"));
 	}
 }
 
@@ -169,8 +465,7 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCard(ECardRequiredAc
 	Context.ReleaseMode = bIsComboFinisher ? ECombatCardReleaseMode::Finisher : ECombatCardReleaseMode::Normal;
 	Context.FlowRole = bIsComboFinisher ? ECombatDeckFlowRole::Finisher : ECombatDeckFlowRole::Starter;
 	Context.bFromDashSave = bFromDashSave;
-	Context.TriggerTiming = ECombatCardTriggerTiming::OnCommit;
-	Context.bConsumeOnCommit = true;
+	Context.TriggerTiming = ECombatCardTriggerTiming::OnHit;
 	Context.AttackInstanceGuid = FGuid::NewGuid();
 	return ResolveAttackCardWithContext(Context);
 }
@@ -189,9 +484,14 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCardWithContext(cons
 		Result.ActionContext.ReleaseMode = ECombatCardReleaseMode::Finisher;
 	}
 
+	const bool bUseSingleActionSlot = IsSingleActionSlot(Result.ActionContext.ActionSlot);
 	if (Context.bExitedComboState)
 	{
-		BreakPendingLink(ECombatLinkBreakReason::ComboStateExited, &Result.ActionContext);
+		ResetCombatSequenceProgress(ECombatLinkBreakReason::ComboStateExited, &Result.ActionContext);
+	}
+	else if (!Context.bComboContinued && CurrentIndex > 0)
+	{
+		ResetCombatSequenceProgress(ECombatLinkBreakReason::ComboStateExited, &Result.ActionContext);
 	}
 
 	if (Context.AttackInstanceGuid.IsValid() && ResolvedAttackGuids.Contains(Context.AttackInstanceGuid))
@@ -199,7 +499,6 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCardWithContext(cons
 		return Result;
 	}
 
-	const bool bUseSingleActionSlot = IsSingleActionSlot(Result.ActionContext.ActionSlot);
 	FCombatCardInstance Card;
 	if (bUseSingleActionSlot)
 	{
@@ -314,17 +613,12 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCardWithContext(cons
 
 		if (!bUseSingleActionSlot)
 		{
-			CurrentIndex++;
-			Result.bStartedShuffle = CurrentIndex >= ActiveSequence.Num();
+			AdvanceCombatSequenceAfterUse();
 		}
+		Result.bStartedShuffle = false;
 
 		OnCardResolved.Broadcast(Card, Result);
 		OnCardConsumed.Broadcast(Card, Result);
-		if (Result.bStartedShuffle && !bUseSingleActionSlot)
-		{
-			StartShuffle();
-			OnShuffleStarted.Broadcast(Result);
-		}
 
 		PushCombatCardResolveLog(Result);
 		return Result;
@@ -495,9 +789,9 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCardWithContext(cons
 
 	if (!bUseSingleActionSlot)
 	{
-		CurrentIndex++;
-		Result.bStartedShuffle = CurrentIndex >= ActiveSequence.Num();
+		AdvanceCombatSequenceAfterUse();
 	}
+	Result.bStartedShuffle = false;
 
 	OnCardResolved.Broadcast(Card, Result);
 	OnCardConsumed.Broadcast(Card, Result);
@@ -533,12 +827,6 @@ FCombatCardResolveResult UCombatDeckComponent::ResolveAttackCardWithContext(cons
 	{
 		RegisterTriggeredFinisherCard(Card);
 		OnFinisherTriggered.Broadcast(Result);
-	}
-
-	if (Result.bStartedShuffle && !bUseSingleActionSlot)
-	{
-		StartShuffle();
-		OnShuffleStarted.Broadcast(Result);
 	}
 
 	// Push a pure card resolve row to the combat log.
@@ -591,7 +879,7 @@ void UCombatDeckComponent::StopCardFlow(const FCombatCardInstance& Card)
 
 void UCombatDeckComponent::NotifyComboStateExited()
 {
-	BreakPendingLink(ECombatLinkBreakReason::ComboStateExited);
+	ResetCombatSequenceProgress(ECombatLinkBreakReason::ComboStateExited);
 }
 
 void UCombatDeckComponent::LoadDeckFromWeapon(const UWeaponDefinition* WeaponDefinition)
@@ -712,18 +1000,12 @@ TArray<FCombatCardInstance> UCombatDeckComponent::GetFullDeckSnapshot() const
 
 TArray<FCombatCardInstance> UCombatDeckComponent::GetRemainingDeckSnapshot() const
 {
-	TArray<FCombatCardInstance> RemainingCards;
 	if (DeckState != EDeckState::Ready)
 	{
-		return RemainingCards;
+		return {};
 	}
 
-	for (int32 Index = CurrentIndex; Index < ActiveSequence.Num(); ++Index)
-	{
-		RemainingCards.Add(BuildTemporaryLockViewCard(ActiveSequence[Index]));
-	}
-
-	return RemainingCards;
+	return BuildTemporaryLockViewCards(ActiveSequence);
 }
 
 FCombatCardInstance UCombatDeckComponent::GetActionSlotCardSnapshot(ECombatDeckActionSlot Slot) const
@@ -748,7 +1030,7 @@ void UCombatDeckComponent::RefreshDeckView()
 		return;
 	}
 
-	OnDeckLoaded.Broadcast(GetRemainingDeckSnapshot());
+	OnDeckLoaded.Broadcast(BuildTemporaryLockViewCards(ActiveSequence));
 }
 
 bool UCombatDeckComponent::MoveCardInDeck(int32 FromIndex, int32 InsertIndex)
@@ -957,15 +1239,18 @@ FCombatCardInstance UCombatDeckComponent::MakeCardFromRune(URuneDataAsset* RuneA
 	Card.Config = RuneAsset->RuneInfo.CombatCard;
 	Card.LinkOrientation = Card.Config.DefaultLinkOrientation;
 
-	static const FGameplayTag HeavyCardIdTag = FGameplayTag::RequestGameplayTag(TEXT("Card.ID.Heavy"), false);
-	static const FGameplayTag HeavyEffectTag = FGameplayTag::RequestGameplayTag(TEXT("Card.Effect.Heavy"), false);
-	static const FGameplayTag AttackEffectTag = FGameplayTag::RequestGameplayTag(TEXT("Card.Effect.Attack"), false);
-	const bool bIsHeavyCard =
-		(HeavyCardIdTag.IsValid() && Card.Config.CardIdTag == HeavyCardIdTag)
-		|| (HeavyEffectTag.IsValid() && Card.Config.CardEffectTags.HasTagExact(HeavyEffectTag));
-	if (bIsHeavyCard && AttackEffectTag.IsValid())
+	const bool bIsWeaponSkillFinisherCard =
+		CombatCardHasId(Card.Config, TEXT("Buff.WeaponSkillFinisher"))
+		|| CombatCardHasEffect(Card.Config, TEXT("Buff.Detonate"))
+		|| CombatCardHasId(Card.Config, TEXT("Rune.ID.WeaponSkillFinisher"))
+		|| CombatCardHasEffect(Card.Config, TEXT("Rune.Effect.Detonate"))
+		|| CombatCardHasId(Card.Config, TEXT("Rune.ID.Heavy"))
+		|| CombatCardHasId(Card.Config, TEXT("Card.ID.Heavy"))
+		|| CombatCardHasEffect(Card.Config, TEXT("Rune.Effect.Heavy"))
+		|| CombatCardHasEffect(Card.Config, TEXT("Card.Effect.Heavy"));
+	if (bIsWeaponSkillFinisherCard)
 	{
-		Card.Config.CardEffectTags.AddTag(AttackEffectTag);
+		AddCombatCardEffect(Card.Config, TEXT("Buff.Attack"));
 	}
 
 	if (Card.Config.DisplayName.IsEmpty())
@@ -1375,34 +1660,38 @@ void UCombatDeckComponent::ResetRuntimeStateAfterDeckEdit()
 	RefillActiveSequence();
 }
 
-void UCombatDeckComponent::StartDeckEditReload()
+void UCombatDeckComponent::ResetCombatSequenceProgress(ECombatLinkBreakReason Reason, const FCombatDeckActionContext* BreakContext)
 {
+	BreakPendingLink(Reason, BreakContext);
 	LastResolvedCard = FCombatCardInstance();
 	PendingLinkContext = FCombatCardInstance();
 	PendingLinkActionContext = FCombatDeckActionContext();
 	ResolvedAttackGuids.Reset();
-
-	DeckState = EDeckState::EmptyShuffling;
-	ShuffleCooldownRemaining = FMath::Max(0.0f, ShuffleCooldownDuration * 0.5f);
 	CurrentIndex = 0;
-	ActiveSequence.Reset();
 
-	FCombatCardResolveResult Result;
-	Result.bStartedShuffle = true;
-	Result.ReasonText = NSLOCTEXT("CombatDeck", "DeckEditReload", "Deck edited: reload started");
-	OnShuffleStarted.Broadcast(Result);
-	OnShuffleProgress.Broadcast(0.0f);
+	if (DeckState == EDeckState::Ready)
+	{
+		OnDeckLoaded.Broadcast(BuildTemporaryLockViewCards(ActiveSequence));
+	}
+}
 
-	UE_LOG(LogTemp, Warning, TEXT("[CombatDeckEdit] ReloadAfterMove Cooldown=%.3f FullCooldown=%.3f DeckCount=%d"),
-		ShuffleCooldownRemaining,
+void UCombatDeckComponent::AdvanceCombatSequenceAfterUse()
+{
+	if (ActiveSequence.IsEmpty())
+	{
+		CurrentIndex = 0;
+		return;
+	}
+
+	CurrentIndex = FMath::Clamp(CurrentIndex + 1, 0, ActiveSequence.Num());
+}
+
+void UCombatDeckComponent::StartDeckEditReload()
+{
+	UE_LOG(LogTemp, Display, TEXT("[CombatDeckEdit] RefreshSequenceWithoutShuffle FullCooldown=%.3f DeckCount=%d"),
 		ShuffleCooldownDuration,
 		DeckList.Num());
-
-	if (ShuffleCooldownRemaining <= KINDA_SMALL_NUMBER)
-	{
-		RefillActiveSequence();
-		OnShuffleCompleted.Broadcast(BuildTemporaryLockViewCards(ActiveSequence));
-	}
+	ResetRuntimeStateAfterDeckEdit();
 }
 
 void UCombatDeckComponent::StartShuffle()
@@ -1646,15 +1935,16 @@ bool UCombatDeckComponent::DoesLinkConditionMatch(const FCombatCardLinkCondition
 		FGameplayTagContainer NeighborIdTags;
 		if (NeighborCard.Config.CardIdTag.IsValid())
 		{
-			NeighborIdTags.AddTag(NeighborCard.Config.CardIdTag);
+			NeighborIdTags.AddTag(GetFormalCombatCardTag(NeighborCard.Config.CardIdTag));
 		}
-		if (!NeighborIdTags.HasAll(Condition.RequiredNeighborIdTags))
+		if (!ContainerHasAllTagsOrEquivalent(NeighborIdTags, Condition.RequiredNeighborIdTags))
 		{
 			return false;
 		}
 	}
 
-	if (!Condition.RequiredNeighborEffectTags.IsEmpty() && !NeighborCard.Config.CardEffectTags.HasAll(Condition.RequiredNeighborEffectTags))
+	if (!Condition.RequiredNeighborEffectTags.IsEmpty()
+		&& !ContainerHasAllTagsOrEquivalent(NeighborCard.Config.CardEffectTags, Condition.RequiredNeighborEffectTags))
 	{
 		return false;
 	}

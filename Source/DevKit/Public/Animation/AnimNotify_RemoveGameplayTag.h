@@ -9,7 +9,7 @@
  * AnimNotify（点触发）：在蒙太奇指定帧将 ASC 上的 Gameplay Tag 计数强制归零。
  * 只影响 Loose Tag（AddLooseGameplayTag 添加的），不影响 GE-granted tag。
  * 旧兼容用途：在旧连招蒙太奇的 CanCombo 窗口结束后挂此 Notify，
- *           确保 PlayerState.AbilityCast.CanCombo 被干净清除。
+ *           确保 Character.State.Window.CanCombo 被干净清除。旧 PlayerState.AbilityCast.CanCombo 由兼容逻辑同步清理。
  */
 UCLASS(meta = (DisplayName = "Remove Gameplay Tag"))
 class DEVKIT_API UAnimNotify_RemoveGameplayTag : public UAnimNotify

@@ -147,6 +147,7 @@ private:
 	float LocalStatBeforeAttackDelta = 0.f;
 	float LocalStatBeforeAttackPowerDelta = 0.f;
 	FDelegateHandle CanComboTagHandle;
+	FDelegateHandle LegacyCanComboTagHandle;
 	float AbilityActivationTime = 0.f;
 
 	UPROPERTY()

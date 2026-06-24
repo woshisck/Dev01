@@ -44,6 +44,7 @@ bool FStoryEngineGameplayTagsConfiguredTest::RunTest(const FString& Parameters)
 		TEXT("Story.Flag.FirstBackpack.Opened"),
 		TEXT("Story.Flag.Hub.FirstEntered"),
 		TEXT("Story.Encounter.Progress.EM_FirstRun_Tutorial.first_run.heavy_card_obtained"),
+		TEXT("Story.Encounter.Progress.EM_FirstRun_Tutorial.first_run.weapon_skill_finisher_obtained"),
 		TEXT("Story.Quest.Main"),
 		TEXT("Story.Quest.MemoryTutorial"),
 		TEXT("Story.Source.Codex"),
@@ -153,11 +154,11 @@ bool FStoryEventRegistryRewardToDeckBroadcastOnlyTest::RunTest(const FString& Pa
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStoryEngineFirstRuneRuleMarksHeavyCardProgressTest,
-	"DevKit.StoryEngine.FirstRuneRuleMarksHeavyCardProgress",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStoryEngineFirstRuneRuleMarksWeaponSkillFinisherProgressTest,
+	"DevKit.StoryEngine.FirstRuneRuleMarksWeaponSkillFinisherProgress",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FStoryEngineFirstRuneRuleMarksHeavyCardProgressTest::RunTest(const FString& Parameters)
+bool FStoryEngineFirstRuneRuleMarksWeaponSkillFinisherProgressTest::RunTest(const FString& Parameters)
 {
 	const UStoryRuleSetDA* RuleSet = LoadObject<UStoryRuleSetDA>(
 		nullptr,
@@ -169,15 +170,18 @@ bool FStoryEngineFirstRuneRuleMarksHeavyCardProgressTest::RunTest(const FString&
 	}
 
 	const FGameplayTag FirstRuneEvent = StoryEngineTests::RequireTag(TEXT("Story.Event.FirstRun.FirstRuneObtained"));
-	const FGameplayTag HeavyCardProgress = StoryEngineTests::RequireTag(
+	const FGameplayTag LegacyHeavyCardProgress = StoryEngineTests::RequireTag(
 		TEXT("Story.Encounter.Progress.EM_FirstRun_Tutorial.first_run.heavy_card_obtained"));
+	const FGameplayTag WeaponSkillFinisherProgress = StoryEngineTests::RequireTag(
+		TEXT("Story.Encounter.Progress.EM_FirstRun_Tutorial.first_run.weapon_skill_finisher_obtained"));
 	if (!TestTrue(TEXT("First rune event tag is configured"), FirstRuneEvent.IsValid()) ||
-		!TestTrue(TEXT("Heavy card progress tag is configured"), HeavyCardProgress.IsValid()))
+		!TestTrue(TEXT("legacy heavy card progress tag is configured"), LegacyHeavyCardProgress.IsValid()) ||
+		!TestTrue(TEXT("WeaponSkill finisher progress tag is configured"), WeaponSkillFinisherProgress.IsValid()))
 	{
 		return false;
 	}
 
-	bool bMarksHeavyCardProgress = false;
+	bool bMarksWeaponSkillFinisherProgress = false;
 	for (const FStoryRule& Rule : RuleSet->Rules)
 	{
 		if (Rule.TriggerEventTag != FirstRuneEvent)
@@ -185,16 +189,17 @@ bool FStoryEngineFirstRuneRuleMarksHeavyCardProgressTest::RunTest(const FString&
 			continue;
 		}
 
-		bMarksHeavyCardProgress |= Rule.Actions.ContainsByPredicate(
-			[HeavyCardProgress](const FStoryAction& Action)
+		bMarksWeaponSkillFinisherProgress |= Rule.Actions.ContainsByPredicate(
+			[LegacyHeavyCardProgress, WeaponSkillFinisherProgress](const FStoryAction& Action)
 			{
 				return Action.Type == EStoryActionType::SetFlag
 					&& Action.FlagScope == EStoryFlagScope::Save
-					&& Action.FlagTag == HeavyCardProgress;
+					&& Action.FlagTag == WeaponSkillFinisherProgress
+					&& Action.FlagTag != LegacyHeavyCardProgress;
 			});
 	}
 
-	TestTrue(TEXT("First rune rule marks first-run heavy card progress"), bMarksHeavyCardProgress);
+	TestTrue(TEXT("First rune rule marks first-run WeaponSkill finisher progress"), bMarksWeaponSkillFinisherProgress);
 	return true;
 }
 

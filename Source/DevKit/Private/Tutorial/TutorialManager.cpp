@@ -65,7 +65,7 @@ namespace
 	TArray<FTutorialPage> BuildFallbackTutorialPages(FName EventID)
 	{
 		TArray<FTutorialPage> Pages;
-		if (EventID == TEXT("tutorial_heavy_card"))
+		if (EventID == TEXT("tutorial_heavy_card") || EventID == TEXT("tutorial_weapon_skill_finisher_card"))
 		{
 			Pages.Add(MakeTutorialPage(
 				TEXT("获得重击卡"),

@@ -1,4 +1,4 @@
-#if WITH_DEV_AUTOMATION_TESTS
+﻿#if WITH_DEV_AUTOMATION_TESTS
 
 #include "Misc/AutomationTest.h"
 
@@ -30,9 +30,11 @@ bool FFirstRunTutorialDirectorBuildsPostInitialRoomPlanTest::RunTest(const FStri
 		TestNotNull(TEXT("Second room uses an explicit card preview icon"), Plan.RewardOptionsOverride[0].Icon.Get());
 		if (const URuneDataAsset* MoonlightRune = Plan.RewardOptionsOverride[0].RuneAsset.Get())
 		{
-			const FGameplayTag MoonlightIdTag = FGameplayTag::RequestGameplayTag(TEXT("Card.ID.Moonlight"), false);
-			TestTrue(TEXT("Second room reward resolves to a Moonlight card"),
-				MoonlightRune->RuneInfo.CombatCard.CardIdTag == MoonlightIdTag
+			const FGameplayTag FormalMoonlightIdTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Moonlight"), false);
+			const FGameplayTag LegacyMoonlightIdTag = FGameplayTag::RequestGameplayTag(TEXT("Card.ID.Moonlight"), false);
+			TestTrue(TEXT("Second room reward resolves to a Moonlight rune"),
+				MoonlightRune->RuneInfo.CombatCard.CardIdTag == FormalMoonlightIdTag
+				|| MoonlightRune->RuneInfo.CombatCard.CardIdTag == LegacyMoonlightIdTag
 				|| MoonlightRune->GetPathName().Contains(TEXT("Moonlight")));
 		}
 	}
@@ -79,19 +81,19 @@ bool FFirstRunTutorialDirectorBuildsTransitionCurrencyPlansTest::RunTest(const F
 	TestFalse(TEXT("Fourth room does not carry a tutorial enemy attack buff"), DefaultRewardPlan.bOverrideBuffs);
 
 	FStoryNextRoomPlan TransitionRoom01Plan;
-	TestTrue(TEXT("TransitionRoom01 plan still produced (WaterDungeon → 01a/01b via portal[0] pool)"),
+	TestTrue(TEXT("TransitionRoom01 plan still produced (WaterDungeon 01a/01b via portal[0] pool)"),
 		UFirstRunTutorialDirectorSubsystem::BuildDefaultNextRoomPlanForStage(
 			EFirstRunTutorialStage::TransitionRoom01,
 			TransitionRoom01Plan));
 
 	TestTrue(TEXT("TransitionRoom01 keeps forced single portal"), TransitionRoom01Plan.bForceSinglePortal);
-	TestEqual(TEXT("TransitionRoom01 still uses portal[0] so the WaterDungeon → corridor route fires"),
+	TestEqual(TEXT("TransitionRoom01 still uses portal[0] so the WaterDungeon corridor route fires"),
 		TransitionRoom01Plan.PortalIndex, 0);
 	TestNull(TEXT("TransitionRoom01 should no longer hard-override the next room data"),
 		TransitionRoom01Plan.RoomDataOverride.Get());
 
 	FStoryNextRoomPlan TransitionRoom02Plan;
-	TestTrue(TEXT("TransitionRoom02 plan produced (corridor 01a/01b → PrayerRoom via portal[1])"),
+	TestTrue(TEXT("TransitionRoom02 plan produced (corridor 01a/01b PrayerRoom via portal[1])"),
 		UFirstRunTutorialDirectorSubsystem::BuildDefaultNextRoomPlanForStage(
 			EFirstRunTutorialStage::TransitionRoom02,
 			TransitionRoom02Plan));

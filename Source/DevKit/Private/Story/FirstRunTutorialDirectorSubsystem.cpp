@@ -67,6 +67,18 @@ FLootOption MakeMaterialLootOption(int32 Amount)
 	return Option;
 }
 
+bool CombatCardHasId(const FCombatCardConfig& Config, const TCHAR* TagName)
+{
+	const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(TagName, false);
+	return Tag.IsValid() && Config.CardIdTag == Tag;
+}
+
+bool CombatCardHasEffect(const FCombatCardConfig& Config, const TCHAR* TagName)
+{
+	const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(TagName, false);
+	return Tag.IsValid() && Config.CardEffectTags.HasTagExact(Tag);
+}
+
 }
 
 void UFirstRunTutorialDirectorSubsystem::SetStage(EFirstRunTutorialStage InStage)
@@ -163,13 +175,15 @@ void UFirstRunTutorialDirectorSubsystem::HandleRewardRuneAdded(URuneDataAsset* R
 	}
 
 	RestoreStageFromSave();
-	const FGameplayTag MoonlightIdTag = FGameplayTag::RequestGameplayTag(TEXT("Card.ID.Moonlight"), false);
-	const FGameplayTag MoonlightEffectTag = FGameplayTag::RequestGameplayTag(TEXT("Card.Effect.Moonlight"), false);
 	const FCombatCardConfig& CombatCard = RuneAsset->RuneInfo.CombatCard;
 	const bool bIsMoonlightCard =
 		IsRuneAtPath(RuneAsset, MoonlightRunePath)
-		|| (MoonlightIdTag.IsValid() && CombatCard.CardIdTag == MoonlightIdTag)
-		|| (MoonlightEffectTag.IsValid() && CombatCard.CardEffectTags.HasTagExact(MoonlightEffectTag));
+		|| CombatCardHasId(CombatCard, TEXT("Buff.Moonlight"))
+		|| CombatCardHasEffect(CombatCard, TEXT("Buff.Moonlight"))
+		|| CombatCardHasId(CombatCard, TEXT("Rune.ID.Moonlight"))
+		|| CombatCardHasId(CombatCard, TEXT("Card.ID.Moonlight"))
+		|| CombatCardHasEffect(CombatCard, TEXT("Rune.Effect.Moonlight"))
+		|| CombatCardHasEffect(CombatCard, TEXT("Card.Effect.Moonlight"));
 
 	if (bIsMoonlightCard)
 	{

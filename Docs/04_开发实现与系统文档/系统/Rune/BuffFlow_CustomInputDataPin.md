@@ -1,4 +1,4 @@
-# CustomInput 数据引脚 — 子图参数传递
+﻿# CustomInput 数据引脚 — 子图参数传递
 
 > 更新：2026-04-24
 > 上级文档：[BuffFlow_NodeReference.md](BuffFlow_NodeReference.md) · [BuffFlow_NodeUsageGuide.md](BuffFlow_NodeUsageGuide.md)
@@ -117,7 +117,7 @@ Custom Input "Apply" 声明两个参数：
     DurationType    = HasDuration
     Period          = 2.0
     FireImmediately = false
-    GrantedTags     = Buff.Status.Poisoned
+    GrantedTags     = Buff.Poison
     StackMode       = Unique
     DurationRefresh = RefreshOnSuccessfulApplication
     Target          = LastDamageTarget]

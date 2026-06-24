@@ -7,7 +7,7 @@
 /**
  * Enemy weapon skill GAs.
  * AbilityTags / AbilityData Key: Enemy.Skill.Skill1~4
- * ActivationBlockedTags: Buff.Status.Dead
+ * ActivationBlockedTags: Buff.Dead
  *
  * Same pattern as the enemy melee attacks (GA_EnemyMeleeAttacks): a thin
  * UGA_MeleeAttack subclass per skill slot, differing only by tag. The montage

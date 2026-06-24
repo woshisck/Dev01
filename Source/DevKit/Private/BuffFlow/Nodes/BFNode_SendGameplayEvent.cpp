@@ -1,4 +1,4 @@
-#include "BuffFlow/Nodes/BFNode_SendGameplayEvent.h"
+﻿#include "BuffFlow/Nodes/BFNode_SendGameplayEvent.h"
 
 #include "AbilitySystem/Abilities/GA_Knockback.h"
 #include "AbilitySystemComponent.h"
@@ -17,7 +17,7 @@ UBFNode_SendGameplayEvent::UBFNode_SendGameplayEvent(const FObjectInitializer& O
 
 void UBFNode_SendGameplayEvent::ExecuteBuffFlowInput(const FName& PinName)
 {
-	// 快速连击会导致同一 Flow 被重新启动（Abort 旧实例），此时节点不再 Active，直接退出
+	// 快速连击会导致同一 Flow 被重新启动（Abort 旧实例），此时节点不Active，直接退
 	if (GetActivationState() != EFlowNodeState::Active)
 		return;
 
@@ -46,7 +46,7 @@ void UBFNode_SendGameplayEvent::ExecuteBuffFlowInput(const FName& PinName)
 		return;
 	}
 
-	static const FGameplayTag DeadTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Dead"), false);
+	static const FGameplayTag DeadTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Dead"), false);
 	static const FGameplayTag KnockbackTag = FGameplayTag::RequestGameplayTag(TEXT("Action.Knockback"), false);
 	static const FGameplayTag HitReactTag = FGameplayTag::RequestGameplayTag(TEXT("Action.HitReact"), false);
 	static const FGameplayTag SlashTag = FGameplayTag::RequestGameplayTag(TEXT("Action.Slash"), false);

@@ -26,7 +26,7 @@
 
 ## 二、创建符文
 
-1. 在左上角填写 **名称**、**符文 Tag**（格式 `Rune.ID.xxx`）、**文件夹**。
+1. 在左上角填写 **名称**、**符文 Tag**（格式 `Rune.ID.<Name>`）、**文件夹**。
 2. 选择 **类型**（Buff / Debuff / Passive…）、**稀有度**、**触发方式**（Passive / Active…）。
 3. 点击 **新建符文** → 编辑器自动在对应文件夹创建 `DA_Rune_xxx`。
 4. 新符文默认没有 Flow 资产，需要在右侧 **基本信息 → 流程资产** 处关联一个已有的 `UYogRuneFlowAsset`（或复制模板）。
@@ -138,8 +138,8 @@ Entry → EffectApplyState(中毒GE, Periodic)
 
 | 字段 | 说明 |
 |---|---|
-| Card ID Tag | 格式 `Card.ID.xxx`，连携配方中邻居符文用此 Tag 匹配 |
-| 效果 Tags | 格式 `Card.Effect.xxx`，可选多个；连携配方支持按效果 Tag 匹配 |
+| Card ID Tag | 字段名暂保留兼容；新资产填写 `Rune.ID.<Name>`，连携配方中邻居符文用此 Tag 匹配 |
+| 效果 Tags | 新资产填写 `Rune.Effect.<Name>`，可选多个；连携配方支持按效果 Tag 匹配 |
 | 卡类型 | Attack / Defense / Utility |
 | 显示名称 | 战斗卡 HUD 显示名 |
 
@@ -157,7 +157,7 @@ Entry → EffectApplyState(中毒GE, Periodic)
 | **反向（Backward）** | 当前符文排在邻居卡**前面**（本卡→邻居） |
 
 每条配方配置：
-- **邻居 Tag**：邻居卡的 Card.ID.xxx 或 Card.Effect.xxx
+- **邻居 Tag**：邻居符文的 `Rune.ID.<Name>` 或 `Rune.Effect.<Name>`
 - **匹配方式**：按 Effect Tag 匹配（推荐）或按 ID Tag 精确匹配
 - **倍率（Multiplier）**：对本次触发的输出乘以该系数
 - **理由文本**：显示在 HUD 上的连携名称说明

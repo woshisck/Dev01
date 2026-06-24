@@ -1,4 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+﻿// Fill out your copyright notice in the Description page of Project Settings.
 
 #include "Cheater/Cheater.h"
 #include "Character/PlayerCharacterBase.h"
@@ -168,7 +168,7 @@ UBackpackGridComponent* UYogCheatManager::GetBGC() const
 void UYogCheatManager::Yog_SetHeat(float Value)
 {
 	APlayerCharacterBase* Char = GetPlayerChar();
-	if (!Char) { UE_LOG(LogTemp, Warning, TEXT("[GM] Yog_SetHeat: 找不到玩家")); return; }
+	if (!Char) { UE_LOG(LogTemp, Warning, TEXT("[GM] Yog_SetHeat: 找不到玩")); return; }
 
 	UYogAbilitySystemComponent* ASC = Char->GetASC();
 	if (!ASC) return;
@@ -176,7 +176,7 @@ void UYogCheatManager::Yog_SetHeat(float Value)
 	const float Clamped = FMath::Clamp(Value, 0.f, ASC->GetNumericAttribute(UBaseAttributeSet::GetMaxHeatAttribute()));
 	ASC->SetNumericAttributeBase(UBaseAttributeSet::GetHeatAttribute(), Clamped);
 
-	// 通知 BGC 更新热度阶段状态
+	// 通知 BGC 更新热度阶段状
 	if (UBackpackGridComponent* BGC = GetBGC())
 	{
 		BGC->OnHeatValueChanged(Clamped);
@@ -188,7 +188,7 @@ void UYogCheatManager::Yog_SetHeat(float Value)
 void UYogCheatManager::Yog_SetPhase(int32 Phase)
 {
 	UBackpackGridComponent* BGC = GetBGC();
-	if (!BGC) { UE_LOG(LogTemp, Warning, TEXT("[GM] Yog_SetPhase: 找不到 BGC")); return; }
+	if (!BGC) { UE_LOG(LogTemp, Warning, TEXT("[GM] Yog_SetPhase: 找不BGC")); return; }
 
 	const int32 Clamped = FMath::Clamp(Phase, 0, 3);
 	BGC->RestorePhase(Clamped);
@@ -211,7 +211,7 @@ void UYogCheatManager::Yog_MaxHeat()
 		BGC->OnHeatValueChanged(Max);
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[GM] 热度设为满值 %.1f"), Max);
+	UE_LOG(LogTemp, Log, TEXT("[GM] 热度设为满%.1f"), Max);
 }
 
 void UYogCheatManager::Yog_FreezeHeat(bool bFreeze)
@@ -222,18 +222,18 @@ void UYogCheatManager::Yog_FreezeHeat(bool bFreeze)
 	UYogAbilitySystemComponent* ASC = Char->GetASC();
 	if (!ASC) return;
 
-	// Buff.Status.Heat.Active 存在时 GE_HeatDecay 被 PreGameplayEffectExecute 阻断
-	const FGameplayTag ActiveTag = FGameplayTag::RequestGameplayTag(FName("Buff.Status.Heat.Active"));
+	// Buff.Heat.Active 存在GE_HeatDecay PreGameplayEffectExecute 阻断
+	const FGameplayTag ActiveTag = FGameplayTag::RequestGameplayTag(FName("Buff.Heat.Active"));
 
 	if (bFreeze)
 	{
 		ASC->AddLooseGameplayTag(ActiveTag);
-		UE_LOG(LogTemp, Log, TEXT("[GM] 热度衰减已冻结"));
+		UE_LOG(LogTemp, Log, TEXT("[GM] 热度衰减已冻"));
 	}
 	else
 	{
 		ASC->RemoveLooseGameplayTag(ActiveTag);
-		UE_LOG(LogTemp, Log, TEXT("[GM] 热度衰减已恢复"));
+		UE_LOG(LogTemp, Log, TEXT("[GM] 热度衰减已恢"));
 	}
 }
 
@@ -242,9 +242,9 @@ void UYogCheatManager::Yog_FreezeHeat(bool bFreeze)
 void UYogCheatManager::Yog_GiveRune(int32 RuneID)
 {
 	APlayerCharacterBase* Char = GetPlayerChar();
-	if (!Char) { UE_LOG(LogTemp, Warning, TEXT("[GM] Yog_GiveRune: 找不到玩家")); return; }
+	if (!Char) { UE_LOG(LogTemp, Warning, TEXT("[GM] Yog_GiveRune: 找不到玩")); return; }
 
-	// 遍历所有已加载的 RuneDataAsset，按 RuneID 匹配
+	// 遍历所有已加载RuneDataAsset，按 RuneID 匹配
 	for (TObjectIterator<URuneDataAsset> It; It; ++It)
 	{
 		URuneDataAsset* DA = *It;
@@ -254,12 +254,12 @@ void UYogCheatManager::Yog_GiveRune(int32 RuneID)
 		{
 			FRuneInstance Instance = DA->CreateInstance();
 			Char->AddRuneToInventory(Instance);
-			UE_LOG(LogTemp, Log, TEXT("[GM] 已给予符文 %s（ID=%d），加入待放置列表"), *DA->GetRuneName().ToString(), RuneID);
+			UE_LOG(LogTemp, Log, TEXT("[GM] 已给予符%s（ID=%d），加入待放置列"), *DA->GetRuneName().ToString(), RuneID);
 			return;
 		}
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("[GM] Yog_GiveRune: 未找到 RuneID=%d 的 DataAsset（确认已加载）"), RuneID);
+	UE_LOG(LogTemp, Warning, TEXT("[GM] Yog_GiveRune: 未找RuneID=%d DataAsset（确认已加载"), RuneID);
 }
 
 void UYogCheatManager::Yog_GiveMoonlightLinkCards()
@@ -277,7 +277,7 @@ void UYogCheatManager::Yog_ClearRunes()
 	UBackpackGridComponent* BGC = GetBGC();
 	if (!BGC) return;
 
-	// 收集所有 Guid 后批量移除（避免迭代中修改数组）
+	// 收集所Guid 后批量移除（避免迭代中修改数组）
 	TArray<FGuid> Guids;
 	for (const FPlacedRune& Placed : BGC->GetAllPlacedRunes())
 	{
@@ -292,7 +292,7 @@ void UYogCheatManager::Yog_ClearRunes()
 		BGC->RemoveRune(Guid);
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[GM] 已清空背包符文（共 %d 个）"), Guids.Num());
+	UE_LOG(LogTemp, Log, TEXT("[GM] 已清空背包符文（%d 个）"), Guids.Num());
 }
 
 void UYogCheatManager::Yog_SetGold(int32 Amount)
@@ -313,7 +313,7 @@ void UYogCheatManager::Yog_SetGold(int32 Amount)
 	UE_LOG(LogTemp, Log, TEXT("[GM] 金币设为 %d"), Amount);
 }
 
-// ─── 玩家属性 ─────────────────────────────────────────────────────────────────
+// ─── 玩家属─────────────────────────────────────────────────────────────────
 
 void UYogCheatManager::Yog_GodMode()
 {
@@ -329,11 +329,11 @@ void UYogCheatManager::Yog_GodMode()
 	{
 		ASC->SetNumericAttributeBase(UBaseAttributeSet::GetMaxHealthAttribute(), 99999.f);
 		ASC->SetNumericAttributeBase(UBaseAttributeSet::GetHealthAttribute(), 99999.f);
-		UE_LOG(LogTemp, Log, TEXT("[GM] 无敌模式开启（HP=MaxHP=99999）"));
+		UE_LOG(LogTemp, Log, TEXT("[GM] 无敌模式开启（HP=MaxHP=99999"));
 	}
 	else
 	{
-		UE_LOG(LogTemp, Log, TEXT("[GM] 无敌模式关闭（HP 已设为 99999，需手动重置属性）"));
+		UE_LOG(LogTemp, Log, TEXT("[GM] 无敌模式关闭（HP 已设99999，需手动重置属性）"));
 	}
 }
 
@@ -363,7 +363,7 @@ void UYogCheatManager::Yog_FullHP()
 	const float Max = ASC->GetNumericAttribute(UBaseAttributeSet::GetMaxHealthAttribute());
 	ASC->SetNumericAttributeBase(UBaseAttributeSet::GetHealthAttribute(), Max);
 
-	UE_LOG(LogTemp, Log, TEXT("[GM] HP 恢复满值 %.1f"), Max);
+	UE_LOG(LogTemp, Log, TEXT("[GM] HP 恢复满%.1f"), Max);
 }
 
 void UYogCheatManager::Yog_SetAttack(float Value)
@@ -375,7 +375,7 @@ void UYogCheatManager::Yog_SetAttack(float Value)
 	if (!ASC) return;
 
 	ASC->SetNumericAttributeBase(UBaseAttributeSet::GetAttackAttribute(), Value);
-	UE_LOG(LogTemp, Log, TEXT("[GM] Attack 属性设为 %.1f"), Value);
+	UE_LOG(LogTemp, Log, TEXT("[GM] Attack 属性设%.1f"), Value);
 }
 
 // ─── 敌人 ─────────────────────────────────────────────────────────────────────
@@ -396,7 +396,7 @@ void UYogCheatManager::Yog_KillAll()
 		}
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[GM] 已击杀 %d 个敌人"), Count);
+	UE_LOG(LogTemp, Log, TEXT("[GM] 已击杀 %d 个敌"), Count);
 }
 
 void UYogCheatManager::Yog_FreezeEnemies(bool bFreeze)
@@ -415,7 +415,7 @@ void UYogCheatManager::Yog_FreezeEnemies(bool bFreeze)
 		}
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[GM] 已%s %d 个敌人"), bFreeze ? TEXT("冻结") : TEXT("解冻"), Count);
+	UE_LOG(LogTemp, Log, TEXT("[GM] s %d 个敌"), bFreeze ? TEXT("冻结") : TEXT("解冻"), Count);
 }
 
 // ─── Debug 打印 ───────────────────────────────────────────────────────────────
@@ -528,7 +528,7 @@ void UYogCheatManager::Yog_PrintAttributes()
 		UE_LOG(LogTemp, Log, TEXT("  %-15s = %.2f"), Name, ASC->GetNumericAttribute(Attr));
 	};
 
-	UE_LOG(LogTemp, Log, TEXT("[GM] 玩家属性:"));
+	UE_LOG(LogTemp, Log, TEXT("[GM] 玩家属"));
 	PrintAttr(UBaseAttributeSet::GetHealthAttribute(),    TEXT("Health"));
 	PrintAttr(UBaseAttributeSet::GetMaxHealthAttribute(), TEXT("MaxHealth"));
 	PrintAttr(UBaseAttributeSet::GetHeatAttribute(),      TEXT("Heat"));
@@ -538,7 +538,7 @@ void UYogCheatManager::Yog_PrintAttributes()
 	PrintAttr(UBaseAttributeSet::GetMoveSpeedAttribute(), TEXT("MoveSpeed"));
 	PrintAttr(UBaseAttributeSet::GetShieldAttribute(),    TEXT("Shield"));
 
-	GEngine->AddOnScreenDebugMessage(-1, 6.f, FColor::Green, TEXT("[GM] 属性已打印到 Output Log"));
+	GEngine->AddOnScreenDebugMessage(-1, 6.f, FColor::Green, TEXT("[GM] 属性已打印Output Log"));
 }
 
 void UYogCheatManager::Yog_PrintRunes()
@@ -567,7 +567,7 @@ void UYogCheatManager::Yog_PrintRunes()
 void UYogCheatManager::Yog_Help()
 {
 	const TCHAR* Help =
-		TEXT("[GM Commands — 星骸降临]\n")
+		TEXT("[GM Commands 星骸降临]\n")
 		TEXT("── 热度 ──\n")
 		TEXT("  Yog_SetHeat <float>       设置热度值\n")
 		TEXT("  Yog_SetPhase <0-3>        强制设置热度阶段\n")
@@ -577,7 +577,7 @@ void UYogCheatManager::Yog_Help()
 		TEXT("  Yog_GiveRune <RuneID>     给予符文（入待放置列表）\n")
 		TEXT("  Yog_ClearRunes            清空已放置符文\n")
 		TEXT("  Yog_SetGold <int>         设置金币\n")
-		TEXT("── 玩家属性 ──\n")
+		TEXT("── 玩家属──\n")
 		TEXT("  Yog_GodMode               切换无敌模式\n")
 		TEXT("  Yog_SetHP <float>         设置 HP\n")
 		TEXT("  Yog_FullHP                HP 恢复满值\n")
@@ -587,10 +587,10 @@ void UYogCheatManager::Yog_Help()
 		TEXT("  Yog_FreezeEnemies <0/1>   冻结/解冻所有敌人\n")
 		TEXT("── Debug ──\n")
 		TEXT("  Yog_PrintHeat             打印热度/阶段\n")
-		TEXT("  Yog_PrintTags             打印玩家所有 Tag\n")
+		TEXT("  Yog_PrintTags             打印玩家所Tag\n")
 		TEXT("  Yog_PrintAttributes       打印所有属性值\n")
 		TEXT("  Yog_PrintRunes            打印背包符文列表\n")
-		TEXT("  Yog_Help                  显示此帮助");
+		TEXT("  Yog_Help                  显示此帮");
 
 	UE_LOG(LogTemp, Log, TEXT("%s"), Help);
 	GEngine->AddOnScreenDebugMessage(-1, 12.f, FColor::White, TEXT("[GM] 命令列表已打印到 Output Log"));

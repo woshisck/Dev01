@@ -1,4 +1,4 @@
-# 高感知测试符文设计指南
+﻿# 高感知测试符文设计指南
 
 > 版本：v1.0（2026-04-17）  
 > 用途：测试阶段专用符文，替代 1001/1002/1003/1006 等纯数值被动  
@@ -51,7 +51,7 @@
     ↓ Yes（目标确认死亡）   ↓ No → 忽略
 
 [Spawn Gameplay Cue at Location]
-    CueTag   = GameplayCue.Rune.KillExplosion
+    CueTag   = GameplayCue.Buff.KillExplosion
     Location = LastHitTarget.Location   ← 死亡位置
 
 [Apply GE to Targets in Radius]
@@ -68,7 +68,7 @@
 |------|------|
 | `FA_Rune_KillExplosion` | 上述 Flow Graph |
 | `GE_RuneKillExplosionDamage` | Instant 伤害 GE，Value = 30，同时发送 Action.Knockback 事件 |
-| `GameplayCue.Rune.KillExplosion` | 爆炸粒子 GameplayCue（可复用现有爆炸 Niagara，缩小 50%）|
+| `GameplayCue.Buff.KillExplosion` | 爆炸粒子 GameplayCue（可复用现有爆炸 Niagara，缩小 50%）|
 | `DA_Rune_KillExplosion` | RuneID=1017，Shape=1×1 |
 
 **DA 配置：**
@@ -109,7 +109,7 @@
     Target       = BuffOwner
 
 [Spawn Gameplay Cue on Actor]
-    CueTag = GameplayCue.Rune.LifeSteal   ← 绿色回血数字 + 粒子
+    CueTag = GameplayCue.Buff.LifeSteal   ← 绿色回血数字 + 粒子
     Target = BuffOwner
 ```
 
@@ -118,7 +118,7 @@
 | 资产 | 说明 |
 |------|------|
 | `FA_Rune_LifeSteal` | 上述 Flow Graph |
-| `GameplayCue.Rune.LifeSteal` | 绿色粒子 + 数字显示（可复用伤害浮字系统，改为绿色）|
+| `GameplayCue.Buff.LifeSteal` | 绿色粒子 + 数字显示（可复用伤害浮字系统，改为绿色）|
 | `DA_Rune_LifeSteal` | RuneID=1018，Shape=1×1 |
 
 **DA 配置：**
@@ -157,7 +157,7 @@
     Payload  = 5.0           ← 每跳伤害量（复用 GA_Bleed 模式）
 ```
 
-> `GA_Burn`（复用 `GA_Bleed` 结构，OwnedTagPresent = `Buff.Status.Burning`）
+> `GA_Burn`（复用 `GA_Bleed` 结构，OwnedTagPresent = `Buff.Fire`）
 > 每 0.5s 伤害 5；到期自动清理；重复触发刷新计时
 
 **需要创建：**
@@ -165,8 +165,8 @@
 | 资产 | 说明 |
 |------|------|
 | `FA_Rune_BurnMark` | 上述 Flow Graph |
-| `C++ GA_Burn` | 复制 GA_Bleed，改 Tag 为 `Buff.Status.Burning`，Interval=0.5，GC=`GameplayCue.Rune.Burn` |
-| `GameplayCue.Rune.Burn` | 橙红火焰 Niagara 附着粒子（Loop，attached to target）|
+| `C++ GA_Burn` | 复制 GA_Bleed，改 Tag 为 `Buff.Fire`，Interval=0.5，GC=`GameplayCue.Buff.Fire` |
+| `GameplayCue.Buff.Fire` | 橙红火焰 Niagara 附着粒子（Loop，attached to target）|
 | `DA_Rune_BurnMark` | RuneID=1019，Shape=1×1 |
 
 **DA 配置：**
@@ -180,7 +180,7 @@
 | Flow.FlowAsset | `FA_Rune_BurnMark` |
 
 **已知限制：**
-- 需要新增 `C++ GA_Burn` 和 `Buff.Status.Burning` Tag
+- 需要新增 `C++ GA_Burn` 和 `Buff.Fire` Tag
 - 多个敌人同时燃烧时粒子数量较多，低端机注意性能
 
 ---
@@ -213,7 +213,7 @@
 |------|------|
 | `FA_Rune_Uppercut` | 上述 Flow Graph |
 | `C++ GA_Uppercut` | 复用 GA_Knockback，Launch 方向 = UpVector，附加 `Buff.Status.Airborne` Tag 持续 2s |
-| `GameplayCue.Rune.Uppercut` | 击飞瞬间白色冲击波（单次），落地时尘埃粒子（单次）|
+| `GameplayCue.Buff.Uppercut` | 击飞瞬间白色冲击波（单次），落地时尘埃粒子（单次）|
 | `DA_Rune_Uppercut` | RuneID=1020，Shape=1×1 |
 
 **DA 配置：**
@@ -244,11 +244,11 @@
 [Start]
   ↓
 [Wait Gameplay Event]
-    EventTag = Event.Rune.KnockbackApplied   ← 已有 Tag（1007 联动用）
+    EventTag = Buff.Event.KnockbackApplied   ← 已有 Tag（1007 联动用）
     ↓ OnEventReceived
 
 [Spawn Gameplay Cue at Location]
-    CueTag   = GameplayCue.Rune.Aftershock
+    CueTag   = GameplayCue.Buff.Aftershock
     Location = Event.Payload.Location        ← 击退落点
 
 [Apply GE to Targets in Radius]
@@ -264,7 +264,7 @@
 |------|------|
 | `FA_Rune_Aftershock` | 上述 Flow Graph |
 | `GE_AfterShockSlow` | HasDuration 2s，MoveSpeed Additive -200，Magnitude Additive 20 伤害 |
-| `GameplayCue.Rune.Aftershock` | 地面扩散圆环 Niagara（单次，持续约 0.5s）|
+| `GameplayCue.Buff.Aftershock` | 地面扩散圆环 Niagara（单次，持续约 0.5s）|
 | `DA_Rune_Aftershock` | RuneID=1021，Shape=1×1 |
 
 **DA 配置：**
@@ -278,7 +278,7 @@
 | Flow.FlowAsset | `FA_Rune_Aftershock` |
 
 **已知限制：**
-- 依赖 `Event.Rune.KnockbackApplied` 事件在 GA_Knockback 结束时广播（已在 1007 设计中要求，确认 GA_Knockback 末尾有 Send Event 调用）
+- 依赖 `Buff.Event.KnockbackApplied` 事件在 GA_Knockback 结束时广播（已在 1007 设计中要求，确认 GA_Knockback 末尾有 Send Event 调用）
 - 若 Payload.Location 无法传递，改为监听最近死亡/被击退敌人的 LastKnownLocation
 
 ---
@@ -314,12 +314,12 @@
 
 | Tag | 文件 | 用途 |
 |-----|------|------|
-| `Buff.Status.Burning` | BuffTag.ini | 燃烧状态守卫（1019）|
+| `Buff.Fire` | BuffTag.ini | 燃烧状态守卫（1019）|
 | `Buff.Status.Airborne` | BuffTag.ini | 空中状态守卫（1020）|
 | `Action.Uppercut` | PlayerGameplayTag.ini | 上弹事件（1020）|
 | `Buff.Event.Burn` | BuffTag.ini | GA_Burn 触发信号（1019）|
-| `GameplayCue.Rune.KillExplosion` | — | GC 注册（1017）|
-| `GameplayCue.Rune.LifeSteal` | — | GC 注册（1018）|
-| `GameplayCue.Rune.Burn` | — | GC 注册（1019）|
-| `GameplayCue.Rune.Uppercut` | — | GC 注册（1020）|
-| `GameplayCue.Rune.Aftershock` | — | GC 注册（1021）|
+| `GameplayCue.Buff.KillExplosion` | — | GC 注册（1017）|
+| `GameplayCue.Buff.LifeSteal` | — | GC 注册（1018）|
+| `GameplayCue.Buff.Fire` | — | GC 注册（1019）|
+| `GameplayCue.Buff.Uppercut` | — | GC 注册（1020）|
+| `GameplayCue.Buff.Aftershock` | — | GC 注册（1021）|

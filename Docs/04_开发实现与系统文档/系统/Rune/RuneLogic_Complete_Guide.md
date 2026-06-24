@@ -475,7 +475,7 @@ GE 授予 Tag + GA，GE 到期时 GA 自动撤销。示例：1005 流血。
 
 ```
 [Start] → [WaitGameplayEvent]
-              EventTag = Event.Rune.KnockbackApplied
+              EventTag = Buff.Event.KnockbackApplied
               ↓
            [ApplyAttributeModifier]
               Target    = EventData.Target

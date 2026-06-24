@@ -170,7 +170,7 @@
 [ApplyAttributeModifier
     DurationType = HasDuration
     Duration     = 2.0
-    GrantedTags  = Buff.Status.Stunned, Character.State.Stunned
+    GrantedTags  = Buff.Status.Stunned
     StackMode    = Unique
     DurationRefresh = RefreshOnSuccessfulApplication
     Target       = LastDamageTarget]
@@ -179,7 +179,7 @@
 ```
 
 > 不填 Attribute 即可——ApplyAttributeModifier 无 Attribute 时仅授予标签。  
-> 需要在被阻断的 GA 的 Activation Blocked Tags 加入 `Character.State.Stunned`。
+> 需要在被阻断的 GA 的 Activation Blocked Tags 加入 `Buff.Status.Stunned`。
 
 ### 3.4 FA_Effect_Curse（诅咒）— 纯 FA
 
@@ -348,7 +348,7 @@
 [ApplyAttributeModifier ①
     DurationType    = HasDuration
     Duration        = FearDuration
-    GrantedTags     = Buff.Status.Feared, Character.State.Feared
+    GrantedTags     = Buff.Status.Feared
     StackMode       = Unique
     Target          = LastDamageTarget]
     ├── Out ─→ [CheckDistance ②  (Save 引脚)
@@ -367,7 +367,7 @@
     └── Expired ──→ [Custom Output "Done"]
 ```
 
-> 逃跑行为由行为树响应 `Character.State.Feared` 标签实现，FA 只管判定和惩罚。
+> 逃跑行为由行为树响应 `Buff.Status.Feared` 标签实现，FA 只管判定和惩罚。
 > 无需 GA_Fear / GE_FearPenalty。
 
 ### 3.10 FA_Effect_Freeze（冻结）— 纯 FA（两阶段：减速 → 条件眩晕）
@@ -398,7 +398,7 @@
     │                                                                       DurationType = HasDuration
     │                                                                       Duration     = StunDuration
     │                                                                       GrantedTags  = Buff.Status.Frozen,
-    │                                                                                      Character.State.Stunned
+    │                                                                                      Buff.Status.Stunned
     │                                                                       Target       = LastDamageTarget]
     │                                                                   └── Out ──→ [ApplyAttributeModifier ⑤
     │                                                                                    Attribute = DamageBuff
@@ -449,7 +449,7 @@
 | GE_FearPenalty | Instant | DamageBuff Additive SetByCaller(Data.Damage) | 恐惧逃跑失败惩罚 |
 | GE_KnockbackArmorDamage | Instant | ArmorHP Additive SetByCaller(Data.Damage) | 击退额外护甲伤害 |
 | GE_Chill | Infinite | MoveSpeed Multiply 0.5, GrantedTags=Buff.Status.Chilled | 冻结减速阶段 |
-| GE_FrozenStun | HasDuration 1.5s | DamageBuff Additive SetByCaller(Data.Damage), GrantedTags=Buff.Status.Frozen + Character.State.Stunned | 冻结眩晕阶段 |
+| GE_FrozenStun | HasDuration 1.5s | DamageBuff Additive SetByCaller(Data.Damage), GrantedTags=Buff.Status.Frozen + Buff.Status.Stunned | 冻结眩晕阶段 |
 
 建议资产路径：`Content/AbilitySystem/GameplayEffects/StatusEffects/`
 
@@ -638,7 +638,7 @@ RuneDataAsset 配置：
 | ---- | ---- | ---- |
 | 中毒（纯 FA） | 创建 FA_Rune_Test → SubGraph(FA_Effect_Poison) | 每 2 秒 DamageBuff，HP>=1 |
 | 燃烧（纯 FA） | 先施加流血再触发燃烧 | 每跳 = 20 x 1.15 = 23 |
-| 眩晕（纯 FA） | 触发后检查 Tag | Character.State.Stunned 持续 2 秒 |
+| 眩晕（纯 FA） | 触发后检查 Tag | Buff.Status.Stunned 持续 2 秒 |
 | 诅咒（纯 FA） | 多次触发检查 MaxHP | 每层 ×0.9，HP 等比缩放，最多 7 层 |
 | 流血（纯 FA） | 触发后查看 HP 变化 | 每 0.5s DamageBuff 扣血，持续 5 秒，HP>=1 |
 | 撕裂（纯 FA） | 对目标施加后让其移动 | 每 100 单位触发一次伤害，静止 2s 结束 |

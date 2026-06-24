@@ -69,7 +69,7 @@ bool FEnemyPoiseCounterUsesRecentlyDamagedStateWindowTest::RunTest(const FString
 	EnemyASC->RecentlyDamagedStateDuration = 3.0f;
 
 	const FGameplayTag RecentlyDamagedTag =
-		FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.RecentlyDamaged"));
+		FGameplayTag::RequestGameplayTag(TEXT("Buff.RecentlyDamaged"));
 
 	for (int32 HitIndex = 0; HitIndex < 4; ++HitIndex)
 	{

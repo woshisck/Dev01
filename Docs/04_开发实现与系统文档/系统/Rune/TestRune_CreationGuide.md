@@ -66,15 +66,15 @@
 | `Buff.Status.SlashWaveSwingActive` | BuffTag.ini | ★ | 刀光挥刀模式守卫 |
 | `Buff.Status.NextHitCrit` | BuffTag.ini | ☆ | 下一次伤害强制暴击信号（C++ 消费） |
 | `Buff.Status.DuoAssaultReady` | BuffTag.ini | ☆ | 突刺连击冲刺后2秒待触发状态 |
-| `Buff.Status.Poisoned` | BuffTag.ini | ☆ | 中毒状态 |
+| `Buff.Poison` | BuffTag.ini | ☆ | 中毒状态 |
 | `Action.Attack` | PlayerGameplayTag.ini | ★ | 攻击事件父节点 |
 | `Action.Attack.Swing` | PlayerGameplayTag.ini | ★ | 挥刀帧事件 |
 | `Action.Rune` | PlayerGameplayTag.ini | ★ | 符文内部事件父节点 |
-| `Action.Rune.SlashWaveHit` | PlayerGameplayTag.ini | ★ | 刀光波命中计数事件 |
+| `Buff.Event.SlashWaveHit` | PlayerGameplayTag.ini | ★ | 刀光波命中计数事件 |
 | `Action.Dead` | PlayerGameplayTag.ini | ★ | 死亡触发信号 |
 | `Action.HitReact` | PlayerGameplayTag.ini | ★ | 受击硬直信号 |
 | `Action.Knockback` | PlayerGameplayTag.ini | ★ | 击退触发信号 |
-| `Event.Rune.KnockbackApplied` | PlayerGameplayTag.ini | ★ | 击退完成广播（联动用） |
+| `Buff.Event.KnockbackApplied` | PlayerGameplayTag.ini | ★ | 击退完成广播（联动用） |
 
 ---
 
@@ -244,7 +244,7 @@ FA_Rune_Knockback（1004）
                         ↓
               执行 RootMotionMoveToForce（精确位移 KnockbackDistance cm）
                         ↓
-              向玩家 ASC 广播 Action.Rune.KnockbackApplied
+              向玩家 ASC 广播 Buff.Event.KnockbackApplied
                         ↓
 FA_Rune_KnockbackStagger（1007）监听到事件 → 对目标施加移速 -300，持续 1 秒
 ```
@@ -306,7 +306,7 @@ FA_Rune_KnockbackStagger（1007）监听到事件 → 对目标施加移速 -300
 [Start]
   ↓
 [Wait Gameplay Event]
-    EventTag = Event.Rune.KnockbackApplied
+    EventTag = Buff.Event.KnockbackApplied
     ↓ Out（收到事件时触发）
 
 [Apply Attribute Modifier]
@@ -501,7 +501,7 @@ FA_Rune_KnockbackStagger（1007）监听到事件 → 对目标施加移速 -300
 [On Damage Dealt]
   ↓ Out
 [Send Gameplay Event]
-    EventTag   = Action.Rune.SlashWaveHit
+    EventTag   = Buff.Event.SlashWaveHit
     Target     = BuffOwner
     Instigator = BuffOwner
 ↓ Out → （继续监听下次命中）
@@ -593,8 +593,8 @@ FA_Rune_KnockbackStagger（1007）监听到事件 → 对目标施加移速 -300
 | 字段 | 值 |
 |---|---|
 | RuneConfig.RuneID | `1009` |
-| Buff.Rune.Type | `Buff.Rune.Type.Attack` |
-| Buff.Rune.Rarity | `Buff.Rune.Rarity.Rare` |
+| Rune.Type | `Rune.Type.Attack` |
+| Rune.Rarity | `Rune.Rarity.Rare` |
 | Flow.FlowAsset | `FA_Rune_WeaknessUnveiled` |
 
 ### 9-3 测试要点
@@ -663,8 +663,8 @@ FA_Rune_KnockbackStagger（1007）监听到事件 → 对目标施加移速 -300
 | 字段 | 值 |
 |---|---|
 | RuneConfig.RuneID | `1010` |
-| Buff.Rune.Type | `Buff.Rune.Type.Attack` |
-| Buff.Rune.Rarity | `Buff.Rune.Rarity.Rare` |
+| Rune.Type | `Rune.Type.Attack` |
+| Rune.Rarity | `Rune.Rarity.Rare` |
 | Flow.FlowAsset | `FA_Rune_DuoAssault` |
 
 ### 10-3 测试要点
@@ -708,7 +708,7 @@ FA_Rune_KnockbackStagger（1007）监听到事件 → 对目标施加移速 -300
     StackMode    = Unique                    ← 重复中毒只刷新持续时间
   ↓
 [Grant Tag (Timed)]
-    Tag      = Buff.Status.Poisoned
+    Tag      = Buff.Poison
     Duration = 5.0
     Target   = LastDamageTarget             ← 状态图标 / 其他符文查询用
 ```
@@ -727,7 +727,7 @@ FA_Rune_KnockbackStagger（1007）监听到事件 → 对目标施加移速 -300
 | Backing Attribute | `MaxHealth` |
 | Coefficient | `-0.02` |
 | Stacking | AggregateByTarget, Limit=1, Duration Refresh=刷新 |
-| Granted Tags | `Buff.Status.Poisoned`（GE 到期自动移除） |
+| Granted Tags | `Buff.Poison`（GE 到期自动移除） |
 
 正式版 FA 简化：
 ```
@@ -745,14 +745,14 @@ FA_Rune_KnockbackStagger（1007）监听到事件 → 对目标施加移速 -300
 | 字段 | 值 |
 |---|---|
 | RuneConfig.RuneID | `1011` |
-| Buff.Rune.Type | `Buff.Rune.Type.Attack` |
-| Buff.Rune.Rarity | `Buff.Rune.Rarity.Epic` |
+| Rune.Type | `Rune.Type.Attack` |
+| Rune.Rarity | `Rune.Rarity.Epic` |
 | Flow.FlowAsset | `FA_Rune_VenomFang` |
 
 ### 11-4 测试要点
 
 - 普通攻击：无中毒效果
-- 暴击命中：目标出现 `Buff.Status.Poisoned` Tag，5 秒内持续掉血
+- 暴击命中：目标出现 `Buff.Poison` Tag，5 秒内持续掉血
 - 再次暴击：持续时间刷新（不叠层，仍每秒 -25）
 - 5 秒后无暴击：Tag 消失，停止扣血
 - 与弱点窥破（1009）联动说明：测试版弱点窥破用 Do Damage 不触发 `On Crit Hit`，毒牙不会响应；正式版（C++ NextHitCrit）可联动
@@ -820,8 +820,8 @@ FA_Rune_KnockbackStagger（1007）监听到事件 → 对目标施加移速 -300
 | 字段 | 值 |
 |---|---|
 | RuneConfig.RuneID | `1012` |
-| Buff.Rune.Type | `Buff.Rune.Type.Utility` |
-| Buff.Rune.Rarity | `Buff.Rune.Rarity.Rare` |
+| Rune.Type | `Rune.Type.Utility` |
+| Rune.Rarity | `Rune.Rarity.Rare` |
 | Flow.FlowAsset | `FA_Rune_WraithwindWhisper` |
 
 ### 12-3 测试要点
@@ -859,8 +859,8 @@ FA_Rune_KnockbackStagger（1007）监听到事件 → 对目标施加移速 -300
 | 字段 | 值 |
 |---|---|
 | RuneConfig.RuneID | `1013` |
-| Buff.Rune.Type | `Buff.Rune.Type.Attack` |
-| Buff.Rune.Rarity | `Buff.Rune.Rarity.Rare` |
+| Rune.Type | `Rune.Type.Attack` |
+| Rune.Rarity | `Rune.Rarity.Rare` |
 | Flow.FlowAsset | `FA_Rune_Shockwave` |
 
 ### 13-3 测试要点
@@ -907,8 +907,8 @@ FA_Rune_KnockbackStagger（1007）监听到事件 → 对目标施加移速 -300
 | 字段 | 值 |
 |---|---|
 | RuneConfig.RuneID | `1014` |
-| Buff.Rune.Type | `Buff.Rune.Type.Utility` |
-| Buff.Rune.Rarity | `Buff.Rune.Rarity.Rare` |
+| Rune.Type | `Rune.Type.Utility` |
+| Rune.Rarity | `Rune.Rarity.Rare` |
 | Flow.FlowAsset | `FA_Rune_ShadowDash` |
 
 ### 14-3 测试要点
@@ -979,8 +979,8 @@ FA_Rune_KnockbackStagger（1007）监听到事件 → 对目标施加移速 -300
 | 字段 | 值 |
 |---|---|
 | RuneConfig.RuneID | `1015` |
-| Buff.Rune.Type | `Buff.Rune.Type.Attack` |
-| Buff.Rune.Rarity | `Buff.Rune.Rarity.Epic` |
+| Rune.Type | `Rune.Type.Attack` |
+| Rune.Rarity | `Rune.Rarity.Epic` |
 | Flow.FlowAsset | `FA_Rune_AgonyPact` |
 
 ### 15-3 测试要点
@@ -1056,8 +1056,8 @@ FA_Rune_KnockbackStagger（1007）监听到事件 → 对目标施加移速 -300
 | 字段 | 值 |
 |---|---|
 | RuneConfig.RuneID | `1016` |
-| Buff.Rune.Type | `Buff.Rune.Type.Attack` |
-| Buff.Rune.Rarity | `Buff.Rune.Rarity.Epic` |
+| Rune.Type | `Rune.Type.Attack` |
+| Rune.Rarity | `Rune.Rarity.Epic` |
 | Flow.FlowAsset | `FA_Rune_DeadlyStrike` |
 
 ### 16-3 测试要点
