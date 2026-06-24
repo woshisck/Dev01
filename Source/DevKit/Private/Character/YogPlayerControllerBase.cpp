@@ -36,9 +36,13 @@
 #include "Component/BufferComponent.h"
 #include "Component/CombatDeckComponent.h"
 #include "Component/CombatItemComponent.h"
+#include "Component/CharacterDataComponent.h"
 #include "Component/PlayerActiveSkillComponent.h"
+#include "Data/AbilityData.h"
+#include "Data/CharacterData.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "AbilitySystemComponent.h"
+#include "Abilities/GameplayAbility.h"
 
 #if !UE_BUILD_SHIPPING || DEVKIT_ENABLE_SHIPPING_CHEATS
 #include "Cheater/Cheater.h"
@@ -46,6 +50,63 @@
 
 namespace
 {
+	bool TryActivateAbilityByExactTag(
+		UAbilitySystemComponent* ASC,
+		const FGameplayTag& ExactTag,
+		bool bAllowRemoteActivation = true)
+	{
+		if (!ASC || !ExactTag.IsValid())
+		{
+			return false;
+		}
+
+		TArray<FGameplayAbilitySpecHandle> MatchingHandles;
+		for (const FGameplayAbilitySpec& Spec : ASC->GetActivatableAbilities())
+		{
+			if (Spec.Ability && Spec.Ability->AbilityTags.HasTagExact(ExactTag))
+			{
+				MatchingHandles.Add(Spec.Handle);
+			}
+		}
+
+		for (const FGameplayAbilitySpecHandle& Handle : MatchingHandles)
+		{
+			if (ASC->TryActivateAbility(Handle, bAllowRemoteActivation))
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	bool TryActivateAbilityByExactTagName(
+		UAbilitySystemComponent* ASC,
+		const TCHAR* TagName,
+		bool bAllowRemoteActivation = true)
+	{
+		const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TagName), false);
+		return TryActivateAbilityByExactTag(ASC, Tag, bAllowRemoteActivation);
+	}
+
+	bool HasConfiguredAbilityData(APlayerCharacterBase* Player, const TCHAR* TagName)
+	{
+		if (!Player || !TagName)
+		{
+			return false;
+		}
+
+		const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TagName), false);
+		if (!Tag.IsValid())
+		{
+			return false;
+		}
+
+		UCharacterDataComponent* CharacterDataComponent = Player->GetCharacterDataComponent();
+		UCharacterData* CharacterData = CharacterDataComponent ? CharacterDataComponent->GetCharacterData() : nullptr;
+		return CharacterData && CharacterData->AbilityData && CharacterData->AbilityData->HasAbility(Tag);
+	}
+
 	bool TryActivateAbilitiesByPrimaryThenFallback(
 		UAbilitySystemComponent* ASC,
 		const TCHAR* PrimaryTagName,
@@ -58,18 +119,33 @@ namespace
 
 		auto TryActivateBySingleTag = [ASC](const TCHAR* TagName) -> bool
 		{
-			const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TagName), false);
-			if (!Tag.IsValid())
-			{
-				return false;
-			}
-
-			FGameplayTagContainer TagContainer;
-			TagContainer.AddTag(Tag);
-			return ASC->TryActivateAbilitiesByTag(TagContainer, true);
+			return TryActivateAbilityByExactTagName(ASC, TagName, true);
 		};
 
 		return TryActivateBySingleTag(PrimaryTagName) || TryActivateBySingleTag(FallbackTagName);
+	}
+
+	bool TryActivateComboStarterThenFallback(
+		APlayerCharacterBase* Player,
+		const TCHAR* Combo1TagName,
+		const TCHAR* PrimaryTagName,
+		const TCHAR* FallbackTagName)
+	{
+		UAbilitySystemComponent* ASC = Player ? Player->GetASC() : nullptr;
+		if (!ASC)
+		{
+			return false;
+		}
+
+		if (HasConfiguredAbilityData(Player, Combo1TagName))
+		{
+			if (TryActivateAbilityByExactTagName(ASC, Combo1TagName, true))
+			{
+				return true;
+			}
+		}
+
+		return TryActivateAbilitiesByPrimaryThenFallback(ASC, PrimaryTagName, FallbackTagName);
 	}
 }
 
@@ -593,8 +669,17 @@ void AYogPlayerControllerBase::Attack(const FInputActionValue& Value)
 			return;
 		}
 
-		TryActivateAbilitiesByPrimaryThenFallback(
-			player->GetASC(),
+		if (PlayerASC && PlayerASC->HasActiveAttackComboAbilityTag())
+		{
+			if (PlayerASC->TryActivateNextAttackComboAbility(true, true))
+			{
+				return;
+			}
+		}
+
+		TryActivateComboStarterThenFallback(
+			player,
+			TEXT("Character.State.Skill.Attack.Combo1"),
 			TEXT("Character.State.Skill.Attack"),
 			TEXT("PlayerState.AbilityCast.Attack"));
 	}
@@ -616,10 +701,19 @@ void AYogPlayerControllerBase::WeaponSkill(const FInputActionValue& Value)
 			{
 				return;
 			}
+
+			if (PlayerASC->HasActiveWeaponSkillComboAbilityTag())
+			{
+				if (PlayerASC->TryActivateNextWeaponSkillComboAbility(true, true))
+				{
+					return;
+				}
+			}
 		}
 
-		TryActivateAbilitiesByPrimaryThenFallback(
-			player->GetASC(),
+		TryActivateComboStarterThenFallback(
+			player,
+			TEXT("Character.State.Skill.WeaponSkill.Combo1"),
 			TEXT("Character.State.Skill.WeaponSkill"),
 			TEXT("PlayerState.AbilityCast.WeaponSkill"));
 	}

@@ -117,6 +117,101 @@ namespace
 		return MakeArrayView(WeaponSkillComboTags, UE_ARRAY_COUNT(WeaponSkillComboTags));
 	}
 
+	int32 GetPlayerComboSlotFromTag(const FGameplayTag& Tag)
+	{
+		if (!Tag.IsValid())
+		{
+			return INDEX_NONE;
+		}
+
+		const FString TagText = Tag.ToString();
+		for (int32 Slot = 1; Slot <= 4; ++Slot)
+		{
+			if (TagText.EndsWith(FString::Printf(TEXT(".Combo%d"), Slot)))
+			{
+				return Slot;
+			}
+		}
+
+		return INDEX_NONE;
+	}
+
+	bool IsPlayerComboWindowOpen(const UYogAbilitySystemComponent* ASC)
+	{
+		if (!ASC)
+		{
+			return false;
+		}
+
+		static const FGameplayTag CharacterCanComboTag =
+			FGameplayTag::RequestGameplayTag(TEXT("Character.State.Window.CanCombo"), false);
+		static const FGameplayTag LegacyCanComboTag =
+			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"), false);
+
+		return (CharacterCanComboTag.IsValid() && ASC->GetTagCount(CharacterCanComboTag) > 0) ||
+			(LegacyCanComboTag.IsValid() && ASC->GetTagCount(LegacyCanComboTag) > 0);
+	}
+
+	bool TryActivateComboAbilityForSlot(
+		UYogAbilitySystemComponent* ASC,
+		TConstArrayView<FGameplayTag> ComboTags,
+		int32 ComboSlot,
+		bool bAllowRemoteActivation)
+	{
+		if (!ASC || ComboSlot < 1)
+		{
+			return false;
+		}
+
+		for (const FGameplayTag& ComboTag : ComboTags)
+		{
+			if (GetPlayerComboSlotFromTag(ComboTag) == ComboSlot
+				&& ASC->TryActivateAbilityByExactTag(ComboTag, bAllowRemoteActivation))
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	bool TryActivateNextComboAbilityFromTags(
+		UYogAbilitySystemComponent* ASC,
+		TConstArrayView<FGameplayTag> ComboTags,
+		bool bRequireComboWindow,
+		bool bAllowRemoteActivation)
+	{
+		if (!ASC || ComboTags.Num() <= 0)
+		{
+			return false;
+		}
+
+		int32 ActiveComboSlot = INDEX_NONE;
+		for (const FGameplayTag& ComboTag : ComboTags)
+		{
+			const int32 CandidateSlot = GetPlayerComboSlotFromTag(ComboTag);
+			if (CandidateSlot != INDEX_NONE && ASC->GetTagCount(ComboTag) > 0)
+			{
+				ActiveComboSlot = FMath::Max(ActiveComboSlot, CandidateSlot);
+			}
+		}
+
+		if (ActiveComboSlot != INDEX_NONE)
+		{
+			if (bRequireComboWindow && !IsPlayerComboWindowOpen(ASC))
+			{
+				return false;
+			}
+
+			const int32 NextComboSlot = ActiveComboSlot + 1;
+			return NextComboSlot <= 4
+				? TryActivateComboAbilityForSlot(ASC, ComboTags, NextComboSlot, bAllowRemoteActivation)
+				: false;
+		}
+
+		return TryActivateComboAbilityForSlot(ASC, ComboTags, 1, bAllowRemoteActivation);
+	}
+
 	bool HasActiveComboAbilityTag(UYogAbilitySystemComponent* ASC, TConstArrayView<FGameplayTag> ComboTags)
 	{
 		if (!ASC)
@@ -1051,12 +1146,12 @@ bool UYogAbilitySystemComponent::TryActivateAbilityByExactTag(const FGameplayTag
 
 bool UYogAbilitySystemComponent::TryActivateNextAttackComboAbility(bool bRequireComboWindow, bool bAllowRemoteActivation)
 {
-	return false;
+	return TryActivateNextComboAbilityFromTags(this, GetPlayerAttackComboTags(), bRequireComboWindow, bAllowRemoteActivation);
 }
 
 bool UYogAbilitySystemComponent::TryActivateNextWeaponSkillComboAbility(bool bRequireComboWindow, bool bAllowRemoteActivation)
 {
-	return false;
+	return TryActivateNextComboAbilityFromTags(this, GetPlayerWeaponSkillComboTags(), bRequireComboWindow, bAllowRemoteActivation);
 }
 
 bool UYogAbilitySystemComponent::HasActiveAttackComboAbilityTag()

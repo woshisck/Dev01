@@ -1316,7 +1316,13 @@ void APlayerCharacterBase::BeginPlay()
 		};
 
 		GrantIfMissing(UGA_PlayerAttack_Combo1::StaticClass());
+		GrantIfMissing(UGA_PlayerAttack_Combo2::StaticClass());
+		GrantIfMissing(UGA_PlayerAttack_Combo3::StaticClass());
+		GrantIfMissing(UGA_PlayerAttack_Combo4::StaticClass());
 		GrantIfMissing(UGA_WeaponSkill_Combo1::StaticClass());
+		GrantIfMissing(UGA_WeaponSkill_Combo2::StaticClass());
+		GrantIfMissing(UGA_WeaponSkill_Combo3::StaticClass());
+		GrantIfMissing(UGA_WeaponSkill_Combo4::StaticClass());
 		GrantIfMissing(UGA_SwitchWeapon::StaticClass());
 	}
 

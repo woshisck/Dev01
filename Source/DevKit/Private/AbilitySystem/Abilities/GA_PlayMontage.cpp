@@ -808,9 +808,13 @@ void UGA_PlayMontage::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCoun
 		bool bUseFallbackTag = true;
 		switch (BufferedActionType)
 		{
+		case EInputCommandType::Attack:
+			bUseFallbackTag = false;
+			bActivated = ASC ? ASC->TryActivateNextAttackComboAbility(true, true) : false;
+			break;
 		case EInputCommandType::WeaponSkill:
-			CharacterTagName = TEXT("Character.State.Skill.WeaponSkill");
-			LegacyTagName = TEXT("PlayerState.AbilityCast.WeaponSkill");
+			bUseFallbackTag = false;
+			bActivated = ASC ? ASC->TryActivateNextWeaponSkillComboAbility(true, true) : false;
 			break;
 		case EInputCommandType::Dash:
 			CharacterTagName = TEXT("Character.State.Movement.Dash");

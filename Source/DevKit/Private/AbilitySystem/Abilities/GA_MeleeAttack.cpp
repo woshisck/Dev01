@@ -415,18 +415,19 @@ void UGA_MeleeAttack::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCoun
 	bool bActivated = false;
 	if (UAbilitySystemComponent* PlayerASC = PlayerOwner->GetASC())
 	{
+		UYogAbilitySystemComponent* PlayerYogASC = Cast<UYogAbilitySystemComponent>(PlayerASC);
 		const TCHAR* CharacterTagName = TEXT("Character.State.Skill.Attack");
 		const TCHAR* LegacyTagName = TEXT("PlayerState.AbilityCast.Attack");
 		bool bUseFallbackTag = true;
 		switch (BufferedActionType)
 		{
 		case EInputCommandType::Attack:
-			// Current player combat has no attack combo continuation. Keep this
-			// window for cancel actions, but do not chain Attack into another GA.
-			return;
+			bUseFallbackTag = false;
+			bActivated = PlayerYogASC ? PlayerYogASC->TryActivateNextAttackComboAbility(true, true) : false;
+			break;
 		case EInputCommandType::WeaponSkill:
-			CharacterTagName = TEXT("Character.State.Skill.WeaponSkill");
-			LegacyTagName = TEXT("PlayerState.AbilityCast.WeaponSkill");
+			bUseFallbackTag = false;
+			bActivated = PlayerYogASC ? PlayerYogASC->TryActivateNextWeaponSkillComboAbility(true, true) : false;
 			break;
 		case EInputCommandType::Dash:
 			CharacterTagName = TEXT("Character.State.Movement.Dash");
