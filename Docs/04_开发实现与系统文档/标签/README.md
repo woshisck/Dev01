@@ -9,6 +9,7 @@
 - `Buff.*` 是正式的一线系统，覆盖 Buff、Debuff、持续状态，以及合并后的卡牌/符文效果语义。
 - 卡牌/符文内部事件统一走 `Buff.Event.*`；`Action.Rune.*`、`Event.Rune.*` 只作为旧资产迁移来源，不作为运行时新入口。
 - 卡牌/符文表现 Cue 统一走 `GameplayCue.Buff.*`；`GameplayCue.Rune.*` 只作为旧资产兼容来源。旧 `GameplayCue.Rune.FinisherCharge` 也迁移为 `GameplayCue.Buff.FinisherCharge`，但不代表恢复旧 QTE Finisher 运行时。
+- 已迁移完成的 `Action.Rune.*` 和 `GameplayCue.Rune.*` 不再保留为正式 Tag 字典定义；旧名只通过 `Config/DefaultGameplayTags.ini` 的 `GameplayTagRedirects` 指向新 Tag。清理边界见 `GameplayTag_RedirectCleanup.md`。
 - 新内容不使用 `Buff.Status.*`、`Buff.ID.*`、`Buff.Keyword.*`、`Buff.Binding.*`、`Rune.ID.*`、`Rune.Effect.*`。
 - Rune/Card 仍可作为资产、编辑器和模块名称存在，但 GameplayTag 语义合并到 `Buff.*`。身份、槽位、触发时机、流程角色、稀有度和数值放在 DA 字段/表格里。
 - `PlayerState.AbilityCast.*`、`Card.*`、`Rune.*`、`Combo.CombatDeck.*`、`Buff.Rune.*` 只作为旧资产迁移来源或兼容读取，不作为新内容入口。
