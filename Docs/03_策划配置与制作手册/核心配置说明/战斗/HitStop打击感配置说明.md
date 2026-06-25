@@ -33,7 +33,6 @@
 - `HitStopMode = Freeze`
 - `HitStopFrozenDuration = 0.06`
 
-`DA_Attack_Sword_H2_Finisher`：
 
 - `HitStopMode = Slow`
 - `HitStopSlowDuration = 0.14`

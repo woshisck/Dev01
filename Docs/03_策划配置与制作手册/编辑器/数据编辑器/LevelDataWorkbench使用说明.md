@@ -1,4 +1,4 @@
-# Level Data Workbench 使用说明
+﻿# Level Data Workbench 使用说明
 
 ## 入口
 
@@ -102,7 +102,6 @@
 | 洗牌教学 | `Level.Stage.ShuffleRoom` | `Tutorial.Shuffle` |
 | 奖励教学 | `Level.Stage.Reward` | `Tutorial.RewardToDeck` |
 | 连携教学 | `Level.Stage.LinkCard` | `Tutorial.LinkCard` |
-| 终结技教学 | `Level.Stage.Finisher` | `Tutorial.Finisher` |
 | 路线选择 | `Level.Stage.RouteChoice` | `Tutorial.RouteRewardChoice` |
 
 这些标签不会直接决定房间内容。房间内容仍然由 `RoomDataAsset` 控制，标签只负责通知故事/教程系统“现在发生到了哪个全局阶段”。

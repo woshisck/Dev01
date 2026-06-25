@@ -1,3 +1,5 @@
+﻿> 状态：废弃。旧终结技/Finisher 卡方案已被当前“攻击出牌、满足条件后系统自动爆发”的战斗方向替代，不应作为实现或配置依据。
+
 # 终结技卡牌 — 编辑器配置指南
 
 > 关联代码：`GA_FinisherCharge.cpp` · `GA_Player_FinisherAttack.cpp` · `GA_ApplyFinisherMark.cpp`  

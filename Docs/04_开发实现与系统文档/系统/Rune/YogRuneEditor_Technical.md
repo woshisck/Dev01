@@ -173,7 +173,6 @@ SRuneEditorWidget::OnCreateRuneClicked()
 | 基础节点 | `Rune.Library.Base` | 燃烧、中毒、流血等可复用基础符文 |
 | 敌人 | `Rune.Library.Enemy` | 敌人固有能力或敌人 Buff |
 | 关卡 | `Rune.Library.Level` | 关卡全局 Buff、房间规则 |
-| 终结技 | `Rune.Library.Finisher` | 终结技或高阶主动效果 |
 | 连携卡牌 | `Rune.Library.ComboCard` | 连携卡牌相关符文 |
 
 定义位置：[`Config/DefaultGameplayTags.ini`](../../../../Config/DefaultGameplayTags.ini)

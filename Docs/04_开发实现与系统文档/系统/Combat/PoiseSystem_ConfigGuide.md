@@ -53,7 +53,6 @@
 | 攻击类型 | 推荐值 | 备注 |
 | --- | --- | --- |
 | 轻击 | 20（默认） | 配合玩家 Resilience=100，合计 120 |
-| 重击 / 终结技 | 50 | 合计 150，可打穿精英敌人 |
 | 符文追加打击 | 0~30 | 视效果强度决定 |
 
 `GA_MeleeAttack::OnEventReceived` 在命中 Notify 触发时自动写入 `CurrentActionPoiseBonus`，`ReceiveDamage` 读取后立即清零，无需手动维护。

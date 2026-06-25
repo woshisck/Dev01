@@ -1,4 +1,4 @@
-# 冲刺与 DashSave
+﻿# 冲刺与 DashSave
 
 ## 目标
 
@@ -21,7 +21,6 @@ DashSave 不只保留战斗连招，也要保留卡牌连携上下文。
 | 内容 | 是否保留 | 说明 |
 | --- | --- | --- |
 | 当前连招段 | 是 | 冲刺后允许继续衔接下一段 |
-| Combo Finisher 判断 | 是 | 不能因为冲刺导致终结击丢失 |
 | 上一张卡牌上下文 | 是 | Link 卡需要读取上一张或传递给下一张 |
 | 当前卡组 Index | 是 | DashSave 不额外跳卡、不回退卡 |
 | 洗牌冷却 | 是 | DashSave 不暂停洗牌计时 |
@@ -31,13 +30,11 @@ DashSave 不只保留战斗连招，也要保留卡牌连携上下文。
 DashSave 后的攻击需要调用：
 
 ```cpp
-ResolveAttackCard(ActionType, bIsComboFinisher, true);
 ```
 
 普通攻击调用：
 
 ```cpp
-ResolveAttackCard(ActionType, bIsComboFinisher, false);
 ```
 
 ## 验收标准

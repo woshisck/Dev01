@@ -1,4 +1,4 @@
-# 卡组 UI 事件
+﻿# 卡组 UI 事件
 
 ## 目标
 
@@ -17,7 +17,6 @@ UI 不直接读取卡组内部数组，而是监听 `CombatDeckComponent` 派发
 | `OnBackwardLinkPending` | 连携卡等待赋能后一张 | 在下一张卡上显示轻量预告 |
 | `OnBackwardLinkTriggered` | 后一张卡接受赋能成功 | 显示反向赋能原因文案 |
 | `OnLinkBroken` | 战斗系统通知退出连招状态、下一张不满足或洗牌清理等待 | 显示轻量断链释放反馈 |
-| `OnFinisherTriggered` | 后续终结技阶段使用 | 播放更强的终结反馈 |
 | `OnShuffleStarted` | 最后一张卡被消耗 | UI 清空，显示装填状态 |
 | `OnShuffleProgress` | 洗牌冷却中 | 更新进度条或倒计时 |
 | `OnShuffleCompleted` | 洗牌结束 | 重新显示固定顺序卡组 |

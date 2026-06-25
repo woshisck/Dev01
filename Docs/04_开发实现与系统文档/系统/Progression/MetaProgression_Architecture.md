@@ -1,4 +1,4 @@
-# YogMetaProgressionSubsystem 元进度系统架构
+﻿# YogMetaProgressionSubsystem 元进度系统架构
 
 > 最后更新：2026-05-28
 > 源文件：`Source/DevKit/Public/MetaProgression/YogMetaProgressionSubsystem.h`
@@ -75,9 +75,7 @@
 | 接口 | 说明 |
 | --- | --- |
 | `AddCraftedStarterRune(FPrimaryAssetId)` | 添加一个打造好的开局符文 |
-| `AddCraftedWeaponFinisher(FPrimaryAssetId)` | 添加打造好的武器终结技 |
 | `GetCraftedStarterRunes()` | 读取（局内 BeginPlay 时 AsyncLoad + Grant） |
-| `GetCraftedWeaponFinishers()` | 同上 |
 
 ### 结算
 

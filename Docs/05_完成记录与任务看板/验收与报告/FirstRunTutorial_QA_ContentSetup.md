@@ -1,4 +1,4 @@
-# First-Run Tutorial QA / Content Setup
+﻿# First-Run Tutorial QA / Content Setup
 
 ## Content Setup
 
@@ -15,7 +15,6 @@
   - `PortalIndex` defaults to `0`; change it in the node if the target door should be different.
 - Prayer room:
   - Fill `RoomDataOverride` with the real prayer room `RoomDataAsset` when that asset is ready.
-  - Confirm the altar uses the sacrifice flow that triggers finisher grant.
 - Moonlight special enemy:
   - Fill `SpecialRewardEnemyAuraFX` with the persistent blue aura Niagara asset.
   - Confirm `SpecialRewardEnemyLootOptions` contains only the Moonlight card.
@@ -41,12 +40,9 @@
   - Picking gold/material should play the immediate pickup path and should not open card choice UI.
 - Prayer / forced defeat:
   - Prayer room altar allows sacrificing one card.
-  - Finisher card is granted and its tutorial popup appears.
-  - Forced survival starts immediately after the finisher grant.
   - Player death skips the normal GameOver menu and returns to hub.
 - Post tutorial:
   - InitialRoom shows only the formal weapon.
-  - New run deck is `Attack, Attack, Moonlight, Finisher`.
 
 ## Useful Logs
 

@@ -1,4 +1,4 @@
-# 导演系统接口汇总
+﻿# 导演系统接口汇总
 
 > 最后更新：2026-05-28
 > 维护规范：见 [DocConventions.md](../../../00_入口与规范/DocConventions.md)
@@ -46,7 +46,6 @@
 - **调用时机**：任意（运行时）
 - **效果**：触发 RuleSet 中匹配该 EventTag 的规则
 - **副作用**：可能触发 Action（弹窗/标志位/任务/解锁等），取决于规则配置
-- **已用于**：月光卡获取（`Story.Event.FirstRun.MoonlightObtained`）、终结技获取（`Story.Event.FirstRun.FinisherObtained`）
 
 ---
 
@@ -104,7 +103,6 @@
 **接口**：`GameMode->StartForcedSurvivalEncounter()`
 **源文件**：`GameModes/YogGameMode.h`
 
-- **调用时机**：运行时直接指令（教程终结技获取后）
 - **效果**：强制触发 Survival 遭遇战（教程最终战）
 - **限制**：当前实现依赖已有的 WavePlan 配置，不等同于"自由指定遭遇内容"；与普通刷怪流程互斥
 
@@ -118,9 +116,6 @@
 | --- | --- | --- | --- |
 | `HandleArrangementPhase(GameMode*)` | AYogGameMode | 每次房间生成前 | 导演写入下一关的 Plan |
 | `HandleRewardRuneAdded(Rune, Player)` | 奖励发放逻辑 | 玩家拾取符文奖励时 | 检查是否为月光卡，触发相应事件 |
-| `HandleSacrificeConfirmed(Rune, Player)` | 献祭系统 | 玩家确认献祭时 | PrayerRoom 阶段强制给予终结技，启动最终战 |
-| `ResolveSacrificeRewardOverride(DefaultRune)` | 献祭系统 | 生成献祭奖励时 | PrayerRoom 阶段覆盖默认奖励为终结技 |
-| `IsPrayerSacrificeOverrideActive()` | 献祭 UI | 显示献祭奖励前 | 判断是否激活终结技覆盖 |
 | `ShouldHandleScriptedDefeatDeath()` | AYogGameMode | 玩家死亡时 | 判断是否应走教程脚本死亡流程 |
 | `HandleScriptedDefeatDeath(GameMode*)` | AYogGameMode | 教程最终战结束时 | 执行完整教程结束状态清理 |
 | `HandleFirstBackpackOpened(PC*)` | BackpackScreenWidget | 背包首次打开时 | 月光阶段后显示背包教程弹窗（仅一次） |

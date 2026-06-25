@@ -1,4 +1,4 @@
-# StoryEngineSubsystem 故事引擎架构
+﻿# StoryEngineSubsystem 故事引擎架构
 
 > 最后更新：2026-05-28
 > 源文件：`Source/DevKit/Public/Story/StoryEngineSubsystem.h`
@@ -154,7 +154,6 @@ TArray<FStoryEventContext> PendingEvents;
 | 接口 | 使用场景 |
 | --- | --- |
 | `ExecuteStoryAction(Action, Context)` | 触发弹窗、设置标志位、任务目标等 |
-| `BroadcastStoryEventWithPayload(...)` | 推进叙事规则（月光获取、终结技获取等） |
 | `SetStoryFlag(Tag, Scope, bool)` | 直接写入进度标志，绕过规则匹配 |
 
 **与导演的关系**：导演是调用方，StoryEngine 是执行引擎。导演知道"发生了什么"，StoryEngine 知道"该触发哪些规则"。

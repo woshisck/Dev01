@@ -74,7 +74,6 @@ Root: CanvasPanel
 ## 6. 使用说明
 | 操作 | 效果 |
 | --- | --- |
-| 点击 `全部/普通/暴击/符文/流血/卡牌/终结技/连携/洗牌` | 按事件类型过滤 |
 | 攻击者下拉 | 只看指定来源；名称会自动清理 `BP_`、`_C`、数字后缀 |
 | 目标下拉 | 只看指定目标 |
 | 调试勾选 | 日志行追加 `DamageType`、`BaseAttack x ActionMultiplier x DmgTaken` 和卡牌标记 |
@@ -93,7 +92,6 @@ Root: CanvasPanel
 | 卡牌 | 淡蓝 |
 | 匹配 | 青色 |
 | 连携 | 橙色 |
-| 终结技 | 金色 |
 
 ## 8. 验收方式
 1. 打开 `EUW_CombatLog`，进入 PIE。

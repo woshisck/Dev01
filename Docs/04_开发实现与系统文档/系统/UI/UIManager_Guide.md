@@ -72,7 +72,6 @@ Layer 字段含义：
 | CombatItemBar | WBP_CombatItemBar | —（忽略） | Game | ❌ | 战斗道具栏（消耗品/格挡卡片）。**不走 viewport，作为子控件挂在 MainHUD 的 BottomRightPlayerInfoRegion Overlay 里**，ZOrder 字段无效；填什么都不会改变叠放顺序。 |
 | TutorialPopup | WBP_TutorialPopup | — | Menu | ❌ | 新手引导弹窗。TutorialManager 监听 EventID 触发；不 AddToViewport，由 Manager 控制显隐。 |
 | PauseMenu | WBP_PauseMenu | 100 | Modal | ❌ | 暂停菜单（ESC / 开始键触发）。Activatable，最高层覆盖；OpenPauseMenu 时按需创建。 |
-| FinisherQTE | WBP_FinisherQTE | 30 | Game | ❌ | 处决 QTE 提示窗口。AN_FinisherWindow 期间显示按键提示，确认/超时后隐藏。 |
 | WeaponFloat | WBP_WeaponFloat | 13 | Game | ❌ | 武器拾取浮窗（卡牌列表）。靠近 WeaponSpawner 时世界坐标投影显示，淡入淡出。 |
 | WeaponThumbnailFly | WBP_WeaponThumbnailFly | 10 | Game | ❌ | 拾武器后从拾取点飞向左下角玻璃图标的动画 Widget。一次性，TriggerWeaponPickup 创建。 |
 | WeaponTrail | WBP_WeaponTrail | 9 | Game | ❌ | WeaponThumbnailFly 的流光拖尾伴随特效。 |
@@ -210,7 +209,6 @@ if (UBackpackScreenWidget* BP = UI->GetTypedWidget<UBackpackScreenWidget>(EYogUI
 | SacrificeGraceOption | ✅ | 同上 |
 | TutorialPopup | ✅ | HUD::BeginPlay 适配 |
 | PauseMenu | ❌ | 仍用 OpenPauseMenu 内的 CreateWidget |
-| FinisherQTE / CurrentRoomBuff / CombatItemBar | ❌ | 仍用 Ensure*Widget 老路 |
 | WeaponFloat / Thumbnail / Trail / LevelEndReveal | ❌ | 仍用各自路径 |
 | Portal* | ❌ | 仍用各自路径 |
 
@@ -304,7 +302,6 @@ void HandlePauseMenuReady(EYogUIScreenId ScreenId, UCommonActivatableWidget* Wid
 | Step 3 | ✅ | `EYogUILayer` + `ActivatedScreens` 追踪 + `OnTopLayerChanged` |
 | Step 4 | ✅ | `ApplyInputModeForLayer` 自动切 GameOnly / GameAndUI + 设 DesiredFocus |
 | Step 5 | ✅ | `PushScreenAsync` 走 StreamableManager |
-| 后续 | ⏳ | 把 PauseMenu / FinisherQTE / Portal* 也迁到 Subsystem；引入 `UCommonActivatableWidgetStack` 做真 stack 容器 |
 
 ---
 

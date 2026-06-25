@@ -1,4 +1,4 @@
-# Codex-UI表现组开发方案
+﻿# Codex-UI表现组开发方案
 
 ## 组定位
 
@@ -12,7 +12,6 @@
 | 卡牌消耗表现 | 当前卡淡出、移走或点亮后消失 |
 | 动作匹配反馈 | Light / Heavy 匹配时给明确反馈 |
 | 连携提示 | 告诉玩家为什么触发连携 |
-| 终结技提示 | 终结击触发卡牌时给更强反馈 |
 | 洗牌装填 UI | 卡组打空后 UI 清空或显示进度 |
 | 奖励加入提示 | 三选一后提示奖励已加入卡组 |
 
@@ -32,7 +31,6 @@
 | `OnCardConsumed` | 移除或淡出当前卡 |
 | `OnActionMatched` | 播放匹配反馈 |
 | `OnLinkTriggered` | 显示连携原因 |
-| `OnFinisherTriggered` | 播放终结技强化表现 |
 | `OnShuffleStarted` | 清空卡组条，进入装填状态 |
 | `OnShuffleProgress` | 更新装填进度 |
 | `OnShuffleCompleted` | 按固定顺序回填卡组条 |
@@ -46,7 +44,6 @@
 
 - 月光读取上一张攻击牌：伤害提升。
 - 火种已传递：下一张卡获得爆发。
-- 终结击命中：卡牌效果强化。
 - 热度加压：连携倍率提升。
 - 装填完成：卡组已回填。
 
@@ -56,7 +53,6 @@
 2. 新增 1D 卡组条基础布局。
 3. 接入 `OnDeckLoaded` 和 `OnCardConsumed`。
 4. 接入 `OnShuffleStarted`、`OnShuffleProgress`、`OnShuffleCompleted`。
-5. 接入匹配、连携、终结技提示。
 6. 接入奖励加入卡组提示。
 7. 做一轮战斗截图检查，确认 UI 不挡住战斗主体。
 

@@ -1,4 +1,4 @@
-# 敌人连击蒙太奇配置指南
+﻿# 敌人连击蒙太奇配置指南
 
 **功能模块**：`UAN_EnemyComboSection` AnimNotify + 攻击 GA  
 **适用对象**：使用单一蒙太奇完成多段连击的敌人  
@@ -24,7 +24,6 @@ Atk1  Atk2  Atk3
 ```
 也可以用语义化名称，例如：
 ```
-Slash1  Slash2  Slash3_Finisher
 ```
 
 Section 的顺序在 Timeline 上会显示为：

@@ -15,7 +15,6 @@
 | 处理攻击消耗 | 每次攻击事件尝试消耗当前卡牌 |
 | 处理普通释放 | 普通卡攻击出牌即触发 BaseFlow |
 | 处理连携 | 少数 Link 卡根据前后卡、连招是否继续和条件配置触发正向/反向/断链结果 |
-| 处理终结技 | 本阶段暂不扩展，后续单独整理 |
 | 处理洗牌冷却 | 卡牌打空后进入 EmptyShuffling |
 | 派发 UI 事件 | 通知 UI 卡牌消耗、洗牌开始、洗牌完成等状态 |
 
@@ -37,7 +36,6 @@
 ```cpp
 FCombatCardResolveResult ResolveAttackCard(
     ECardRequiredAction ActionType,
-    bool bIsComboFinisher,
     bool bFromDashSave
 );
 ```
