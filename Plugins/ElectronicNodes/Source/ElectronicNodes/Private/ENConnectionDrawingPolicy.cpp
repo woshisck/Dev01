@@ -621,8 +621,9 @@ void FENConnectionDrawingPolicy::DrawDebugPoint(const FVector2D& Position, FLine
 
 void FENConnectionDrawingPolicy::ENComputeClosestPoint(const FVector2D& Start, const FVector2D& End)
 {
-	const FVector2D TemporaryPoint = FMath::ClosestPointOnSegment2D(LocalMousePosition, Start, End);
-	const float TemporaryDistance = (LocalMousePosition - TemporaryPoint).SizeSquared();
+	const FVector2D MousePosition(LocalMousePosition.X, LocalMousePosition.Y);
+	const FVector2D TemporaryPoint = FMath::ClosestPointOnSegment2D(MousePosition, Start, End);
+	const float TemporaryDistance = (MousePosition - TemporaryPoint).SizeSquared();
 
 	if (TemporaryDistance < ClosestDistanceSquared)
 	{
@@ -638,7 +639,8 @@ void FENConnectionDrawingPolicy::ENComputeClosestPointDefault(const FVector2D& S
 	const FVector2D MaxEnd = FVector2D(FMath::Max(Start.X, End.X) + Offset, FMath::Max(Start.Y, End.Y));
 
 	const FBox2D Bounds(MinStart, MaxEnd);
-	const bool bCloseToSpline = Bounds.ComputeSquaredDistanceToPoint(LocalMousePosition) < 1.0f;
+	const FVector2D MousePosition(LocalMousePosition.X, LocalMousePosition.Y);
+	const bool bCloseToSpline = Bounds.ComputeSquaredDistanceToPoint(MousePosition) < 1.0f;
 
 	if (bCloseToSpline)
 	{
@@ -649,8 +651,8 @@ void FENConnectionDrawingPolicy::ENComputeClosestPointDefault(const FVector2D& S
 		{
 			const FVector2D PointOnSpline2 = FMath::CubicInterp(Start, StartTangent * Tangent, End, EndTangent * Tangent, TestAlpha + StepInterval);
 
-			const FVector2D ClosestPointToSegment = FMath::ClosestPointOnSegment2D(LocalMousePosition, PointOnSpline1, PointOnSpline2);
-			const float DistanceSquared = (LocalMousePosition - ClosestPointToSegment).SizeSquared();
+			const FVector2D ClosestPointToSegment = FMath::ClosestPointOnSegment2D(MousePosition, PointOnSpline1, PointOnSpline2);
+			const float DistanceSquared = (MousePosition - ClosestPointToSegment).SizeSquared();
 
 			if (DistanceSquared < ClosestDistanceSquared)
 			{

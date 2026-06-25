@@ -84,7 +84,7 @@ void FGameplayAbilityComboGraphNodeDetails::CustomizeDetails(IDetailLayoutBuilde
 					Options.Mode = EClassViewerMode::ClassPicker;
 					Options.bShowUnloadedBlueprints = true;
 					Options.bShowNoneOption = true;
-					Options.ClassFilter = MakeShared<FComboAbilityClassFilter>();
+					Options.ClassFilters.Add(MakeShared<FComboAbilityClassFilter>());
 
 					return FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer")
 						.CreateClassViewer(Options,

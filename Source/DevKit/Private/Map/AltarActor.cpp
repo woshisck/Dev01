@@ -67,7 +67,7 @@ AAltarActor::AAltarActor()
 	AltarMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> DefaultAltarMesh(
-		TEXT("/Game/Art/EnvironmentAsset/Prox_Box/SM_GothicAltar01.SM_GothicAltar01"));
+		TEXT("/Engine/BasicShapes/Cube.Cube"));
 	if (DefaultAltarMesh.Succeeded())
 	{
 		AltarMesh->SetStaticMesh(DefaultAltarMesh.Object);

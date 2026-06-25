@@ -113,13 +113,13 @@ namespace
 		return FMath::Clamp(MaxProjectileLifetime + 0.35f, 0.25f, 5.0f);
 	}
 
-	bool CombatCardHasId(const FCombatCardConfig& Config, const TCHAR* TagName)
+	bool CombatDeckCardHasId(const FCombatCardConfig& Config, const TCHAR* TagName)
 	{
 		const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(TagName, false);
 		return Tag.IsValid() && Config.CardIdTag == Tag;
 	}
 
-	bool CombatCardHasEffect(const FCombatCardConfig& Config, const TCHAR* TagName)
+	bool CombatDeckCardHasEffect(const FCombatCardConfig& Config, const TCHAR* TagName)
 	{
 		const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(TagName, false);
 		return Tag.IsValid() && Config.CardEffectTags.HasTagExact(Tag);
@@ -416,12 +416,12 @@ namespace
 		}
 
 		return Config.CardType == ECombatCardType::Finisher
-			|| CombatCardHasId(Config, TEXT("Buff.Finisher"))
-			|| CombatCardHasId(Config, TEXT("Rune.ID.Finisher"))
-			|| CombatCardHasId(Config, TEXT("Card.ID.Finisher"))
-			|| CombatCardHasEffect(Config, TEXT("Buff.Finisher"))
-			|| CombatCardHasEffect(Config, TEXT("Rune.Effect.Finisher"))
-			|| CombatCardHasEffect(Config, TEXT("Card.Effect.Finisher"));
+			|| CombatDeckCardHasId(Config, TEXT("Buff.Finisher"))
+			|| CombatDeckCardHasId(Config, TEXT("Rune.ID.Finisher"))
+			|| CombatDeckCardHasId(Config, TEXT("Card.ID.Finisher"))
+			|| CombatDeckCardHasEffect(Config, TEXT("Buff.Finisher"))
+			|| CombatDeckCardHasEffect(Config, TEXT("Rune.Effect.Finisher"))
+			|| CombatDeckCardHasEffect(Config, TEXT("Card.Effect.Finisher"));
 	}
 }
 
@@ -1240,14 +1240,14 @@ FCombatCardInstance UCombatDeckComponent::MakeCardFromRune(URuneDataAsset* RuneA
 	Card.LinkOrientation = Card.Config.DefaultLinkOrientation;
 
 	const bool bIsWeaponSkillFinisherCard =
-		CombatCardHasId(Card.Config, TEXT("Buff.WeaponSkillFinisher"))
-		|| CombatCardHasEffect(Card.Config, TEXT("Buff.Detonate"))
-		|| CombatCardHasId(Card.Config, TEXT("Rune.ID.WeaponSkillFinisher"))
-		|| CombatCardHasEffect(Card.Config, TEXT("Rune.Effect.Detonate"))
-		|| CombatCardHasId(Card.Config, TEXT("Rune.ID.Heavy"))
-		|| CombatCardHasId(Card.Config, TEXT("Card.ID.Heavy"))
-		|| CombatCardHasEffect(Card.Config, TEXT("Rune.Effect.Heavy"))
-		|| CombatCardHasEffect(Card.Config, TEXT("Card.Effect.Heavy"));
+		CombatDeckCardHasId(Card.Config, TEXT("Buff.WeaponSkillFinisher"))
+		|| CombatDeckCardHasEffect(Card.Config, TEXT("Buff.Detonate"))
+		|| CombatDeckCardHasId(Card.Config, TEXT("Rune.ID.WeaponSkillFinisher"))
+		|| CombatDeckCardHasEffect(Card.Config, TEXT("Rune.Effect.Detonate"))
+		|| CombatDeckCardHasId(Card.Config, TEXT("Rune.ID.Heavy"))
+		|| CombatDeckCardHasId(Card.Config, TEXT("Card.ID.Heavy"))
+		|| CombatDeckCardHasEffect(Card.Config, TEXT("Rune.Effect.Heavy"))
+		|| CombatDeckCardHasEffect(Card.Config, TEXT("Card.Effect.Heavy"));
 	if (bIsWeaponSkillFinisherCard)
 	{
 		AddCombatCardEffect(Card.Config, TEXT("Buff.Attack"));

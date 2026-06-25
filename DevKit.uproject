@@ -1,6 +1,6 @@
 {
 	"FileVersion": 3,
-	"EngineAssociation": "5.4",
+	"EngineAssociation": "5.8",
 	"Category": "",
 	"Description": "",
 	"Modules": [
@@ -77,6 +77,22 @@
 			"Enabled": true
 		},
 		{
+			"Name": "DataRegistry",
+			"Enabled": true
+		},
+		{
+			"Name": "ReplicationGraph",
+			"Enabled": true
+		},
+		{
+			"Name": "OnlineFramework",
+			"Enabled": true
+		},
+		{
+			"Name": "Gauntlet",
+			"Enabled": true
+		},
+		{
 			"Name": "AbilitySystemGameFeatureActions",
 			"Enabled": true
 		},
@@ -103,10 +119,6 @@
 		{
 			"Name": "MassAI",
 			"Enabled": false
-		},
-		{
-			"Name": "MassEntity",
-			"Enabled": true
 		},
 		{
 			"Name": "MassGameplay",

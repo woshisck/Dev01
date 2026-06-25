@@ -48,6 +48,7 @@ public class DevKit : ModuleRules
                 "GameplayAbilities",
                 "Flow",
                 "GenericGraphRuntime",
+                "MotionWarping",
 
             });
 

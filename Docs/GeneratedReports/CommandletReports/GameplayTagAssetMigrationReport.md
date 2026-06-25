@@ -2,12 +2,12 @@
 - Mode: `DryRun`
 - Root: `/Game`
 - IncludeDeprecated: `false`
-- Assets visited: `6526`
+- Assets visited: `3438`
 - Assets with migration hits: `1`
 - Tags would change: `0`
 - Tags changed: `0`
 - Report-only hits: `3`
-- Skipped World assets: `177`
+- Skipped World assets: `92`
 
 
 - REPORT_ONLY `Rune.ID.Finisher` at `/Game/YogRuneEditor/Runes/DA_Rune_Finisher.DA_Rune_Finisher.RuneInfo.RuneConfig.RuneIdTag`: Deprecated QTE finisher rune id. Keep disabled as compatibility data instead of auto-migrating it to the formal Buff runtime path.

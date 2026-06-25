@@ -450,7 +450,7 @@ void UBuffFlowComponent::RecordTrace(
 	const int32 Cap = FMath::Clamp(MaxTraceEntries, 16, 1000);
 	while (TraceEntries.Num() > Cap)
 	{
-		TraceEntries.Pop(false);
+		TraceEntries.Pop(EAllowShrinking::No);
 	}
 
 	if (bTraceEnabled)

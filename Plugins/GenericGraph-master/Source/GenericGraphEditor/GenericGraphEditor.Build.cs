@@ -6,7 +6,7 @@ public class GenericGraphEditor : ModuleRules
     {
         PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 		bLegacyPublicIncludePaths = false;
-		ShadowVariableWarningLevel = WarningLevel.Error;
+		CppCompileWarningSettings.ShadowVariableWarningLevel = WarningLevel.Error;
 
 		PublicIncludePaths.AddRange(
 			new string[] {

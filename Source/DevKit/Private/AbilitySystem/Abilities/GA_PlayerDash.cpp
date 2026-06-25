@@ -420,7 +420,7 @@ void UGA_PlayerDash::EndAbility(
 		if (GEngine)
 		{
 			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Cyan,
-				FString::Printf(TEXT("[Dash] 总位 %.0f UU (.1f m) | 配置最 %.0f UU"),
+				FString::Printf(TEXT("[Dash] 总位 %.0f UU (%.1f m) | 配置最 %.0f UU"),
 					TotalDist, TotalDist * 0.01f, DashMaxDistance));
 		}
 

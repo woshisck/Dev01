@@ -102,6 +102,11 @@ namespace
 		{
 		}
 
+		virtual FOnAnimationEditorObjectsSelected& OnAnimationEditorObjectsSelected() override
+		{
+			return OnAnimationEditorObjectsSelectedDelegate;
+		}
+
 		virtual TSharedRef<IPersonaToolkit> GetPersonaToolkit() const override
 		{
 			return PersonaToolkit.Pin().ToSharedRef();
@@ -210,6 +215,7 @@ namespace
 		TWeakObjectPtr<UAnimationAsset> AnimationAsset;
 		TObjectPtr<UYogComboGraphTransientEditorObject> TransientEditorObject;
 		FOnEditCurves OnEditCurves;
+		FOnAnimationEditorObjectsSelected OnAnimationEditorObjectsSelectedDelegate;
 		TArray<UObject*> EditingObjects;
 	};
 }

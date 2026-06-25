@@ -8,7 +8,10 @@ public:
 	virtual void StartupModule() override
 	{
 		const FString ShaderDir = FPaths::Combine(FPaths::ProjectDir(), TEXT("Shaders"));
-		AddShaderSourceDirectoryMapping(TEXT("/Project"), ShaderDir);
+		if (!AllShaderSourceDirectoryMappings().Contains(TEXT("/Project")))
+		{
+			AddShaderSourceDirectoryMapping(TEXT("/Project"), ShaderDir);
+		}
 	}
 };
 

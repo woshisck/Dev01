@@ -3,7 +3,7 @@
 	"Version": 1,
 	"VersionName": "1.0",
 	"FriendlyName": "Celes Light",
-	"Description": "赛璐璐风格灯光采集工具：通过场景采集盒体记录范围内灯光，默认写入 4 盏、最高 16 盏，并输出 RT/CRT 供材质自行采样。",
+	"Description": "Celes Light capture and rendering tools.",
 	"Category": "Rendering/Celes Light",
 	"CreatedBy": "",
 	"CreatedByURL": "",

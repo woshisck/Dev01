@@ -21,7 +21,8 @@ public class ElectronicNodes : ModuleRules
 			{
 				Path.Combine(enginePath, "Source/Editor/AnimationBlueprintEditor/Private/"),
 				Path.Combine(enginePath, "Source/Editor/BehaviorTreeEditor/Private/"),
-				Path.Combine(enginePath, "Source/Editor/GraphEditor/Private/")
+				Path.Combine(enginePath, "Source/Editor/GraphEditor/Private/"),
+				Path.Combine(enginePath, "Source/Editor/MaterialEditor/Private/")
 			}
 		);
 
@@ -47,6 +48,7 @@ public class ElectronicNodes : ModuleRules
 				"BlueprintGraph",
 				"AnimGraph",
 				"AnimationBlueprintEditor",
+				"MaterialEditor",
 				"AIGraph",
 				"BehaviorTreeEditor",
 				"DeveloperSettings",

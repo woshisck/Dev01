@@ -26,7 +26,7 @@ bool FComboGraphEditorSchemaOmitsDodgeRootPresetTest::RunTest(const FString& Par
 	bool bFoundDodgeRootAction = false;
 	for (int32 ActionIndex = 0; ActionIndex < ContextMenuBuilder.GetNumActions(); ++ActionIndex)
 	{
-		FGraphActionListBuilderBase::ActionGroup& ActionGroup = ContextMenuBuilder.GetAction(ActionIndex);
+		const FGraphActionListBuilderBase::ActionGroup ActionGroup = ContextMenuBuilder.GetAction(ActionIndex);
 		for (const TSharedPtr<FEdGraphSchemaAction>& Action : ActionGroup.Actions)
 		{
 			if (Action.IsValid() && Action->GetMenuDescription().ToString() == TEXT("Dodge Action Root Node"))

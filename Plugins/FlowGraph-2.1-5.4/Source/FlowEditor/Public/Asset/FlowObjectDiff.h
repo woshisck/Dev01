@@ -2,7 +2,11 @@
 
 #pragma once
 
+#if ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION >= 8
+#include "Editor/Kismet/Internal/DiffControl.h"
+#else
 #include "Editor/Kismet/Private/DiffControl.h"
+#endif
 
 class FBlueprintDifferenceTreeEntry;
 class FDetailsDiff;

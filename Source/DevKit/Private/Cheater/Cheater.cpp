@@ -415,7 +415,7 @@ void UYogCheatManager::Yog_FreezeEnemies(bool bFreeze)
 		}
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[GM] s %d 个敌"), bFreeze ? TEXT("冻结") : TEXT("解冻"), Count);
+	UE_LOG(LogTemp, Log, TEXT("[GM] %s %d 个敌"), bFreeze ? TEXT("冻结") : TEXT("解冻"), Count);
 }
 
 // ─── Debug 打印 ───────────────────────────────────────────────────────────────

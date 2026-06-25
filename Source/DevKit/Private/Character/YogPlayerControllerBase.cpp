@@ -30,6 +30,7 @@
 #include "UI/YogInputKeyUtils.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "GameFramework/PlayerInput.h"
+#include "InputKeyEventArgs.h"
 #include "InputCoreTypes.h"
 #include "GameplayTagContainer.h"
 
@@ -400,13 +401,15 @@ void AYogPlayerControllerBase::SetupInputComponent()
 
 }
 
-bool AYogPlayerControllerBase::InputKey(const FInputKeyParams& Params)
+bool AYogPlayerControllerBase::InputKey(const FInputKeyEventArgs& Params)
 {
-	if (Params.Key.IsGamepadKey())
+	if (Params.IsGamepad() || Params.Key.IsGamepadKey())
 	{
 		SetGameplayCursorUsesMouse(false);
 	}
-	else if (Params.Key.IsMouseButton() || Params.Key == EKeys::MouseX || Params.Key == EKeys::MouseY
+	else if (Params.Key.IsMouseButton() || (Params.Event == IE_Axis && !FMath::IsNearlyZero(Params.AmountDepressed)
+		&& (Params.Key == EKeys::MouseX || Params.Key == EKeys::MouseY || Params.Key == EKeys::Mouse2D))
+		|| Params.Key == EKeys::MouseX || Params.Key == EKeys::MouseY
 		|| Params.Key == EKeys::Mouse2D || Params.Key == EKeys::MouseWheelAxis
 		|| Params.Key == EKeys::MouseScrollUp || Params.Key == EKeys::MouseScrollDown)
 	{
@@ -421,9 +424,9 @@ bool AYogPlayerControllerBase::InputKey(const FInputKeyParams& Params)
 	if (!IsGameplayInputBlocked())
 	{
 		float WeaponFloatScrollDirection = 0.f;
-		if (Params.Key == EKeys::MouseWheelAxis && !FMath::IsNearlyZero(Params.Delta.X))
+		if (Params.Key == EKeys::MouseWheelAxis && !FMath::IsNearlyZero(Params.AmountDepressed))
 		{
-			WeaponFloatScrollDirection = -FMath::Sign(Params.Delta.X);
+			WeaponFloatScrollDirection = -FMath::Sign(Params.AmountDepressed);
 		}
 		else if (Params.Event == IE_Pressed && Params.Key == EKeys::MouseScrollUp)
 		{
@@ -471,20 +474,6 @@ bool AYogPlayerControllerBase::InputKey(const FInputKeyParams& Params)
 	}
 
 	return Super::InputKey(Params);
-}
-
-bool AYogPlayerControllerBase::InputAxis(FKey Key, float Delta, float DeltaTime, int32 NumSamples, bool bGamepad)
-{
-	if (bGamepad || Key.IsGamepadKey())
-	{
-		SetGameplayCursorUsesMouse(false);
-	}
-	else if (!FMath::IsNearlyZero(Delta) && (Key == EKeys::MouseX || Key == EKeys::MouseY || Key == EKeys::Mouse2D))
-	{
-		SetGameplayCursorUsesMouse(true);
-	}
-
-	return Super::InputAxis(Key, Delta, DeltaTime, NumSamples, bGamepad);
 }
 
 bool AYogPlayerControllerBase::HandleMenuBackInput(const FKey& Key)
