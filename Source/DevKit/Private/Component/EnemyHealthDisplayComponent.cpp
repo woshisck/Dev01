@@ -20,13 +20,16 @@
 #include "NiagaraSystemInstance.h"
 #include "NiagaraSystemInstanceController.h"
 #include "TimerManager.h"
-#include "UObject/ConstructorHelpers.h"
 #include "UObject/UnrealType.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogEnemyHealthDisplay, Log, All);
 
 namespace
 {
+	constexpr TCHAR DefaultHealthBarMaterialPath[] =
+		TEXT("/Game/UI/Health_NiagaraUI/M_NiagaraUI_Health_Direct.M_NiagaraUI_Health_Direct");
+	constexpr TCHAR DefaultHealthBarSystemPath[] =
+		TEXT("/Game/UI/Health_NiagaraUI/NS_EnemyHealth.NS_EnemyHealth");
 	constexpr TCHAR DefaultDamageValueSystemPath[] =
 		TEXT("/Game/UI/Health_NiagaraUI/NS_EnemyDamageValue.NS_EnemyDamageValue");
 
@@ -216,26 +219,9 @@ UEnemyHealthDisplayComponent::UEnemyHealthDisplayComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
 
-	static ConstructorHelpers::FObjectFinder<UMaterialInterface> DefaultHealthBarMaterial(
-		TEXT("/Game/UI/Health_NiagaraUI/M_NiagaraUI_Health_Direct.M_NiagaraUI_Health_Direct"));
-	if (DefaultHealthBarMaterial.Succeeded())
-	{
-		HealthBarMaterial = DefaultHealthBarMaterial.Object;
-	}
-
-	static ConstructorHelpers::FObjectFinder<UNiagaraSystem> DefaultHealthBarSystem(
-		TEXT("/Game/UI/Health_NiagaraUI/NS_EnemyHealth.NS_EnemyHealth"));
-	if (DefaultHealthBarSystem.Succeeded())
-	{
-		HealthBarSystem = DefaultHealthBarSystem.Object;
-	}
-
-	static ConstructorHelpers::FObjectFinder<UNiagaraSystem> DefaultDamageValueSystem(
-		DefaultDamageValueSystemPath);
-	if (DefaultDamageValueSystem.Succeeded())
-	{
-		DamageValueSystem = DefaultDamageValueSystem.Object;
-	}
+	DefaultHealthBarMaterial = TSoftObjectPtr<UMaterialInterface>(FSoftObjectPath(DefaultHealthBarMaterialPath));
+	DefaultHealthBarSystem = TSoftObjectPtr<UNiagaraSystem>(FSoftObjectPath(DefaultHealthBarSystemPath));
+	DefaultDamageValueSystem = TSoftObjectPtr<UNiagaraSystem>(FSoftObjectPath(DefaultDamageValueSystemPath));
 }
 
 void UEnemyHealthDisplayComponent::BeginPlay()
@@ -1342,9 +1328,42 @@ void UEnemyHealthDisplayComponent::LogNiagaraRuntimeDiagnostics(
 	}
 }
 
+UNiagaraSystem* UEnemyHealthDisplayComponent::ResolveHealthBarSystem()
+{
+	if (UNiagaraSystem* ConfiguredSystem = HealthBarSystem.Get())
+	{
+		return ConfiguredSystem;
+	}
+
+	if (DefaultHealthBarSystem.IsNull())
+	{
+		return nullptr;
+	}
+
+	HealthBarSystem = DefaultHealthBarSystem.LoadSynchronous();
+	return HealthBarSystem.Get();
+}
+
+UMaterialInterface* UEnemyHealthDisplayComponent::ResolveHealthBarMaterial()
+{
+	if (UMaterialInterface* ConfiguredMaterial = HealthBarMaterial.Get())
+	{
+		return ConfiguredMaterial;
+	}
+
+	if (DefaultHealthBarMaterial.IsNull())
+	{
+		return nullptr;
+	}
+
+	HealthBarMaterial = DefaultHealthBarMaterial.LoadSynchronous();
+	return HealthBarMaterial.Get();
+}
+
 UNiagaraComponent* UEnemyHealthDisplayComponent::CreateHealthBarComponent(AActor& Owner)
 {
-	if (!bCreateMissingHealthBarComponent || !HealthBarSystem)
+	UNiagaraSystem* ResolvedHealthBarSystem = ResolveHealthBarSystem();
+	if (!bCreateMissingHealthBarComponent || !ResolvedHealthBarSystem)
 	{
 		return nullptr;
 	}
@@ -1361,7 +1380,7 @@ UNiagaraComponent* UEnemyHealthDisplayComponent::CreateHealthBarComponent(AActor
 	const bool bShouldStartVisible = !bOwnerDeathStarted
 		&& !bOnlyShowHealthBarAfterDamage
 		&& !bHideHealthBarOnBeginPlay;
-	CreatedComponent->SetAsset(HealthBarSystem);
+	CreatedComponent->SetAsset(ResolvedHealthBarSystem);
 	CreatedComponent->SetAutoActivate(bShouldStartVisible);
 	if (USceneComponent* RootComponent = Owner.GetRootComponent())
 	{
@@ -1370,9 +1389,9 @@ UNiagaraComponent* UEnemyHealthDisplayComponent::CreateHealthBarComponent(AActor
 	CreatedComponent->SetRelativeLocation(HealthBarRelativeLocation);
 	CreatedComponent->SetVisibility(bShouldStartVisible);
 	CreatedComponent->SetHiddenInGame(!bShouldStartVisible);
-	if (HealthBarMaterial)
+	if (UMaterialInterface* ResolvedHealthBarMaterial = ResolveHealthBarMaterial())
 	{
-		CreatedComponent->SetMaterial(0, HealthBarMaterial);
+		CreatedComponent->SetMaterial(0, ResolvedHealthBarMaterial);
 	}
 
 	Owner.AddInstanceComponent(CreatedComponent);
@@ -1393,8 +1412,8 @@ UNiagaraComponent* UEnemyHealthDisplayComponent::CreateHealthBarComponent(AActor
 			TEXT("[EnemyHealthDisplay][HealthBarBinding] Owner=%s CreatedDefault=1 Component=%s System=%s SystemPath=%s RelativeLocation=%s WorldLocation=%s"),
 			*GetNameSafe(&Owner),
 			*GetNameSafe(CreatedComponent),
-			*GetNameSafe(HealthBarSystem.Get()),
-			HealthBarSystem ? *HealthBarSystem->GetPathName() : TEXT("None"),
+			*GetNameSafe(ResolvedHealthBarSystem),
+			ResolvedHealthBarSystem ? *ResolvedHealthBarSystem->GetPathName() : TEXT("None"),
 			*HealthBarRelativeLocation.ToCompactString(),
 			*CreatedComponent->GetComponentLocation().ToCompactString());
 	}
@@ -1507,7 +1526,7 @@ UNiagaraComponent* UEnemyHealthDisplayComponent::ResolveHealthBarComponent()
 	if (!bOwnerDeathStarted
 		&& !bInitialHealthDisplayRefreshPending
 		&& bCreateMissingHealthBarComponent
-		&& HealthBarSystem)
+		&& ResolveHealthBarSystem())
 	{
 		LogDuplicateHealthBarDiagnostics(*Owner, NiagaraComponents, nullptr, TEXT("CreateMissing"), true);
 		if (UNiagaraComponent* CreatedComponent = CreateHealthBarComponent(*Owner))
@@ -1553,9 +1572,9 @@ UMaterialInstanceDynamic* UEnemyHealthDisplayComponent::ResolveHealthBarMaterial
 		return nullptr;
 	}
 
-	if (HealthBarMaterial)
+	if (UMaterialInterface* ResolvedHealthBarMaterial = ResolveHealthBarMaterial())
 	{
-		HealthBar->SetMaterial(0, HealthBarMaterial);
+		HealthBar->SetMaterial(0, ResolvedHealthBarMaterial);
 	}
 
 	if (HealthBar->GetNumMaterials() <= 0)
@@ -1563,7 +1582,7 @@ UMaterialInstanceDynamic* UEnemyHealthDisplayComponent::ResolveHealthBarMaterial
 		return nullptr;
 	}
 
-	HealthBarMaterialInstance = HealthBar->CreateDynamicMaterialInstance(0, HealthBarMaterial);
+	HealthBarMaterialInstance = HealthBar->CreateDynamicMaterialInstance(0, ResolveHealthBarMaterial());
 	if (IsValid(HealthBarMaterialInstance) && !MaterialUseDynamicParametersParameterName.IsNone())
 	{
 		HealthBarMaterialInstance->SetScalarParameterValue(
@@ -1585,8 +1604,7 @@ UNiagaraSystem* UEnemyHealthDisplayComponent::ResolveDamageValueSystem() const
 		return ConfiguredSystem;
 	}
 
-	UNiagaraSystem* FallbackSystem = LoadObject<UNiagaraSystem>(nullptr, DefaultDamageValueSystemPath);
-	return FallbackSystem;
+	return DefaultDamageValueSystem.IsNull() ? nullptr : DefaultDamageValueSystem.LoadSynchronous();
 }
 
 float UEnemyHealthDisplayComponent::GetCurrentArmorHP() const

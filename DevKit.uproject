@@ -169,6 +169,13 @@
 			"Enabled": true
 		},
 		{
+			"Name": "ModelContextProtocol",
+			"Enabled": true,
+			"TargetAllowList": [
+				"Editor"
+			]
+		},
+		{
 			"Name": "WeaveLanguage",
 			"Enabled": true,
 			"TargetAllowList": [
@@ -181,6 +188,14 @@
 		},
 		{
 			"Name": "YogComboGraph",
+			"Enabled": true
+		},
+		{
+			"Name": "AllToolsets",
+			"Enabled": true
+		},
+		{
+			"Name": "AIModuleToolset",
 			"Enabled": true
 		}
 	]

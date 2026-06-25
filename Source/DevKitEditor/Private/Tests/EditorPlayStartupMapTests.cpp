@@ -19,15 +19,20 @@ bool FEditorGreenPlayUsesCurrentMapConfigTest::RunTest(const FString& Parameters
 {
 	FString GameDefaultMap;
 	FString ServerDefaultMap;
+	FString EditorStartupMap;
 
 	TestTrue(TEXT("GameDefaultMap setting is present"), ReadGameMapsSetting(TEXT("GameDefaultMap"), GameDefaultMap));
 	TestTrue(TEXT("ServerDefaultMap setting is present"), ReadGameMapsSetting(TEXT("ServerDefaultMap"), ServerDefaultMap));
+	TestTrue(TEXT("EditorStartupMap setting is present"), ReadGameMapsSetting(TEXT("EditorStartupMap"), EditorStartupMap));
 
 	TestEqual(TEXT("Green editor Play should use the current editor map instead of forcing the frontend map"),
 		GameDefaultMap,
 		FString(TEXT("None")));
 	TestEqual(TEXT("Standalone editor Play should use the current editor map instead of forcing the frontend map"),
 		ServerDefaultMap,
+		FString(TEXT("None")));
+	TestEqual(TEXT("Editor startup should not force-load a content map"),
+		EditorStartupMap,
 		FString(TEXT("None")));
 
 	return true;

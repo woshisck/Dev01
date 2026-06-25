@@ -8,7 +8,7 @@ public class DevKitEditorTarget : TargetRules
 	public DevKitEditorTarget(TargetInfo Target) : base(Target)
 	{
 		Type = TargetType.Editor;
-		DefaultBuildSettings = BuildSettingsVersion.V5;
+		DefaultBuildSettings = BuildSettingsVersion.V7;
 		bOverrideBuildEnvironment = true;
         IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
 

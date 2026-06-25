@@ -192,7 +192,7 @@ void UCombatDeckBarWidget::UpdateStatusText(int32 RemainingCount, EDeckState Dec
 			FText::AsNumber(DisplayIndex),
 			FText::AsNumber(RemainingCount)));
 	return;
-
+#if 0
 	if (DeckState == EDeckState::EmptyShuffling)
 	{
 		SetTextIfBound(StatusText, FText::FromString(TEXT("卡组装填中")));
@@ -202,6 +202,7 @@ void UCombatDeckBarWidget::UpdateStatusText(int32 RemainingCount, EDeckState Dec
 	SetTextIfBound(
 		StatusText,
 		FText::Format(FText::FromString(TEXT("卡组: {0}")), FText::AsNumber(RemainingCount)));
+#endif
 }
 
 void UCombatDeckBarWidget::UpdateShuffleVisuals(float NormalizedProgress, bool bIsShuffling)
@@ -221,7 +222,7 @@ void UCombatDeckBarWidget::UpdateShuffleVisuals(float NormalizedProgress, bool b
 
 	SetTextIfBound(ShuffleText, FText::GetEmpty());
 	return;
-
+#if 0
 	if (ShufflePanel)
 	{
 		ShufflePanel->SetVisibility(bIsShuffling ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
@@ -238,6 +239,7 @@ void UCombatDeckBarWidget::UpdateShuffleVisuals(float NormalizedProgress, bool b
 			FText::AsPercent(NormalizedProgress))
 		: FText::GetEmpty();
 	SetTextIfBound(ShuffleText, ShuffleLabel);
+#endif
 }
 
 void UCombatDeckBarWidget::SetTextIfBound(UWidget* TextWidget, const FText& Text)
@@ -465,13 +467,14 @@ void UCombatDeckBarWidget::HandleRewardAddedToDeck(const FCombatCardInstance& Ca
 	BP_OnRewardAddedToDeck(Card);
 	RefreshDeckSnapshot();
 	return;
-
+#if 0
 	SetTextIfBound(
 		RewardToastText,
 		FText::Format(FText::FromString(TEXT("已入组: {0}")), GetCardDisplayName(Card)));
 	ShowToast(RewardToastText, RewardToastTimeRemaining);
 	BP_OnRewardAddedToDeck(Card);
 	RefreshDeckSnapshot();
+#endif
 }
 
 void UCombatDeckBarWidget::HandleDeckCardsEntered(const TArray<FCombatCardInstance>& Cards)

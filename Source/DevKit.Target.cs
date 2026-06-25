@@ -8,7 +8,7 @@ public class DevKitTarget : TargetRules
 	public DevKitTarget(TargetInfo Target) : base(Target)
 	{
 		Type = TargetType.Game;
-		DefaultBuildSettings = BuildSettingsVersion.V5;
+		DefaultBuildSettings = BuildSettingsVersion.V7;
 
 		if (Configuration == UnrealTargetConfiguration.Shipping)
 		{

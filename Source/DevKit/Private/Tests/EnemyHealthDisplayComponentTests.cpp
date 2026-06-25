@@ -107,30 +107,15 @@ bool FEnemyHealthDisplayDefaultConfigTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Created health bar uses the existing blueprint variable name"),
 		ComponentDefaults->HealthBarComponentName,
 		FName(TEXT("NiagaraSystem_HealthBar")));
-	TestNotNull(TEXT("Health bar Niagara system is assigned by default"),
-		ComponentDefaults->HealthBarSystem.Get());
-	if (ComponentDefaults->HealthBarSystem)
-	{
-		TestEqual(TEXT("Health bar Niagara system points at generated enemy health asset"),
-			ComponentDefaults->HealthBarSystem->GetPathName(),
-			FString(TEXT("/Game/UI/Health_NiagaraUI/NS_EnemyHealth.NS_EnemyHealth")));
-	}
-	TestNotNull(TEXT("Damage value Niagara system is assigned by default"),
-		ComponentDefaults->DamageValueSystem.Get());
-	if (ComponentDefaults->DamageValueSystem)
-	{
-		TestEqual(TEXT("Damage value Niagara system points at generated enemy damage value asset"),
-			ComponentDefaults->DamageValueSystem->GetPathName(),
-			FString(TEXT("/Game/UI/Health_NiagaraUI/NS_EnemyDamageValue.NS_EnemyDamageValue")));
-	}
-	TestNotNull(TEXT("Direct health bar material is assigned by default"),
-		ComponentDefaults->HealthBarMaterial.Get());
-	if (ComponentDefaults->HealthBarMaterial)
-	{
-		TestEqual(TEXT("Direct health bar material points at generated asset"),
-			ComponentDefaults->HealthBarMaterial->GetPathName(),
-			FString(TEXT("/Game/UI/Health_NiagaraUI/M_NiagaraUI_Health_Direct.M_NiagaraUI_Health_Direct")));
-	}
+	TestEqual(TEXT("Health bar Niagara default uses a soft path"),
+		ComponentDefaults->DefaultHealthBarSystem.ToSoftObjectPath().ToString(),
+		FString(TEXT("/Game/UI/Health_NiagaraUI/NS_EnemyHealth.NS_EnemyHealth")));
+	TestEqual(TEXT("Damage value Niagara default uses a soft path"),
+		ComponentDefaults->DefaultDamageValueSystem.ToSoftObjectPath().ToString(),
+		FString(TEXT("/Game/UI/Health_NiagaraUI/NS_EnemyDamageValue.NS_EnemyDamageValue")));
+	TestEqual(TEXT("Direct health bar material default uses a soft path"),
+		ComponentDefaults->DefaultHealthBarMaterial.ToSoftObjectPath().ToString(),
+		FString(TEXT("/Game/UI/Health_NiagaraUI/M_NiagaraUI_Health_Direct.M_NiagaraUI_Health_Direct")));
 
 	return true;
 }

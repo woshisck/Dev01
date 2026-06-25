@@ -75,10 +75,16 @@ public:
 	TObjectPtr<UNiagaraSystem> HealthBarSystem;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy|Health Display|Niagara")
+	TSoftObjectPtr<UNiagaraSystem> DefaultHealthBarSystem;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy|Health Display|Niagara")
 	FVector HealthBarRelativeLocation = FVector(0.0f, 0.0f, 120.0f);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy|Health Display|Niagara")
 	TObjectPtr<UNiagaraSystem> DamageValueSystem;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy|Health Display|Niagara")
+	TSoftObjectPtr<UNiagaraSystem> DefaultDamageValueSystem;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy|Health Display|Niagara")
 	FName HealthPercentParameterName = TEXT("new");
@@ -112,6 +118,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy|Health Display|Material")
 	TObjectPtr<UMaterialInterface> HealthBarMaterial;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy|Health Display|Material")
+	TSoftObjectPtr<UMaterialInterface> DefaultHealthBarMaterial;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy|Health Display|Material")
 	FName MaterialArmorParameterName = TEXT("Armor");
@@ -201,6 +210,8 @@ private:
 		const TCHAR* Source,
 		float NewHealthPercent,
 		float OldHealthPercent);
+	UNiagaraSystem* ResolveHealthBarSystem();
+	UMaterialInterface* ResolveHealthBarMaterial();
 	UNiagaraComponent* CreateHealthBarComponent(AActor& Owner);
 	UNiagaraComponent* ResolveHealthBarComponent();
 	UNiagaraSystem* ResolveDamageValueSystem() const;

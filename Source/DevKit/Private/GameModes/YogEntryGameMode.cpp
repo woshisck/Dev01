@@ -9,17 +9,13 @@
 #include "System/YogGameInstanceBase.h"
 #include "TimerManager.h"
 #include "UI/YogUIManagerSubsystem.h"
-#include "UObject/ConstructorHelpers.h"
 
 AYogEntryGameMode::AYogEntryGameMode(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	DefaultPawnClass = nullptr;
 	HUDClass = nullptr;
-	static ConstructorHelpers::FClassFinder<AYogPlayerControllerBase> PlayerControllerBP(TEXT("/Game/Code/Core/Controller/B_YogPlayerControllerBase"));
-	PlayerControllerClass = PlayerControllerBP.Succeeded()
-		? static_cast<UClass*>(PlayerControllerBP.Class)
-		: AYogPlayerControllerBase::StaticClass();
+	PlayerControllerClass = AYogPlayerControllerBase::StaticClass();
 	bStartPlayersAsSpectators = true;
 }
 

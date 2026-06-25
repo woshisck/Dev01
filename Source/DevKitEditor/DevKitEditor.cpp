@@ -49,7 +49,6 @@ namespace
 	const FName BuffFlowDebugTabName(TEXT("DevKitBuffFlowDebug"));
 	const FName MetaProgressionWorkbenchTabName(TEXT("DevKitMetaProgressionWorkbench"));
 	const FName StoryEncounterWorkbenchTabName(TEXT("DevKitStoryEncounterWorkbench"));
-	const FString EntryMenuMapOverride(TEXT("/Game/Maps/L_EntryMenu"));
 }
 
 class FDevKitEditorModule : public FDefaultGameModuleImpl {
@@ -407,8 +406,8 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 
 		DebugSection.AddMenuEntry(
 			TEXT("PlayFromMainMenu"),
-			LOCTEXT("PlayFromMainMenuMenuLabel", "Play From Main Menu"),
-			LOCTEXT("PlayFromMainMenuMenuTooltip", "Start PIE from the entry menu map without changing the currently edited level."),
+			LOCTEXT("PlayFromMainMenuMenuLabel", "Play Current Map"),
+			LOCTEXT("PlayFromMainMenuMenuTooltip", "Start PIE from the current editor map."),
 			FSlateIcon(FAppStyle::GetAppStyleSetName(), TEXT("PlayWorld.PlayInViewport")),
 			FUIAction(
 				FExecuteAction::CreateRaw(this, &FDevKitEditorModule::PlayFromMainMenu),
@@ -428,7 +427,6 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 		}
 
 		FRequestPlaySessionParams SessionParams;
-		SessionParams.GlobalMapOverride = EntryMenuMapOverride;
 
 		if (FModuleManager::Get().IsModuleLoaded(TEXT("LevelEditor")))
 		{
