@@ -10,7 +10,7 @@ This file applies to the whole repository.
 
 ## Project Shape
 
-- This is an Unreal Engine 5.4 project: `DevKit.uproject`.
+- This is an Unreal Engine 5.8 project: `DevKit.uproject`.
 - Main runtime code lives under `Source/DevKit`.
 - Editor automation and commandlets live under `Source/DevKitEditor`.
 - Gameplay tags are configured under `Config/Tags` and `Config/DefaultGameplayTags.ini`.
@@ -36,7 +36,7 @@ This file applies to the whole repository.
 
 ## Verification
 
-- When a build is needed, prefer `CompileAndOpen.bat` or the Unreal 5.4 `Build.bat` path available on this machine.
+- When a build is needed, prefer `CompileAndOpen.bat` or the Unreal 5.8 `Build.bat` path available on this machine.
 - If a test/build cannot be run because Unreal, assets, or permissions are unavailable, say so clearly.
 - For small code-only changes, at minimum run targeted search/compile checks when practical.
 

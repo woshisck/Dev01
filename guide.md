@@ -148,7 +148,7 @@ This guide captures current project direction and working assumptions. `AGENTS.m
 ## Unreal Project Notes
 
 - Project: `DevKit.uproject`
-- Engine: Unreal Engine 5.4
+- Engine: Unreal Engine 5.8
 - Runtime code: `Source/DevKit`
 - Editor commandlets/tools: `Source/DevKitEditor`
 - Gameplay tags: `Config/Tags` and `Config/DefaultGameplayTags.ini`
@@ -170,7 +170,7 @@ This guide captures current project direction and working assumptions. `AGENTS.m
 
 - Do not compile code unless the user explicitly asks for compilation in the current thread.
 - For Unreal builds, prefer `CompileAndOpen.bat` when opening the editor is acceptable.
-- For build-only checks, use the UE 5.4 `Build.bat` path available on this machine.
+- For build-only checks, use the UE 5.8 `Build.bat` path available on this machine.
 - If a full build is too expensive or blocked, run targeted searches/checks and clearly state what was not verified.
 
 ## Communication

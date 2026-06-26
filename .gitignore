@@ -34,6 +34,7 @@ Binaries/
 *.out
 *.app
 *.sln
+*.slnx
 
 #unreal file
 *.target
