@@ -3,7 +3,7 @@ setlocal
 
 set "PROJECT_DIR=%~dp0"
 set "UPROJECT=%PROJECT_DIR%DevKit.uproject"
-set "ENGINE_ROOT=Z:\GZA_Software\RealityCapture\UE_5.8"
+set "ENGINE_ROOT=D:\Epic Library\UE_5.8"
 
 if not exist "%ENGINE_ROOT%\Engine\Build\BatchFiles\Build.bat" (
     echo Unreal Engine not found: "%ENGINE_ROOT%"
