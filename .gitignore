@@ -1974,3 +1974,4 @@ Packaged_Check_*/
 /Packaged
 GenerateAndBuild.bat
 Tools/ProductionGraph/*.log
+.mcp.json
