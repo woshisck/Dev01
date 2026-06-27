@@ -3,32 +3,69 @@
 #include "CoreMinimal.h"
 #include "Animation/AnimNotifies/AnimNotifyState.h"
 #include "GameplayTagContainer.h"
-#include "AbilitySystemComponent.h"
+#include "UObject/ObjectKey.h"
 #include "AnimNotifyState_AddGameplayTag.generated.h"
 
-/**
- * AnimNotifyState：在 Notify 区间内为角色 ASC 添加 Gameplay Tag
- * Begin → AddLooseGameplayTag，End / 被打断 → RemoveLooseGameplayTag
- * 旧兼容用途：在旧连招攻击帧窗口上标记 Action.Combo.LastHit
- */
-UCLASS(meta = (DisplayName = "Add Gameplay Tag"))
+class UAbilitySystemComponent;
+class UNiagaraComponent;
+class UNiagaraSystem;
+
+/** Adds loose gameplay tags and optional screen-position Niagara feedback for this notify state's duration. */
+UCLASS(meta = (DisplayName = "Gameplay Tag Window"))
 class DEVKIT_API UAnimNotifyState_AddGameplayTag : public UAnimNotifyState
 {
-    GENERATED_BODY()
+	GENERATED_BODY()
 
 public:
-    /** 要添加的 Tag（支持多个） */
-    UPROPERTY(EditAnywhere, Category = "GameplayTag")
-    FGameplayTagContainer Tags;
+	/** Tags added on NotifyBegin and removed on NotifyEnd. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gameplay Tag")
+	FGameplayTagContainer Tags;
 
-    virtual void NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation,
-        float TotalDuration, const FAnimNotifyEventReference& EventReference) override;
+	/** Optional VFX shown at the owner actor's projected screen position while this window is active. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Screen Niagara")
+	TObjectPtr<UNiagaraSystem> ScreenNiagaraSystem;
 
-    virtual void NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation,
-        const FAnimNotifyEventReference& EventReference) override;
+	/** World offset applied before projecting the owner to screen. Use this to target the torso/head instead of feet. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Screen Niagara",
+		meta = (EditCondition = "ScreenNiagaraSystem != nullptr"))
+	FVector ScreenProjectionWorldOffset = FVector(0.f, 0.f, 120.f);
 
-    virtual FString GetNotifyName_Implementation() const override;
+	/** Pixel offset after projection. Positive X moves right; positive Y moves down. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Screen Niagara",
+		meta = (EditCondition = "ScreenNiagaraSystem != nullptr"))
+	FVector2D ScreenOffset = FVector2D::ZeroVector;
+
+	/** Distance from the active camera where the Niagara component is placed after deprojecting the screen point. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Screen Niagara",
+		meta = (EditCondition = "ScreenNiagaraSystem != nullptr", ClampMin = "1.0"))
+	float ScreenNiagaraDistance = 250.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Screen Niagara",
+		meta = (EditCondition = "ScreenNiagaraSystem != nullptr"))
+	FVector ScreenNiagaraScale = FVector::OneVector;
+
+	/** Keep the Niagara component locked to the owner actor's projected screen point while the notify is active. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Screen Niagara",
+		meta = (EditCondition = "ScreenNiagaraSystem != nullptr"))
+	bool bFollowOwnerScreenPosition = true;
+
+	virtual void NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation,
+		float TotalDuration, const FAnimNotifyEventReference& EventReference) override;
+
+	virtual void NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation,
+		const FAnimNotifyEventReference& EventReference) override;
+
+	virtual void NotifyTick(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation,
+		float FrameDeltaTime, const FAnimNotifyEventReference& EventReference) override;
+
+	virtual FString GetNotifyName_Implementation() const override;
 
 private:
-    static UAbilitySystemComponent* GetASC(USkeletalMeshComponent* MeshComp);
+	static UAbilitySystemComponent* GetASC(const USkeletalMeshComponent* MeshComp);
+	bool ResolveScreenNiagaraTransform(const USkeletalMeshComponent* MeshComp, FVector& OutLocation, FRotator& OutRotation) const;
+	void SpawnScreenNiagara(USkeletalMeshComponent* MeshComp);
+	void UpdateScreenNiagara(USkeletalMeshComponent* MeshComp);
+	void DestroyScreenNiagara(USkeletalMeshComponent* MeshComp);
+
+	TMap<TObjectKey<USkeletalMeshComponent>, TWeakObjectPtr<UNiagaraComponent>> ActiveScreenNiagaraComponents;
 };

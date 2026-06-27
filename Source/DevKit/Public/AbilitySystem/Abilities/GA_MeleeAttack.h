@@ -13,6 +13,7 @@ class UMontageConfigDA;
 class UMontageAttackDataAsset;
 class UYogAnimNotifyState_Damage;
 class UAbilityTask_ApplyRootMotionMoveToForce;
+class UAbilitySystemComponent;
 class AYogCharacterBase;
 
 /**
@@ -35,6 +36,8 @@ class DEVKIT_API UGA_MeleeAttack : public UYogGameplayAbility
 
 public:
 	UGA_MeleeAttack();
+
+	static bool TryQueueJustComboSpeedBonus(UAbilitySystemComponent* ASC);
 
 	/**
 	 * 鏄惁鍦ㄦ縺娲绘椂璋冪敤 CommitAbility锛堟墸闄ゆ秷鑰?+ 瑙﹀彂鍐峰嵈锛夈€?

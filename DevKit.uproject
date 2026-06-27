@@ -176,6 +176,20 @@
 			]
 		},
 		{
+			"Name": "AIAssistant",
+			"Enabled": true,
+			"TargetAllowList": [
+				"Editor"
+			]
+		},
+		{
+			"Name": "MCPClientToolset",
+			"Enabled": true,
+			"TargetAllowList": [
+				"Editor"
+			]
+		},
+		{
 			"Name": "WeaveLanguage",
 			"Enabled": true,
 			"TargetAllowList": [

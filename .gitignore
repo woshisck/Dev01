@@ -6,8 +6,12 @@ build_log.txt
 
 # Claude Code local settings
 .claude/
+.codex/
 .codex_appdata/
+.cursor/
+.gemini/
 .superpowers/
+.codegraph/
 /Docs/superpowers/
 /Docs/WorkSession/codex_*.md
 

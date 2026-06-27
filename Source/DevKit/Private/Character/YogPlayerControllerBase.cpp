@@ -3,6 +3,7 @@
 
 #include "Character/YogPlayerControllerBase.h"
 #include <AbilitySystemGlobals.h>
+#include "AbilitySystem/Abilities/GA_MeleeAttack.h"
 #include "CommonInputSubsystem.h"
 #include "Character/YogCharacterBase.h"
 #include "UI/BackpackScreenWidget.h"
@@ -652,6 +653,7 @@ void AYogPlayerControllerBase::Attack(const FInputActionValue& Value)
 		}
 
 		UYogAbilitySystemComponent* PlayerASC = Cast<UYogAbilitySystemComponent>(player->GetASC());
+		UGA_MeleeAttack::TryQueueJustComboSpeedBonus(PlayerASC);
 
 		if (PlayerASC && PlayerASC->IsPlayerActionMontageLocked())
 		{

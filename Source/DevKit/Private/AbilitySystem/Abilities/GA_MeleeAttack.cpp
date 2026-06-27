@@ -42,6 +42,14 @@ namespace
 	};
 
 	TMap<TObjectKey<UAbilitySystemComponent>, FStatBeforeAttackSharedSnapshot> GStatBeforeAttackSnapshots;
+	TSet<TObjectKey<UAbilitySystemComponent>> GPendingJustComboSpeedBonus;
+
+	FGameplayTag GetJustComboWindowTag()
+	{
+		return FGameplayTag::RequestGameplayTag(TEXT("Character.State.Window.JustCombo"), false);
+	}
+
+	constexpr float JustComboNextAttackSpeedMultiplier = 1.2f;
 
 	bool TryFacePlayerAttackTowardCursor(APlayerCharacterBase* Player)
 	{
@@ -111,6 +119,19 @@ UGA_MeleeAttack::UGA_MeleeAttack()
 	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag("Buff.Dead"));
 	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag("Buff.HitReact"));
 	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag("Buff.Knockback"));
+}
+
+bool UGA_MeleeAttack::TryQueueJustComboSpeedBonus(UAbilitySystemComponent* ASC)
+{
+	const FGameplayTag JustComboWindowTag = GetJustComboWindowTag();
+	if (!ASC || !JustComboWindowTag.IsValid() || ASC->GetTagCount(JustComboWindowTag) <= 0)
+	{
+		return false;
+	}
+
+	GPendingJustComboSpeedBonus.Add(TObjectKey<UAbilitySystemComponent>(ASC));
+	UE_LOG(LogTemp, Verbose, TEXT("[JustCombo] Queued next attack speed bonus for ASC=%s"), *GetNameSafe(ASC));
+	return true;
 }
 
 
@@ -848,6 +869,14 @@ void UGA_MeleeAttack::ActivateAbility(
 		if (bFound && SpeedValue > 0.f)
 		{
 			AttackSpeedRate = SpeedValue;
+		}
+
+		const TObjectKey<UAbilitySystemComponent> ASCKey(ASC);
+		if (GPendingJustComboSpeedBonus.Contains(ASCKey))
+		{
+			GPendingJustComboSpeedBonus.Remove(ASCKey);
+			AttackSpeedRate *= JustComboNextAttackSpeedMultiplier;
+			UE_LOG(LogTemp, Verbose, TEXT("[JustCombo] Consumed next attack speed bonus. MontagePlayRate=%.2f"), AttackSpeedRate);
 		}
 	}
 
