@@ -33,7 +33,7 @@ public:
 
 // ============================================================
 //  URuneEffect_AttributeModifier — 属性修改（固定数值）
-//  示例：Attack +20、AttackSpeed ×1.1、MaxHealth = 500
+//  示例：Attack +20、AttackSpeed +20、MaxHealth = 500
 // ============================================================
 
 UCLASS(DisplayName = "Add Attribute Modifier")

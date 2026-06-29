@@ -49,7 +49,20 @@ namespace
 		return FGameplayTag::RequestGameplayTag(TEXT("Character.State.Window.JustCombo"), false);
 	}
 
+	constexpr float AttackSpeedDefaultStat = 100.f;
+	constexpr float AttackSpeedMaxStat = 200.f;
+	constexpr float AttackSpeedStatToMontageRate = 0.01f;
 	constexpr float JustComboNextAttackSpeedMultiplier = 1.2f;
+
+	float ConvertAttackSpeedStatToMontageRate(float AttackSpeedStat)
+	{
+		if (AttackSpeedStat <= 0.f)
+		{
+			AttackSpeedStat = AttackSpeedDefaultStat;
+		}
+
+		return FMath::Clamp(AttackSpeedStat, 0.f, AttackSpeedMaxStat) * AttackSpeedStatToMontageRate;
+	}
 
 	bool TryFacePlayerAttackTowardCursor(APlayerCharacterBase* Player)
 	{
@@ -860,24 +873,30 @@ void UGA_MeleeAttack::ActivateAbility(
 	FGameplayTagContainer DamageEventTags;
 	DamageEventTags.AddTag(FGameplayTag::RequestGameplayTag(FName("GameplayEffect.DamageType.GeneralAttack")));
 
-	// 读取 AttackSpeed 属性作为蒙太奇播放速率
-	float AttackSpeedRate = 1.0f;
+	// AttackSpeed is authored as a linear 0-200 stat and converted to montage play rate.
+	float AttackSpeedStat = AttackSpeedDefaultStat;
+	bool bConsumedJustComboSpeedBonus = false;
 	if (UAbilitySystemComponent* ASC = ActorInfo->AbilitySystemComponent.Get())
 	{
 		bool bFound = false;
 		const float SpeedValue = ASC->GetGameplayAttributeValue(UBaseAttributeSet::GetAttackSpeedAttribute(), bFound);
-		if (bFound && SpeedValue > 0.f)
+		if (bFound)
 		{
-			AttackSpeedRate = SpeedValue;
+			AttackSpeedStat = SpeedValue;
 		}
 
 		const TObjectKey<UAbilitySystemComponent> ASCKey(ASC);
 		if (GPendingJustComboSpeedBonus.Contains(ASCKey))
 		{
 			GPendingJustComboSpeedBonus.Remove(ASCKey);
-			AttackSpeedRate *= JustComboNextAttackSpeedMultiplier;
-			UE_LOG(LogTemp, Verbose, TEXT("[JustCombo] Consumed next attack speed bonus. MontagePlayRate=%.2f"), AttackSpeedRate);
+			AttackSpeedStat *= JustComboNextAttackSpeedMultiplier;
+			bConsumedJustComboSpeedBonus = true;
 		}
+	}
+	const float AttackSpeedRate = ConvertAttackSpeedStatToMontageRate(AttackSpeedStat);
+	if (bConsumedJustComboSpeedBonus)
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("[JustCombo] Consumed next attack speed bonus. AttackSpeedStat=%.2f MontagePlayRate=%.2f"), AttackSpeedStat, AttackSpeedRate);
 	}
 
 	// 创建复合任务：播放蒙太奇 + 监听 GameplayEvent（AnimNotify 触发伤害事件

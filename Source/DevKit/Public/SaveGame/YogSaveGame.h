@@ -39,7 +39,7 @@ public:
 		AttackPower = 0.0;
 		Health = 0.0;
 		MaxHealth = 0.0;
-		AttackSpeed = 0.0;
+		AttackSpeed = 100.0;
 		AttackRange = 0.0;
 		Sanity = 0.0;
 		MoveSpeed = 0.0;

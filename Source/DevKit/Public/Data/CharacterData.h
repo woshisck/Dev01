@@ -33,8 +33,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float Shield = 0;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float AttackSpeed = 1;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0.0", ClampMax = "200.0"))
+	float AttackSpeed = 100;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float AttackRange = 150;
