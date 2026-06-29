@@ -102,8 +102,8 @@ void UAnimNotifyState_PostAtkWindow::NotifyTick(USkeletalMeshComponent* MeshComp
         return;
     }
 
-    // ── 移动输入：混出当前蒙太奇，GA_PlayMontage::OnMontageBlendOut → EndAbility ──
-    if (Buffer->HasBufferedInputSince(EInputCommandType::Move, BeginTime))
+    // Movement cancel is opt-in; weapon-defined montages should complete unless the asset asks for this cut.
+    if (bAllowMoveCancel && Buffer->HasBufferedInputSince(EInputCommandType::Move, BeginTime))
     {
         if (UAnimInstance* AnimInst = MeshComp->GetAnimInstance())
         {
@@ -115,5 +115,7 @@ void UAnimNotifyState_PostAtkWindow::NotifyTick(USkeletalMeshComponent* MeshComp
 
 FString UAnimNotifyState_PostAtkWindow::GetNotifyName_Implementation() const
 {
-    return FString::Printf(TEXT("Post Atk Window | Blend: %.2fs"), MoveBlendOutTime);
+    return bAllowMoveCancel
+        ? FString::Printf(TEXT("Post Atk Window | Move Cancel %.2fs"), MoveBlendOutTime)
+        : TEXT("Post Atk Window");
 }

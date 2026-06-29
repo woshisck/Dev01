@@ -98,4 +98,33 @@ bool FAbilityDataLegacyLightHeavyAliasesFallbackToFormalCombatTagsTest::RunTest(
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAbilityDataBroadPlayerActionFallbackFindsCombo1MontageTest,
+	"DevKit.GameplayTags.AbilityDataBroadPlayerActionFallbackFindsCombo1Montage",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FAbilityDataBroadPlayerActionFallbackFindsCombo1MontageTest::RunTest(const FString& Parameters)
+{
+	UAbilityData* AbilityData = NewObject<UAbilityData>();
+	UAnimMontage* AttackMontage = NewObject<UAnimMontage>();
+	UAnimMontage* WeaponSkillMontage = NewObject<UAnimMontage>();
+	const FGameplayTag BroadAttackTag = FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.Attack"), false);
+	const FGameplayTag ComboAttackTag = FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.Attack.Combo1"), false);
+	const FGameplayTag BroadWeaponSkillTag = FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.WeaponSkill"), false);
+	const FGameplayTag ComboWeaponSkillTag = FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.WeaponSkill.Combo1"), false);
+
+	TestTrue(TEXT("broad attack tag exists"), BroadAttackTag.IsValid());
+	TestTrue(TEXT("combo attack tag exists"), ComboAttackTag.IsValid());
+	TestTrue(TEXT("broad weapon skill tag exists"), BroadWeaponSkillTag.IsValid());
+	TestTrue(TEXT("combo weapon skill tag exists"), ComboWeaponSkillTag.IsValid());
+	AbilityData->MontageMap.Add(ComboAttackTag, AttackMontage);
+	AbilityData->MontageMap.Add(ComboWeaponSkillTag, WeaponSkillMontage);
+
+	TestEqual(TEXT("broad Attack lookup falls back to Attack.Combo1 montage"), AbilityData->GetMontage(BroadAttackTag), AttackMontage);
+	TestTrue(TEXT("broad Attack HasAbility falls back to Attack.Combo1 montage"), AbilityData->HasAbility(BroadAttackTag));
+	TestEqual(TEXT("broad WeaponSkill lookup falls back to WeaponSkill.Combo1 montage"), AbilityData->GetMontage(BroadWeaponSkillTag), WeaponSkillMontage);
+	TestTrue(TEXT("broad WeaponSkill HasAbility falls back to WeaponSkill.Combo1 montage"), AbilityData->HasAbility(BroadWeaponSkillTag));
+
+	return true;
+}
+
 #endif

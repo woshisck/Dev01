@@ -119,30 +119,90 @@ FGameplayTag GetEquivalentPlayerActionTag(const FGameplayTag& Tag)
 		: FGameplayTag::RequestGameplayTag(FName(*EquivalentTagString), false);
 }
 
+void AddLookupCandidate(TArray<FGameplayTag>& OutCandidates, const FGameplayTag& Tag)
+{
+	if (Tag.IsValid())
+	{
+		OutCandidates.AddUnique(Tag);
+	}
+}
+
+void AddLookupCandidateByName(TArray<FGameplayTag>& OutCandidates, const TCHAR* TagName)
+{
+	AddLookupCandidate(OutCandidates, FGameplayTag::RequestGameplayTag(FName(TagName), false));
+}
+
+TArray<FGameplayTag> BuildPlayerActionLookupCandidates(const FGameplayTag& Key)
+{
+	TArray<FGameplayTag> Candidates;
+	AddLookupCandidate(Candidates, Key);
+	AddLookupCandidate(Candidates, GetEquivalentPlayerActionTag(Key));
+
+	const FString TagString = Key.ToString();
+	if (TagString == TEXT("Character.State.Skill.Attack"))
+	{
+		AddLookupCandidateByName(Candidates, TEXT("Character.State.Skill.Attack.Combo1"));
+		AddLookupCandidateByName(Candidates, TEXT("PlayerState.AbilityCast.Attack.Combo1"));
+	}
+	else if (TagString == TEXT("PlayerState.AbilityCast.Attack"))
+	{
+		AddLookupCandidateByName(Candidates, TEXT("PlayerState.AbilityCast.Attack.Combo1"));
+		AddLookupCandidateByName(Candidates, TEXT("Character.State.Skill.Attack.Combo1"));
+	}
+	else if (TagString == TEXT("Character.State.Skill.WeaponSkill"))
+	{
+		AddLookupCandidateByName(Candidates, TEXT("Character.State.Skill.WeaponSkill.Combo1"));
+		AddLookupCandidateByName(Candidates, TEXT("PlayerState.AbilityCast.WeaponSkill.Combo1"));
+	}
+	else if (TagString == TEXT("PlayerState.AbilityCast.WeaponSkill"))
+	{
+		AddLookupCandidateByName(Candidates, TEXT("PlayerState.AbilityCast.WeaponSkill.Combo1"));
+		AddLookupCandidateByName(Candidates, TEXT("Character.State.Skill.WeaponSkill.Combo1"));
+	}
+
+	return Candidates;
+}
+
+bool HasUsableMontageConfigList(const FAbilityMontageConfigList& ConfigList)
+{
+	for (const FTaggedMontageConfig& Candidate : ConfigList.Configs)
+	{
+		if (Candidate.MontageConfig)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 const FAbilityMontageConfigList* FindMontageConfigListWithFallback(
 	const TMap<FGameplayTag, FAbilityMontageConfigList>& MontageConfigMap,
 	const FGameplayTag& Key)
 {
-	if (const FAbilityMontageConfigList* ConfigList = MontageConfigMap.Find(Key))
+	for (const FGameplayTag& CandidateKey : BuildPlayerActionLookupCandidates(Key))
 	{
-		return ConfigList;
+		const FAbilityMontageConfigList* ConfigList = MontageConfigMap.Find(CandidateKey);
+		if (ConfigList && HasUsableMontageConfigList(*ConfigList))
+		{
+			return ConfigList;
+		}
 	}
-
-	const FGameplayTag EquivalentKey = GetEquivalentPlayerActionTag(Key);
-	return EquivalentKey.IsValid() ? MontageConfigMap.Find(EquivalentKey) : nullptr;
+	return nullptr;
 }
 
 TObjectPtr<UAnimMontage> const* FindMontageWithFallback(
 	const TMap<FGameplayTag, TObjectPtr<UAnimMontage>>& MontageMap,
 	const FGameplayTag& Key)
 {
-	if (TObjectPtr<UAnimMontage> const* Found = MontageMap.Find(Key))
+	for (const FGameplayTag& CandidateKey : BuildPlayerActionLookupCandidates(Key))
 	{
-		return Found;
+		TObjectPtr<UAnimMontage> const* Found = MontageMap.Find(CandidateKey);
+		if (Found && Found->Get())
+		{
+			return Found;
+		}
 	}
-
-	const FGameplayTag EquivalentKey = GetEquivalentPlayerActionTag(Key);
-	return EquivalentKey.IsValid() ? MontageMap.Find(EquivalentKey) : nullptr;
+	return nullptr;
 }
 }
 
@@ -159,27 +219,35 @@ UAnimMontage* UAbilityData::GetMontage(const FGameplayTag& Key) const
 
 UMontageConfigDA* UAbilityData::GetMontageConfig(const FGameplayTag& Key, const FGameplayTagContainer& ContextTags) const
 {
-	const FAbilityMontageConfigList* ConfigList = FindMontageConfigListWithFallback(MontageConfigMap, Key);
-	if (!ConfigList)
+	for (const FGameplayTag& CandidateKey : BuildPlayerActionLookupCandidates(Key))
 	{
-		return nullptr;
-	}
-
-	const FTaggedMontageConfig* Best = nullptr;
-	for (const FTaggedMontageConfig& Candidate : ConfigList->Configs)
-	{
-		if (!Candidate.Matches(ContextTags))
+		const FAbilityMontageConfigList* ConfigList = MontageConfigMap.Find(CandidateKey);
+		if (!ConfigList)
 		{
 			continue;
 		}
 
-		if (!Best || Candidate.Priority > Best->Priority)
+		const FTaggedMontageConfig* Best = nullptr;
+		for (const FTaggedMontageConfig& Candidate : ConfigList->Configs)
 		{
-			Best = &Candidate;
+			if (!Candidate.Matches(ContextTags))
+			{
+				continue;
+			}
+
+			if (!Best || Candidate.Priority > Best->Priority)
+			{
+				Best = &Candidate;
+			}
+		}
+
+		if (Best)
+		{
+			return Best->MontageConfig.Get();
 		}
 	}
 
-	return Best ? Best->MontageConfig.Get() : nullptr;
+	return nullptr;
 }
 
 bool UAbilityData::HasAbility(const FGameplayTag& Key) const

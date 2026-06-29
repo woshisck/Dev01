@@ -56,17 +56,14 @@ TArray<int32> UYogWorldSubsystem::GenerateRandomIntegers(int rangeMax, int range
 
 void UYogWorldSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 {
+	Super::OnWorldBeginPlay(InWorld);
 	
 	UE_LOG(DevKitLevelSystem, Display,TEXT("YogSubsystem onWorldBeginPlay"));
-	ULevel* CurrentLevel;
 	
 
-	UWorld* world = GetCurrentWorld();
+	UWorld* world = &InWorld;
 	if (world)
 	{
-		CurrentLevel = world->GetCurrentLevel();
-
-
 		FName worldName;
 		worldName = world->GetFName();
 

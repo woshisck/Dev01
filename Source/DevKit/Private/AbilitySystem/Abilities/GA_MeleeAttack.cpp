@@ -147,6 +147,24 @@ bool UGA_MeleeAttack::TryQueueJustComboSpeedBonus(UAbilitySystemComponent* ASC)
 	return true;
 }
 
+bool UGA_MeleeAttack::TryConsumeJustComboBonus(UAbilitySystemComponent* ASC)
+{
+	if (!ASC)
+	{
+		return false;
+	}
+
+	const TObjectKey<UAbilitySystemComponent> ASCKey(ASC);
+	if (!GPendingJustComboSpeedBonus.Contains(ASCKey))
+	{
+		return false;
+	}
+
+	GPendingJustComboSpeedBonus.Remove(ASCKey);
+	UE_LOG(LogTemp, Verbose, TEXT("[JustCombo] Consumed pending JustCombo bonus for ASC=%s"), *GetNameSafe(ASC));
+	return true;
+}
+
 
 UAN_MeleeDamage* UGA_MeleeAttack::GetFirstDamageNotify(UAnimMontage* Montage)
 {
@@ -676,6 +694,10 @@ void UGA_MeleeAttack::ActivateAbility(
 	{
 		PlayerOwner = Cast<APlayerCharacterBase>(GetOwningActorFromActorInfo());
 	}
+	if (UBufferComponent* Buffer = PlayerOwner ? PlayerOwner->GetInputBufferComponent() : nullptr)
+	{
+		Buffer->ClearBuffer();
+	}
 	if (!ActiveAttackGuid.IsValid())
 	{
 		ActiveAttackGuid = FGuid::NewGuid();
@@ -885,12 +907,11 @@ void UGA_MeleeAttack::ActivateAbility(
 			AttackSpeedStat = SpeedValue;
 		}
 
-		const TObjectKey<UAbilitySystemComponent> ASCKey(ASC);
-		if (GPendingJustComboSpeedBonus.Contains(ASCKey))
+		if (TryConsumeJustComboBonus(ASC))
 		{
-			GPendingJustComboSpeedBonus.Remove(ASCKey);
 			AttackSpeedStat *= JustComboNextAttackSpeedMultiplier;
 			bConsumedJustComboSpeedBonus = true;
+			ApplyJustComboGE(ActorInfo);
 		}
 	}
 	const float AttackSpeedRate = ConvertAttackSpeedStatToMontageRate(AttackSpeedStat);

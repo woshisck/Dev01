@@ -113,6 +113,10 @@ void UGA_PlayMontage::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 
 	UYogAbilitySystemComponent* ASC = Cast<UYogAbilitySystemComponent>(ActorInfo->AbilitySystemComponent);
 	AYogCharacterBase* Owner = Cast<AYogCharacterBase>(ActorInfo->AvatarActor.Get());
+	if (UBufferComponent* Buffer = Owner ? Owner->GetInputBufferComponent() : nullptr)
+	{
+		Buffer->ClearBuffer();
+	}
 
 	UAnimMontage* MontageToPlay = nullptr;
 	FGameplayTag AbilityDataTag;
