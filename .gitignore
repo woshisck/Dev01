@@ -14,6 +14,7 @@ build_log.txt
 .codegraph/
 /Docs/superpowers/
 /Docs/WorkSession/codex_*.md
+/Docs/GeneratedReports/
 
 # UE Binaries
 Binaries/
