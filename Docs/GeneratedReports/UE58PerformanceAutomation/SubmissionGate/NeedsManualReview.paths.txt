@@ -1,6 +1,0 @@
-﻿Content/Art/Map/GameLevel_L1/Prison/L1_CommonLevel_Prison_S_03_ZS.umap
-Content/UI/BP_YogHUD.uasset
-Content/UI/Playtest_UI/HUD/WBP_HUDRoot.uasset
-Content/UI/Playtest_UI/HUD/WBP_PlayerCommonInfoHud.uasset
-Content/UI/Playtest_UI/UI_Tex/HUD/T_GoldCoinIcon.uasset
-Content/UI/Playtest_UI/UI_Tex/HUD/T_MaterialQuestionIcon.uasset
