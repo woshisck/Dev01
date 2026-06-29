@@ -20,6 +20,7 @@ struct FSlateBrush;
 class SWidget;
 class UYogEntryMenuWidget;
 class UYogGameOverWidget;
+class UYogGraphicsSettingsWidgetBase;
 class UTexture2D;
 class UYogSaveGame;
 class UActiveSkillDataAsset;
@@ -297,6 +298,9 @@ public:
 	TSubclassOf<UYogEntryMenuWidget> SlotSelectMenuClass;
 
 	UPROPERTY(EditDefaultsOnly, Config, BlueprintReadOnly, Category = "Frontend")
+	TSubclassOf<UYogGraphicsSettingsWidgetBase> GraphicsSettingsMenuClass;
+
+	UPROPERTY(EditDefaultsOnly, Config, BlueprintReadOnly, Category = "Frontend")
 	TSubclassOf<UYogGameOverWidget> GameOverWidgetClass;
 
 	UFUNCTION(BlueprintCallable, Category = "Frontend")
@@ -446,6 +450,8 @@ private:
 	TSharedPtr<class SWidget> FrontendWidget;
 	UPROPERTY()
 	TObjectPtr<UYogEntryMenuWidget> EntryMenuWidget;
+	UPROPERTY()
+	TObjectPtr<UYogGraphicsSettingsWidgetBase> GraphicsSettingsMenuWidget;
 	TSharedPtr<FSlateBrush> FrontendMainMenuBrush;
 	TSharedPtr<FStreamableHandle> FrontendMapLoadHandle;
 	FTimerHandle FrontendLoadingTimerHandle;
@@ -470,6 +476,9 @@ private:
 	FReply HandleStartClicked();
 	FReply HandleContinueClicked();
 	FReply HandleOptionsClicked();
+	bool ShowGraphicsSettingsMenuWidget();
+	UFUNCTION()
+	void HandleGraphicsSettingsBackRequested();
 	FReply HandleQuitClicked();
 	void RefreshOpenPortalRewardPreviews();
 

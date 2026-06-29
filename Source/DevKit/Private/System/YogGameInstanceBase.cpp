@@ -5,6 +5,7 @@
 #include "Data/CampaignDataAsset.h"
 #include "SaveGame/YogSaveGame.h"
 #include "SaveGame/YogSaveSubsystem.h"
+#include "System/YogPerformanceSettingsLibrary.h"
 #include "Engine/AssetManager.h"
 #include "Engine/GameViewportClient.h"
 #include "Engine/StreamableManager.h"
@@ -27,12 +28,17 @@
 #include "Misc/PackageName.h"
 #include "UI/YogEntryMenuWidget.h"
 #include "UI/YogGameOverWidget.h"
+#include "UI/YogGraphicsSettingsWidgetBase.h"
 #include "UI/YogUIManagerSubsystem.h"
 #include "Styling/CoreStyle.h"
 #include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Input/SSlider.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SScaleBox.h"
+#include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SOverlay.h"
 #include "Widgets/Text/STextBlock.h"
@@ -336,7 +342,7 @@ void UYogGameInstanceBase::ShowMainMenu()
 	EntryMenuWidget->OnContinueRequested.RemoveAll(this);
 	EntryMenuWidget->OnOptionsRequested.RemoveAll(this);
 	EntryMenuWidget->OnQuitRequested.RemoveAll(this);
-	EntryMenuWidget->OnStartRequested.AddDynamic(this, &UYogGameInstanceBase::ShowSlotSelectMenu);
+	EntryMenuWidget->OnStartRequested.AddDynamic(this, &UYogGameInstanceBase::StartNormalRunFromFrontend);
 	EntryMenuWidget->OnContinueRequested.AddDynamic(this, &UYogGameInstanceBase::ShowSlotSelectMenu);
 	EntryMenuWidget->OnOptionsRequested.AddDynamic(this, &UYogGameInstanceBase::HandleEntryOptionsRequested);
 	EntryMenuWidget->OnQuitRequested.AddDynamic(this, &UYogGameInstanceBase::QuitFromFrontend);
@@ -794,6 +800,13 @@ void UYogGameInstanceBase::RemoveFrontendWidget()
 		EntryMenuWidget = nullptr;
 	}
 
+	if (GraphicsSettingsMenuWidget)
+	{
+		GraphicsSettingsMenuWidget->OnBackRequested.RemoveAll(this);
+		GraphicsSettingsMenuWidget->RemoveFromParent();
+		GraphicsSettingsMenuWidget = nullptr;
+	}
+
 	if (FrontendWidget.IsValid() && GEngine && GEngine->GameViewport)
 	{
 		GEngine->GameViewport->RemoveViewportWidgetContent(FrontendWidget.ToSharedRef());
@@ -859,8 +872,451 @@ FReply UYogGameInstanceBase::HandleContinueClicked()
 
 FReply UYogGameInstanceBase::HandleOptionsClicked()
 {
-	UE_LOG(LogTemp, Log, TEXT("[Frontend] Options clicked; settings screen is not implemented yet."));
+	if (ShowGraphicsSettingsMenuWidget())
+	{
+		return FReply::Handled();
+	}
+
+	RemoveFrontendWidget();
+
+	const FSlateBrush* BackgroundBrush = GetFrontendMainMenuBackgroundBrush();
+	const TWeakObjectPtr<UYogGameInstanceBase> WeakThis(this);
+	TSharedRef<FYogGraphicsSettings> CurrentSettings = MakeShared<FYogGraphicsSettings>(
+		UYogPerformanceSettingsLibrary::GetSavedGraphicsSettings(this));
+
+	const auto MakeCustomSettings = [CurrentSettings]()
+	{
+		*CurrentSettings = UYogPerformanceSettingsLibrary::MakeCustomGraphicsSettings(
+			*CurrentSettings,
+			CurrentSettings->ResolutionScalePercent,
+			CurrentSettings->FrameRateLimit,
+			CurrentSettings->bUseLumenLite,
+			CurrentSettings->bPreferBatchedGeometryProxies);
+	};
+
+	const auto ApplyCurrentSettings = [WeakThis, CurrentSettings]()
+	{
+		if (UYogGameInstanceBase* GameInstance = WeakThis.Get())
+		{
+			const bool bApplied = UYogPerformanceSettingsLibrary::ApplyGraphicsSettings(GameInstance, *CurrentSettings, true);
+			UE_LOG(LogTemp, Log, TEXT("[Frontend] Custom graphics settings applied: %d"), bApplied ? 1 : 0);
+		}
+	};
+
+	TSharedRef<SVerticalBox> PresetList = SNew(SVerticalBox);
+	for (EYogPerformanceProfile Profile : UYogPerformanceSettingsLibrary::GetSelectablePerformanceProfiles())
+	{
+		PresetList->AddSlot()
+		.AutoHeight()
+		.Padding(0.f, 0.f, 0.f, 10.f)
+		[
+			SNew(SButton)
+			.ContentPadding(FMargin(18.f, 12.f))
+			.OnClicked_Lambda([WeakThis, CurrentSettings, Profile]()
+			{
+				if (UYogGameInstanceBase* GameInstance = WeakThis.Get())
+				{
+					const bool bApplied = UYogPerformanceSettingsLibrary::ApplyPerformanceProfile(GameInstance, Profile, true);
+					if (bApplied)
+					{
+						*CurrentSettings = UYogPerformanceSettingsLibrary::MakeGraphicsSettingsForProfile(Profile);
+					}
+					UE_LOG(LogTemp, Log, TEXT("[Frontend] Performance profile %d applied: %d"), static_cast<int32>(Profile), bApplied ? 1 : 0);
+				}
+				return FReply::Handled();
+			})
+			[
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				[
+					SNew(STextBlock)
+					.Text(UYogPerformanceSettingsLibrary::GetPerformanceProfileDisplayName(Profile))
+					.Font(FCoreStyle::GetDefaultFontStyle("Bold", 18))
+					.ColorAndOpacity(FLinearColor(0.92f, 0.9f, 0.82f, 1.f))
+				]
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(0.f, 4.f, 0.f, 0.f)
+				[
+					SNew(STextBlock)
+					.Text(UYogPerformanceSettingsLibrary::GetPerformanceProfileDescription(Profile))
+					.Font(FCoreStyle::GetDefaultFontStyle("Regular", 12))
+					.ColorAndOpacity(FLinearColor(0.65f, 0.67f, 0.7f, 1.f))
+				]
+			]
+		];
+	}
+
+	const auto MakeFrameRateButton = [CurrentSettings, MakeCustomSettings](int32 FrameRateLimit, FText Label)
+	{
+		return SNew(SButton)
+			.ContentPadding(FMargin(14.f, 8.f))
+			.OnClicked_Lambda([CurrentSettings, MakeCustomSettings, FrameRateLimit]()
+			{
+				CurrentSettings->FrameRateLimit = FrameRateLimit;
+				MakeCustomSettings();
+				return FReply::Handled();
+			})
+			[
+				SNew(STextBlock)
+				.Text(Label)
+				.Font(FCoreStyle::GetDefaultFontStyle("Regular", 13))
+			];
+	};
+
+	TSharedRef<SVerticalBox> CustomControls = SNew(SVerticalBox);
+	CustomControls->AddSlot()
+	.AutoHeight()
+	.Padding(0.f, 6.f, 0.f, 14.f)
+	[
+		SNew(STextBlock)
+		.Text_Lambda([CurrentSettings]()
+		{
+			return FText::Format(
+				NSLOCTEXT("DevKitFrontend", "GraphicsCurrentProfile", "Current: {0}"),
+				UYogPerformanceSettingsLibrary::GetPerformanceProfileDisplayName(CurrentSettings->PerformanceProfile));
+		})
+		.Font(FCoreStyle::GetDefaultFontStyle("Bold", 16))
+		.ColorAndOpacity(FLinearColor(0.86f, 0.86f, 0.78f, 1.f))
+	];
+	CustomControls->AddSlot()
+	.AutoHeight()
+	.Padding(0.f, 0.f, 0.f, 12.f)
+	[
+		SNew(SVerticalBox)
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(0.f, 0.f, 0.f, 5.f)
+		[
+			SNew(STextBlock)
+			.Text_Lambda([CurrentSettings]()
+			{
+				return FText::Format(
+					NSLOCTEXT("DevKitFrontend", "GraphicsResolutionScaleValue", "Resolution Scale: {0}%"),
+					FText::AsNumber(FMath::RoundToInt(CurrentSettings->ResolutionScalePercent)));
+			})
+			.Font(FCoreStyle::GetDefaultFontStyle("Regular", 14))
+			.ColorAndOpacity(FLinearColor(0.82f, 0.84f, 0.86f, 1.f))
+		]
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		[
+			SNew(SSlider)
+			.MinValue(50.f)
+			.MaxValue(100.f)
+			.Value_Lambda([CurrentSettings]()
+			{
+				return CurrentSettings->ResolutionScalePercent;
+			})
+			.OnValueChanged_Lambda([CurrentSettings, MakeCustomSettings](float NewValue)
+			{
+				CurrentSettings->ResolutionScalePercent = FMath::RoundToFloat(NewValue);
+				MakeCustomSettings();
+			})
+		]
+	];
+	CustomControls->AddSlot()
+	.AutoHeight()
+	.Padding(0.f, 0.f, 0.f, 12.f)
+	[
+		SNew(SVerticalBox)
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(0.f, 0.f, 0.f, 6.f)
+		[
+			SNew(STextBlock)
+			.Text_Lambda([CurrentSettings]()
+			{
+				return CurrentSettings->FrameRateLimit > 0
+					? FText::Format(NSLOCTEXT("DevKitFrontend", "GraphicsFrameLimitValue", "Frame Limit: {0}"), FText::AsNumber(CurrentSettings->FrameRateLimit))
+					: NSLOCTEXT("DevKitFrontend", "GraphicsFrameLimitUnlimited", "Frame Limit: Unlimited");
+			})
+			.Font(FCoreStyle::GetDefaultFontStyle("Regular", 14))
+			.ColorAndOpacity(FLinearColor(0.82f, 0.84f, 0.86f, 1.f))
+		]
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot().AutoWidth().Padding(0.f, 0.f, 8.f, 0.f)[MakeFrameRateButton(30, NSLOCTEXT("DevKitFrontend", "GraphicsFps30", "30"))]
+			+ SHorizontalBox::Slot().AutoWidth().Padding(0.f, 0.f, 8.f, 0.f)[MakeFrameRateButton(40, NSLOCTEXT("DevKitFrontend", "GraphicsFps40", "40"))]
+			+ SHorizontalBox::Slot().AutoWidth().Padding(0.f, 0.f, 8.f, 0.f)[MakeFrameRateButton(60, NSLOCTEXT("DevKitFrontend", "GraphicsFps60", "60"))]
+			+ SHorizontalBox::Slot().AutoWidth().Padding(0.f, 0.f, 8.f, 0.f)[MakeFrameRateButton(120, NSLOCTEXT("DevKitFrontend", "GraphicsFps120", "120"))]
+			+ SHorizontalBox::Slot().AutoWidth()[MakeFrameRateButton(0, NSLOCTEXT("DevKitFrontend", "GraphicsFpsUnlimited", "Unlimited"))]
+		]
+	];
+	CustomControls->AddSlot()
+	.AutoHeight()
+	.Padding(0.f, 0.f, 0.f, 10.f)
+	[
+		SNew(SCheckBox)
+		.IsChecked_Lambda([CurrentSettings]()
+		{
+			return CurrentSettings->bUseLumenLite ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+		})
+		.OnCheckStateChanged_Lambda([CurrentSettings, MakeCustomSettings](ECheckBoxState NewState)
+		{
+			CurrentSettings->bUseLumenLite = NewState == ECheckBoxState::Checked;
+			MakeCustomSettings();
+		})
+		[
+			SNew(STextBlock)
+			.Text(NSLOCTEXT("DevKitFrontend", "GraphicsLumenLiteToggle", "Lumen Lite"))
+			.Font(FCoreStyle::GetDefaultFontStyle("Regular", 14))
+		]
+	];
+	CustomControls->AddSlot()
+	.AutoHeight()
+	.Padding(0.f, 0.f, 0.f, 14.f)
+	[
+		SNew(SCheckBox)
+		.IsChecked_Lambda([CurrentSettings]()
+		{
+			return CurrentSettings->bPreferBatchedGeometryProxies ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+		})
+		.OnCheckStateChanged_Lambda([CurrentSettings, MakeCustomSettings](ECheckBoxState NewState)
+		{
+			CurrentSettings->bPreferBatchedGeometryProxies = NewState == ECheckBoxState::Checked;
+			MakeCustomSettings();
+		})
+		[
+			SNew(STextBlock)
+			.Text(NSLOCTEXT("DevKitFrontend", "GraphicsBatchProxyToggle", "Batch Proxies"))
+			.Font(FCoreStyle::GetDefaultFontStyle("Regular", 14))
+		]
+	];
+	const auto AddQualityRow = [&CustomControls, CurrentSettings, MakeCustomSettings](FText Label, int32 FYogGraphicsSettings::* Field)
+	{
+		CustomControls->AddSlot()
+		.AutoHeight()
+		.Padding(0.f, 0.f, 0.f, 8.f)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.FillWidth(1.f)
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.Text(Label)
+				.Font(FCoreStyle::GetDefaultFontStyle("Regular", 14))
+				.ColorAndOpacity(FLinearColor(0.82f, 0.84f, 0.86f, 1.f))
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(0.f, 0.f, 8.f, 0.f)
+			[
+				SNew(SButton)
+				.ContentPadding(FMargin(12.f, 6.f))
+				.Text(NSLOCTEXT("DevKitFrontend", "GraphicsQualityMinus", "-"))
+				.OnClicked_Lambda([CurrentSettings, MakeCustomSettings, Field]()
+				{
+					CurrentSettings.Get().*Field = FMath::Max(0, CurrentSettings.Get().*Field - 1);
+					MakeCustomSettings();
+					return FReply::Handled();
+				})
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(0.f, 0.f, 8.f, 0.f)
+			[
+				SNew(STextBlock)
+				.Text_Lambda([CurrentSettings, Field]()
+				{
+					return FText::AsNumber(CurrentSettings.Get().*Field);
+				})
+				.Font(FCoreStyle::GetDefaultFontStyle("Bold", 14))
+				.MinDesiredWidth(18.f)
+				.Justification(ETextJustify::Center)
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				SNew(SButton)
+				.ContentPadding(FMargin(12.f, 6.f))
+				.Text(NSLOCTEXT("DevKitFrontend", "GraphicsQualityPlus", "+"))
+				.OnClicked_Lambda([CurrentSettings, MakeCustomSettings, Field]()
+				{
+					CurrentSettings.Get().*Field = FMath::Min(3, CurrentSettings.Get().*Field + 1);
+					MakeCustomSettings();
+					return FReply::Handled();
+				})
+			]
+		];
+	};
+	AddQualityRow(NSLOCTEXT("DevKitFrontend", "GraphicsShadowQuality", "Shadows"), &FYogGraphicsSettings::ShadowQuality);
+	AddQualityRow(NSLOCTEXT("DevKitFrontend", "GraphicsGIQuality", "GI"), &FYogGraphicsSettings::GlobalIlluminationQuality);
+	AddQualityRow(NSLOCTEXT("DevKitFrontend", "GraphicsReflectionQuality", "Reflections"), &FYogGraphicsSettings::ReflectionQuality);
+	AddQualityRow(NSLOCTEXT("DevKitFrontend", "GraphicsTextureQuality", "Textures"), &FYogGraphicsSettings::TextureQuality);
+
+	TSharedRef<SWidget> Widget =
+		SNew(SOverlay)
+		+ SOverlay::Slot()
+		[
+			SNew(SBorder)
+			.BorderBackgroundColor(FLinearColor(0.01f, 0.012f, 0.016f, 1.f))
+			.Padding(0.f)
+		]
+		+ SOverlay::Slot()
+		[
+			SNew(SScaleBox)
+			.Stretch(EStretch::ScaleToFill)
+			[
+				SNew(SImage)
+				.Image(BackgroundBrush)
+				.ColorAndOpacity(FLinearColor::White)
+			]
+		]
+		+ SOverlay::Slot()
+		[
+			SNew(SBorder)
+			.BorderBackgroundColor(FLinearColor(0.f, 0.f, 0.f, 0.7f))
+			.Padding(0.f)
+		]
+		+ SOverlay::Slot()
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
+		[
+			SNew(SBox)
+			.WidthOverride(660.f)
+			.MaxDesiredHeight(680.f)
+			[
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.HAlign(HAlign_Center)
+				.Padding(0.f, 0.f, 0.f, 10.f)
+				[
+					SNew(STextBlock)
+					.Text(NSLOCTEXT("DevKitFrontend", "PerformanceSettingsTitle", "Graphics"))
+					.Font(FCoreStyle::GetDefaultFontStyle("Bold", 34))
+					.ColorAndOpacity(FLinearColor(0.92f, 0.9f, 0.82f, 1.f))
+				]
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(0.f, 0.f, 0.f, 24.f)
+				[
+					SNew(STextBlock)
+					.Text(NSLOCTEXT("DevKitFrontend", "PerformanceSettingsSubtitle", "Performance profile and runtime graphics settings."))
+					.Font(FCoreStyle::GetDefaultFontStyle("Regular", 15))
+					.ColorAndOpacity(FLinearColor(0.68f, 0.7f, 0.73f, 1.f))
+					.Justification(ETextJustify::Center)
+				]
+				+ SVerticalBox::Slot()
+				.FillHeight(1.f)
+				[
+					SNew(SScrollBox)
+					+ SScrollBox::Slot()
+					[
+						SNew(SVerticalBox)
+						+ SVerticalBox::Slot()
+						.AutoHeight()
+						[
+							PresetList
+						]
+						+ SVerticalBox::Slot()
+						.AutoHeight()
+						.Padding(0.f, 16.f, 0.f, 0.f)
+						[
+							CustomControls
+						]
+					]
+				]
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.HAlign(HAlign_Center)
+				.Padding(0.f, 14.f, 0.f, 0.f)
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.Padding(0.f, 0.f, 12.f, 0.f)
+					[
+						SNew(SButton)
+						.ContentPadding(FMargin(28.f, 10.f))
+						.Text(NSLOCTEXT("DevKitFrontend", "PerformanceSettingsApplyCustom", "Apply Custom"))
+						.OnClicked_Lambda([ApplyCurrentSettings]()
+						{
+							ApplyCurrentSettings();
+							return FReply::Handled();
+						})
+					]
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					[
+						SNew(SButton)
+						.ContentPadding(FMargin(28.f, 10.f))
+						.Text(NSLOCTEXT("DevKitFrontend", "PerformanceSettingsBack", "Back"))
+						.OnClicked_Lambda([WeakThis]()
+						{
+							if (UYogGameInstanceBase* GameInstance = WeakThis.Get())
+							{
+								GameInstance->ShowMainMenu();
+							}
+							return FReply::Handled();
+						})
+					]
+				]
+			]
+		];
+
+	FrontendWidget = Widget;
+	if (GEngine && GEngine->GameViewport)
+	{
+		GEngine->GameViewport->AddViewportWidgetContent(Widget, 10000);
+	}
+	ApplyFrontendInputMode(true, FrontendWidget);
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().SetTimerForNextTick(this, &UYogGameInstanceBase::RefocusFrontendWidget);
+	}
+
 	return FReply::Handled();
+}
+
+bool UYogGameInstanceBase::ShowGraphicsSettingsMenuWidget()
+{
+	if (!GraphicsSettingsMenuClass)
+	{
+		return false;
+	}
+
+	APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0);
+	if (!PC)
+	{
+		return false;
+	}
+
+	UYogGraphicsSettingsWidgetBase* NewWidget = CreateWidget<UYogGraphicsSettingsWidgetBase>(PC, GraphicsSettingsMenuClass);
+	if (!NewWidget)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Frontend] Failed to create GraphicsSettingsMenuClass; falling back to native Slate settings."));
+		return false;
+	}
+
+	RemoveFrontendWidget();
+	GraphicsSettingsMenuWidget = NewWidget;
+	GraphicsSettingsMenuWidget->OnBackRequested.RemoveAll(this);
+	GraphicsSettingsMenuWidget->OnBackRequested.AddDynamic(this, &UYogGameInstanceBase::HandleGraphicsSettingsBackRequested);
+	GraphicsSettingsMenuWidget->RefreshFromSavedSettings();
+	GraphicsSettingsMenuWidget->AddToViewport(10000);
+	GraphicsSettingsMenuWidget->ActivateWidget();
+	ApplyFrontendInputMode(true, GraphicsSettingsMenuWidget->TakeWidget());
+
+	return true;
+}
+
+void UYogGameInstanceBase::HandleGraphicsSettingsBackRequested()
+{
+	if (GraphicsSettingsMenuWidget)
+	{
+		GraphicsSettingsMenuWidget->OnBackRequested.RemoveAll(this);
+		GraphicsSettingsMenuWidget->RemoveFromParent();
+		GraphicsSettingsMenuWidget = nullptr;
+	}
+
+	ShowMainMenu();
 }
 
 FReply UYogGameInstanceBase::HandleQuitClicked()
