@@ -11,20 +11,16 @@
 #include "Customization/RuneDataAssetDetails.h"
 #include "Data/RuneDataAsset.h"
 #include "Editor.h"
-#include "Editor/EditorEngine.h"
-#include "LevelEditor.h"
-#include "PlayInEditorDataTypes.h"
 #include "RuneEditor/SRuneEditorWidget.h"
 #include "Styling/AppStyle.h"
 #include "ToolMenuEntry.h"
 #include "ToolMenus.h"
-#include "Editor/UnrealEdEngine.h"
-#include "UnrealEdGlobals.h"
 #include "Tools/SActionBalanceWidget.h"
 #include "Tools/SBuffFlowDebugWidget.h"
 #include "Tools/SCharacterBalanceWidget.h"
 #include "Tools/SComboGraphManagerWidget.h"
 #include "Tools/SDataEditorWidget.h"
+#include "Tools/SEnvBatchTaggerWidget.h"
 #include "Tools/SLevelDataWorkbenchWidget.h"
 #include "Tools/SMetaProgressionWorkbenchWidget.h"
 #include "Tools/StoryEncounter/SStoryEncounterWorkbenchWidget.h"
@@ -49,6 +45,7 @@ namespace
 	const FName BuffFlowDebugTabName(TEXT("DevKitBuffFlowDebug"));
 	const FName MetaProgressionWorkbenchTabName(TEXT("DevKitMetaProgressionWorkbench"));
 	const FName StoryEncounterWorkbenchTabName(TEXT("DevKitStoryEncounterWorkbench"));
+	const FName EnvBatchTaggerTabName(TEXT("DevKitEnvBatchTagger"));
 }
 
 class FDevKitEditorModule : public FDefaultGameModuleImpl {
@@ -139,6 +136,13 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			.SetTooltipText(LOCTEXT("StoryEncounterWorkbenchTabTooltip", "打开剧情、教程、触发点和流程画布工作台。"))
 			.SetMenuType(ETabSpawnerMenuType::Hidden);
 
+		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
+			EnvBatchTaggerTabName,
+			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnEnvBatchTaggerTab))
+			.SetDisplayName(LOCTEXT("EnvBatchTaggerTabTitle", "EnvBatch Tagger"))
+			.SetTooltipText(LOCTEXT("EnvBatchTaggerTabTooltip", "Batch assign EnvBatch actor tags to the current editor selection."))
+			.SetMenuType(ETabSpawnerMenuType::Hidden);
+
 		UToolMenus::RegisterStartupCallback(FSimpleMulticastDelegate::FDelegate::CreateRaw(this, &FDevKitEditorModule::RegisterDataEditorMenus));
 	}
 
@@ -160,6 +164,7 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(BuffFlowDebugTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(MetaProgressionWorkbenchTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(StoryEncounterWorkbenchTabName);
+		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(EnvBatchTaggerTabName);
 		CombatLogWidgetInstance.Reset();
 
 		FEditorDelegates::OnMapOpened.RemoveAll(this);
@@ -312,6 +317,16 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			];
 	}
 
+	TSharedRef<SDockTab> SpawnEnvBatchTaggerTab(const FSpawnTabArgs& SpawnTabArgs)
+	{
+		return SNew(SDockTab)
+			.TabRole(ETabRole::NomadTab)
+			.Label(LOCTEXT("EnvBatchTaggerTabLabel", "EnvBatch Tagger"))
+			[
+				SNew(SEnvBatchTaggerWidget)
+			];
+	}
+
 	void OnCombatLogTabClosed(TSharedRef<SDockTab> ClosedTab)
 	{
 		CombatLogWidgetInstance.Reset();
@@ -327,17 +342,6 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			LOCTEXT("DevKitToolsMenuLabel", "DevKit Tools"),
 			LOCTEXT("DevKitToolsMenuTooltip", "Open DevKit authoring, balance, and debug editor tools."),
 			FNewToolMenuDelegate::CreateRaw(this, &FDevKitEditorModule::FillDevKitDataMenu));
-
-		UToolMenu* PlayToolbar = UToolMenus::Get()->ExtendMenu(TEXT("LevelEditor.LevelEditorToolBar.PlayToolBar"));
-		FToolMenuSection& PlaySection = PlayToolbar->FindOrAddSection(TEXT("Play"));
-		PlaySection.AddEntry(FToolMenuEntry::InitToolBarButton(
-			TEXT("DevKitPlayFromMainMenu"),
-			FToolUIActionChoice(FUIAction(
-				FExecuteAction::CreateRaw(this, &FDevKitEditorModule::PlayFromMainMenu),
-				FCanExecuteAction::CreateRaw(this, &FDevKitEditorModule::CanStartPlaySession))),
-			LOCTEXT("PlayFromMainMenuLabel", "Play Menu"),
-			LOCTEXT("PlayFromMainMenuTooltip", "Start PIE from the entry menu map without changing the currently edited level."),
-			FSlateIcon(FAppStyle::GetAppStyleSetName(), TEXT("PlayWorld.PlayInViewport"))));
 
 	}
 
@@ -390,6 +394,14 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenMetaProgressionWorkbenchTab)));
 
+		FToolMenuSection& PerformanceSection = Menu->FindOrAddSection(TEXT("DevKitPerformanceTools"), LOCTEXT("DevKitPerformanceToolsSection", "Performance Tools"));
+		PerformanceSection.AddMenuEntry(
+			TEXT("OpenEnvBatchTagger"),
+			LOCTEXT("OpenEnvBatchTaggerLabel", "EnvBatch Tagger"),
+			LOCTEXT("OpenEnvBatchTaggerTooltip", "Assign EnvBatch Source, Proxy, Baked, or Exclude actor tags to the current level selection."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenEnvBatchTaggerTab)));
+
 		FToolMenuSection& DebugSection = Menu->FindOrAddSection(TEXT("DevKitDebugTools"), LOCTEXT("DevKitDebugToolsSection", "Debug Tools"));
 		DebugSection.AddMenuEntry(
 			TEXT("OpenCombatLog"),
@@ -404,41 +416,6 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenBuffFlowDebugTab)));
 
-		DebugSection.AddMenuEntry(
-			TEXT("PlayFromMainMenu"),
-			LOCTEXT("PlayFromMainMenuMenuLabel", "Play Current Map"),
-			LOCTEXT("PlayFromMainMenuMenuTooltip", "Start PIE from the current editor map."),
-			FSlateIcon(FAppStyle::GetAppStyleSetName(), TEXT("PlayWorld.PlayInViewport")),
-			FUIAction(
-				FExecuteAction::CreateRaw(this, &FDevKitEditorModule::PlayFromMainMenu),
-				FCanExecuteAction::CreateRaw(this, &FDevKitEditorModule::CanStartPlaySession)));
-	}
-
-	bool CanStartPlaySession() const
-	{
-		return GUnrealEd && !GUnrealEd->PlayWorld && !GUnrealEd->GetPlaySessionRequest().IsSet();
-	}
-
-	void PlayFromMainMenu()
-	{
-		if (!CanStartPlaySession())
-		{
-			return;
-		}
-
-		FRequestPlaySessionParams SessionParams;
-
-		if (FModuleManager::Get().IsModuleLoaded(TEXT("LevelEditor")))
-		{
-			FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
-			if (TSharedPtr<IAssetViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveViewport())
-			{
-				SessionParams.DestinationSlateViewport = ActiveLevelViewport;
-			}
-		}
-
-		GUnrealEd->RequestPlaySession(SessionParams);
-		GUnrealEd->StartQueuedPlaySessionRequest();
 	}
 
 	void OpenRuneBalanceTab()
@@ -489,6 +466,11 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 	void OpenStoryEncounterWorkbenchTab()
 	{
 		FGlobalTabmanager::Get()->TryInvokeTab(StoryEncounterWorkbenchTabName);
+	}
+
+	void OpenEnvBatchTaggerTab()
+	{
+		FGlobalTabmanager::Get()->TryInvokeTab(EnvBatchTaggerTabName);
 	}
 
 	void RegisterAssetTypeAction(IAssetTools& AssetTools, TSharedRef<IAssetTypeActions> Action)

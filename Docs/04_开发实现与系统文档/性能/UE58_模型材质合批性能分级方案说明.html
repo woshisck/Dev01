@@ -1,0 +1,1532 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>UE5.8 模型与材质合批性能分级方案说明</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f7fb;
+      --panel: #ffffff;
+      --ink: #172033;
+      --muted: #667085;
+      --line: #d7deea;
+      --blue: #255fd4;
+      --green: #087f5b;
+      --orange: #b45f06;
+      --red: #b42318;
+      --code: #eef2f7;
+      --soft-blue: #eaf1ff;
+      --soft-green: #eaf8f1;
+      --soft-orange: #fff4e5;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.68;
+    }
+    header {
+      background: #111827;
+      color: #fff;
+      padding: 34px 30px 28px;
+      border-bottom: 4px solid var(--blue);
+    }
+    header h1 {
+      margin: 0 0 10px;
+      font-size: 30px;
+      letter-spacing: 0;
+    }
+    header p { margin: 0; color: #cbd5e1; max-width: 1080px; }
+    main { max-width: 1180px; margin: 0 auto; padding: 24px; }
+    nav {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px 18px;
+      margin-bottom: 18px;
+    }
+    nav a {
+      display: inline-block;
+      color: var(--blue);
+      text-decoration: none;
+      margin: 4px 14px 4px 0;
+      font-weight: 600;
+    }
+    section {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 22px 26px;
+      margin-bottom: 18px;
+    }
+    h2 {
+      margin: 0 0 14px;
+      font-size: 24px;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 8px;
+    }
+    h3 { margin: 22px 0 8px; font-size: 19px; }
+    h4 { margin: 16px 0 6px; font-size: 16px; }
+    p { margin: 8px 0 12px; }
+    ul, ol { margin: 8px 0 12px 22px; padding: 0; }
+    li { margin: 5px 0; }
+    code {
+      background: var(--code);
+      border-radius: 5px;
+      padding: 1px 5px;
+      font-family: Consolas, "Cascadia Mono", monospace;
+      font-size: 0.94em;
+    }
+    pre {
+      overflow: auto;
+      background: #111827;
+      color: #e5e7eb;
+      border-radius: 8px;
+      padding: 14px;
+      line-height: 1.5;
+    }
+    pre code { background: transparent; padding: 0; color: inherit; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0 18px;
+      font-size: 14px;
+    }
+    th, td {
+      border: 1px solid var(--line);
+      padding: 9px 10px;
+      vertical-align: top;
+      text-align: left;
+    }
+    th { background: #eef2f7; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 14px;
+      margin: 14px 0;
+    }
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      background: #fbfcff;
+    }
+    .card h3 { margin-top: 0; }
+    .callout {
+      border-left: 4px solid var(--blue);
+      background: var(--soft-blue);
+      padding: 12px 14px;
+      border-radius: 6px;
+      margin: 12px 0;
+    }
+    .good { border-left-color: var(--green); background: var(--soft-green); }
+    .warn { border-left-color: var(--orange); background: var(--soft-orange); }
+    .bad { border-left-color: var(--red); background: #fff1f0; }
+    .tag {
+      display: inline-block;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 2px 8px;
+      margin: 2px 4px 2px 0;
+      background: #fff;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 10px;
+      margin: 12px 0;
+    }
+    .step {
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      min-height: 92px;
+    }
+    .step strong { display: block; margin-bottom: 6px; color: var(--blue); }
+    footer {
+      color: var(--muted);
+      padding: 10px 4px 30px;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>UE5.8 模型与材质合批性能分级方案说明</h1>
+    <p>目标是解释后续我会如何处理性能分级，尤其是模型合批、材质合批、自动化分组、AI/MCP 辅助、平台档位和验证标准。本文是方案说明，不代表已经执行合批替换。</p>
+  </header>
+
+  <main>
+    <nav>
+      <a href="#summary">总判断</a>
+      <a href="#tiers">平台分级</a>
+      <a href="#model">模型合批</a>
+      <a href="#material">材质合批</a>
+      <a href="#envlitbatch">EnvLitBatch 对照</a>
+      <a href="#authoring">美术工作流</a>
+      <a href="#automation">自动化流程</a>
+      <a href="#topdown-rvt">俯视角/RVT</a>
+      <a href="#material-cache">Material Cache</a>
+      <a href="#metrics">验证指标</a>
+      <a href="#phases">实施阶段</a>
+    </nav>
+
+    <section id="summary">
+      <h2>1. 总判断</h2>
+      <div class="callout good">
+        <strong>结论：</strong>模型和材质合批可以做，但不能设计成“美术摆完场景后工具无脑自动合并整个关卡”。正确方向是：美术表达分组意图，工具做规则审计，AI/MCP 做建议和批量操作，最终只对审查通过的静态环境 cluster 生成合批资产。
+      </div>
+      <p>我会把整个系统拆成四层，不把它们混为一谈：</p>
+      <div class="grid">
+        <div class="card">
+          <h3>美术组织层</h3>
+          <p>Actor Folder、Data Layer、Level Instance、选择集、或将来可能的 <code>BP_EnvBatchGroup</code>。这层表达“哪些物件属于一个区域”。</p>
+        </div>
+        <div class="card">
+          <h3>执行标记层</h3>
+          <p><code>EnvBatch.Source.*</code>、<code>EnvBatch.Proxy.*</code>、<code>EnvBatch.Exclude</code>。这是 commandlet 可以稳定读取的事实输入。</p>
+        </div>
+        <div class="card">
+          <h3>生成资产层</h3>
+          <p><code>MappingDataAsset</code>、<code>Texture2DArray</code>、<code>PropertyTexture</code>、<code>ProxyMesh</code>、<code>BatchMaterial</code>。</p>
+        </div>
+        <div class="card">
+          <h3>运行分级层</h3>
+          <p>PC/掌机不同档位决定显示 Source、Proxy、HLOD、Baked 替代、Lumen Lite 或 Lumen Off。</p>
+        </div>
+      </div>
+      <p>这个拆法的好处是：美术不用理解 Texture2DArray 和 PropertyTexture，工具也不会因为文件夹拖错就直接破坏场景。</p>
+    </section>
+
+    <section id="tiers">
+      <h2>2. 性能分级会从哪些平台目标出发</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>目标档位</th>
+            <th>视觉策略</th>
+            <th>模型策略</th>
+            <th>材质策略</th>
+            <th>光照策略</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>PC Ultra</strong></td>
+            <td>最高画质，优先保留原始资产细节。</td>
+            <td>Source 为主；只对重复远景或明显高 draw call 区域使用 HLOD/Proxy。</td>
+            <td>允许较完整材质功能，材质灯采样预算最高。</td>
+            <td>允许 Lumen High/Ultra；Nanite/VSM 当前不作为掌机依赖。</td>
+          </tr>
+          <tr>
+            <td><strong>PC High</strong></td>
+            <td>接近 Ultra，但降低部分阴影、反射和材质灯预算。</td>
+            <td>Source + 选择性 Proxy。</td>
+            <td>保持主要材质表现，减少非关键分支。</td>
+            <td>可开 Lumen，质量低于 Ultra。</td>
+          </tr>
+          <tr>
+            <td><strong>Steam Deck 15W</strong></td>
+            <td>掌机主验证档，目标是稳定视觉和 GPU ms。</td>
+            <td>房间/走廊 cluster 使用 ProxyMesh、HLOD、ISM/HISM。</td>
+            <td>优先批处理材质，减少材质实例导致的 draw call 拆分。</td>
+            <td>可测试 Lumen Lite，但是否默认开启必须看实测。</td>
+          </tr>
+          <tr>
+            <td><strong>Switch 2 Candidate</strong></td>
+            <td>候选档，不当作真机结论。</td>
+            <td>复用掌机 15W 策略，保守一点。</td>
+            <td>材质功能收敛，减少 unique 采样压力。</td>
+            <td>暂按 Lumen Lite 候选，不做最终承诺。</td>
+          </tr>
+          <tr>
+            <td><strong>Steam Deck 5W / Low</strong></td>
+            <td>低功耗档，优先稳定性和可读性。</td>
+            <td>Proxy / HLOD / Baked 替代优先，Source 尽量减少。</td>
+            <td>批材质 + 降采样 + 降材质灯预算。</td>
+            <td>Lumen Off，使用烘焙/静态补光/材质灯低档。</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="callout warn">
+        <strong>注意：</strong>性能分级不是只改一个画质选项。模型数量、材质 slot、材质实例、贴图 streaming、动态灯、阴影、Lumen、分辨率比例都会互相影响。
+      </div>
+    </section>
+
+    <section id="model">
+      <h2>3. 模型合批会从哪些角度判断</h2>
+      <h3>3.1 先判断瓶颈类型</h3>
+      <p>模型合批不是永远第一优先级。我会先判断场景压力来自哪里：</p>
+      <table>
+        <thead>
+          <tr><th>压力类型</th><th>现象</th><th>优先处理方式</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Draw Call / Mesh Draw Commands 过高</td>
+            <td>大量小模型、材质实例多、section 多。</td>
+            <td>Geometry Merge、HLOD、ISM/HISM、批处理材质。</td>
+          </tr>
+          <tr>
+            <td>顶点/三角形过高</td>
+            <td>GPU ms 高，但 draw call 未必很夸张。</td>
+            <td>LOD、ProxyMesh 简化、HLOD、可见性分块。</td>
+          </tr>
+          <tr>
+            <td>材质像素成本高</td>
+            <td>材质采样多、材质灯采样多、透明/Masked 压力大。</td>
+            <td>材质分级、减少采样、预烘焙、批材质简化。</td>
+          </tr>
+          <tr>
+            <td>贴图显存/streaming 压力</td>
+            <td>纹理池爆、mip 抖动、加载 hitch。</td>
+            <td>VT/SVT、纹理尺寸规范、合并贴图集，但这不直接等于 draw call 合批。</td>
+          </tr>
+          <tr>
+            <td>动态灯/阴影压力</td>
+            <td>Shadow / Light pass 成本高。</td>
+            <td>减少动态灯、烘焙替代、阴影分级、材质灯预算分级。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>3.2 哪些模型适合合批</h3>
+      <div>
+        <span class="tag">静态环境</span>
+        <span class="tag">不交互</span>
+        <span class="tag">不破坏</span>
+        <span class="tag">不脚本移动</span>
+        <span class="tag">材质父级相近</span>
+        <span class="tag">同一区域可见性一致</span>
+      </div>
+      <p>适合第一批处理的是墙体、地面、柱子、固定建筑件、远景装饰、重复小件、地牢走廊模块这类资产。</p>
+
+      <h3>3.3 哪些模型不应合批</h3>
+      <div>
+        <span class="tag">门</span>
+        <span class="tag">机关</span>
+        <span class="tag">宝箱</span>
+        <span class="tag">拾取物</span>
+        <span class="tag">敌人</span>
+        <span class="tag">武器</span>
+        <span class="tag">可破坏物</span>
+        <span class="tag">剧情触发器</span>
+        <span class="tag">独立碰撞事件</span>
+      </div>
+      <p>这些对象即便视觉上像环境件，也应该默认 <code>EnvBatch.Exclude</code>，除非关卡/程序明确确认。</p>
+
+      <h3>3.4 合批方式选择</h3>
+      <table>
+        <thead>
+          <tr><th>方式</th><th>适合情况</th><th>优点</th><th>风险</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>ISM/HISM</td>
+            <td>同 mesh、同材质、重复摆放。</td>
+            <td>风险低，适合重复道具。</td>
+            <td>不同 mesh/材质帮助有限。</td>
+          </tr>
+          <tr>
+            <td>Geometry Merge + Batch Material</td>
+            <td>同一区域多个静态 mesh，希望降低 draw call。</td>
+            <td>能把不同 mesh 合成代理，draw call 优化明显。</td>
+            <td>需要处理 UV、材质 index、贴图数组、碰撞和视觉差异。</td>
+          </tr>
+          <tr>
+            <td>HLOD / ProxyMesh</td>
+            <td>中远景、房间外、低配档。</td>
+            <td>成熟、适合分级切换。</td>
+            <td>近景可能视觉差异明显。</td>
+          </tr>
+          <tr>
+            <td>Packed Level Actor / Level Instance</td>
+            <td>模块化房间或 prefab-like 场景块。</td>
+            <td>美术组织友好。</td>
+            <td>本身不等于材质合批，需要结合 Proxy 和 batch material。</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="material">
+      <h2>4. 材质合批会从哪些角度判断</h2>
+      <h3>4.1 材质合批的核心前提</h3>
+      <p>材质合批不是“MI 父材质相同就一定能合批”。我会按下面条件审查：</p>
+      <ul>
+        <li>父材质或 shader path 是否一致。</li>
+        <li>Static Switch / keyword 组合是否一致。</li>
+        <li>Blend Mode、Shading Model、Two Sided、WPO、Masked 等渲染状态是否一致。</li>
+        <li>Texture 参数集合是否一致，例如 BaseColor、Normal、ORM、Mask。</li>
+        <li>贴图尺寸、格式、mip、sRGB 是否可打入 Texture2DArray。</li>
+        <li>Scalar/Vector 参数能否进入 PropertyTexture。</li>
+        <li>材质灯、LightInfo、特殊遮罩、全局 mask 是否需要独立降级路径。</li>
+      </ul>
+
+      <h3>4.2 M_Env_Building 的批材质方向</h3>
+      <p>当前方向是做一个 <code>M_Env_Building_Batch</code> 或等价材质函数路径：</p>
+      <pre><code>Geometry Merge 后的大 Mesh
+  Vertex / UV7.x 存 MaterialIndex
+  Fragment 阶段读取 MaterialIndex
+  MaterialIndex -> Texture2DArray slice
+  MaterialIndex -> PropertyTexture row
+  输出 BaseColor / Normal / ORM / Mask / 参数化材质灯预算</code></pre>
+      <p>其中 <code>Tex_LightInfo</code> 暂时不应混进普通 BaseColor/Normal/ORM 数组。它更像材质灯/CanvasRenderTarget 特殊数据，应该独立按质量档控制。</p>
+
+      <h3>4.3 Texture2DArray 和 PropertyTexture 分工</h3>
+      <table>
+        <thead>
+          <tr><th>数据</th><th>进入哪里</th><th>说明</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>BaseColor / Albedo</td>
+            <td><code>T2DA_BaseColor</code></td>
+            <td>每个材质一层 slice，尺寸格式必须统一或预处理。</td>
+          </tr>
+          <tr>
+            <td>Normal</td>
+            <td><code>T2DA_Normal</code></td>
+            <td>注意 normal 格式、压缩和切线空间一致。</td>
+          </tr>
+          <tr>
+            <td>ORM / MRA</td>
+            <td><code>T2DA_ORM</code></td>
+            <td>通道约定必须固定，不能一个材质 R=AO，另一个 R=Metallic。</td>
+          </tr>
+          <tr>
+            <td>Mask / Unique Mask</td>
+            <td><code>T2DA_Mask</code> 或独立路径</td>
+            <td>根据使用频率决定是否纳入批材质。</td>
+          </tr>
+          <tr>
+            <td>颜色、强度、UV ST、开关运行时等价参数</td>
+            <td><code>PropertyTexture</code></td>
+            <td>每行对应一个 material index，每列对应一个参数。</td>
+          </tr>
+          <tr>
+            <td>Static Switch</td>
+            <td>不能直接运行时变化</td>
+            <td>应拆为少量 batch variant，或改造成运行时参数。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout bad">
+        <strong>不会做的事：</strong>不会把所有 MI 不审查地塞进一个 Texture2DArray，也不会把 VT/SVT 当作 draw call 合批本身。VT 可以解决 streaming/显存，但 draw call 下降主要来自 Geometry Merge、HLOD、ISM/HISM 和批材质。
+      </div>
+
+      <h3>4.4 如果所有物件都使用虚拟纹理，能否替代 Texture2DArray 合批</h3>
+      <div class="callout warn">
+        <strong>结论：</strong>“所有贴图启用 Streaming Virtual Texture”不能自动实现材质合批；“工具链生成共享 VT Atlas / Material Cache，并让批材质按 materialIndex + UVRect 采样”才可以把 VT 作为 Texture2DArray 的替代资源层。换句话说，VT 可以替代 array 的贴图承载方式，但不能替代 batchIndex、PropertyTexture、材质变体收敛和 Mesh 合并。
+      </div>
+
+      <table>
+        <thead>
+          <tr><th>做法</th><th>是否减少 draw call</th><th>原因</th><th>是否推荐</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>每张 unique 贴图单独勾选 SVT</td>
+            <td>否</td>
+            <td>UE 仍然把它们当作不同纹理参数/材质资源绑定；只改善 streaming 和显存页加载，不会把多个 StaticMeshActor 合成一个 draw call。</td>
+            <td>可作为显存优化，但不是合批方案。</td>
+          </tr>
+          <tr>
+            <td>共享 VT Atlas + 批材质</td>
+            <td>可以</td>
+            <td>所有材质采样同一套虚拟纹理资源，shader 通过 <code>materialIndex</code> 查 <code>UVRect</code> 和参数表，类似 T2DA Batch。</td>
+            <td>可作为第一阶段主线，但必须由工具自动生成共享 VT Atlas 和 MappingData。</td>
+          </tr>
+          <tr>
+            <td>RVT 地面缓存</td>
+            <td>间接可能</td>
+            <td>减少地面 decal、混合层、复杂材质叠加成本，但不自动合并建筑/道具 draw call。</td>
+            <td>推荐用于俯视角地面管线。</td>
+          </tr>
+          <tr>
+            <td>UE5.8 Material Cache</td>
+            <td>不直接</td>
+            <td>缓存材质属性结果，偏向降低复杂材质求值成本；仍需要 Mesh 合并或实例化才能减少 draw call。</td>
+            <td>只作为实验验证项。</td>
+          </tr>
+          <tr>
+            <td>Texture2DArray + PropertyTexture</td>
+            <td>可以</td>
+            <td>采样逻辑确定、实现简单、与 EnvLitBatch 对齐；缺点是尺寸/格式/slice 数有约束。</td>
+            <td>推荐作为第一阶段确定性方案。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h4>4.4.1 为什么“单独开启 SVT”不能直接合批</h4>
+      <p>SVT 的底层物理页池可以复用显存管理，但材质层面仍然需要知道采样哪一张虚拟纹理、哪个 page table、哪些参数。只要每个 MI 仍然绑定不同纹理参数、不同 static switch、不同 render state，Mesh Draw Command 仍会被拆开。</p>
+      <p>真正的合批需要运行时只绑定一套批材质资源，然后每个像素根据 <code>materialIndex</code> 自己查表：</p>
+      <pre><code>TexCoord7.x
+  -> materialIndex
+  -> PropertyTexture[materialIndex]
+  -> TextureMapping[materialIndex] = VTRect / PageInfo / UVScaleOffset
+  -> Shared Virtual Texture sample
+  -> 批材质统一输出</code></pre>
+
+      <h4>4.4.2 如果用 VT 替代 Texture2DArray，需要补齐哪些工具链</h4>
+      <ol>
+        <li>生成共享虚拟纹理资源：不是每个材质一张独立 VT，而是按 batch group 生成统一的 VT Atlas / cache。</li>
+        <li>生成 <code>TextureMapping</code>：每个 materialIndex 对应 BaseColor、Normal、ORM 等通道在 VT 中的 rect、mip/scale、边界信息。</li>
+        <li>继续生成 <code>PropertyTexture</code>：颜色、UV ST、材质灯预算、scalar/vector 参数仍然需要按行查表。</li>
+        <li>继续写入 <code>batchIndex</code>：合并 Mesh 后顶点仍要知道自己属于哪个材质。</li>
+        <li>继续做材质兼容审计：static switch、blend mode、masked、two sided、WPO、材质灯分支不一致仍然会拆变体。</li>
+        <li>继续做 Geometry Merge / ISM / HISM / HLOD：VT 只解决“贴图资源怎么统一采样”，不解决“多个 Mesh 怎么变成少量 draw call”。</li>
+      </ol>
+
+      <h4>4.4.3 当前建议的两阶段路线</h4>
+      <table>
+        <thead>
+          <tr><th>阶段</th><th>贴图承载</th><th>目标</th><th>原因</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Phase A</td>
+            <td>Selective VT Atlas Batch</td>
+            <td>项目可以开启 VT/RVT 支持，但只对合批候选生成共享 VT Atlas；同时跑通 batchIndex、PropertyTexture、ProxyMesh、材质 parity。</td>
+            <td>兼容后续 RVT 方向，不要求所有原始贴图都转 VT，也避免 Texture2DArray 在 VT 管线下的限制。</td>
+          </tr>
+          <tr>
+            <td>Phase B</td>
+            <td>Texture2DArray fallback</td>
+            <td>为不适合 VT Atlas 的平台或特殊批次保留 T2DA 生成路径。</td>
+            <td>T2DA 仍可作为确定性 fallback，但不作为唯一主线。</td>
+          </tr>
+          <tr>
+            <td>并行地面线</td>
+            <td>RVT</td>
+            <td>缓存俯视角地面混合、贴花、污渍、边缘融合。</td>
+            <td>地面表现需求和建筑/道具合批不同，应该单独管线处理。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h4>4.4.4 Selective VT Atlas Batch 的自动处理方式</h4>
+      <p>如果第一阶段就要依赖 VT，推荐做成“选择性 VT Atlas 合批”，不是把全项目所有贴图都转成 VT。工具只对进入 batch group 的材质生成共享 VT Atlas，原始材质实例和原始贴图仍然作为美术源数据保留。</p>
+      <pre><code>美术正常材质实例
+  BaseColor = T_Wall_A
+  Normal    = T_Wall_A_N
+  ORM       = T_Wall_A_ORM
+        │
+        ▼
+MaterialBatchBuild -Apply
+        │  收集同 batch group 的材质贴图
+        │  自动烘/拷贝到共享 VT Atlas
+        │  生成每个 materialIndex 的 AtlasRect / UVScaleOffset
+        ▼
+生成批资源
+  VT_Batch_BaseColor
+  VT_Batch_Normal
+  VT_Batch_ORM
+  T_Batch_PropertyTexture
+  DA_Batch_TextureMapping
+  SM_Batch_ProxyMesh
+  MI_Batch_Env</code></pre>
+      <p>这样做的关键是：美术不需要制作 Array，也不需要维护 VT Atlas。工具在合批资产目录下生成批处理专用虚拟纹理资源，批材质只绑定这些共享资源。</p>
+    </section>
+
+    <section id="envlitbatch">
+      <h2>5. EnvLitBatch 机制对照：我们真正要复刻什么</h2>
+      <div class="callout good">
+        <strong>新的关键结论：</strong>附件里的 EnvLitBatch 不是“开 VT 后自动合批”，而是一套完整的离线数据重排系统。它能合批，是因为离线阶段同时完成了 Mesh 合并、per-vertex batchIndex 写入、Texture2DArray 打包、UVRect/贴图索引表、PropertyTexture 属性表，并且运行时只用一套 batch shader 读取这些数据。
+      </div>
+
+      <h3>5.1 EnvLitBatch 的完整链路</h3>
+      <div class="flow">
+        <div class="step"><strong>1. 收集材质</strong>找到同 shader 变体、同 keyword 组合、可兼容的材质实例。</div>
+        <div class="step"><strong>2. 打包贴图</strong>BaseColor、Normal、PackedMap 等进入 Texture2DArray 或等价 atlas。</div>
+        <div class="step"><strong>3. 写属性表</strong>所有 scalar/vector 参数写入 <code>_PropTexture</code>，每行对应一个材质。</div>
+        <div class="step"><strong>4. 写贴图索引</strong>每个材质的 slice index、UVRect 写入 <code>_PropTextureArrayInfo</code> 或 CBuffer。</div>
+        <div class="step"><strong>5. 合并 Mesh</strong>多个 mesh 离线合成一个代理 mesh。</div>
+        <div class="step"><strong>6. 写 BatchIndex</strong>每个顶点的 UV 通道写入该顶点所属材质 ID。</div>
+      </div>
+
+      <h3>5.2 运行时 shader 如何知道“这个像素属于哪个材质”</h3>
+      <p>EnvLitBatch 的核心不是 Texture2DArray 本身，而是 <code>per-vertex batchIndex</code>。离线合并 mesh 时，每个原始物体/材质对应一个材质编号，写进顶点 UV 的某个通道，例如 <code>UV.a</code>。Vertex/Fragment 阶段再读取这个值，得到当前像素应该使用哪一行属性、哪一个贴图 slice。</p>
+      <pre><code>Vertex UV.a
+  -> batchIndex
+  -> _PropTexture[batchIndex, propertyColumn]
+  -> _PropTextureArrayInfo[batchIndex]
+  -> Texture2DArray[sliceIndex, remappedUV]
+  -> 正常 PBR / EnvLit 计算</code></pre>
+      <div class="callout good">
+        <strong>新增确认：</strong><code>batchIndex</code> 应完全由工具链自动生成，美术不需要也不应该手动设置。Lilith EnvLitBatch 的逻辑是在 Mesh 合并时用循环序号 <code>indexIter</code> 分配 batchIndex，并写入合并后顶点 UV 数据；美术只正常摆放使用 EnvLit Shader 的 MeshRenderer / StaticMeshActor。
+      </div>
+      <p>这意味着 UE 方案里也必须有一个明确的“材质 ID 来源”。它可以来自：</p>
+      <ul>
+        <li>Geometry Merge 时写入某个 UV 通道，例如 <code>TexCoord7.x</code>。</li>
+        <li>合并 mesh 的 vertex color / custom attribute。</li>
+        <li>ISM/HISM 场景下的 Per Instance Custom Data，适合实例级而不是三角面级材质差异。</li>
+        <li>ProxyMesh 生成时的 section/material remap 表。</li>
+      </ul>
+      <p>需要注意平台差异：Unity 示例可以把原始 UV0 扩展成 <code>float4</code>，用 <code>UV0.w</code> 存 batchIndex；UE Static Mesh 的普通 UV 通道更适合按 <code>float2</code> 多通道处理，所以当前 UE 方案建议把 batchIndex 写入预留通道，例如 <code>TexCoord7.x</code>，而不是要求美术提供 <code>UV0.w</code>。</p>
+
+      <h3>5.2.1 batchIndex 自动生成规则</h3>
+      <p>UE 工具链应复刻“自动分配，不暴露给美术”的原则：</p>
+      <pre><code>收集候选 StaticMeshComponent
+  -> 按 batch group / 材质兼容性 / shader variant 分桶
+  -> 为每个桶内的 material slot 分配稳定 materialIndex
+  -> 合并 mesh section
+  -> 把 materialIndex 写入合并后顶点 TexCoord7.x
+  -> 生成 Texture2DArray / PropertyTexture / MappingData
+  -> 生成或更新 BatchMaterialInstance</code></pre>
+      <table>
+        <thead>
+          <tr><th>环节</th><th>是否美术操作</th><th>自动化规则</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>batchIndex 分配</td>
+            <td>否</td>
+            <td>工具按稳定排序自动分配，例如源 Actor 路径、组件名、material slot、材质路径组成排序键，避免每次构建 index 随机变化。</td>
+          </tr>
+          <tr>
+            <td>写入顶点数据</td>
+            <td>否</td>
+            <td>Geometry Merge / Proxy 生成阶段写入 <code>TexCoord7.x</code>，同时保留原始 UV0 用于正常贴图采样。</td>
+          </tr>
+          <tr>
+            <td>贴图 slice / UVRect</td>
+            <td>否</td>
+            <td>TextureBatch 阶段自动生成，并写入 MappingData 或 PropertyTextureArrayInfo。</td>
+          </tr>
+          <tr>
+            <td>材质参数行</td>
+            <td>否</td>
+            <td>MaterialPropertyBatch 阶段读取 MI 参数，每个 materialIndex 对应 <code>_PropTexture</code> 一行。</td>
+          </tr>
+          <tr>
+            <td>批处理范围控制</td>
+            <td>默认否，可选是</td>
+            <td>默认可按关卡、Folder、Data Layer 或选区自动收集；当美术需要排除动态物/特殊表现时，再用 UI、Folder、Tag 或 Group 覆盖。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>5.3 _PropTexture 的意义</h3>
+      <p><code>_PropTexture</code> 是“材质参数数据库”。它把原本每个 MI 上不同的 scalar/vector 参数变成 GPU 可索引的纹理表。附件里的系统每个材质占一行，每列是一组属性，甚至用 half packing 把多个半精度参数塞进 float4。</p>
+      <table>
+        <thead>
+          <tr><th>原始材质实例数据</th><th>批处理后数据</th><th>UE 方案含义</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Metallic、Cutoff、Smoothness、BumpScale 等 scalar</td>
+            <td><code>_PropTexture</code> 行/列</td>
+            <td>做 <code>T_PropTexture_Cluster</code>，按 material index 读取。</td>
+          </tr>
+          <tr>
+            <td>颜色、强度、UV ST 等 vector</td>
+            <td><code>_PropTexture</code> 或参数表</td>
+            <td>优先用 PropertyTexture；少量全局参数保留为材质参数。</td>
+          </tr>
+          <tr>
+            <td>Static Switch</td>
+            <td>不能直接放入属性表</td>
+            <td>必须拆 batch variant，或改造成运行时分支/参数。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>5.4 Texture2DArray 的意义</h3>
+      <p>Texture2DArray 解决的是“同一张 shader 里如何访问多个原始材质的贴图”。每个材质的 BaseColor、Normal、ORM 等贴图被打进数组 slice。若原始贴图尺寸不同，还需要 UVRect 或 atlas rect，告诉 shader 这个材质内容位于 slice 的哪个区域。</p>
+      <pre><code>originalUV
+  -> frac / tiling
+  -> uvRect.xy + originalUV * uvRect.zw
+  -> Texture2DArray.Sample(sliceIndex, mappedUV)</code></pre>
+      <p>这也是为什么 2DArray 方案不是简单把贴图丢进去就结束：它需要 slice index、UVRect、贴图通道规范、尺寸/格式处理和材质参数表配套。</p>
+
+      <h3>5.5 它为什么能 1 Draw Call</h3>
+      <p>EnvLitBatch 能做到 1 Draw Call，必须同时满足以下条件：</p>
+      <table>
+        <thead>
+          <tr><th>条件</th><th>原因</th><th>UE 对应任务</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Mesh 已经离线合并</td>
+            <td>不同物体仍独立提交，就不会变成一个 draw call。</td>
+            <td>ProxyMesh / Geometry Merge / HLOD。</td>
+          </tr>
+          <tr>
+            <td>同一个 shader 变体</td>
+            <td>不同 static switch / render state 会拆 draw call。</td>
+            <td>材质兼容审计、变体收敛。</td>
+          </tr>
+          <tr>
+            <td>每个顶点有 material index</td>
+            <td>合并后 shader 仍要知道每个像素该用哪个材质数据。</td>
+            <td><code>TexCoord7.x</code> / vertex color / custom attribute。</td>
+          </tr>
+          <tr>
+            <td>贴图已打包</td>
+            <td>不能每个 MI 绑定独立贴图。</td>
+            <td>T2DA 或 VT Atlas。</td>
+          </tr>
+          <tr>
+            <td>参数已打包</td>
+            <td>不能每个 MI 保留独立 scalar/vector 参数。</td>
+            <td>PropertyTexture / 参数表。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>5.6 与 VT/RVT 的本质区别</h3>
+      <table>
+        <thead>
+          <tr><th>系统</th><th>驱动量</th><th>解决问题</th><th>不能自动解决</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>EnvLitBatch / T2DA Batch</td>
+            <td>离线写入的 <code>batchIndex/materialIndex</code></td>
+            <td>任意静态道具/建筑的材质属性与贴图索引。</td>
+            <td>贴图 streaming 和大地面多层缓存。</td>
+          </tr>
+          <tr>
+            <td>Streaming VT</td>
+            <td>虚拟纹理坐标和页表</td>
+            <td>大纹理按需加载、显存/streaming 管理。</td>
+            <td>材质参数表、mesh 合并、draw call 合并。</td>
+          </tr>
+          <tr>
+            <td>RVT</td>
+            <td>世界位置 / RVT 写入读取</td>
+            <td>地面、贴花、污渍、混合层缓存。</td>
+            <td>任意物体的材质 ID、PBR 参数索引、静态 mesh 合并。</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="callout warn">
+        <strong>关键判断：</strong>VT/RVT 可以作为 batch material 的“采样资源层”，但不能替代 EnvLitBatch 的“材质属性索引层”。如果用 VT Atlas 代替 Texture2DArray，也仍然需要 materialIndex、UVRect、PropertyTexture、合并 mesh。
+      </div>
+
+      <h3>5.7 项目实际采样方式边界</h3>
+      <p>根据当前完整代码资料，项目里的建筑/道具 EnvLit 系和地形 VT 系是两套不同采样逻辑，不能混在一个概念里。</p>
+      <table>
+        <thead>
+          <tr><th>材质类型</th><th>采样驱动量</th><th>采样形式</th><th>是否使用 VT 逻辑</th><th>合批含义</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>普通道具/建筑 <code>EnvLit</code></td>
+            <td>顶点 UV0</td>
+            <td><code>SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, uv)</code></td>
+            <td>否</td>
+            <td>每个材质球独立 Texture2D；不会因为 VT 自动合批。</td>
+          </tr>
+          <tr>
+            <td>合批道具/建筑 <code>EnvLitBatch</code></td>
+            <td>顶点 UV0 + per-vertex <code>batchIndex</code></td>
+            <td><code>SAMPLE_TEXTURE2D_ARRAY(_BaseMap, ..., uv, sliceIndex)</code></td>
+            <td>否</td>
+            <td>贴图在 Texture2DArray，材质 ID 来自 batchIndex；这是建筑/道具合批核心。</td>
+          </tr>
+          <tr>
+            <td>地形/地面 VT Shader</td>
+            <td>世界坐标 / VT page lookup</td>
+            <td><code>_VTLookupTex</code> 查页表，再采样 <code>_vt_diffuse_tex</code> 等数组页。</td>
+            <td>是</td>
+            <td>服务连续大面积地面纹理、分页和缓存；不提供 EnvLitBatch 的材质属性表。</td>
+          </tr>
+        </tbody>
+      </table>
+      <pre><code>// 地形/地面 VT 逻辑示意
+float4 page = LOAD_TEXTURE2D(_VTLookupTex, loadpos) * 255;
+float2 inPageOffset = frac(uv * exp2(_VTPageParam.z - page.b));
+half4 albedo = SAMPLE_TEXTURE2D_ARRAY_LOD(_vt_diffuse_tex, ..., inPageOffset, texindex, 0);
+
+// EnvLitBatch 逻辑示意
+batchIndex = ReadVertexMaterialIndex();
+prop = LOAD_TEXTURE2D(_PropTexture, int2(propertyColumn, batchIndex));
+sliceIndex = ReadTextureSliceIndex(batchIndex);
+color = SAMPLE_TEXTURE2D_ARRAY(_BaseMap, ..., uv0, sliceIndex);</code></pre>
+      <div class="callout">
+        <strong>项目规则更新：</strong>EnvLit / EnvLitBatch 当前都没有 <code>_VTLookupTex</code>、世界坐标分页、VT page table 逻辑。VT 目前应归入地形/地面系统；建筑/道具合批仍以 <code>Texture2DArray + batchIndex + PropertyTexture + 合并 Mesh</code> 为主线。
+      </div>
+
+      <h3>5.8 对 UE5.8 当前方案的落地翻译</h3>
+      <p>我们的 UE 方案应拆成两个互补路径：</p>
+      <table>
+        <thead>
+          <tr><th>路径</th><th>适合对象</th><th>核心数据</th><th>优先级</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>T2DA Batch</strong></td>
+            <td>建筑墙体、环境模块、贴图规格较统一的静态 cluster。</td>
+            <td><code>TexCoord7.x</code> materialIndex、Texture2DArray、PropertyTexture。</td>
+            <td>先做，用来复刻 EnvLitBatch 的确定性。</td>
+          </tr>
+          <tr>
+            <td><strong>VT Atlas Batch</strong></td>
+            <td>大量 unique 贴图、尺寸差异大、环境贴图希望统一 VT 管线的资产。</td>
+            <td>materialIndex、VT atlas rect、PropertyTexture。</td>
+            <td>第一阶段可作为主线；T2DA 作为 fallback，不要求美术手动制作 atlas。</td>
+          </tr>
+          <tr>
+            <td><strong>RVT Ground</strong></td>
+            <td>地面、贴花、污渍、墙根融合、俯视角大面积材质层。</td>
+            <td>RVT 写入材质、RVT 采样材质、地面质量分级。</td>
+            <td>与建筑 batch 并行，但逻辑独立。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>5.9 新增实施要求</h3>
+      <ol>
+        <li><code>M_Env_Building_Batch</code> 必须明确 materialIndex 输入，建议先用 <code>TexCoord7.x</code>。</li>
+        <li>MaterialBatchBuild 生成 ProxyMesh 时，要把每个源 material slot 对应的 materialIndex 写入合并后顶点。</li>
+        <li>生成 <code>T_PropTexture</code> 时，要固定列布局，例如 BaseMap_ST、Normal_ST、Metallic、Smoothness、Cutoff、BumpScale、材质灯预算等。</li>
+        <li>生成 T2DA 时，要记录每个材质每个通道的 slice index 和 UVRect。</li>
+        <li>材质审计要把 static switch 不一致、贴图通道缺失、尺寸/格式不兼容列为可解释拒绝原因。</li>
+        <li>VT/RVT 只作为地形/地面或独立采样/缓存策略进入方案，不再写成“可以自动材质合批”。</li>
+        <li>如果未来研究建筑 <code>VT Atlas Batch</code>，必须另建一套 EnvLitBatch-like 索引层；不能直接复用地形 VT 的世界坐标页表逻辑。</li>
+      </ol>
+    </section>
+
+    <section id="authoring">
+      <h2>6. 美术侧应该怎么参与</h2>
+      <p>我不会要求美术手动理解 batchIndex、Texture2DArray slice、PropertyTexture 行列、UVRect 或 MappingData。理想状态下，美术实际操作是 0：正常摆场景，使用正确的 EnvLit / Env 系父材质即可。只有当工具需要知道“哪些物体应该进入同一个批、哪些必须排除”时，美术才通过 Folder、Data Layer、选区、Tag 或插件窗口表达范围意图。</p>
+      <div class="callout good">
+        <strong>美术边界：</strong>美术不手填 batchIndex，不手动指定 slice，不手改顶点 UV 承载材质 ID。所有这些都由 MaterialBatchBuild / EnvBatch 工具链在生成合并 Mesh 和批材质资源时自动完成。
+      </div>
+      <h3>6.1 不强制一种组织方式</h3>
+      <table>
+        <thead>
+          <tr><th>方式</th><th>美术便利度</th><th>工具稳定性</th><th>建议用途</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Actor Folder</td>
+            <td>高</td>
+            <td>中</td>
+            <td>最适合美术先组织区域，但不建议作为最终唯一真相。</td>
+          </tr>
+          <tr>
+            <td>Data Layer</td>
+            <td>中</td>
+            <td>高</td>
+            <td>适合大场景、World Partition、分层管理。</td>
+          </tr>
+          <tr>
+            <td>Level Instance / Packed Level Actor</td>
+            <td>中高</td>
+            <td>高</td>
+            <td>适合 prefab-like 房间或模块。</td>
+          </tr>
+          <tr>
+            <td>BP_EnvBatchGroup / Volume</td>
+            <td>中</td>
+            <td>高</td>
+            <td>适合精确表达一个 batch cluster 的范围和参数。</td>
+          </tr>
+          <tr>
+            <td>EnvBatch Actor Tag</td>
+            <td>中低</td>
+            <td>最高</td>
+            <td>作为 commandlet 最终读取的执行标记。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>6.2 推荐美术流程</h3>
+      <div class="flow">
+        <div class="step"><strong>1. 正常摆场景</strong>不先考虑底层合批。</div>
+        <div class="step"><strong>2. 自动扫描</strong>工具收集使用 EnvLit 系材质的静态 Mesh。</div>
+        <div class="step"><strong>3. 可选分组</strong>需要控制范围时，再用 Folder、Data Layer 或 Level Instance。</div>
+        <div class="step"><strong>4. 人工审查</strong>确认动态物、交互物、特殊材质。</div>
+        <div class="step"><strong>5. Dry-run</strong>生成候选、拒绝原因和 batchIndex 预览。</div>
+        <div class="step"><strong>6. Apply</strong>工具自动生成 Mapping、T2DA、PropertyTexture 和 ProxyMesh。</div>
+      </div>
+
+      <div class="callout">
+        <strong>实际建议：</strong>第一版可以先做“全自动收集 + dry-run 报告”，只要发现工具自动分组不符合美术预期，再用 Actor Folder、Data Layer、<code>BP_EnvBatchGroup</code> 或 EnvBatch Tag 做覆盖。也就是说，分组工具是纠偏入口，不是美术日常必填项。
+      </div>
+    </section>
+
+    <section id="automation">
+      <h2>7. AI/MCP 自动化会做什么</h2>
+      <h3>7.1 自动化只做“建议 + 可审查执行”</h3>
+      <p>AI/MCP 不应该直接把场景替换成代理。它适合做以下事情：</p>
+      <ul>
+        <li>读取场景 Actor、Folder、Data Layer、Level Instance、Actor Tag。</li>
+        <li>按规则判断候选、需要审查、拒绝。</li>
+        <li>自动生成建议 tag。</li>
+        <li>批量写入 <code>EnvBatch.*</code> tag。</li>
+        <li>运行 <code>MaterialBatchBuild</code> dry-run。</li>
+        <li>输出 Markdown / HTML 报告，列出候选、拒绝原因、风险和下一步。</li>
+        <li>通过人工批准后，再跑 partial apply 生成资产。</li>
+      </ul>
+
+      <h3>7.2 自动化管线</h3>
+      <pre><code>Scene / Folder / DataLayer / Group
+  -> AI/MCP Scan
+  -> Candidate Classification
+  -> Suggested EnvBatch Tags
+  -> Human Review
+  -> Apply Tags
+  -> MaterialBatchBuild dry-run
+  -> Human Review
+  -> Partial Apply
+  -> Visual Parity
+  -> GPU Profiling
+  -> Tier Decision</code></pre>
+
+      <h3>7.3 拒绝原因必须可解释</h3>
+      <p>报告中每个拒绝项要有明确原因，不能只显示“不支持”。常见原因包括：</p>
+      <div>
+        <span class="tag">DynamicMobility</span>
+        <span class="tag">InteractiveActor</span>
+        <span class="tag">GameplayCritical</span>
+        <span class="tag">MaterialParentMismatch</span>
+        <span class="tag">StaticSwitchMismatch</span>
+        <span class="tag">TextureSizeMismatch</span>
+        <span class="tag">TooManyMaterialSlots</span>
+        <span class="tag">UnsupportedBlendMode</span>
+        <span class="tag">UsesWPO</span>
+        <span class="tag">HasScriptedMovement</span>
+      </div>
+    </section>
+
+    <section id="runtime">
+      <h2>8. 运行时如何切换分级</h2>
+      <p>运行时不建议在玩家当前视野里硬切整个房间的 Source/Proxy。更合理的是在关卡加载、房间切换、流送边界或重新进入区域时生效。</p>
+      <table>
+        <thead>
+          <tr><th>档位</th><th>运行时显示</th><th>说明</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>PC Ultra / High</td>
+            <td>Source 优先，少量 HLOD/Proxy</td>
+            <td>保留高质量模型和材质表现。</td>
+          </tr>
+          <tr>
+            <td>Steam Deck 15W / Switch Candidate</td>
+            <td>Source + Proxy 混合</td>
+            <td>近景保留 Source，中远景或重复区域用 Proxy。</td>
+          </tr>
+          <tr>
+            <td>Steam Deck 5W / Low</td>
+            <td>Proxy / BakedLow 优先</td>
+            <td>Lumen Off，材质灯低预算，尽量降低 draw call 和采样。</td>
+          </tr>
+        </tbody>
+      </table>
+      <p>玩家在菜单里切换画质时，CVar 类设置可以立即应用；场景替代类设置建议提示“下一房间或重新加载后生效”。</p>
+    </section>
+
+    <section id="topdown-rvt">
+      <h2>9. 俯视角场景、ISM/HISM、LOD 与 RVT/VT 追加研究</h2>
+      <div class="callout good">
+        <strong>本节结论：</strong>俯视角项目确实会弱化“远景 LOD”的收益，但不会取消 LOD 的价值。重复模型优先使用 ISM/HISM；非重复静态环境仍保留 Geometry Merge / Proxy / HLOD 类合批。地面与大面积表面建议以“离线烘焙 + 运行时流式加载”的 Baked SVT 为低功耗目标；UE 运行时 RVT 适合编辑期预览、高档动态效果或局部验证，但不应默认作为掌机/手机最终运行时方案。VT/SVT/RVT 都不等于 UE 自动合并 draw call。
+      </div>
+
+      <h3>9.1 重复模型：ISM/HISM 仍是第一优先</h3>
+      <p>如果同一个 mesh 被大量重复使用，例如石块、栏杆、柱子、碎砖、重复装饰件，优先走 <code>ISM</code> 或 <code>HISM</code>。这比先做 Geometry Merge 更稳，因为它保留实例变换、编辑成本低，也更适合美术反复调整。</p>
+      <table>
+        <thead>
+          <tr><th>情况</th><th>建议</th><th>原因</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>同 StaticMesh、同材质、大量重复</td>
+            <td>ISM/HISM</td>
+            <td>减少提交成本，保留单个 mesh 的 LOD/剔除逻辑，编辑和回退方便。</td>
+          </tr>
+          <tr>
+            <td>同区域内不同 mesh，但都是静态背景</td>
+            <td>Geometry Merge / ProxyMesh</td>
+            <td>ISM/HISM 无法跨不同 mesh 合批，需要代理网格或 HLOD。</td>
+          </tr>
+          <tr>
+            <td>近景重复物，轮廓很重要</td>
+            <td>ISM/HISM + LOD</td>
+            <td>避免 Proxy 破坏近景质量。</td>
+          </tr>
+          <tr>
+            <td>中低配、远离镜头中心、不可交互环境块</td>
+            <td>ProxyMesh / HLOD / Baked 替代</td>
+            <td>降低 draw call、section、材质复杂度。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>9.2 俯视角是否还需要 LOD</h3>
+      <p>需要，但 LOD 策略要从“远景透视”改成“屏幕占比、遮挡、平台档位”。俯视角可能没有传统远景地平线，但仍有：</p>
+      <ul>
+        <li>镜头边缘的小物体屏幕占比下降。</li>
+        <li>楼层、墙体、地面装饰在低分辨率/掌机屏幕上细节不可见。</li>
+        <li>大量重复小件即使不远，也会造成 vertex、材质和 draw call 压力。</li>
+        <li>掌机 5W 档需要更激进地降低三角面和材质采样。</li>
+      </ul>
+      <p>因此 LOD 不应取消，只是优先级变化：重复件保留 mesh LOD；房间/走廊 cluster 在 Medium/Low 用 Proxy/HLOD；PC Ultra 继续保留 Source。</p>
+
+      <h3>9.3 俯视角地面：Baked SVT 是低功耗目标，RVT 是制作/动态辅助</h3>
+      <p>你的判断基本正确：俯视角下地面占屏幕比例高，地面材质、贴花、污渍、混合层、角色/环境接触痕迹会很重要。但这里需要拆清楚两种路线：UE 默认 RVT 会在运行时把写入物体渲染到虚拟纹理页面；你贴出来的项目 VT 更接近 Baked SVT，页面内容在离线 CI 或构建阶段烘好，运行时只做反馈、异步加载、纹理上传和页表更新。</p>
+      <table>
+        <thead>
+          <tr><th>地面效果</th><th>Baked SVT 适配度</th><th>说明</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>地表多层混合</td>
+            <td>高</td>
+            <td>可将复杂层混合结果缓存，减少主地面材质实时分支。</td>
+          </tr>
+          <tr>
+            <td>贴花、污渍、破损、边缘融合</td>
+            <td>高</td>
+            <td>静态 decal-like 效果应在离线阶段烘入 SVT tile，运行时避免大量透明/贴花叠加。</td>
+          </tr>
+          <tr>
+            <td>地面与墙根/道具融合</td>
+            <td>中高</td>
+            <td>适合做高度/颜色/法线类混合，但要规范写入通道。</td>
+          </tr>
+          <tr>
+            <td>高频动态痕迹</td>
+            <td>中</td>
+            <td>能做，但不适合 Baked SVT 主路径；动态内容应走局部 decal、局部 RVT 或单独效果系统。</td>
+          </tr>
+          <tr>
+            <td>角色阴影/实时交互</td>
+            <td>低到中</td>
+            <td>Baked SVT/RVT 更适合缓存材质数据，不应替代实时阴影和关键交互表现。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>9.3.1 RVT 采样后还是 RVT，还是变成 SVT</h3>
+      <div class="callout warn">
+        <strong>结论：</strong>UE 的 RVT 默认仍是运行时虚拟纹理：场景物体写入 RVT，地面/墙面材质再采样 RVT。它不是自动变成普通 SVT。你贴出来的项目 VT 不是这种默认 RVT，而是“Baked SVT”：离线把 diffuse、AO、shadow、local shadow 等层烘成 tile，运行时通过 feedback / LOD 选择页面，从包体异步加载并上传到物理缓存，再更新 lookup table。
+      </div>
+      <table>
+        <thead>
+          <tr><th>模式</th><th>运行时行为</th><th>成本</th><th>建议用途</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>纯 RVT</td>
+            <td>运行时按页渲染写入 RVT，材质采样 RVT。</td>
+            <td>有页面渲染、更新、反馈、物体写入成本；动态变化越多越贵。</td>
+            <td>PC、编辑期预览、需要动态地表变化的区域。</td>
+          </tr>
+          <tr>
+            <td>RVT + Streaming Low Mips</td>
+            <td>低 mip 预构建为 streaming virtual texture，高 mip/近处仍可由 RVT 动态生成。</td>
+            <td>降低远处/低精度页面运行时生成压力；仍保留近处动态质量。</td>
+            <td>Steam Deck 15W、Switch Candidate、一般掌机档。</td>
+          </tr>
+          <tr>
+            <td>Streaming Mips Only</td>
+            <td>使用已构建的 streaming texture，不再依赖运行时页生成。</td>
+            <td>运行时最稳，但动态写入/实时变化能力下降。</td>
+            <td>Steam Deck 5W、手机、低功耗/低画质档，适合静态地面与墙根效果。</td>
+          </tr>
+          <tr>
+            <td>Baked SVT</td>
+            <td>离线烘焙页面；运行时按相机 feedback/LOD 异步加载 tile，上传物理缓存并更新页表。</td>
+            <td>无运行时 RVT 渲染 pass；主要成本是 IO、解压/上传、页表更新和物理缓存容量。</td>
+            <td>项目地形/地面/大面积静态表面的低功耗目标方案。</td>
+          </tr>
+        </tbody>
+      </table>
+      <p>UE 侧可参考的关键设置是 <code>URuntimeVirtualTextureComponent::StreamingTexture</code>、<code>StreamLowMips</code>、<code>bUseStreamingMipsOnly</code>，以及控制台变量 <code>r.VT.RVT.StreamingMips</code> 和 <code>r.VT.RVT.StreamingMips.UseAlways</code>。但项目目标不应只停在“运行时 RVT”，而应评估能否建立类似 Baked SVT 的离线 tile 生产与运行时页面调度。</p>
+      <p>因此地面/墙面建筑效果推荐拆成两层：美术制作和高档动态验证阶段可以用 RVT 或 decal 表达复杂混合；发布低功耗档时尽量把静态结果烘成 Baked SVT / Streaming VT 页面。这样既保留制作灵活度，又避免掌机/手机运行时频繁渲染 RVT 页面。</p>
+
+      <h3>9.3.2 地形、墙根、建筑表面推荐策略</h3>
+      <ol>
+        <li>主地面：低功耗目标是 Baked SVT，离线烘焙 BaseColor / Normal / Roughness / AO / shadow 等项目需要的最小通道集，不要一次缓存过多属性。</li>
+        <li>墙根、地面污渍、贴花、融合层：静态内容优先离线烘入 Baked SVT；需要动态更新的内容才进入局部 RVT 或 decal。</li>
+        <li>静态建筑墙面：不要为了墙面统一全部走 RVT；如果是合批建筑，仍优先走 Selective VT Atlas Batch。只有墙根融合、污渍投射、地表交界这类效果才读 RVT。</li>
+        <li>掌机/手机档：可以开启 VT 支持，但应减少运行时 RVT 动态写入；优先使用 Baked SVT 或 UE 的 Streaming Texture / <code>bUseStreamingMipsOnly</code> 类降级。</li>
+        <li>动态效果：脚印、破坏、实时液体等高频更新不要默认写进全局大 RVT，应该单独评估更新频率和范围。</li>
+      </ol>
+
+      <h3>9.3.3 墙面材质混合、贴花与 XYZ RVT</h3>
+      <div class="callout warn">
+        <strong>结论：</strong>墙面可以做 RVT 投射，但不建议默认做“XYZ 三方向全局 RVT”。UE 的 RVT 本质仍是二维虚拟纹理页面加体积投射，不是低成本的三维体纹理。XYZ 方案更像三套方向不同的 2D RVT：XY 管地面，XZ/YZ 管墙面。它可以解决局部墙面投射问题，但会带来更多 RVT volume、更多 page table / tile、更多材质采样和墙角接缝处理。
+      </div>
+      <table>
+        <thead>
+          <tr><th>墙面需求</th><th>推荐方案</th><th>原因</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>静态墙面花纹、污渍、颜色混合</td>
+            <td>优先在批处理构建时 bake 到 Selective VT Atlas / 批材质贴图</td>
+            <td>这是最适合合批的路径：运行时不增加 RVT 写入，不增加 decal pass，也能和 ProxyMesh / BatchMaterial 一起提交。</td>
+          </tr>
+          <tr>
+            <td>墙根、地面到墙面的脏污过渡</td>
+            <td>读取地面 RVT 或局部墙根 RVT</td>
+            <td>这类效果通常是低频大面积融合，适合通过一层缓存减少多层贴花和复杂混合。</td>
+          </tr>
+          <tr>
+            <td>墙面海报、涂鸦、裂痕、局部破损</td>
+            <td>静态内容用 decal card / 小 mesh / 小图集，最终可 bake 进批贴图；动态内容保留局部 decal</td>
+            <td>不要为了少量局部图案让整面墙长期采样三方向 RVT。静态内容进离线合批，动态内容按范围控制。</td>
+          </tr>
+          <tr>
+            <td>房间级墙面投射、程序化大面积墙面混合</td>
+            <td>可做局部 Wall RVT 实验，例如按房间或墙面 cluster 建 XZ/YZ RVT</td>
+            <td>只在明确需要世界空间投射、且普通贴花/批贴图难以维护时使用。低功耗档应构建 Streaming Texture 或降级为 baked atlas。</td>
+          </tr>
+          <tr>
+            <td>全场景 XYZ 三方向 RVT</td>
+            <td>不作为默认方案</td>
+            <td>每个材质默认采样三套 RVT 会放大 GPU 成本和内存压力；墙角、法线方向、投射重叠、Streaming mips 都需要额外规则。</td>
+          </tr>
+        </tbody>
+      </table>
+      <p>推荐把墙面分成“静态可烘”和“运行时需要投射”两类：静态可烘的墙面混合和贴花进入 EnvBatch 构建流程，由工具在生成 VT Atlas / fallback Texture2DArray 时自动合成；运行时需要投射的效果才使用局部 RVT 或 decal。这样美术仍然可以在场景里摆效果，但最终构建时由工具决定是 bake 到批材质，还是保留为运行时投射。</p>
+      <ol>
+        <li>默认墙面：使用正常 EnvLit / EnvLitBatch 材质，静态效果进入批处理贴图缓存。</li>
+        <li>墙根融合：静态结果优先烘进 Baked SVT；需要运行时变化时才读取地面 RVT，一般控制为一次 RVT 采样。</li>
+        <li>局部墙面投射：建立 <code>WallRVT</code> 或 <code>RoomRVT</code> 分组，只覆盖指定房间或墙面 cluster。</li>
+        <li>XYZ RVT：只作为专项测试档，材质根据法线主轴选择一个方向采样，避免每个像素同时采三轴。</li>
+        <li>掌机/低功耗档：优先把静态墙面效果 bake 到 VT Atlas 或 Baked SVT；局部 RVT 构建 Streaming Low Mips，必要时关闭动态写入。</li>
+      </ol>
+
+      <h3>9.3.4 Baked SVT 与建筑批材质是否冲突</h3>
+      <div class="callout good">
+        <strong>结论：</strong>不冲突，也不是重复加载。Baked SVT 主要服务地面/地形/大面积世界空间表面；EnvLitBatch / Texture2DArray / VT Atlas 主要服务建筑、道具、环境物件。两者使用不同几何体、不同 UV 来源、不同 shader 和不同 GPU 资源。
+      </div>
+      <table>
+        <thead>
+          <tr><th>系统</th><th>对象</th><th>采样依据</th><th>运行时资源</th><th>主要风险</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Baked SVT</td>
+            <td>地面、地形、大面积静态表面</td>
+            <td>世界坐标、页表、LOD feedback</td>
+            <td>物理缓存、lookup table、离线 tile 包</td>
+            <td>物理缓存太小会换页卡顿，太大会浪费显存；IO/上传峰值需要限流。</td>
+          </tr>
+          <tr>
+            <td>EnvLitBatch</td>
+            <td>建筑、道具、静态环境物件</td>
+            <td>顶点 UV + per-vertex materialIndex</td>
+            <td>Texture2DArray 或 VT Atlas、PropertyTexture、ProxyMesh</td>
+            <td>Texture2DArray/Atlas 是批次全量驻留；batch group 太大会显存膨胀。</td>
+          </tr>
+          <tr>
+            <td>局部 RVT</td>
+            <td>动态地表、墙根、房间级特殊投射</td>
+            <td>世界坐标或局部投射空间</td>
+            <td>RVT volume、运行时页面、写入 pass</td>
+            <td>运行时渲染 pass 和动态更新成本；低功耗档必须严格限制范围。</td>
+          </tr>
+        </tbody>
+      </table>
+      <p>因此真正要监控的是总显存预算，而不是“是否重复”：总显存约等于 Baked SVT 物理缓存 + EnvLitBatch 的 Texture2DArray/VT Atlas + 普通 unique 贴图 + 阴影/后处理等其他渲染资源。低功耗档应同时限制 SVT physical cache capacity、批次贴图尺寸、单批材质数量和动态 RVT 数量。</p>
+
+      <h3>9.4 VT/RVT 是否能“自动材质合批”</h3>
+      <div class="callout bad">
+        <strong>重要边界：</strong>不能把 VT/RVT 理解成 UE 自动 draw call 合批。Streaming Virtual Texturing 解决的是纹理按需加载和显存/streaming；Runtime Virtual Texture 解决的是把场景材质结果写入/读取虚拟纹理。它们不会自动把不同 StaticMeshActor、不同材质 slot、不同 mesh section 合成一个 draw call。
+      </div>
+      <p>VT/RVT 能帮到材质合批的地方是“统一采样来源”和“减少材质复杂度”，例如地面所有局部混合都变成采样一张 RVT，而不是每个 decal/材质层单独渲染。但 draw call 是否减少，还取决于：</p>
+      <ul>
+        <li>是否减少了 decal/mesh pass。</li>
+        <li>是否减少了材质 slot 和 mesh section。</li>
+        <li>是否使用了 ISM/HISM、Geometry Merge、HLOD 或 ProxyMesh。</li>
+        <li>是否把多个材质实例收敛到同一批处理材质变体。</li>
+      </ul>
+
+      <h3>9.5 推荐的新分工</h3>
+      <table>
+        <thead>
+          <tr><th>对象类型</th><th>优先方案</th><th>是否需要 LOD</th><th>是否用 RVT/VT</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>重复小模型</td>
+            <td>ISM/HISM</td>
+            <td>需要，尤其掌机档。</td>
+            <td>贴图可用 VT，但不是核心合批手段。</td>
+          </tr>
+          <tr>
+            <td>非重复静态建筑块</td>
+            <td>Geometry Merge / ProxyMesh / HLOD</td>
+            <td>Source 有 LOD，Proxy 按档位简化。</td>
+            <td>可结合 Texture2DArray/VT 管理 unique 贴图。</td>
+          </tr>
+          <tr>
+            <td>主地面</td>
+            <td>Baked SVT 地面材质管线，RVT 作为制作/动态辅助</td>
+            <td>地面 mesh LOD 需求较低，但材质分级很重要。</td>
+            <td>强烈建议预备 Baked SVT；高档或动态区域再用局部 RVT。</td>
+          </tr>
+          <tr>
+            <td>地面贴花/污渍/混合效果</td>
+            <td>静态内容烘入 Baked SVT；动态内容写入局部 RVT 或 decal</td>
+            <td>按贴花载体决定。</td>
+            <td>强烈建议缓存静态结果，能降低叠加材质成本。</td>
+          </tr>
+          <tr>
+            <td>动态交互/可破坏物</td>
+            <td>独立 Actor，不进静态合批</td>
+            <td>按资产距离和屏幕占比。</td>
+            <td>可读取 RVT 做融合，但不应被 RVT 合并逻辑吞掉。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>9.6 对当前方案的调整</h3>
+      <ol>
+        <li>模型侧：重复件优先 ISM/HISM，不急着 Geometry Merge；非重复静态环境才进入 EnvBatch/ProxyMesh。</li>
+        <li>LOD 侧：保留 LOD，但按俯视角屏幕占比和平台档位重新设阈值，不按传统远景逻辑硬套。</li>
+        <li>地面侧：单独建立 Baked SVT 地面管线，允许美术做多层混合、贴花、污渍、边缘融合，然后在构建阶段烘成静态页面；RVT 只作为制作预览、PC 高档或局部动态辅助。</li>
+        <li>材质合批侧：RVT/VT 作为降低采样和 streaming 压力的手段，不替代 Geometry Merge、ISM/HISM、HLOD。</li>
+        <li>验证侧：需要单独增加 <code>Ground_BakedSVT_Only</code>、<code>Ground_RVTPreview_Only</code> 和 <code>Ground_BakedSVT + Batch</code> 测试。</li>
+      </ol>
+
+      <h3>9.7 官方资料入口</h3>
+      <ul>
+        <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/virtual-texturing-in-unreal-engine">Unreal Engine Virtual Texturing</a></li>
+        <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/runtime-virtual-texturing-in-unreal-engine">Runtime Virtual Texturing</a></li>
+        <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/instanced-static-mesh-component-in-unreal-engine">Instanced Static Mesh Component</a></li>
+      </ul>
+    </section>
+
+    <section id="material-cache">
+      <h2>10. UE5.8 Material Cache 与 MaterialCacheVirtualTextureTag 研究</h2>
+      <div class="callout warn">
+        <strong>本节结论：</strong><code>MaterialCacheVirtualTextureTag</code> 是 UE5.8 引擎内部/实验性的 Material Cache 虚拟纹理标签资产，用来描述“缓存哪些材质属性、如何压缩打包、tile 数量倍率”等信息。它不是普通 Streaming VT，也不是 EnvLitBatch 式的自动 draw call 合批开关。
+      </div>
+
+      <h3>10.1 源码位置与项目现状</h3>
+      <p>当前项目源码中没有直接使用 <code>MaterialCacheVirtualTextureTag</code>。它来自本机 UE5.8 引擎源码：</p>
+      <pre><code>D:\UE\UE_5.8\Engine\Source\Runtime\Engine\Internal\MaterialCache\MaterialCacheVirtualTextureTag.h
+D:\UE\UE_5.8\Engine\Source\Runtime\Engine\Internal\MaterialCache\MaterialCacheVirtualTexture.h
+D:\UE\UE_5.8\Engine\Source\Runtime\Engine\Internal\MaterialCache\MaterialCacheAttribute.h
+D:\UE\UE_5.8\Engine\Source\Runtime\Engine\Public\Materials\MaterialExpressionMaterialCache.h</code></pre>
+      <p>项目当前 <code>Config/DefaultEngine.ini</code> 里 <code>r.VirtualTextures=False</code>。因此 Material Cache、RVT、Streaming VT 这类路线都不能视为已经启用，必须先进入平台分级和功能验证。</p>
+
+      <h3>10.2 MaterialCacheVirtualTextureTag 描述什么</h3>
+      <table>
+        <thead>
+          <tr><th>字段 / 概念</th><th>含义</th><th>对我们的意义</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>Attributes</code></td>
+            <td>决定缓存哪些材质属性，例如 BaseColor、Normal、Roughness、Specular、Metallic、Opacity、WorldPosition、Displacement、Mask、Float。</td>
+            <td>类似“缓存通道清单”。地面/大面积静态材质可以只缓存必要属性，掌机档减少无用层。</td>
+          </tr>
+          <tr>
+            <td><code>TileCountMultiplier</code></td>
+            <td>对使用该 Tag 的虚拟纹理 tile 数做倍率调整，运行时实际 tile 数为 <code>TileCount * TileCountMultiplier</code>。</td>
+            <td>可以按材质重要性调整缓存分辨率。地面主视觉可高一些，远处/低档可低一些。</td>
+          </tr>
+          <tr>
+            <td><code>bEnableCompression</code></td>
+            <td>是否对缓存层启用压缩。</td>
+            <td>影响显存和质量。掌机优先压缩，PC 可按视觉需求提高质量。</td>
+          </tr>
+          <tr>
+            <td><code>bEnableBaseColorHQ</code></td>
+            <td>BaseColor 使用更高质量的 YCoCg 存储，但显存压力更高。</td>
+            <td>地面或近景建筑可测试；低功耗档不宜默认打开。</td>
+          </tr>
+          <tr>
+            <td><code>bEnableNormalHQ</code></td>
+            <td>Normal 使用更高质量的独立 8:8 octahedron 存储。</td>
+            <td>法线细节强的地面可测试；大量普通墙面不应盲目高质量。</td>
+          </tr>
+          <tr>
+            <td><code>RuntimeLayers</code></td>
+            <td>根据 Attributes 和压缩选项生成的运行时层布局。层数不能超过 VT 最大层数限制。</td>
+            <td>不是属性越多越好。属性越多，层越多，内存和采样压力越高。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>10.3 它和 EnvLitBatch / VT / RVT 的关系</h3>
+      <table>
+        <thead>
+          <tr><th>方案</th><th>核心索引</th><th>解决什么</th><th>是否自动降低 draw call</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>EnvLitBatch</td>
+            <td><code>per-vertex batchIndex</code> + <code>Texture2DArray slice</code> + <code>PropertyTexture row</code></td>
+            <td>把多个静态物件/材质离线合成同一批材质和合并 mesh。</td>
+            <td>是，但前提是 Geometry Merge、材质索引表和 batch shader 都完成。</td>
+          </tr>
+          <tr>
+            <td>Streaming VT</td>
+            <td>虚拟纹理页表 / tile streaming</td>
+            <td>贴图按需加载、降低显存峰值和 streaming 压力。</td>
+            <td>否。</td>
+          </tr>
+          <tr>
+            <td>RVT</td>
+            <td>世界位置 / RVT 写入读取</td>
+            <td>把地面混合、贴花、局部效果缓存为可采样材质结果。</td>
+            <td>不直接降低 mesh draw call，但可减少贴花/复杂材质叠加成本。</td>
+          </tr>
+          <tr>
+            <td>UE Material Cache</td>
+            <td><code>MaterialCache</code> 表达式 + <code>MaterialCacheVirtualTextureTag</code> + primitive/component 绑定</td>
+            <td>把指定材质属性缓存到虚拟纹理层，之后由材质采样缓存结果。</td>
+            <td>否。它偏向材质结果缓存，不替代 Geometry Merge / ISM / HISM。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>10.4 启用条件和风险</h3>
+      <ul>
+        <li>源码里 <code>r.MaterialCache.Support</code> 默认是 <code>false</code>，且是 ReadOnly；<code>r.MaterialCache.Enabled</code> 只有在 Support 与平台 VT 能力都满足时才有效。</li>
+        <li><code>UMaterialExpressionMaterialCache</code> 需要材质图显式参与，材质缓存数据会记录到 <code>MaterialCacheTags</code>。</li>
+        <li><code>UStaticMeshComponent</code> 有实验性字段：<code>bWritesToMaterialCache</code>、<code>MaterialCacheTileCount</code>、<code>MaterialCacheUVRegion</code>、<code>MaterialCacheUVCoordinateIndex</code>。</li>
+        <li>MeshPartition 插件也在使用 Material Cache，但路径位于 <code>Engine\Plugins\Experimental\MeshPartition</code>，不能直接按正式生产功能依赖。</li>
+        <li>Material Cache 需要 VT 支持，因此 PC、Steam Deck、Switch Candidate 都要单独验证。掌机平台要重点看 tile 内存、页表、cache miss、shader 编译和运行时抖动。</li>
+      </ul>
+
+      <h3>10.5 对当前项目的建议</h3>
+      <ol>
+        <li>短期不要用 Material Cache 替代 EnvLitBatch。建筑/道具合批仍以 <code>Texture2DArray + PropertyTexture + batchIndex + Geometry Merge</code> 为主线。</li>
+        <li>Material Cache 可以作为 Phase 2.5 的研究项，用一个小型地面或静态墙面材质验证“缓存 BaseColor/Roughness/Normal 是否能降低复杂材质成本”。</li>
+        <li>如果开启 VT/RVT，先拆清楚三类资产：地面 RVT、建筑道具 EnvLitBatch、普通 unique 贴图。不要为了统一 VT 而把所有材质强行改成 Material Cache。</li>
+        <li>低功耗档的 Tag 应尽量少属性、低 tile 倍率、开启压缩；PC 档可以测试高质量 BaseColor/Normal。</li>
+        <li>只有当实测证明材质复杂度是瓶颈，且 Material Cache 在目标平台稳定，才把它纳入美术正式管线。</li>
+      </ol>
+
+      <div class="callout good">
+        <strong>当前判断：</strong>Material Cache 更适合归入“材质结果缓存 / 地面或大面积静态表面优化”研究，不应归入“自动材质 draw call 合批”。我们的合批核心仍是减少 mesh section、减少材质 slot、ISM/HISM、Geometry Merge、HLOD/Proxy，以及 EnvLitBatch-like 的材质索引层。
+      </div>
+
+      <h3>10.6 美术是否可以不手动制作 Array</h3>
+      <div class="callout good">
+        <strong>可以，而且应该这样做：</strong>美术不应该手动制作 Texture2DArray，也不应该手动维护 VT Atlas。美术侧继续在普通 EnvLit / Env 系材质实例里给 BaseColor、Normal、ORM、Mask 等正常贴图；批处理工具在 dry-run / apply 阶段自动读取这些贴图和参数，再生成批处理运行时需要的资源。
+      </div>
+      <table>
+        <thead>
+          <tr><th>对象</th><th>美术怎么做</th><th>工具怎么做</th><th>是否需要美术手动维护</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>原始材质实例</td>
+            <td>正常指定贴图和参数。</td>
+            <td>读取 Texture 参数、Scalar/Vector 参数、Static Switch、渲染状态。</td>
+            <td>否。</td>
+          </tr>
+          <tr>
+            <td>Texture2DArray</td>
+            <td>不制作。</td>
+            <td>按 batch group 自动生成 <code>T2DA_BaseColor</code>、<code>T2DA_Normal</code>、<code>T2DA_ORM</code> 等。</td>
+            <td>否。</td>
+          </tr>
+          <tr>
+            <td>共享 VT Atlas / Material Cache</td>
+            <td>不制作。</td>
+            <td>第一阶段即可作为主线：工具只对合批候选生成共享 VT/cache 和每个 materialIndex 的 UVRect / page 信息，不强制所有项目贴图转 VT。</td>
+            <td>否。</td>
+          </tr>
+          <tr>
+            <td>PropertyTexture</td>
+            <td>不制作。</td>
+            <td>自动把每个材质实例的参数写成按行索引的属性表。</td>
+            <td>否。</td>
+          </tr>
+          <tr>
+            <td>batchIndex</td>
+            <td>不填写。</td>
+            <td>模型 merge 时自动写入 <code>TexCoord7.x</code> 或等价顶点属性。</td>
+            <td>否。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h4>10.6.1 开启 VT 是否是自动合批保证</h4>
+      <p>不是。开启 VT 只能让项目具备虚拟纹理能力，并让特定贴图或生成资产进入虚拟纹理 streaming / page 管理体系，不能保证模型 merge 后自动合批。合批是否成立取决于工具是否生成了同一套批材质资源，并且所有候选物体满足同一 shader variant、同一 render state、可合并 mesh、可写入 materialIndex、可生成 PropertyTexture 和贴图映射。</p>
+      <p>因此更准确的表述是：</p>
+      <pre><code>美术正常给贴图
+  -> 工具自动收集材质
+  -> 工具自动生成共享 VT Atlas 或 T2DA fallback
+  -> 工具自动生成 PropertyTexture
+  -> 工具自动写 batchIndex
+  -> 工具自动生成 ProxyMesh / BatchMaterial
+  -> 合格对象可合批；不合格对象进入拒绝报告或拆 variant</code></pre>
+
+      <h4>10.6.2 当前推荐生产策略</h4>
+      <ol>
+        <li>第一阶段：允许项目开启 VT/RVT 支持，但采用选择性策略。原始贴图不全量转 VT；只对进入合批的候选自动生成共享 VT Atlas。</li>
+        <li>Texture2DArray 改为 fallback：如果某个平台、某类材质或某个批次不适合 VT Atlas，再回退到 T2DA 生成路径。</li>
+        <li>无论 T2DA 还是 VT Atlas，美术都不手动维护合批资源；合批资源全部生成在 <code>/Game/Generated/MaterialBatch</code> 或指定生成目录。</li>
+        <li>工具只能“保证合格候选会按规则生成批处理资产”，不能保证所有场景物件都进入同一个 batch。动态物、特殊材质、不同渲染状态、特殊 WPO/Masked/TwoSided、材质灯特殊路径都可能被拆分或拒绝。</li>
+      </ol>
+
+      <h4>10.6.3 合批 VT Atlas 的自动化边界</h4>
+      <table>
+        <thead>
+          <tr><th>问题</th><th>处理方式</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>是否需要所有原始贴图都开启 VT</td>
+            <td>不需要。项目可以开启 VT 支持，但工具只把生成的批资源设为 VT；原始美术贴图按资产规范保留。</td>
+          </tr>
+          <tr>
+            <td>是否需要美术把贴图放进 atlas</td>
+            <td>不需要。工具读取材质实例引用的普通贴图，自动生成合批专用 VT Atlas。</td>
+          </tr>
+          <tr>
+            <td>VT Atlas 能否直接替代 batchIndex</td>
+            <td>不能。VT Atlas 只替代 Texture2DArray 的采样资源层；batchIndex、UVRect、PropertyTexture、ProxyMesh 仍然必须生成。</td>
+          </tr>
+          <tr>
+            <td>是否能保证 merge 后自动合批</td>
+            <td>能保证“通过审计的候选”生成统一批材质和合并 mesh；不能保证所有物件都合批，拒绝原因必须写入报告。</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="metrics">
+      <h2>11. 验证会看哪些指标</h2>
+      <h3>11.1 必测命令</h3>
+      <pre><code>stat unit
+stat rhi
+stat scenerendering
+stat gpu
+profilegpu
+r.MeshDrawCommands.LogDynamicInstancingStats 1</code></pre>
+
+      <h3>11.2 对比矩阵</h3>
+      <table>
+        <thead>
+          <tr><th>测试项</th><th>目的</th><th>通过标准</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Baseline</td>
+            <td>当前项目原始表现。</td>
+            <td>记录 FPS、GPU ms、draw call、材质成本。</td>
+          </tr>
+          <tr>
+            <td>Batch Only</td>
+            <td>只看模型/材质合批收益。</td>
+            <td>draw call 应下降，视觉差异可接受。</td>
+          </tr>
+          <tr>
+            <td>Lumen Lite Only</td>
+            <td>只看 UE5.8 Lumen Lite 成本。</td>
+            <td>GPU ms 增量可控，否则不默认开启。</td>
+          </tr>
+          <tr>
+            <td>Batch + Lumen Lite</td>
+            <td>验证合批节省是否能抵消部分 GI 成本。</td>
+            <td>Steam Deck 15W 若稳定才考虑默认。</td>
+          </tr>
+          <tr>
+            <td>Ground BakedSVT Only</td>
+            <td>只看离线烘焙地面 tile 对贴花/混合/采样成本和 streaming 的影响。</td>
+            <td>地面视觉保持，运行时无大范围 RVT 写入 pass，物理缓存换页可控。</td>
+          </tr>
+          <tr>
+            <td>Ground RVT Preview Only</td>
+            <td>只看 UE RVT 作为制作预览/动态效果时的运行时成本。</td>
+            <td>PC/高档可接受；掌机/低功耗不作为默认结论。</td>
+          </tr>
+          <tr>
+            <td>Ground BakedSVT + Batch</td>
+            <td>验证地面 Baked SVT 与静态环境合批组合后的真实收益。</td>
+            <td>draw call、GPU ms、streaming 压力三者至少有明确收益方向。</td>
+          </tr>
+          <tr>
+            <td>Low / 5W</td>
+            <td>验证极低功耗策略。</td>
+            <td>Lumen Off + Proxy/Baked 后保持可玩。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>11.3 决策标准</h3>
+      <ul>
+        <li>如果 Batch Only 明显降低 draw call 但 GPU ms 不降，说明瓶颈可能不是 draw call，要转向材质/光照/像素成本。</li>
+        <li>如果 Lumen Lite 成本高于合批收益，掌机默认不启用 Lumen Lite。</li>
+        <li>如果 Proxy 视觉差异太大，只能用于 Low 或远景，不能进入 Medium。</li>
+        <li>如果 Texture2DArray 导致贴图质量或 streaming 问题，需要调整尺寸规范或改用 VT/SVT 辅助；如果 Baked SVT 换页卡顿，需要调小 tile 上传峰值或增大物理缓存。</li>
+      </ul>
+    </section>
+
+    <section id="phases">
+      <h2>12. 实施阶段建议</h2>
+      <table>
+        <thead>
+          <tr><th>阶段</th><th>目标</th><th>产物</th><th>是否改场景</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Phase 0</td>
+            <td>只做审计和规则对齐。</td>
+            <td>材质参数表、模型候选规则、拒绝原因。</td>
+            <td>否</td>
+          </tr>
+          <tr>
+            <td>Phase 1</td>
+            <td>用 corridor 小 cluster 验证 tag 和 dry-run。</td>
+            <td><code>EnvBatch.Source.Corridor_01b</code>、dry-run 报告。</td>
+            <td>只写 tag，需人工保存。</td>
+          </tr>
+          <tr>
+            <td>Phase 2</td>
+            <td>拆分地面 Baked SVT / RVT 预览管线与建筑批材质管线。</td>
+            <td>Baked SVT 地面接口、RVT 预览/动态接口、<code>M_Env_Building_Batch</code> 接口、材质 parity 结果。</td>
+            <td>否，先测试资产。</td>
+          </tr>
+          <tr>
+            <td>Phase 3</td>
+            <td>生成 ProxyMesh 和 batch assets。</td>
+            <td>Mapping、T2DA、PropertyTexture、ProxyMesh、BatchMaterial。</td>
+            <td>不自动替换，只生成资产。</td>
+          </tr>
+          <tr>
+            <td>Phase 4</td>
+            <td>测试 Source / Proxy 分级切换。</td>
+            <td>测试关卡、切换逻辑、视觉报告。</td>
+            <td>仅测试关卡。</td>
+          </tr>
+          <tr>
+            <td>Phase 5</td>
+            <td>性能矩阵实测。</td>
+            <td>Baseline / Batch / Lumen Lite / Low 数据。</td>
+            <td>否，基于测试场景。</td>
+          </tr>
+          <tr>
+            <td>Phase 6</td>
+            <td>决定默认分级策略。</td>
+            <td>PC / Deck 15W / 5W / Switch Candidate 默认规则。</td>
+            <td>通过后再推广。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout good">
+        <strong>我建议的下一步：</strong>先不要扩大全关卡。用 corridor 关卡选一个 20-50 个 Actor 的真实小 cluster，跑“扫描 -> tag 建议 -> dry-run -> 材质兼容报告”。这一步能最快看清楚真实障碍是 mobility、材质 switch、贴图尺寸，还是材质灯特殊路径。
+      </div>
+    </section>
+
+    <footer>
+      文件用途：供后续 UE5.8 性能分级、模型合批、材质合批和美术制作流程讨论使用。生成时间：2026-06-29。
+    </footer>
+  </main>
+</body>
+</html>

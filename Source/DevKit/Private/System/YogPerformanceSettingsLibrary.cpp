@@ -169,7 +169,7 @@ FYogGraphicsSettings UYogPerformanceSettingsLibrary::MakeGraphicsSettingsForProf
 
 	case EYogPerformanceProfile::Medium:
 		Settings.ResolutionScalePercent = 70.f;
-		Settings.FrameRateLimit = 60;
+		Settings.FrameRateLimit = 0;
 		Settings.ViewDistanceQuality = 1;
 		Settings.ShadowQuality = 1;
 		Settings.GlobalIlluminationQuality = 1;
@@ -188,7 +188,7 @@ FYogGraphicsSettings UYogPerformanceSettingsLibrary::MakeGraphicsSettingsForProf
 
 	case EYogPerformanceProfile::Low:
 		Settings.ResolutionScalePercent = 55.f;
-		Settings.FrameRateLimit = 30;
+		Settings.FrameRateLimit = 0;
 		Settings.ViewDistanceQuality = 0;
 		Settings.ShadowQuality = 0;
 		Settings.GlobalIlluminationQuality = 0;
@@ -234,7 +234,7 @@ FYogGraphicsSettings UYogPerformanceSettingsLibrary::MakeGraphicsSettingsForTarg
 		Settings = MakeGraphicsSettingsForProfile(EYogPerformanceProfile::Medium);
 		Settings.SelectedTargetTier = Tier;
 		Settings.ResolutionScalePercent = 70.f;
-		Settings.FrameRateLimit = 60;
+		Settings.FrameRateLimit = 0;
 		Settings.bUseLumenLite = true;
 		Settings.bUseNanite = false;
 		Settings.bUseVirtualShadowMaps = false;
@@ -245,7 +245,7 @@ FYogGraphicsSettings UYogPerformanceSettingsLibrary::MakeGraphicsSettingsForTarg
 		Settings = MakeGraphicsSettingsForProfile(EYogPerformanceProfile::Medium);
 		Settings.SelectedTargetTier = Tier;
 		Settings.ResolutionScalePercent = 75.f;
-		Settings.FrameRateLimit = 40;
+		Settings.FrameRateLimit = 0;
 		Settings.bUseLumenLite = true;
 		Settings.bUseNanite = false;
 		Settings.bUseVirtualShadowMaps = false;
@@ -256,7 +256,7 @@ FYogGraphicsSettings UYogPerformanceSettingsLibrary::MakeGraphicsSettingsForTarg
 		Settings = MakeGraphicsSettingsForProfile(EYogPerformanceProfile::Low);
 		Settings.SelectedTargetTier = Tier;
 		Settings.ResolutionScalePercent = 55.f;
-		Settings.FrameRateLimit = 30;
+		Settings.FrameRateLimit = 0;
 		Settings.bUseLumenLite = false;
 		Settings.bUseNanite = false;
 		Settings.bUseVirtualShadowMaps = false;
@@ -267,7 +267,7 @@ FYogGraphicsSettings UYogPerformanceSettingsLibrary::MakeGraphicsSettingsForTarg
 		Settings = MakeGraphicsSettingsForProfile(EYogPerformanceProfile::Low);
 		Settings.SelectedTargetTier = Tier;
 		Settings.ResolutionScalePercent = 50.f;
-		Settings.FrameRateLimit = 30;
+		Settings.FrameRateLimit = 0;
 		Settings.TextureQuality = 0;
 		Settings.bUseLumenLite = false;
 		Settings.bUseNanite = false;
@@ -355,14 +355,18 @@ bool UYogPerformanceSettingsLibrary::ApplySavedGraphicsSettings(UObject* WorldCo
 		return false;
 	}
 
-	return ApplyGraphicsSettings(WorldContextObject, SettingsSave->GraphicsSettings, false);
+	FYogGraphicsSettings Settings = SettingsSave->GraphicsSettings;
+	Settings.FrameRateLimit = 0;
+	return ApplyGraphicsSettings(WorldContextObject, Settings, false);
 }
 
 FYogGraphicsSettings UYogPerformanceSettingsLibrary::GetSavedGraphicsSettings(UObject* WorldContextObject)
 {
 	if (const UYogSettingsSave* SettingsSave = GetSettingsSave(WorldContextObject))
 	{
-		return SettingsSave->GraphicsSettings;
+		FYogGraphicsSettings Settings = SettingsSave->GraphicsSettings;
+		Settings.FrameRateLimit = 0;
+		return Settings;
 	}
 
 	return FYogGraphicsSettings();
@@ -456,7 +460,7 @@ FText UYogPerformanceSettingsLibrary::GetPerformanceTargetTierDescription(EYogPe
 	case EYogPerformanceTargetTier::Switch2Candidate:
 		return NSLOCTEXT("DevKitPerformance", "TargetSwitch2CandidateDesc", "Switch 2 candidate profile. Conservative handheld tier until device profiling is available.");
 	case EYogPerformanceTargetTier::SteamDeck5W:
-		return NSLOCTEXT("DevKitPerformance", "TargetSteamDeck5WDesc", "Handheld 5W tier. Lumen disabled, batch proxies preferred, 30 FPS target.");
+		return NSLOCTEXT("DevKitPerformance", "TargetSteamDeck5WDesc", "Handheld 5W tier. Lumen disabled, batch proxies preferred, frame rate unlocked for profiling.");
 	case EYogPerformanceTargetTier::FallbackLow:
 		return NSLOCTEXT("DevKitPerformance", "TargetFallbackLowDesc", "Fallback low tier. Lumen disabled with the lowest runtime budget.");
 	case EYogPerformanceTargetTier::Custom:

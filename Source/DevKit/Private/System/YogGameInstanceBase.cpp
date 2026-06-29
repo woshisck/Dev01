@@ -342,7 +342,7 @@ void UYogGameInstanceBase::ShowMainMenu()
 	EntryMenuWidget->OnContinueRequested.RemoveAll(this);
 	EntryMenuWidget->OnOptionsRequested.RemoveAll(this);
 	EntryMenuWidget->OnQuitRequested.RemoveAll(this);
-	EntryMenuWidget->OnStartRequested.AddDynamic(this, &UYogGameInstanceBase::ShowSlotSelectMenu);
+	EntryMenuWidget->OnStartRequested.AddDynamic(this, &UYogGameInstanceBase::StartNormalRunFromFrontend);
 	EntryMenuWidget->OnContinueRequested.AddDynamic(this, &UYogGameInstanceBase::ShowSlotSelectMenu);
 	EntryMenuWidget->OnOptionsRequested.AddDynamic(this, &UYogGameInstanceBase::HandleEntryOptionsRequested);
 	EntryMenuWidget->OnQuitRequested.AddDynamic(this, &UYogGameInstanceBase::QuitFromFrontend);

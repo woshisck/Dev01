@@ -4,9 +4,11 @@
 #include "AbilitySystem/Abilities/YogGameplayAbility.h"
 #include "AbilitySystem/Abilities/YogTargetType.h"
 #include "Character/YogCharacterBase.h"
+#include "Character/PlayerCharacterBase.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "Data/AbilityData.h"
 #include "AbilitySystemComponent.h"
+#include "Item/Weapon/WeaponDefinition.h"
 
 UYogGameplayAbility::UYogGameplayAbility(const FObjectInitializer& ObjectInitializer)
 	:Super(ObjectInitializer)
@@ -336,12 +338,115 @@ FActionData UYogGameplayAbility::GetRowData(FDataTableRowHandle action_row)
 
 void UYogGameplayAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
 {
+	if (UAbilitySystemComponent* ASC = ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr)
+	{
+		if (StatBeforeATKHandle.IsValid())
+		{
+			ASC->RemoveActiveGameplayEffect(StatBeforeATKHandle);
+			StatBeforeATKHandle = FActiveGameplayEffectHandle();
+		}
+		if (JustComboGEHandle.IsValid())
+		{
+			ASC->RemoveActiveGameplayEffect(JustComboGEHandle);
+			JustComboGEHandle = FActiveGameplayEffectHandle();
+		}
+	}
+
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 
 	EventOn_AbilityEnded.Broadcast();
 }
 
+void UYogGameplayAbility::ApplyStatBeforeATKGE(const FGameplayAbilityActorInfo* ActorInfo)
+{
+	if (!StatBeforeATKEffect || !ActorInfo)
+	{
+		return;
+	}
+	UAbilitySystemComponent* ASC = ActorInfo->AbilitySystemComponent.Get();
+	if (!ASC)
+	{
+		return;
+	}
 
+	static const FGameplayTag TAG_ActDamage    = FGameplayTag::RequestGameplayTag("Attribute.ActDamage");
+	static const FGameplayTag TAG_ActRange     = FGameplayTag::RequestGameplayTag("Attribute.ActRange");
+	static const FGameplayTag TAG_ActRes       = FGameplayTag::RequestGameplayTag("Attribute.ActResilience");
+	static const FGameplayTag TAG_ActDmgReduce = FGameplayTag::RequestGameplayTag("Attribute.ActDmgReduce");
+
+	FGameplayEffectContextHandle CtxHandle = ASC->MakeEffectContext();
+	CtxHandle.AddSourceObject(this);
+	FGameplayEffectSpecHandle SpecHandle = ASC->MakeOutgoingSpec(StatBeforeATKEffect, GetAbilityLevel(), CtxHandle);
+	if (!SpecHandle.IsValid())
+	{
+		return;
+	}
+
+	const FActionData ActionData = GetAbilityActionData();
+	SpecHandle.Data->SetSetByCallerMagnitude(TAG_ActDamage,    ActionData.ActDamage);
+	SpecHandle.Data->SetSetByCallerMagnitude(TAG_ActRange,     ActionData.ActRange);
+	SpecHandle.Data->SetSetByCallerMagnitude(TAG_ActRes,       ActionData.ActResilience);
+	SpecHandle.Data->SetSetByCallerMagnitude(TAG_ActDmgReduce, ActionData.ActDmgReduce);
+	StatBeforeATKHandle = ASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+}
+
+void UYogGameplayAbility::ApplyStatAfterATKGE(const FGameplayAbilityActorInfo* ActorInfo, bool bWasCancelled, const FActionData& ActionData)
+{
+	if (bWasCancelled || !StatAfterATKEffect || !ActorInfo)
+	{
+		return;
+	}
+	UAbilitySystemComponent* ASC = ActorInfo->AbilitySystemComponent.Get();
+	if (!ASC)
+	{
+		return;
+	}
+
+	static const FGameplayTag TAG_ActDamage    = FGameplayTag::RequestGameplayTag("Attribute.ActDamage");
+	static const FGameplayTag TAG_ActRange     = FGameplayTag::RequestGameplayTag("Attribute.ActRange");
+	static const FGameplayTag TAG_ActRes       = FGameplayTag::RequestGameplayTag("Attribute.ActResilience");
+	static const FGameplayTag TAG_ActDmgReduce = FGameplayTag::RequestGameplayTag("Attribute.ActDmgReduce");
+
+	FGameplayEffectContextHandle CtxHandle = ASC->MakeEffectContext();
+	CtxHandle.AddSourceObject(this);
+	FGameplayEffectSpecHandle SpecHandle = ASC->MakeOutgoingSpec(StatAfterATKEffect, GetAbilityLevel(), CtxHandle);
+	if (!SpecHandle.IsValid())
+	{
+		return;
+	}
+
+	SpecHandle.Data->SetSetByCallerMagnitude(TAG_ActDamage,    ActionData.ActDamage);
+	SpecHandle.Data->SetSetByCallerMagnitude(TAG_ActRange,     ActionData.ActRange);
+	SpecHandle.Data->SetSetByCallerMagnitude(TAG_ActRes,       ActionData.ActResilience);
+	SpecHandle.Data->SetSetByCallerMagnitude(TAG_ActDmgReduce, ActionData.ActDmgReduce);
+	ASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+}
+
+void UYogGameplayAbility::ApplyJustComboGE(const FGameplayAbilityActorInfo* ActorInfo)
+{
+	if (!ActorInfo)
+	{
+		return;
+	}
+	const APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(ActorInfo->AvatarActor.Get());
+	if (!Player || !Player->EquippedWeaponDef || !Player->EquippedWeaponDef->JustComboEffect)
+	{
+		return;
+	}
+	UAbilitySystemComponent* ASC = ActorInfo->AbilitySystemComponent.Get();
+	if (!ASC)
+	{
+		return;
+	}
+	FGameplayEffectContextHandle Ctx = ASC->MakeEffectContext();
+	Ctx.AddSourceObject(Player);
+	const FGameplayEffectSpecHandle Spec = ASC->MakeOutgoingSpec(
+		Player->EquippedWeaponDef->JustComboEffect, GetAbilityLevel(), Ctx);
+	if (Spec.IsValid())
+	{
+		JustComboGEHandle = ASC->ApplyGameplayEffectSpecToSelf(*Spec.Data);
+	}
+}
 
 FGameplayTag UYogGameplayAbility::GetFirstTagFromContainer(const FGameplayTagContainer& Container)
 {

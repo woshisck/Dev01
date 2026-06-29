@@ -6,11 +6,11 @@
 #include "ToolMenuSection.h"
 #include "ToolMenus.h"
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDevKitPlayFromMainMenuToolbarEntryTest,
-	"DevKitEditor.Toolbar.PlayFromMainMenuButtonRegistered",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDevKitNoCustomEntryMenuPlayButtonTest,
+	"DevKitEditor.Toolbar.NoCustomEntryMenuPlayButtonRegistered",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FDevKitPlayFromMainMenuToolbarEntryTest::RunTest(const FString& Parameters)
+bool FDevKitNoCustomEntryMenuPlayButtonTest::RunTest(const FString& Parameters)
 {
 	UToolMenus* ToolMenus = UToolMenus::Get();
 	if (!TestNotNull(TEXT("ToolMenus subsystem is available"), ToolMenus))
@@ -32,8 +32,8 @@ bool FDevKitPlayFromMainMenuToolbarEntryTest::RunTest(const FString& Parameters)
 	}
 
 	const FToolMenuEntry* Entry = PlaySection->FindEntry(TEXT("DevKitPlayFromMainMenu"));
-	TestNotNull(TEXT("DevKit Play From Main Menu toolbar button is registered"), Entry);
-	return Entry != nullptr;
+	TestNull(TEXT("Custom entry-menu play toolbar button is not registered"), Entry);
+	return Entry == nullptr;
 }
 
 #endif

@@ -19,6 +19,7 @@ class UYogAbilitySet;
 class AWeaponInstance;
 class APlayerCharacterBase;
 class UMaterialInterface;
+class UGameplayEffect;
 class URuneDataAsset;
 //class UYogAnimInstance;
 
@@ -152,6 +153,14 @@ public:
 	// Combat deck attack sequence. Skill, WeaponSkill, and Dash cards route to their own single slots.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat Deck")
 	TArray<TObjectPtr<URuneDataAsset>> InitialCombatDeck;
+
+	/**
+	 * Applied to the player's ASC at the start of any attack that successfully consumed a Just Combo
+	 * input (attack pressed during Character.State.Window.JustCombo). Removed in EndAbility.
+	 * Must be Infinite or Has Duration — the GA always removes it by handle on ability end.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|JustCombo")
+	TSubclassOf<UGameplayEffect> JustComboEffect;
 
 	// Deprecated compatibility data. Current cards loop in sequence without shuffle downtime.
 	UPROPERTY()
