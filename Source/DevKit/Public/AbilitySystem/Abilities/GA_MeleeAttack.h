@@ -16,19 +16,7 @@ class UAbilityTask_ApplyRootMotionMoveToForce;
 class UAbilitySystemComponent;
 class AYogCharacterBase;
 
-/**
- * 閫氱敤杩戞垬鏀诲嚮 GA锛堟晫浜?+ 鐜╁鍧囧彲浣跨敤锛夈€?
- *
- * 绛栧垝宸ヤ綔娴侊細
- * 1. 鏂板缓 Blueprint GA锛孭arent Class 閫?GA_MeleeAttack
- * 2. Class Defaults 鈫?AbilityTags 濉啓瀵瑰簲 Tag锛堥』涓庤鑹?CharacterData.AbilityData 琛ㄦ牸琛?Key 涓€鑷达級
- * 3. 鐜╁ GA锛氬嬀閫?bRequireCommit锛孲tatBeforeATKEffect 濉啓 GE_StatBeforeATK
- *    鏁屼汉 GA锛氫繚鎸侀粯璁わ紙bRequireCommit=false锛孲tatBeforeATKEffect 鐣欑┖锛?
- * 4. 娓呯┖ Event Graph锛堟墍鏈夋祦绋嬪凡鍦?C++ 涓疄鐜帮級
- *
- * 钂欏お濂囧拰鍛戒腑妗嗚嚜鍔ㄤ粠 瑙掕壊.CharacterData.AbilityData.AbilityMap[AbilityTags[0]] 璇诲彇锛?
- * 鏃犻渶鍦?GA 涓婂崟鐙厤缃€?
- */
+
 UCLASS(BlueprintType, Blueprintable)
 class DEVKIT_API UGA_MeleeAttack : public UYogGameplayAbility
 {
@@ -38,29 +26,11 @@ public:
 	UGA_MeleeAttack();
 
 	static bool TryQueueJustComboSpeedBonus(UAbilitySystemComponent* ASC);
+	static bool TryConsumeJustComboBonus(UAbilitySystemComponent* ASC);
 
-	/**
-	 * 鏄惁鍦ㄦ縺娲绘椂璋冪敤 CommitAbility锛堟墸闄ゆ秷鑰?+ 瑙﹀彂鍐峰嵈锛夈€?
-	 * 鐜╁杩戞垬 GA 濉?true锛涙晫浜鸿繎鎴?GA 淇濇寔 false锛堥粯璁わ級銆?
-	 */
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Melee")
 	bool bRequireCommit = false;
-
-	/**
-	 * 婵€娲绘椂鏂藉姞鍒?Self 鐨?鏀诲嚮鍓嶆憞"GameplayEffect锛堜緥濡?GE_StatBeforeATK锛夈€?
-	 * EndAbility 鏃惰嚜鍔ㄧЩ闄わ紝鏃犻渶鎵嬪姩璋冪敤銆?
-	 * 鐜╁杩戞垬 GA 濉啓锛涙晫浜?GA 鐣欑┖銆?
-	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Melee")
-	TSubclassOf<UGameplayEffect> StatBeforeATKEffect;
-
-	/**
-	 * 鎶€鑳芥甯哥粨鏉熸椂锛堥潪 Cancel/Interrupt锛夋柦鍔犵殑"鏀诲嚮鍚庢憞"GameplayEffect锛堜緥濡?GE_StatAfterATK锛夈€?
-	 * 璇?GE 鑷韩甯?Duration锛岃嚜鍔ㄥ埌鏈燂紝鏃犻渶鎵嬪姩绉婚櫎銆?
-	 * 鐜╁杩戞垬 GA 濉啓锛涙晫浜?GA 鐣欑┖銆?
-	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Melee")
-	TSubclassOf<UGameplayEffect> StatAfterATKEffect;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Deck")
 	ECombatDeckFlowRole CombatDeckFlowRole = ECombatDeckFlowRole::Any;
@@ -106,9 +76,6 @@ private:
 		float PreCardAttack       = 0.f;
 		float PreCardAttackPower  = 0.f;
 	};
-
-	/** GE_StatBeforeATK 鐨勬縺娲诲彞鏌勶紝EndAbility 鏃惰嚜鍔ㄧЩ闄?*/
-	FActiveGameplayEffectHandle StatBeforeATKHandle;
 
 	/**
 	 * 涓嶄娇鐢?UPROPERTY 鏄洜涓?AnimNotify 涓嶅弬涓?GC锛岀敓鍛藉懆鏈熼殢钂欏お濂囪祫浜с€?

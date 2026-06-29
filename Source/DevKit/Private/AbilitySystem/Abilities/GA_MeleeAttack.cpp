@@ -17,6 +17,7 @@
 #include "Controller/YogAIController.h"
 #include "Character/YogCharacterBase.h"
 #include "Character/PlayerCharacterBase.h"
+#include "Item/Weapon/WeaponDefinition.h"
 #include "Component/CombatDeckComponent.h"
 #include "Component/MontageVFXBindingComponent.h"
 #include "Component/BufferComponent.h"
@@ -131,6 +132,21 @@ bool UGA_MeleeAttack::TryQueueJustComboSpeedBonus(UAbilitySystemComponent* ASC)
 
 	GPendingJustComboSpeedBonus.Add(TObjectKey<UAbilitySystemComponent>(ASC));
 	UE_LOG(LogTemp, Verbose, TEXT("[JustCombo] Queued next attack speed bonus for ASC=%s"), *GetNameSafe(ASC));
+	return true;
+}
+
+bool UGA_MeleeAttack::TryConsumeJustComboBonus(UAbilitySystemComponent* ASC)
+{
+	if (!ASC)
+	{
+		return false;
+	}
+	const TObjectKey<UAbilitySystemComponent> ASCKey(ASC);
+	if (!GPendingJustComboSpeedBonus.Contains(ASCKey))
+	{
+		return false;
+	}
+	GPendingJustComboSpeedBonus.Remove(ASCKey);
 	return true;
 }
 
@@ -771,61 +787,45 @@ void UGA_MeleeAttack::ActivateAbility(
 	// 缓存第一AN_MeleeDamage，后GetAbilityActionData / StatAfterATK 使用
 	CachedDamageNotify = GetFirstDamageNotify(Montage);
 
-	// 施加攻击前摇 GE（玩GA 配置，敌GA 留空跳过	if (StatBeforeATKEffect)
 	if (StatBeforeATKEffect)
 	{
 		if (UAbilitySystemComponent* ASC = ActorInfo->AbilitySystemComponent.Get())
 		{
-			static const FGameplayTag TAG_ActDamage    = FGameplayTag::RequestGameplayTag("Attribute.ActDamage");
-			static const FGameplayTag TAG_ActRange     = FGameplayTag::RequestGameplayTag("Attribute.ActRange");
-			static const FGameplayTag TAG_ActRes       = FGameplayTag::RequestGameplayTag("Attribute.ActResilience");
-			static const FGameplayTag TAG_ActDmgReduce = FGameplayTag::RequestGameplayTag("Attribute.ActDmgReduce");
+			LocalPreStatBeforeAttack = ASC->GetNumericAttribute(UBaseAttributeSet::GetAttackAttribute());
+			LocalPreStatBeforeAttackPower = ASC->GetNumericAttribute(UBaseAttributeSet::GetAttackPowerAttribute());
+			bHasStatBeforeAttributeSnapshot = true;
 
-			FGameplayEffectContextHandle ContextHandle = ASC->MakeEffectContext();
-			ContextHandle.AddSourceObject(this);
-			FGameplayEffectSpecHandle SpecHandle = ASC->MakeOutgoingSpec(StatBeforeATKEffect, GetAbilityLevel(), ContextHandle);
-			if (SpecHandle.IsValid())
+			const TObjectKey<UAbilitySystemComponent> ASCKey(ASC);
+			FStatBeforeAttackSharedSnapshot& SharedSnapshot = GStatBeforeAttackSnapshots.FindOrAdd(ASCKey);
+			if (SharedSnapshot.ActiveCount <= 0)
 			{
-				LocalPreStatBeforeAttack = ASC->GetNumericAttribute(UBaseAttributeSet::GetAttackAttribute());
-				LocalPreStatBeforeAttackPower = ASC->GetNumericAttribute(UBaseAttributeSet::GetAttackPowerAttribute());
-				bHasStatBeforeAttributeSnapshot = true;
-
-				const TObjectKey<UAbilitySystemComponent> ASCKey(ASC);
-				FStatBeforeAttackSharedSnapshot& SharedSnapshot = GStatBeforeAttackSnapshots.FindOrAdd(ASCKey);
-				if (SharedSnapshot.ActiveCount <= 0)
-				{
-					SharedSnapshot.Attack = LocalPreStatBeforeAttack;
-					SharedSnapshot.AttackPower = LocalPreStatBeforeAttackPower;
-					SharedSnapshot.ActiveCount = 0;
-				}
-				++SharedSnapshot.ActiveCount;
-
-				const FActionData ActionData = GetAbilityActionData();
-				SpecHandle.Data->SetSetByCallerMagnitude(TAG_ActDamage,    ActionData.ActDamage);
-				SpecHandle.Data->SetSetByCallerMagnitude(TAG_ActRange,     ActionData.ActRange);
-				SpecHandle.Data->SetSetByCallerMagnitude(TAG_ActRes,       ActionData.ActResilience);
-				SpecHandle.Data->SetSetByCallerMagnitude(TAG_ActDmgReduce, ActionData.ActDmgReduce);
-				StatBeforeATKHandle = ASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
-				const float PostStatBeforeAttack = ASC->GetNumericAttribute(UBaseAttributeSet::GetAttackAttribute());
-				const float PostStatBeforeAttackPower = ASC->GetNumericAttribute(UBaseAttributeSet::GetAttackPowerAttribute());
-				LocalStatBeforeAttackDelta = FMath::Max(0.f, PostStatBeforeAttack - LocalPreStatBeforeAttack);
-				LocalStatBeforeAttackPowerDelta = FMath::Max(0.f, PostStatBeforeAttackPower - LocalPreStatBeforeAttackPower);
-				UE_LOG(LogTemp, Warning,
-					TEXT("[StatBeforeATKAttrSnapshot] Effect=%s Attack %.2f -> %.2f Delta=%.2f AttackPower %.2f -> %.2f Delta=%.2f Handle=%d"),
-					*GetNameSafe(StatBeforeATKEffect),
-					LocalPreStatBeforeAttack,
-					PostStatBeforeAttack,
-					LocalStatBeforeAttackDelta,
-					LocalPreStatBeforeAttackPower,
-					PostStatBeforeAttackPower,
-					LocalStatBeforeAttackPowerDelta,
-					StatBeforeATKHandle.IsValid() ? 1 : 0);
-				UE_LOG(LogTemp, Warning,
-					TEXT("[StatBeforeATKAttrSnapshot] SharedBaseline Attack=%.2f AttackPower=%.2f ActiveCount=%d"),
-					SharedSnapshot.Attack,
-					SharedSnapshot.AttackPower,
-					SharedSnapshot.ActiveCount);
+				SharedSnapshot.Attack = LocalPreStatBeforeAttack;
+				SharedSnapshot.AttackPower = LocalPreStatBeforeAttackPower;
+				SharedSnapshot.ActiveCount = 0;
 			}
+			++SharedSnapshot.ActiveCount;
+
+			ApplyStatBeforeATKGE(ActorInfo);
+
+			const float PostStatBeforeAttack = ASC->GetNumericAttribute(UBaseAttributeSet::GetAttackAttribute());
+			const float PostStatBeforeAttackPower = ASC->GetNumericAttribute(UBaseAttributeSet::GetAttackPowerAttribute());
+			LocalStatBeforeAttackDelta = FMath::Max(0.f, PostStatBeforeAttack - LocalPreStatBeforeAttack);
+			LocalStatBeforeAttackPowerDelta = FMath::Max(0.f, PostStatBeforeAttackPower - LocalPreStatBeforeAttackPower);
+			UE_LOG(LogTemp, Warning,
+				TEXT("[StatBeforeATKAttrSnapshot] Effect=%s Attack %.2f -> %.2f Delta=%.2f AttackPower %.2f -> %.2f Delta=%.2f Handle=%d"),
+				*GetNameSafe(StatBeforeATKEffect),
+				LocalPreStatBeforeAttack,
+				PostStatBeforeAttack,
+				LocalStatBeforeAttackDelta,
+				LocalPreStatBeforeAttackPower,
+				PostStatBeforeAttackPower,
+				LocalStatBeforeAttackPowerDelta,
+				StatBeforeATKHandle.IsValid() ? 1 : 0);
+			UE_LOG(LogTemp, Warning,
+				TEXT("[StatBeforeATKAttrSnapshot] SharedBaseline Attack=%.2f AttackPower=%.2f ActiveCount=%d"),
+				SharedSnapshot.Attack,
+				SharedSnapshot.AttackPower,
+				SharedSnapshot.ActiveCount);
 		}
 	}
 
@@ -871,12 +871,11 @@ void UGA_MeleeAttack::ActivateAbility(
 			AttackSpeedRate = SpeedValue;
 		}
 
-		const TObjectKey<UAbilitySystemComponent> ASCKey(ASC);
-		if (GPendingJustComboSpeedBonus.Contains(ASCKey))
+		if (TryConsumeJustComboBonus(ASC))
 		{
-			GPendingJustComboSpeedBonus.Remove(ASCKey);
 			AttackSpeedRate *= JustComboNextAttackSpeedMultiplier;
 			UE_LOG(LogTemp, Verbose, TEXT("[JustCombo] Consumed next attack speed bonus. MontagePlayRate=%.2f"), AttackSpeedRate);
+			ApplyJustComboGE(ActorInfo);
 		}
 	}
 
@@ -999,58 +998,44 @@ void UGA_MeleeAttack::EndAbility(
 
 	// 施加攻击后摇 GE（仅正常结束时，Cancel/Interrupt 不触发）
 	// 优先用最后命中的 Notify 数据（多段命中代表最后一击），未命中过则 fallback 到第一Notify
-	if (!bWasCancelled && StatAfterATKEffect && ASC)
+	if (!bWasCancelled && ASC)
 	{
-		static const FGameplayTag TAG_ActDamage    = FGameplayTag::RequestGameplayTag("Attribute.ActDamage");
-		static const FGameplayTag TAG_ActRange     = FGameplayTag::RequestGameplayTag("Attribute.ActRange");
-		static const FGameplayTag TAG_ActRes       = FGameplayTag::RequestGameplayTag("Attribute.ActResilience");
-		static const FGameplayTag TAG_ActDmgReduce = FGameplayTag::RequestGameplayTag("Attribute.ActDmgReduce");
-
 		const float PreStatAfterAttack = ASC->GetNumericAttribute(UBaseAttributeSet::GetAttackAttribute());
 		const float PreStatAfterAttackPower = ASC->GetNumericAttribute(UBaseAttributeSet::GetAttackPowerAttribute());
 
-		FGameplayEffectContextHandle Ctx = ASC->MakeEffectContext();
-		Ctx.AddSourceObject(this);
-		FGameplayEffectSpecHandle Spec = ASC->MakeOutgoingSpec(StatAfterATKEffect, GetAbilityLevel(), Ctx);
-		if (Spec.IsValid())
+		const FActionData ActionData = bActiveComboAttackConfigValid
+			? ActiveComboAttackConfig.BuildActionData()
+			: ActiveComboAttackData
+			? ActiveComboAttackData->BuildActionData()
+			: LastFiredDamageNotify
+			? LastFiredDamageNotify->BuildActionData()
+			: LastFiredDamageWindow
+			? LastFiredDamageWindow->ResolveActionData(Cast<AYogCharacterBase>(GetOwningActorFromActorInfo()))
+			: GetAbilityActionData();
+
+		ApplyStatAfterATKGE(ActorInfo, false, ActionData);
+
+		const float PostStatAfterAttack = ASC->GetNumericAttribute(UBaseAttributeSet::GetAttackAttribute());
+		const float PostStatAfterAttackPower = ASC->GetNumericAttribute(UBaseAttributeSet::GetAttackPowerAttribute());
+		UE_LOG(LogTemp, Warning,
+			TEXT("[StatAfterATKAttrSnapshot] Effect=%s Attack %.2f -> %.2f AttackPower %.2f -> %.2f"),
+			*GetNameSafe(StatAfterATKEffect),
+			PreStatAfterAttack,
+			PostStatAfterAttack,
+			PreStatAfterAttackPower,
+			PostStatAfterAttackPower);
+
+		if (PostStatAfterAttack > PreStatAfterAttack + KINDA_SMALL_NUMBER)
 		{
-			const FActionData ActionData = bActiveComboAttackConfigValid
-				? ActiveComboAttackConfig.BuildActionData()
-				: ActiveComboAttackData
-				? ActiveComboAttackData->BuildActionData()
-				: LastFiredDamageNotify
-				? LastFiredDamageNotify->BuildActionData()
-				: LastFiredDamageWindow
-				? LastFiredDamageWindow->ResolveActionData(Cast<AYogCharacterBase>(GetOwningActorFromActorInfo()))
-				: GetAbilityActionData();
-			Spec.Data->SetSetByCallerMagnitude(TAG_ActDamage,    ActionData.ActDamage);
-			Spec.Data->SetSetByCallerMagnitude(TAG_ActRange,     ActionData.ActRange);
-			Spec.Data->SetSetByCallerMagnitude(TAG_ActRes,       ActionData.ActResilience);
-			Spec.Data->SetSetByCallerMagnitude(TAG_ActDmgReduce, ActionData.ActDmgReduce);
-			ASC->ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
-
-			const float PostStatAfterAttack = ASC->GetNumericAttribute(UBaseAttributeSet::GetAttackAttribute());
-			const float PostStatAfterAttackPower = ASC->GetNumericAttribute(UBaseAttributeSet::GetAttackPowerAttribute());
-			UE_LOG(LogTemp, Warning,
-				TEXT("[StatAfterATKAttrSnapshot] Effect=%s Attack %.2f -> %.2f AttackPower %.2f -> %.2f"),
-				*GetNameSafe(StatAfterATKEffect),
-				PreStatAfterAttack,
-				PostStatAfterAttack,
-				PreStatAfterAttackPower,
-				PostStatAfterAttackPower);
-
-			if (PostStatAfterAttack > PreStatAfterAttack + KINDA_SMALL_NUMBER)
-			{
-				ASC->SetNumericAttributeBase(UBaseAttributeSet::GetAttackAttribute(), PreStatAfterAttack);
-				UE_LOG(LogTemp, Warning, TEXT("[StatAfterATKAttrSnapshot] Restored Attack %.2f -> %.2f"),
-					PostStatAfterAttack, PreStatAfterAttack);
-			}
-			if (PostStatAfterAttackPower > PreStatAfterAttackPower + KINDA_SMALL_NUMBER)
-			{
-				ASC->SetNumericAttributeBase(UBaseAttributeSet::GetAttackPowerAttribute(), PreStatAfterAttackPower);
-				UE_LOG(LogTemp, Warning, TEXT("[StatAfterATKAttrSnapshot] Restored AttackPower %.2f -> %.2f"),
-					PostStatAfterAttackPower, PreStatAfterAttackPower);
-			}
+			ASC->SetNumericAttributeBase(UBaseAttributeSet::GetAttackAttribute(), PreStatAfterAttack);
+			UE_LOG(LogTemp, Warning, TEXT("[StatAfterATKAttrSnapshot] Restored Attack %.2f -> %.2f"),
+				PostStatAfterAttack, PreStatAfterAttack);
+		}
+		if (PostStatAfterAttackPower > PreStatAfterAttackPower + KINDA_SMALL_NUMBER)
+		{
+			ASC->SetNumericAttributeBase(UBaseAttributeSet::GetAttackPowerAttribute(), PreStatAfterAttackPower);
+			UE_LOG(LogTemp, Warning, TEXT("[StatAfterATKAttrSnapshot] Restored AttackPower %.2f -> %.2f"),
+				PostStatAfterAttackPower, PreStatAfterAttackPower);
 		}
 	}
 

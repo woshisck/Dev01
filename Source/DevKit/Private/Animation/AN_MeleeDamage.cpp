@@ -272,10 +272,14 @@ void UAN_MeleeDamage::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase
 		? EffectiveAttackData->BuildActionData()
 		: BuildActionData();
 
-	if (UYogAbilitySystemComponent* ASC = Character->GetASC())
-	{
-		ApplyAttackFrameGE(Character, MeshComp, ASC, EffectiveActionData);
-	}
+	// Disabled: StatBeforeATKEffect on GA_MeleeAttack/GA_RangeAttack already sets the attack-frame
+	// attribute window at ActivateAbility time and removes it in EndAbility. ApplyAttackFrameGE
+	// was an older per-notify mechanism that served the same purpose; keeping it active alongside
+	// StatBeforeATKEffect would double-apply the attack stats.
+	// if (UYogAbilitySystemComponent* ASC = Character->GetASC())
+	// {
+	// 	ApplyAttackFrameGE(Character, MeshComp, ASC, EffectiveActionData);
+	// }
 
 	FGameplayEventData EventData;
 	EventData.Instigator   = Character;

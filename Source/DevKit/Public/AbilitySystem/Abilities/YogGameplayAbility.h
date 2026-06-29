@@ -62,6 +62,20 @@ public:
 	UPROPERTY(BlueprintAssignable)
 	FAbilityStartSignature EventOn_AbilityStart;
 
+	/**
+	 * Applied to Self at the start of an attack activation (via ApplyStatBeforeATKGE).
+	 * Automatically removed in EndAbility. Player attack GAs fill this; enemy GAs leave it empty.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Attack")
+	TSubclassOf<UGameplayEffect> StatBeforeATKEffect;
+
+	/**
+	 * Applied to Self on normal EndAbility (not Cancel/Interrupt) via ApplyStatAfterATKGE.
+	 * Has its own duration and auto-expires. Player attack GAs fill this; enemy GAs leave it empty.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Attack")
+	TSubclassOf<UGameplayEffect> StatAfterATKEffect;
+
 
 	/** Make gameplay effect container spec to be applied later, using the passed in container */
 	UFUNCTION(BlueprintCallable, Category = Ability, meta = (AutoCreateRefTerm = "EventData"))
@@ -185,5 +199,33 @@ protected:
 
 	void OnCooldownEffectAdded(UAbilitySystemComponent* TargetASC, const FGameplayEffectSpec& SpecApplied, FActiveGameplayEffectHandle ActiveHandle);
 	void OnCooldownEffectRemoved(const FActiveGameplayEffect& EffectRemoved);
+
+	/** Active handle for StatBeforeATKEffect; auto-removed in EndAbility. */
+	FActiveGameplayEffectHandle StatBeforeATKHandle;
+
+	/**
+	 * Active handle for the weapon's JustComboEffect; auto-removed in EndAbility.
+	 * Set by ApplyJustComboGE when the activating attack consumed a pending JustCombo bonus.
+	 */
+	FActiveGameplayEffectHandle JustComboGEHandle;
+
+	/**
+	 * Applies StatBeforeATKEffect to Self with SetByCaller magnitudes from GetAbilityActionData().
+	 * Call after action data is resolved in ActivateAbility.
+	 */
+	void ApplyStatBeforeATKGE(const FGameplayAbilityActorInfo* ActorInfo);
+
+	/**
+	 * Applies StatAfterATKEffect to Self. No-ops if bWasCancelled or effect is unset.
+	 * Call from EndAbility with the resolved FActionData for this activation.
+	 */
+	void ApplyStatAfterATKGE(const FGameplayAbilityActorInfo* ActorInfo, bool bWasCancelled, const FActionData& ActionData);
+
+	/**
+	 * Reads the equipped weapon's JustComboEffect and applies it to Self.
+	 * Stores the handle in JustComboGEHandle; EndAbility removes it automatically.
+	 * Call only when a JustCombo bonus was confirmed (TryConsumeJustComboBonus returned true).
+	 */
+	void ApplyJustComboGE(const FGameplayAbilityActorInfo* ActorInfo);
 
 };
