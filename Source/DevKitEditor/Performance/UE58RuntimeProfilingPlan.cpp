@@ -47,7 +47,7 @@ TArray<FUE58RuntimeProfilingScenario> FUE58RuntimeProfilingPlanBuilder::BuildDef
 				TEXT("sg.ShadowQuality 1"),
 				TEXT("r.ScreenPercentage 70"),
 				TEXT("r.Lumen.DiffuseIndirect.Allow 0"),
-				TEXT("t.MaxFPS 60")
+				TEXT("t.MaxFPS 0")
 			}),
 		MakeScenario(
 			TEXT("LumenLite_NoBatch"),
@@ -64,7 +64,7 @@ TArray<FUE58RuntimeProfilingScenario> FUE58RuntimeProfilingPlanBuilder::BuildDef
 				TEXT("r.Lumen.FinalGatherMethod 0"),
 				TEXT("r.Lumen.TraceMeshSDFs.Allow 0"),
 				TEXT("r.Lumen.HardwareRayTracing.HitLighting.Allowed 0"),
-				TEXT("t.MaxFPS 60")
+				TEXT("t.MaxFPS 0")
 			}),
 		MakeScenario(
 			TEXT("BatchProxy_LumenOff"),
@@ -78,7 +78,7 @@ TArray<FUE58RuntimeProfilingScenario> FUE58RuntimeProfilingPlanBuilder::BuildDef
 				TEXT("sg.ShadowQuality 1"),
 				TEXT("r.ScreenPercentage 70"),
 				TEXT("r.Lumen.DiffuseIndirect.Allow 0"),
-				TEXT("t.MaxFPS 60")
+				TEXT("t.MaxFPS 0")
 			}),
 		MakeScenario(
 			TEXT("BatchProxy_LumenLite"),
@@ -95,7 +95,7 @@ TArray<FUE58RuntimeProfilingScenario> FUE58RuntimeProfilingPlanBuilder::BuildDef
 				TEXT("r.Lumen.FinalGatherMethod 0"),
 				TEXT("r.Lumen.TraceMeshSDFs.Allow 0"),
 				TEXT("r.Lumen.HardwareRayTracing.HitLighting.Allowed 0"),
-				TEXT("t.MaxFPS 60")
+				TEXT("t.MaxFPS 0")
 			}),
 		MakeScenario(
 			TEXT("Handheld5W_LumenOff_Aggressive"),
@@ -114,7 +114,7 @@ TArray<FUE58RuntimeProfilingScenario> FUE58RuntimeProfilingPlanBuilder::BuildDef
 				TEXT("sg.FoliageQuality 0"),
 				TEXT("r.ScreenPercentage 55"),
 				TEXT("r.Lumen.DiffuseIndirect.Allow 0"),
-				TEXT("t.MaxFPS 30")
+				TEXT("t.MaxFPS 0")
 			}),
 		MakeScenario(
 			TEXT("PCUltra_LumenHigh"),
