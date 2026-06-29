@@ -103,6 +103,8 @@ public class DevKitEditor : ModuleRules
 				"DesktopPlatform",
 				"Json",
 				"JsonUtilities",
+				"MeshDescription",
+				"StaticMeshDescription",
 				"ClassViewer",
 			}
         );

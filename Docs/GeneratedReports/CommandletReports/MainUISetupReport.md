@@ -2,10 +2,16 @@
 - Mode: Apply
 - ForceLayout: true
 - FrontendOnly: false
-- HudOnly: false
-- HudRootOnly: true
+- HudOnly: true
+- HudRootOnly: false
 
+## HUD texture import
+- Imported/reimported `../../../../../Self/GItGame/Dev01/SourceArt/UI/HUD/T_GoldCoinIcon.png` -> `/Game/UI/Playtest_UI/UI_Tex/HUD`.
+- Imported/reimported `../../../../../Self/GItGame/Dev01/SourceArt/UI/HUD/T_MaterialQuestionIcon.png` -> `/Game/UI/Playtest_UI/UI_Tex/HUD`.
+
+- Found existing `/Game/UI/Playtest_UI/HUD/WBP_PlayerCommonInfoHud`.
+- Player common info HUD designer tree refreshed with gold and material rows.
 - Found existing `/Game/UI/Playtest_UI/HUD/WBP_HUDRoot`.
 - HUD designer tree refreshed with named regions and existing HUD widgets.
 ## HUD blueprint defaults
-- Skipped because HudRootOnly was requested.
+- Updated defaults on `/Game/UI/BP_YogHUD`.

@@ -2,6 +2,7 @@
 #include "MetaProgression/YogMetaProgressionSubsystem.h"
 #include "System/YogWorldSubsystem.h"
 #include "System/YogGameInstanceBase.h"
+#include "System/YogPerformanceSettingsLibrary.h"
 #include "SaveGame/YogSaveGame.h"
 #include "SaveGame/YogSaveGameArchive.h"
 #include "GameFramework/PlayerState.h"
@@ -37,6 +38,7 @@ void UYogSaveSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	}
 
 	LoadSettings();
+	UYogPerformanceSettingsLibrary::ApplySavedGraphicsSettings(GetGameInstance());
 	EnsureReservedNormalGameSlot();
 
 	if (CurrentSettings && CurrentSettings->LastActiveSlot >= 0 && CurrentSettings->LastActiveSlot < GNumSaveSlots)
