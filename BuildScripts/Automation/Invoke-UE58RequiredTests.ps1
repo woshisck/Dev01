@@ -31,6 +31,7 @@ function Resolve-UE58EngineRoot {
     if (-not [string]::IsNullOrWhiteSpace($env:UE58_ENGINE_ROOT)) {
         $candidates += $env:UE58_ENGINE_ROOT
     }
+    $candidates += "Z:\GZA_Software\RealityCapture\UE_5.8"
     $candidates += "D:\UE\UE_5.8"
     $candidates += "D:\Epic Library\UE_5.8"
 

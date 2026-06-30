@@ -3,9 +3,9 @@
 #include "CoreMinimal.h"
 #include "Widgets/SCompoundWidget.h"
 
+class AActor;
 class SEditableTextBox;
 class STextBlock;
-class AActor;
 
 class SEnvBatchTaggerWidget : public SCompoundWidget
 {
@@ -19,15 +19,19 @@ private:
 	TArray<AActor*> GetSelectedActors() const;
 	FString GetGroupName() const;
 	FReply ApplySourceTag();
-	FReply ApplyProxyMediumTag();
+	FReply ApplyProxyMidTag();
 	FReply ApplyProxyLowTag();
+	FReply ApplyBakedGroundMidTag();
 	FReply ApplyBakedGroundLowTag();
+	FReply ApplyBakedWallMidTag();
+	FReply ApplyBakedWallLowTag();
 	FReply ApplyExcludeTag();
 	FReply RemoveEnvBatchTags();
 	FReply RefreshSelection();
 	FReply ApplyExclusiveTag(const FString& EnvBatchTag);
 	void SetStatus(const FText& InStatus) const;
 	FText GetSelectionSummaryText() const;
+	FText GetAssetReadinessSummaryText() const;
 
 	TSharedPtr<SEditableTextBox> GroupNameTextBox;
 	TSharedPtr<STextBlock> StatusTextBlock;

@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>UE5.8 性能分级本次修改与进展报告</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f7fa;
+      --panel: #ffffff;
+      --text: #17202a;
+      --muted: #5d6978;
+      --line: #d8dee7;
+      --accent: #1267b3;
+      --good: #137c45;
+      --warn: #9a5b00;
+      --bad: #b42318;
+    }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Microsoft YaHei", "Segoe UI", Arial, sans-serif;
+      line-height: 1.65;
+    }
+    main {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 32px 28px 56px;
+    }
+    header {
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 20px;
+      margin-bottom: 24px;
+    }
+    h1 {
+      margin: 0 0 12px;
+      font-size: 30px;
+      letter-spacing: 0;
+    }
+    h2 {
+      margin: 30px 0 12px;
+      font-size: 22px;
+      border-left: 4px solid var(--accent);
+      padding-left: 10px;
+    }
+    h3 {
+      margin: 20px 0 8px;
+      font-size: 18px;
+    }
+    p, li {
+      font-size: 15px;
+    }
+    .meta {
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 18px 20px;
+      margin: 14px 0;
+    }
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .tag {
+      border: 1px solid #b8cee5;
+      background: #eaf3fc;
+      color: #0b4f8a;
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      margin: 12px 0 20px;
+    }
+    th, td {
+      border: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+      padding: 10px 12px;
+      font-size: 14px;
+    }
+    th {
+      background: #eef3f8;
+    }
+    code, pre {
+      font-family: Consolas, "Courier New", monospace;
+    }
+    code {
+      background: #eef2f6;
+      padding: 1px 5px;
+      border-radius: 4px;
+    }
+    pre {
+      white-space: pre-wrap;
+      background: #111827;
+      color: #e5e7eb;
+      padding: 14px 16px;
+      border-radius: 8px;
+      overflow: auto;
+      font-size: 13px;
+    }
+    .ok { color: var(--good); font-weight: 600; }
+    .warn { color: var(--warn); font-weight: 600; }
+    .bad { color: var(--bad); font-weight: 600; }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>UE5.8 性能分级本次修改与进展报告</h1>
+      <div class="meta">日期：2026-07-01 ｜ 目标分支：main ｜ 项目：DevKit UE5.8</div>
+      <div class="tags">
+        <span class="tag">Epic / High / Mid / Low</span>
+        <span class="tag">模型合规</span>
+        <span class="tag">环境合批标记</span>
+        <span class="tag">贴图命名规则</span>
+        <span class="tag">VT Atlas</span>
+        <span class="tag">Streaming Level</span>
+      </div>
+    </header>
+
+    <section class="panel">
+      <h2>本次结论</h2>
+      <p>本次已经把性能分级基础从方案文档推进到可在编辑器里使用的生产入口、运行时四档设置和自动化检查阶段。</p>
+      <ul>
+        <li>只保留 <code>Epic</code>、<code>High</code>、<code>Mid</code>、<code>Low</code> 四个目标挡位。</li>
+        <li>场景组织按传统 Streaming Level 处理，不启用 World Partition，不引入 Data Layer 作为前提。</li>
+        <li>Lumen 保持项目默认开启；VSM 不作为默认开启项。</li>
+        <li>模型资产分级不再生成单独 <code>DA_ModelPerformance_*</code> 配置资产，模型自己的 LOD、材质槽、碰撞和导入设置直接在 StaticMesh 资产内维护。</li>
+        <li>正式合批、VT Atlas、ProxyMesh 和替换计划放到打包/TA 自动化链执行。</li>
+        <li>材质侧本次提供性能分级接口和管线契约，不直接制作最终复杂材质网络。</li>
+      </ul>
+    </section>
+
+    <h2>已完成修改</h2>
+    <div class="panel">
+      <h3>运行时性能分级</h3>
+      <ul>
+        <li>整理四档画质枚举、保存数据、Blueprint 可调用接口和图形设置 UI。</li>
+        <li>更新项目 Scalability、DeviceProfile 和 Engine 默认配置。</li>
+        <li>补充性能设置自动化测试，覆盖档位映射、保存和运行时应用路径。</li>
+      </ul>
+    </div>
+
+    <div class="panel">
+      <h3>编辑器工具入口</h3>
+      <ul>
+        <li>恢复“从主菜单运行”的编辑器白色播放箭头，读取 <code>YogGameInstanceBase.FrontendMap</code>。</li>
+        <li>新增顶部工具栏入口：<code>性能工具</code>、<code>模型合规</code>、<code>贴图规则</code>。</li>
+        <li>模型合规和贴图规则移动到 <code>Tools -> DevKit 工具 -> 美术资产工具</code>。</li>
+      </ul>
+    </div>
+
+    <div class="panel">
+      <h3>模型资产合规检查</h3>
+      <ul>
+        <li>新增独立模型合规窗口，扫描 <code>/Game/Art</code> 下 StaticMesh。</li>
+        <li>支持目录树、分类筛选、模型预览、富文本检查信息、手动状态设置和 Content Browser 定位。</li>
+        <li>默认口径为 <code>Epic/High=LOD0</code>、<code>Mid/Low=LOD1</code>，静态环境模型至少需要 LOD0 和 LOD1。</li>
+        <li>删除独立模型分级配置窗口，右侧 <code>打开模型设置</code> 直接打开 StaticMesh 资产编辑器。</li>
+      </ul>
+    </div>
+
+    <div class="panel">
+      <h3>环境合批标记</h3>
+      <ul>
+        <li>只负责写 <code>EnvBatch.*</code> Actor Tag，不再混入模型 LOD 配置或贴图规则编辑。</li>
+        <li>支持 Source、Proxy、Baked、Exclude 语义，供后续打包链扫描。</li>
+        <li>合批组可以是不连续 Actor，蓝图和 Level Instance 边界对象可以按 Actor Tag 进入后续扫描。</li>
+      </ul>
+    </div>
+
+    <div class="panel">
+      <h3>贴图命名规则与材质接口</h3>
+      <ul>
+        <li>新增 <code>UYogMaterialTextureNamingConvention</code> 和默认规则资产。</li>
+        <li>新增贴图命名规则窗口，支持写入默认规则、打开规则资产和检查选中 Texture2D。</li>
+        <li>材质主线保持 UDIM-style SVT / VT Atlas，不要求美术手工维护 atlas/UDIM。</li>
+        <li>地面和墙面 Source 阶段允许复杂静态混合，低档结果通过 bake 后的 VT Atlas 或 baked texture 进入运行时。</li>
+      </ul>
+    </div>
+
+    <h2>任务进展</h2>
+    <table>
+      <thead>
+        <tr><th>模块</th><th>状态</th><th>说明</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>四档运行时设置</td><td class="ok">已完成基础实现</td><td>UI、保存、配置和测试路径已接入。</td></tr>
+        <tr><td>Lumen 默认状态</td><td class="ok">已确认并保持开启</td><td>当前不默认开启 VSM。</td></tr>
+        <tr><td>模型资产合规检查</td><td class="ok">已完成第一版</td><td>日常美术检查入口已可用。</td></tr>
+        <tr><td>环境合批标记</td><td class="ok">已完成第一版</td><td>只打 tag；正式合批放到打包链。</td></tr>
+        <tr><td>贴图命名规则检查</td><td class="ok">已完成第一版</td><td>支持默认规则资产和选中贴图检查。</td></tr>
+        <tr><td>材质性能接口</td><td class="ok">已完成基础合同</td><td>最终复杂材质制作未纳入本次实现。</td></tr>
+        <tr><td>VT Atlas / UDIM-style SVT 合批</td><td class="warn">代码合同和样例链路完成</td><td>真实项目资产大规模生产和视觉验收仍待推进。</td></tr>
+        <tr><td>自动化验证</td><td class="ok">已完成当前代码级检查</td><td>后续需要接入项目级资产审计和打包 gate。</td></tr>
+      </tbody>
+    </table>
+
+    <h2>验证结果</h2>
+    <pre>powershell -NoProfile -ExecutionPolicy Bypass -File BuildScripts\Automation\Test-UE58EnvBatchTagTools.ps1 -RepoRoot X:\Project\Dev01
+Result: Succeeded
+
+powershell -NoProfile -ExecutionPolicy Bypass -File BuildScripts\Automation\Test-UE58PerformanceArtifactContract.ps1 -RepoRoot X:\Project\Dev01
+Result: Succeeded
+
+Z:\GZA_Software\RealityCapture\UE_5.8\Engine\Build\BatchFiles\Build.bat DevKitEditor Win64 Development -Project=X:\Project\Dev01\DevKit.uproject -WaitMutex -FromMsBuild
+Result: Succeeded</pre>
+    <p class="warn">编译期间仍有项目既有的 AbilityTags deprecated 警告，和本次性能分级工具修改无直接关系。</p>
+
+    <h2>待完成任务</h2>
+    <div class="panel">
+      <h3>美术侧</h3>
+      <ul>
+        <li>按模型合规检查扫描 <code>/Game/Art</code>，逐步补齐静态环境模型 LOD0/LOD1。</li>
+        <li>整理进入合批的静态环境模型材质槽，能单材质槽的优先单材质槽。</li>
+        <li>确认角色、武器、交互物、运行时动态物和特殊道具目录分类，避免误进入静态环境合批。</li>
+        <li>按贴图命名规则整理 unique 贴图后缀。</li>
+        <li>在关卡中用环境合批标记写 Source group。</li>
+      </ul>
+    </div>
+
+    <div class="panel">
+      <h3>TA / 程序侧</h3>
+      <ul>
+        <li>把模型合规检查结果导出为可提交审核的资产报告。</li>
+        <li>接入正式打包链：dry-run、VT Atlas、ProxyMesh、MappingData、PropertyTexture、替换计划和提交 gate。</li>
+        <li>验证 Source / Proxy / Baked 互斥加载，避免 Source 贴图和 VT Atlas 同时常驻。</li>
+        <li>对目标地图做真实 GPU、CPU 和 memory profiling，形成 Epic/High/Mid/Low 参数基线。</li>
+        <li>扩展材质采样接口和材质实例参数检查。</li>
+      </ul>
+    </div>
+
+    <h2>注意事项</h2>
+    <ul>
+      <li>模型合规工具的“排除”是资产分类和状态，不代表删除资产。</li>
+      <li>合批 tag 只是后续自动化扫描依据，不直接执行合并和替换。</li>
+      <li>正式合批必须在打包/TA 链执行，并先审核 dry-run 报告。</li>
+      <li>VT 和非 VT 混用需要继续关注普通 streaming pool 与 VT physical pool 的重复驻留风险。</li>
+      <li>本次包含生成 <code>.uasset</code> 资源，后续如果对视觉内容有要求，需要在 Unreal Editor 中打开检查。</li>
+    </ul>
+  </main>
+</body>
+</html>

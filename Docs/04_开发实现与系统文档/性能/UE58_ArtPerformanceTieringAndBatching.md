@@ -1,7 +1,7 @@
 # UE5.8 Art Production, Batching, and Performance Tier Plan
 
 > Scope: PC, Nintendo Switch 2 candidate, Steam Deck 15W, and Steam Deck 5W.
-> Current project baseline: Lumen off, Nanite off, VSM off, environment lighting uses directional light, dynamic lights, and Celes/material lighting.
+> Current project baseline: Lumen GI/reflections on by default, Nanite off, VSM off, environment lighting uses directional light, dynamic lights, and Celes/material lighting.
 
 ## 1. Goals
 
@@ -257,7 +257,7 @@ Required profiling commands:
 
 For each representative scene, compare:
 
-1. Baseline: current project settings, Lumen off, no batch proxy.
+1. Baseline: explicit Lumen-off comparison, no batch proxy.
 2. Lumen Lite only.
 3. Geometry Merge plus Texture2DArray batch.
 4. Geometry Merge plus Atlas/HLOD bake.

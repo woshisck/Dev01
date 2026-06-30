@@ -11,36 +11,76 @@ namespace
 static TAutoConsoleVariable<int32> CVarYogDynamicLightQuality(
 	TEXT("r.Yog.DynamicLightQuality"),
 	3,
-	TEXT("Project runtime dynamic light budget quality: 0 low, 3 high."));
+	TEXT("Project runtime dynamic light budget quality: 0 low, 3 epic."));
+
+static TAutoConsoleVariable<int32> CVarYogMaterialQuality(
+	TEXT("r.Yog.MaterialQuality"),
+	3,
+	TEXT("Project runtime material feature quality: 0 low, 3 epic."));
+
+static TAutoConsoleVariable<int32> CVarYogDynamicOverlayQuality(
+	TEXT("r.Yog.DynamicOverlayQuality"),
+	3,
+	TEXT("Project runtime decal/RVT/overlay quality: 0 low, 3 epic."));
 
 static TAutoConsoleVariable<int32> CVarYogMaterialLightQuality(
 	TEXT("r.Yog.MaterialLightQuality"),
 	3,
-	TEXT("Project runtime material/cel light quality: 0 low, 3 high."));
+	TEXT("Project runtime material light quality: 0 low, 3 epic."));
 
 static TAutoConsoleVariable<int32> CVarYogMaterialLightMaxLightInfoCount(
 	TEXT("r.Yog.MaterialLight.MaxLightInfoCount"),
 	4,
 	TEXT("Maximum material LightInfo entries exposed to material-light systems."));
 
+static TAutoConsoleVariable<int32> CVarYogBatchProxyPreference(
+	TEXT("r.Yog.BatchProxyPreference"),
+	0,
+	TEXT("Project resource selection preference for generated batch proxies: 0 source-biased, 1 proxy-biased."));
+
+static TAutoConsoleVariable<int32> CVarYogVTAtlasQuality(
+	TEXT("r.Yog.VTAtlasQuality"),
+	3,
+	TEXT("Project generated VT atlas quality: 0 low, 3 epic."));
+
 int32 ClampQuality(int32 Value)
 {
 	return FMath::Clamp(Value, 0, 3);
 }
 
-int32 LightInfoCountForMaterialLightQuality(int32 Quality)
+EYogPerformanceTargetTier TargetTierForProfile(EYogPerformanceProfile Profile)
 {
-	switch (ClampQuality(Quality))
+	switch (Profile)
 	{
-	case 0:
-		return 0;
-	case 1:
-		return 1;
-	case 2:
-		return 2;
-	case 3:
+	case EYogPerformanceProfile::Epic:
+		return EYogPerformanceTargetTier::Epic;
+	case EYogPerformanceProfile::High:
+		return EYogPerformanceTargetTier::High;
+	case EYogPerformanceProfile::Mid:
+		return EYogPerformanceTargetTier::Mid;
+	case EYogPerformanceProfile::Low:
+		return EYogPerformanceTargetTier::Low;
+	case EYogPerformanceProfile::Custom:
 	default:
-		return 4;
+		return EYogPerformanceTargetTier::Custom;
+	}
+}
+
+EYogPerformanceProfile ProfileForTargetTier(EYogPerformanceTargetTier Tier)
+{
+	switch (Tier)
+	{
+	case EYogPerformanceTargetTier::Epic:
+		return EYogPerformanceProfile::Epic;
+	case EYogPerformanceTargetTier::High:
+		return EYogPerformanceProfile::High;
+	case EYogPerformanceTargetTier::Mid:
+		return EYogPerformanceProfile::Mid;
+	case EYogPerformanceTargetTier::Low:
+		return EYogPerformanceProfile::Low;
+	case EYogPerformanceTargetTier::Custom:
+	default:
+		return EYogPerformanceProfile::Custom;
 	}
 }
 
@@ -48,7 +88,7 @@ void SetCVarInt(const TCHAR* Name, int32 Value)
 {
 	if (IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(Name))
 	{
-		CVar->Set(Value, ECVF_SetByGameSetting);
+		CVar->Set(Value, ECVF_SetByConsole);
 	}
 }
 
@@ -56,7 +96,7 @@ void SetCVarFloat(const TCHAR* Name, float Value)
 {
 	if (IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(Name))
 	{
-		CVar->Set(Value, ECVF_SetByGameSetting);
+		CVar->Set(Value, ECVF_SetByConsole);
 	}
 }
 
@@ -78,6 +118,51 @@ UGameInstance* GetGameInstanceFromContext(UObject* WorldContextObject)
 	}
 
 	return nullptr;
+}
+
+int32 MaxTextureSetsForMaterialQuality(int32 MaterialQuality)
+{
+	switch (ClampQuality(MaterialQuality))
+	{
+	case 3:
+	case 2:
+		return 3;
+	case 1:
+		return 2;
+	case 0:
+	default:
+		return 1;
+	}
+}
+
+int32 MaxBlendLayersForMaterialQuality(int32 MaterialQuality)
+{
+	switch (ClampQuality(MaterialQuality))
+	{
+	case 3:
+	case 2:
+		return 3;
+	case 1:
+		return 2;
+	case 0:
+	default:
+		return 1;
+	}
+}
+
+int32 MaxOverlayLayersForQuality(int32 DynamicOverlayQuality)
+{
+	switch (ClampQuality(DynamicOverlayQuality))
+	{
+	case 3:
+		return 2;
+	case 2:
+	case 1:
+		return 1;
+	case 0:
+	default:
+		return 0;
+	}
 }
 
 UYogSettingsSave* GetSettingsSave(UObject* WorldContextObject)
@@ -123,13 +208,13 @@ FYogGraphicsSettings UYogPerformanceSettingsLibrary::MakeGraphicsSettingsForProf
 {
 	FYogGraphicsSettings Settings;
 	Settings.PerformanceProfile = Profile;
-	Settings.SelectedTargetTier = EYogPerformanceTargetTier::Custom;
+	Settings.SelectedTargetTier = TargetTierForProfile(Profile);
 	Settings.bUseNanite = false;
 	Settings.bUseVirtualShadowMaps = false;
 
 	switch (Profile)
 	{
-	case EYogPerformanceProfile::Ultra:
+	case EYogPerformanceProfile::Epic:
 		Settings.ResolutionScalePercent = 100.f;
 		Settings.FrameRateLimit = 0;
 		Settings.ViewDistanceQuality = 3;
@@ -141,6 +226,9 @@ FYogGraphicsSettings UYogPerformanceSettingsLibrary::MakeGraphicsSettingsForProf
 		Settings.EffectsQuality = 3;
 		Settings.FoliageQuality = 3;
 		Settings.ShadingQuality = 3;
+		Settings.MaterialQuality = 3;
+		Settings.DynamicOverlayQuality = 3;
+		Settings.VTAtlasQuality = 3;
 		Settings.DynamicLightQuality = 3;
 		Settings.MaterialLightQuality = 3;
 		Settings.MaterialLightMaxLightInfoCount = 4;
@@ -160,6 +248,9 @@ FYogGraphicsSettings UYogPerformanceSettingsLibrary::MakeGraphicsSettingsForProf
 		Settings.EffectsQuality = 2;
 		Settings.FoliageQuality = 2;
 		Settings.ShadingQuality = 2;
+		Settings.MaterialQuality = 2;
+		Settings.DynamicOverlayQuality = 2;
+		Settings.VTAtlasQuality = 2;
 		Settings.DynamicLightQuality = 2;
 		Settings.MaterialLightQuality = 2;
 		Settings.MaterialLightMaxLightInfoCount = 2;
@@ -167,7 +258,7 @@ FYogGraphicsSettings UYogPerformanceSettingsLibrary::MakeGraphicsSettingsForProf
 		Settings.bPreferBatchedGeometryProxies = false;
 		break;
 
-	case EYogPerformanceProfile::Medium:
+	case EYogPerformanceProfile::Mid:
 		Settings.ResolutionScalePercent = 70.f;
 		Settings.FrameRateLimit = 0;
 		Settings.ViewDistanceQuality = 1;
@@ -179,6 +270,9 @@ FYogGraphicsSettings UYogPerformanceSettingsLibrary::MakeGraphicsSettingsForProf
 		Settings.EffectsQuality = 1;
 		Settings.FoliageQuality = 1;
 		Settings.ShadingQuality = 1;
+		Settings.MaterialQuality = 1;
+		Settings.DynamicOverlayQuality = 1;
+		Settings.VTAtlasQuality = 1;
 		Settings.DynamicLightQuality = 1;
 		Settings.MaterialLightQuality = 1;
 		Settings.MaterialLightMaxLightInfoCount = 1;
@@ -198,6 +292,9 @@ FYogGraphicsSettings UYogPerformanceSettingsLibrary::MakeGraphicsSettingsForProf
 		Settings.EffectsQuality = 0;
 		Settings.FoliageQuality = 0;
 		Settings.ShadingQuality = 0;
+		Settings.MaterialQuality = 0;
+		Settings.DynamicOverlayQuality = 0;
+		Settings.VTAtlasQuality = 0;
 		Settings.DynamicLightQuality = 0;
 		Settings.MaterialLightQuality = 0;
 		Settings.MaterialLightMaxLightInfoCount = 0;
@@ -208,6 +305,7 @@ FYogGraphicsSettings UYogPerformanceSettingsLibrary::MakeGraphicsSettingsForProf
 	case EYogPerformanceProfile::Custom:
 	default:
 		Settings.PerformanceProfile = EYogPerformanceProfile::Custom;
+		Settings.SelectedTargetTier = EYogPerformanceTargetTier::Custom;
 		break;
 	}
 
@@ -216,72 +314,8 @@ FYogGraphicsSettings UYogPerformanceSettingsLibrary::MakeGraphicsSettingsForProf
 
 FYogGraphicsSettings UYogPerformanceSettingsLibrary::MakeGraphicsSettingsForTargetTier(EYogPerformanceTargetTier Tier)
 {
-	FYogGraphicsSettings Settings;
-
-	switch (Tier)
-	{
-	case EYogPerformanceTargetTier::PCUltra:
-		Settings = MakeGraphicsSettingsForProfile(EYogPerformanceProfile::Ultra);
-		Settings.SelectedTargetTier = Tier;
-		Settings.FrameRateLimit = 0;
-		Settings.bUseLumenLite = true;
-		Settings.bUseNanite = false;
-		Settings.bUseVirtualShadowMaps = false;
-		Settings.bPreferBatchedGeometryProxies = false;
-		break;
-
-	case EYogPerformanceTargetTier::SteamDeck15W:
-		Settings = MakeGraphicsSettingsForProfile(EYogPerformanceProfile::Medium);
-		Settings.SelectedTargetTier = Tier;
-		Settings.ResolutionScalePercent = 70.f;
-		Settings.FrameRateLimit = 0;
-		Settings.bUseLumenLite = true;
-		Settings.bUseNanite = false;
-		Settings.bUseVirtualShadowMaps = false;
-		Settings.bPreferBatchedGeometryProxies = true;
-		break;
-
-	case EYogPerformanceTargetTier::Switch2Candidate:
-		Settings = MakeGraphicsSettingsForProfile(EYogPerformanceProfile::Medium);
-		Settings.SelectedTargetTier = Tier;
-		Settings.ResolutionScalePercent = 75.f;
-		Settings.FrameRateLimit = 0;
-		Settings.bUseLumenLite = true;
-		Settings.bUseNanite = false;
-		Settings.bUseVirtualShadowMaps = false;
-		Settings.bPreferBatchedGeometryProxies = true;
-		break;
-
-	case EYogPerformanceTargetTier::SteamDeck5W:
-		Settings = MakeGraphicsSettingsForProfile(EYogPerformanceProfile::Low);
-		Settings.SelectedTargetTier = Tier;
-		Settings.ResolutionScalePercent = 55.f;
-		Settings.FrameRateLimit = 0;
-		Settings.bUseLumenLite = false;
-		Settings.bUseNanite = false;
-		Settings.bUseVirtualShadowMaps = false;
-		Settings.bPreferBatchedGeometryProxies = true;
-		break;
-
-	case EYogPerformanceTargetTier::FallbackLow:
-		Settings = MakeGraphicsSettingsForProfile(EYogPerformanceProfile::Low);
-		Settings.SelectedTargetTier = Tier;
-		Settings.ResolutionScalePercent = 50.f;
-		Settings.FrameRateLimit = 0;
-		Settings.TextureQuality = 0;
-		Settings.bUseLumenLite = false;
-		Settings.bUseNanite = false;
-		Settings.bUseVirtualShadowMaps = false;
-		Settings.bPreferBatchedGeometryProxies = true;
-		break;
-
-	case EYogPerformanceTargetTier::Custom:
-	default:
-		Settings.PerformanceProfile = EYogPerformanceProfile::Custom;
-		Settings.SelectedTargetTier = EYogPerformanceTargetTier::Custom;
-		break;
-	}
-
+	FYogGraphicsSettings Settings = MakeGraphicsSettingsForProfile(ProfileForTargetTier(Tier));
+	Settings.SelectedTargetTier = Tier;
 	return Settings;
 }
 
@@ -329,13 +363,21 @@ bool UYogPerformanceSettingsLibrary::ApplyGraphicsSettings(UObject* WorldContext
 	UserSettings->ApplySettings(false);
 	UserSettings->SaveSettings();
 
+	const int32 ClampedMaterialQuality = ClampQuality(Settings.MaterialQuality);
+	const int32 ClampedMaterialLightQuality = ClampQuality(Settings.MaterialLightQuality);
+
 	SetCVarInt(TEXT("r.DynamicGlobalIlluminationMethod"), Settings.bUseLumenLite ? 1 : 0);
 	SetCVarInt(TEXT("r.ReflectionMethod"), Settings.bUseLumenLite ? 1 : 2);
 	SetCVarInt(TEXT("r.Nanite"), Settings.bUseNanite ? 1 : 0);
 	SetCVarInt(TEXT("r.Shadow.Virtual.Enable"), Settings.bUseVirtualShadowMaps ? 1 : 0);
 	SetCVarInt(TEXT("r.Yog.DynamicLightQuality"), ClampQuality(Settings.DynamicLightQuality));
-	SetCVarInt(TEXT("r.Yog.MaterialLightQuality"), ClampQuality(Settings.MaterialLightQuality));
-	SetCVarInt(TEXT("r.Yog.MaterialLight.MaxLightInfoCount"), FMath::Clamp(Settings.MaterialLightMaxLightInfoCount, 0, 4));
+	SetCVarInt(TEXT("r.Yog.MaterialQuality"), ClampedMaterialQuality);
+	SetCVarInt(TEXT("r.Yog.DynamicOverlayQuality"), ClampQuality(Settings.DynamicOverlayQuality));
+	SetCVarInt(TEXT("r.Yog.MaterialLightQuality"), ClampedMaterialLightQuality);
+	SetCVarInt(TEXT("r.Yog.MaterialLight.MaxLightInfoCount"),
+		FMath::Clamp(Settings.MaterialLightMaxLightInfoCount, 0, 4));
+	SetCVarInt(TEXT("r.Yog.BatchProxyPreference"), Settings.bPreferBatchedGeometryProxies ? 1 : 0);
+	SetCVarInt(TEXT("r.Yog.VTAtlasQuality"), ClampQuality(Settings.VTAtlasQuality));
 	SetCVarFloat(TEXT("r.ScreenPercentage"), FMath::Clamp(Settings.ResolutionScalePercent, 25.f, 100.f));
 	SetCVarFloat(TEXT("t.MaxFPS"), Settings.FrameRateLimit > 0 ? static_cast<float>(Settings.FrameRateLimit) : 0.f);
 
@@ -375,21 +417,20 @@ FYogGraphicsSettings UYogPerformanceSettingsLibrary::GetSavedGraphicsSettings(UO
 TArray<EYogPerformanceProfile> UYogPerformanceSettingsLibrary::GetSelectablePerformanceProfiles()
 {
 	return {
-		EYogPerformanceProfile::Low,
-		EYogPerformanceProfile::Medium,
+		EYogPerformanceProfile::Epic,
 		EYogPerformanceProfile::High,
-		EYogPerformanceProfile::Ultra
+		EYogPerformanceProfile::Mid,
+		EYogPerformanceProfile::Low
 	};
 }
 
 TArray<EYogPerformanceTargetTier> UYogPerformanceSettingsLibrary::GetSelectablePerformanceTargetTiers()
 {
 	return {
-		EYogPerformanceTargetTier::PCUltra,
-		EYogPerformanceTargetTier::SteamDeck15W,
-		EYogPerformanceTargetTier::Switch2Candidate,
-		EYogPerformanceTargetTier::SteamDeck5W,
-		EYogPerformanceTargetTier::FallbackLow
+		EYogPerformanceTargetTier::Epic,
+		EYogPerformanceTargetTier::High,
+		EYogPerformanceTargetTier::Mid,
+		EYogPerformanceTargetTier::Low
 	};
 }
 
@@ -397,17 +438,17 @@ FText UYogPerformanceSettingsLibrary::GetPerformanceProfileDisplayName(EYogPerfo
 {
 	switch (Profile)
 	{
-	case EYogPerformanceProfile::Ultra:
-		return NSLOCTEXT("DevKitPerformance", "ProfileUltra", "超高");
+	case EYogPerformanceProfile::Epic:
+		return NSLOCTEXT("DevKitPerformance", "ProfileEpic", "Epic");
 	case EYogPerformanceProfile::High:
-		return NSLOCTEXT("DevKitPerformance", "ProfileHigh", "高");
-	case EYogPerformanceProfile::Medium:
-		return NSLOCTEXT("DevKitPerformance", "ProfileMedium", "中");
+		return NSLOCTEXT("DevKitPerformance", "ProfileHigh", "High");
+	case EYogPerformanceProfile::Mid:
+		return NSLOCTEXT("DevKitPerformance", "ProfileMid", "Mid");
 	case EYogPerformanceProfile::Low:
-		return NSLOCTEXT("DevKitPerformance", "ProfileLow", "低");
+		return NSLOCTEXT("DevKitPerformance", "ProfileLow", "Low");
 	case EYogPerformanceProfile::Custom:
 	default:
-		return NSLOCTEXT("DevKitPerformance", "ProfileCustom", "自定义");
+		return NSLOCTEXT("DevKitPerformance", "ProfileCustom", "Custom");
 	}
 }
 
@@ -415,16 +456,14 @@ FText UYogPerformanceSettingsLibrary::GetPerformanceTargetTierDisplayName(EYogPe
 {
 	switch (Tier)
 	{
-	case EYogPerformanceTargetTier::PCUltra:
-		return NSLOCTEXT("DevKitPerformance", "TargetPCUltra", "PC Ultra");
-	case EYogPerformanceTargetTier::SteamDeck15W:
-		return NSLOCTEXT("DevKitPerformance", "TargetSteamDeck15W", "Steam Deck 15W");
-	case EYogPerformanceTargetTier::Switch2Candidate:
-		return NSLOCTEXT("DevKitPerformance", "TargetSwitch2Candidate", "Switch 2 Candidate");
-	case EYogPerformanceTargetTier::SteamDeck5W:
-		return NSLOCTEXT("DevKitPerformance", "TargetSteamDeck5W", "Steam Deck 5W");
-	case EYogPerformanceTargetTier::FallbackLow:
-		return NSLOCTEXT("DevKitPerformance", "TargetFallbackLow", "Fallback Low");
+	case EYogPerformanceTargetTier::Epic:
+		return NSLOCTEXT("DevKitPerformance", "TargetEpic", "Epic");
+	case EYogPerformanceTargetTier::High:
+		return NSLOCTEXT("DevKitPerformance", "TargetHigh", "High");
+	case EYogPerformanceTargetTier::Mid:
+		return NSLOCTEXT("DevKitPerformance", "TargetMid", "Mid");
+	case EYogPerformanceTargetTier::Low:
+		return NSLOCTEXT("DevKitPerformance", "TargetLow", "Low");
 	case EYogPerformanceTargetTier::Custom:
 	default:
 		return NSLOCTEXT("DevKitPerformance", "TargetCustom", "Custom");
@@ -435,17 +474,22 @@ FText UYogPerformanceSettingsLibrary::GetPerformanceProfileDescription(EYogPerfo
 {
 	switch (Profile)
 	{
-	case EYogPerformanceProfile::Ultra:
-		return NSLOCTEXT("DevKitPerformance", "ProfileUltraDesc", "PC最高画质。全质量等级，Lumen全效，无Draw Call优化。");
+	case EYogPerformanceProfile::Epic:
+		return NSLOCTEXT("DevKitPerformance", "ProfileEpicDesc",
+			"Highest PC quality. Source assets are preferred, with full VT atlas and material-light budgets.");
 	case EYogPerformanceProfile::High:
-		return NSLOCTEXT("DevKitPerformance", "ProfileHighDesc", "PC高画质。Lumen高质量，全分辨率，无合批代理。");
-	case EYogPerformanceProfile::Medium:
-		return NSLOCTEXT("DevKitPerformance", "ProfileMediumDesc", "掌机中档（15W）。Lumen Lite，70%分辨率，开启合批代理，60帧目标。");
+		return NSLOCTEXT("DevKitPerformance", "ProfileHighDesc",
+			"High PC quality. Source assets remain common, with selective proxies and high VT atlas budgets.");
+	case EYogPerformanceProfile::Mid:
+		return NSLOCTEXT("DevKitPerformance", "ProfileMidDesc",
+			"Default recommended tier. Batch proxies and baked surfaces are preferred where validated.");
 	case EYogPerformanceProfile::Low:
-		return NSLOCTEXT("DevKitPerformance", "ProfileLowDesc", "掌机低档（5W）。无Lumen，55%分辨率，强制合批代理，30帧目标。");
+		return NSLOCTEXT("DevKitPerformance", "ProfileLowDesc",
+			"Low-power tier. Batch proxies, baked surfaces, low material budgets, and minimal dynamic overlay.");
 	case EYogPerformanceProfile::Custom:
 	default:
-		return NSLOCTEXT("DevKitPerformance", "ProfileCustomDesc", "用户自定义画质参数。");
+		return NSLOCTEXT("DevKitPerformance", "ProfileCustomDesc",
+			"User-controlled custom graphics settings.");
 	}
 }
 
@@ -453,18 +497,50 @@ FText UYogPerformanceSettingsLibrary::GetPerformanceTargetTierDescription(EYogPe
 {
 	switch (Tier)
 	{
-	case EYogPerformanceTargetTier::PCUltra:
-		return NSLOCTEXT("DevKitPerformance", "TargetPCUltraDesc", "Highest PC quality. Lumen enabled, Nanite and VSM disabled by project policy.");
-	case EYogPerformanceTargetTier::SteamDeck15W:
-		return NSLOCTEXT("DevKitPerformance", "TargetSteamDeck15WDesc", "Handheld 10-15W candidate. Lumen Lite enabled for testing, batch proxies preferred.");
-	case EYogPerformanceTargetTier::Switch2Candidate:
-		return NSLOCTEXT("DevKitPerformance", "TargetSwitch2CandidateDesc", "Switch 2 candidate profile. Conservative handheld tier until device profiling is available.");
-	case EYogPerformanceTargetTier::SteamDeck5W:
-		return NSLOCTEXT("DevKitPerformance", "TargetSteamDeck5WDesc", "Handheld 5W tier. Lumen disabled, batch proxies preferred, frame rate unlocked for profiling.");
-	case EYogPerformanceTargetTier::FallbackLow:
-		return NSLOCTEXT("DevKitPerformance", "TargetFallbackLowDesc", "Fallback low tier. Lumen disabled with the lowest runtime budget.");
+	case EYogPerformanceTargetTier::Epic:
+		return NSLOCTEXT("DevKitPerformance", "TargetEpicDesc",
+			"Epic target. Highest visual budget and source-biased environment selection.");
+	case EYogPerformanceTargetTier::High:
+		return NSLOCTEXT("DevKitPerformance", "TargetHighDesc",
+			"High target. High visual budget with selective generated proxy use.");
+	case EYogPerformanceTargetTier::Mid:
+		return NSLOCTEXT("DevKitPerformance", "TargetMidDesc",
+			"Mid target. Recommended default with proxy and baked-surface preference.");
+	case EYogPerformanceTargetTier::Low:
+		return NSLOCTEXT("DevKitPerformance", "TargetLowDesc",
+			"Low target. Lowest runtime budget with generated proxy and baked-surface preference.");
 	case EYogPerformanceTargetTier::Custom:
 	default:
-		return NSLOCTEXT("DevKitPerformance", "TargetCustomDesc", "User-controlled custom graphics settings.");
+		return NSLOCTEXT("DevKitPerformance", "TargetCustomDesc",
+			"User-controlled custom graphics settings.");
 	}
+}
+
+FYogMaterialPerformanceTierInterface UYogPerformanceSettingsLibrary::GetMaterialPerformanceInterfaceForTargetTier(EYogPerformanceTargetTier Tier)
+{
+	return GetMaterialPerformanceInterfaceForGraphicsSettings(MakeGraphicsSettingsForTargetTier(Tier));
+}
+
+FYogMaterialPerformanceTierInterface UYogPerformanceSettingsLibrary::GetMaterialPerformanceInterfaceForGraphicsSettings(const FYogGraphicsSettings& Settings)
+{
+	FYogMaterialPerformanceTierInterface MaterialInterface;
+	MaterialInterface.TargetTier = Settings.SelectedTargetTier;
+	MaterialInterface.MaterialQuality = ClampQuality(Settings.MaterialQuality);
+	MaterialInterface.TextureQuality = ClampQuality(Settings.TextureQuality);
+	MaterialInterface.VTAtlasQuality = ClampQuality(Settings.VTAtlasQuality);
+	MaterialInterface.DynamicOverlayQuality = ClampQuality(Settings.DynamicOverlayQuality);
+	MaterialInterface.MaterialLightQuality = ClampQuality(Settings.MaterialLightQuality);
+	MaterialInterface.MaterialLightMaxLightInfoCount = FMath::Clamp(Settings.MaterialLightMaxLightInfoCount, 0, 4);
+	MaterialInterface.MaxUniqueTextureSets = MaxTextureSetsForMaterialQuality(Settings.MaterialQuality);
+	MaterialInterface.MaxRuntimeBlendLayers = MaxBlendLayersForMaterialQuality(Settings.MaterialQuality);
+	MaterialInterface.MaxRuntimeOverlayLayers = MaxOverlayLayersForQuality(Settings.DynamicOverlayQuality);
+	MaterialInterface.bPreferSourceMasterMaterial = !Settings.bPreferBatchedGeometryProxies && MaterialInterface.MaterialQuality >= 2;
+	MaterialInterface.bPreferBakedMaterial = Settings.bPreferBatchedGeometryProxies || MaterialInterface.MaterialQuality <= 1;
+	MaterialInterface.bUseVTAtlas = true;
+	MaterialInterface.bAllowGroundRuntimeRVTOverlay = MaterialInterface.DynamicOverlayQuality >= 1;
+	MaterialInterface.bAllowWallRuntimeRVTOverlay = false;
+	MaterialInterface.bBakeStaticDecalsIntoSurface = true;
+	MaterialInterface.SourceMasterMaterialContract = TEXT("M_Env_MasterA_Source");
+	MaterialInterface.BakedMaterialContract = TEXT("M_Env_Baked_VTAtlas");
+	return MaterialInterface;
 }

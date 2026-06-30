@@ -266,6 +266,8 @@ $allReady = (Get-ReportBool -Text $gateText -Label "Static audit ready") -and
     (Get-ReportBool -Text $gateText -Label "Scene parity MCP ready") -and
     (Get-ReportBool -Text $gateText -Label "Runtime profiling MCP smoke ready") -and
     (Get-ReportBool -Text $gateText -Label "Artifact contract ready") -and
+    (Get-ReportBool -Text $gateText -Label "Commandlet availability ready") -and
+    (Get-ReportBool -Text $gateText -Label "MaterialBatch dry-run ready") -and
     (Get-ReportBool -Text $gateText -Label "Runtime profiling capture ready")
 $testsReady = $gateText -match "\| DevKit\.Performance\.Settings \| True \|" -and
     $gateText -match "\| DevKitEditor\.UI \| True \|" -and

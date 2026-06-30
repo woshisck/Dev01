@@ -1,0 +1,48 @@
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Engine/DataAsset.h"
+#include "YogPerformanceAuthoringData.generated.h"
+
+USTRUCT(BlueprintType)
+struct DEVKIT_API FYogMaterialTextureNamingRule
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Performance|Material")
+	FName ChannelName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Performance|Material")
+	FName CanonicalParameterName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Performance|Material")
+	TArray<FString> AcceptedSuffixes;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Performance|Material")
+	bool bSRGB = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Performance|Material")
+	FString CompressionIntent;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Performance|Material")
+	FString Packing;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Performance|Material")
+	FString Notes;
+};
+
+UCLASS(BlueprintType)
+class DEVKIT_API UYogMaterialTextureNamingConvention : public UDataAsset
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Performance|Material")
+	FString Schema = TEXT("DevKit.MaterialTextureNamingConvention.v1");
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Performance|Material")
+	FString RuleUsage = TEXT("MaterialBatch tools classify artist-provided unique textures into these canonical channels before VT atlas or baked texture generation.");
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Performance|Material")
+	TArray<FYogMaterialTextureNamingRule> Rules;
+};

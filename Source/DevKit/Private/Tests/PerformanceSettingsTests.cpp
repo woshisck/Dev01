@@ -10,7 +10,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FYogPerformanceSettingsCustomClampTest,
 
 bool FYogPerformanceSettingsCustomClampTest::RunTest(const FString& Parameters)
 {
-	FYogGraphicsSettings BaseSettings = UYogPerformanceSettingsLibrary::MakeGraphicsSettingsForProfile(EYogPerformanceProfile::Ultra);
+	FYogGraphicsSettings BaseSettings = UYogPerformanceSettingsLibrary::MakeGraphicsSettingsForProfile(EYogPerformanceProfile::Epic);
 
 	const FYogGraphicsSettings CustomSettings =
 		UYogPerformanceSettingsLibrary::MakeCustomGraphicsSettings(BaseSettings, 999.f, 500, false, true);
@@ -21,6 +21,8 @@ bool FYogPerformanceSettingsCustomClampTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Frame limit is clamped to the save max"), CustomSettings.FrameRateLimit, 240);
 	TestFalse(TEXT("Lumen Lite toggle is applied"), CustomSettings.bUseLumenLite);
 	TestTrue(TEXT("Batch proxy preference toggle is applied"), CustomSettings.bPreferBatchedGeometryProxies);
+	TestEqual(TEXT("Custom settings preserve material quality"), CustomSettings.MaterialQuality, BaseSettings.MaterialQuality);
+	TestEqual(TEXT("Custom settings preserve VT atlas quality"), CustomSettings.VTAtlasQuality, BaseSettings.VTAtlasQuality);
 
 	return true;
 }
@@ -31,52 +33,91 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FYogPerformanceTargetTierTest,
 
 bool FYogPerformanceTargetTierTest::RunTest(const FString& Parameters)
 {
-	const FYogGraphicsSettings PCUltra =
-		UYogPerformanceSettingsLibrary::MakeGraphicsSettingsForTargetTier(EYogPerformanceTargetTier::PCUltra);
-	TestEqual(TEXT("PC Ultra records the selected target tier"), PCUltra.SelectedTargetTier, EYogPerformanceTargetTier::PCUltra);
-	TestEqual(TEXT("PC Ultra uses the Ultra base profile"), PCUltra.PerformanceProfile, EYogPerformanceProfile::Ultra);
-	TestTrue(TEXT("PC Ultra keeps Lumen enabled"), PCUltra.bUseLumenLite);
-	TestFalse(TEXT("PC Ultra keeps Nanite disabled"), PCUltra.bUseNanite);
-	TestFalse(TEXT("PC Ultra keeps VSM disabled"), PCUltra.bUseVirtualShadowMaps);
+	const FYogGraphicsSettings Epic =
+		UYogPerformanceSettingsLibrary::MakeGraphicsSettingsForTargetTier(EYogPerformanceTargetTier::Epic);
+	TestEqual(TEXT("Epic records the selected target tier"), Epic.SelectedTargetTier, EYogPerformanceTargetTier::Epic);
+	TestEqual(TEXT("Epic uses the Epic base profile"), Epic.PerformanceProfile, EYogPerformanceProfile::Epic);
+	TestTrue(TEXT("Epic keeps Lumen enabled"), Epic.bUseLumenLite);
+	TestFalse(TEXT("Epic keeps Nanite disabled"), Epic.bUseNanite);
+	TestFalse(TEXT("Epic keeps VSM disabled"), Epic.bUseVirtualShadowMaps);
+	TestFalse(TEXT("Epic is source-biased"), Epic.bPreferBatchedGeometryProxies);
+	TestEqual(TEXT("Epic uses the highest material quality"), Epic.MaterialQuality, 3);
+	TestEqual(TEXT("Epic uses the highest VT atlas quality"), Epic.VTAtlasQuality, 3);
 
-	const FYogGraphicsSettings SteamDeck15W =
-		UYogPerformanceSettingsLibrary::MakeGraphicsSettingsForTargetTier(EYogPerformanceTargetTier::SteamDeck15W);
-	TestEqual(TEXT("Steam Deck 15W records the selected target tier"), SteamDeck15W.SelectedTargetTier, EYogPerformanceTargetTier::SteamDeck15W);
-	TestEqual(TEXT("Steam Deck 15W uses the Medium base profile"), SteamDeck15W.PerformanceProfile, EYogPerformanceProfile::Medium);
-	TestTrue(TEXT("Steam Deck 15W enables Lumen Lite for testing"), SteamDeck15W.bUseLumenLite);
-	TestTrue(TEXT("Steam Deck 15W prefers batch proxies"), SteamDeck15W.bPreferBatchedGeometryProxies);
-	TestFalse(TEXT("Steam Deck 15W keeps Nanite disabled"), SteamDeck15W.bUseNanite);
-	TestFalse(TEXT("Steam Deck 15W keeps VSM disabled"), SteamDeck15W.bUseVirtualShadowMaps);
+	const FYogGraphicsSettings High =
+		UYogPerformanceSettingsLibrary::MakeGraphicsSettingsForTargetTier(EYogPerformanceTargetTier::High);
+	TestEqual(TEXT("High records the selected target tier"), High.SelectedTargetTier, EYogPerformanceTargetTier::High);
+	TestEqual(TEXT("High uses the High base profile"), High.PerformanceProfile, EYogPerformanceProfile::High);
+	TestTrue(TEXT("High keeps Lumen enabled"), High.bUseLumenLite);
+	TestFalse(TEXT("High is still source-biased by default"), High.bPreferBatchedGeometryProxies);
+	TestEqual(TEXT("High uses high material quality"), High.MaterialQuality, 2);
+	TestEqual(TEXT("High uses high VT atlas quality"), High.VTAtlasQuality, 2);
 
-	const FYogGraphicsSettings Switch2Candidate =
-		UYogPerformanceSettingsLibrary::MakeGraphicsSettingsForTargetTier(EYogPerformanceTargetTier::Switch2Candidate);
-	TestEqual(TEXT("Switch 2 candidate records the selected target tier"), Switch2Candidate.SelectedTargetTier, EYogPerformanceTargetTier::Switch2Candidate);
-	TestEqual(TEXT("Switch 2 candidate uses the Medium base profile"), Switch2Candidate.PerformanceProfile, EYogPerformanceProfile::Medium);
-	TestTrue(TEXT("Switch 2 candidate enables Lumen Lite for testing"), Switch2Candidate.bUseLumenLite);
-	TestTrue(TEXT("Switch 2 candidate prefers batch proxies"), Switch2Candidate.bPreferBatchedGeometryProxies);
-	TestFalse(TEXT("Switch 2 candidate keeps Nanite disabled"), Switch2Candidate.bUseNanite);
-	TestFalse(TEXT("Switch 2 candidate keeps VSM disabled"), Switch2Candidate.bUseVirtualShadowMaps);
+	const FYogGraphicsSettings Mid =
+		UYogPerformanceSettingsLibrary::MakeGraphicsSettingsForTargetTier(EYogPerformanceTargetTier::Mid);
+	TestEqual(TEXT("Mid records the selected target tier"), Mid.SelectedTargetTier, EYogPerformanceTargetTier::Mid);
+	TestEqual(TEXT("Mid uses the Mid base profile"), Mid.PerformanceProfile, EYogPerformanceProfile::Mid);
+	TestTrue(TEXT("Mid enables Lumen Lite for validation"), Mid.bUseLumenLite);
+	TestTrue(TEXT("Mid prefers batch proxies"), Mid.bPreferBatchedGeometryProxies);
+	TestEqual(TEXT("Mid uses standard material quality"), Mid.MaterialQuality, 1);
+	TestEqual(TEXT("Mid uses standard VT atlas quality"), Mid.VTAtlasQuality, 1);
 
-	const FYogGraphicsSettings SteamDeck5W =
-		UYogPerformanceSettingsLibrary::MakeGraphicsSettingsForTargetTier(EYogPerformanceTargetTier::SteamDeck5W);
-	TestEqual(TEXT("Steam Deck 5W records the selected target tier"), SteamDeck5W.SelectedTargetTier, EYogPerformanceTargetTier::SteamDeck5W);
-	TestEqual(TEXT("Steam Deck 5W uses the Low base profile"), SteamDeck5W.PerformanceProfile, EYogPerformanceProfile::Low);
-	TestFalse(TEXT("Steam Deck 5W disables Lumen"), SteamDeck5W.bUseLumenLite);
-	TestTrue(TEXT("Steam Deck 5W prefers batch proxies"), SteamDeck5W.bPreferBatchedGeometryProxies);
-
-	const FYogGraphicsSettings FallbackLow =
-		UYogPerformanceSettingsLibrary::MakeGraphicsSettingsForTargetTier(EYogPerformanceTargetTier::FallbackLow);
-	TestEqual(TEXT("Fallback low records the selected target tier"), FallbackLow.SelectedTargetTier, EYogPerformanceTargetTier::FallbackLow);
-	TestEqual(TEXT("Fallback low uses the Low base profile"), FallbackLow.PerformanceProfile, EYogPerformanceProfile::Low);
-	TestFalse(TEXT("Fallback low disables Lumen"), FallbackLow.bUseLumenLite);
-	TestEqual(TEXT("Fallback low uses the lowest texture quality"), FallbackLow.TextureQuality, 0);
+	const FYogGraphicsSettings Low =
+		UYogPerformanceSettingsLibrary::MakeGraphicsSettingsForTargetTier(EYogPerformanceTargetTier::Low);
+	TestEqual(TEXT("Low records the selected target tier"), Low.SelectedTargetTier, EYogPerformanceTargetTier::Low);
+	TestEqual(TEXT("Low uses the Low base profile"), Low.PerformanceProfile, EYogPerformanceProfile::Low);
+	TestFalse(TEXT("Low disables Lumen"), Low.bUseLumenLite);
+	TestTrue(TEXT("Low prefers batch proxies"), Low.bPreferBatchedGeometryProxies);
+	TestEqual(TEXT("Low disables material-light entries"), Low.MaterialLightMaxLightInfoCount, 0);
+	TestEqual(TEXT("Low uses the lowest dynamic overlay quality"), Low.DynamicOverlayQuality, 0);
 
 	const TArray<EYogPerformanceTargetTier> TargetTiers = UYogPerformanceSettingsLibrary::GetSelectablePerformanceTargetTiers();
-	TestTrue(TEXT("Selectable target tiers include PC Ultra"), TargetTiers.Contains(EYogPerformanceTargetTier::PCUltra));
-	TestTrue(TEXT("Selectable target tiers include Steam Deck 15W"), TargetTiers.Contains(EYogPerformanceTargetTier::SteamDeck15W));
-	TestTrue(TEXT("Selectable target tiers include Switch 2 candidate"), TargetTiers.Contains(EYogPerformanceTargetTier::Switch2Candidate));
-	TestTrue(TEXT("Selectable target tiers include Steam Deck 5W"), TargetTiers.Contains(EYogPerformanceTargetTier::SteamDeck5W));
-	TestTrue(TEXT("Selectable target tiers include fallback low"), TargetTiers.Contains(EYogPerformanceTargetTier::FallbackLow));
+	TestEqual(TEXT("Selectable target tiers expose only the four formal tiers"), TargetTiers.Num(), 4);
+	TestTrue(TEXT("Selectable target tiers include Epic"), TargetTiers.Contains(EYogPerformanceTargetTier::Epic));
+	TestTrue(TEXT("Selectable target tiers include High"), TargetTiers.Contains(EYogPerformanceTargetTier::High));
+	TestTrue(TEXT("Selectable target tiers include Mid"), TargetTiers.Contains(EYogPerformanceTargetTier::Mid));
+	TestTrue(TEXT("Selectable target tiers include Low"), TargetTiers.Contains(EYogPerformanceTargetTier::Low));
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FYogMaterialPerformanceInterfaceTest,
+	"DevKit.Performance.Settings.MaterialTierInterface",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FYogMaterialPerformanceInterfaceTest::RunTest(const FString& Parameters)
+{
+	const FYogMaterialPerformanceTierInterface Epic =
+		UYogPerformanceSettingsLibrary::GetMaterialPerformanceInterfaceForTargetTier(EYogPerformanceTargetTier::Epic);
+	TestEqual(TEXT("Epic material interface keeps three unique texture sets"), Epic.MaxUniqueTextureSets, 3);
+	TestEqual(TEXT("Epic material interface keeps three runtime blend layers"), Epic.MaxRuntimeBlendLayers, 3);
+	TestEqual(TEXT("Epic material interface keeps two runtime overlay layers"), Epic.MaxRuntimeOverlayLayers, 2);
+	TestTrue(TEXT("Epic material interface prefers source master material"), Epic.bPreferSourceMasterMaterial);
+	TestFalse(TEXT("Epic material interface does not prefer baked material"), Epic.bPreferBakedMaterial);
+	TestTrue(TEXT("Epic material interface uses VT atlas"), Epic.bUseVTAtlas);
+
+	const FYogMaterialPerformanceTierInterface High =
+		UYogPerformanceSettingsLibrary::GetMaterialPerformanceInterfaceForTargetTier(EYogPerformanceTargetTier::High);
+	TestEqual(TEXT("High material interface keeps three unique texture sets"), High.MaxUniqueTextureSets, 3);
+	TestEqual(TEXT("High material interface keeps one runtime overlay layer"), High.MaxRuntimeOverlayLayers, 1);
+	TestTrue(TEXT("High material interface still prefers source master material"), High.bPreferSourceMasterMaterial);
+
+	const FYogMaterialPerformanceTierInterface Mid =
+		UYogPerformanceSettingsLibrary::GetMaterialPerformanceInterfaceForTargetTier(EYogPerformanceTargetTier::Mid);
+	TestEqual(TEXT("Mid material interface reduces to two unique texture sets"), Mid.MaxUniqueTextureSets, 2);
+	TestEqual(TEXT("Mid material interface reduces to two runtime blend layers"), Mid.MaxRuntimeBlendLayers, 2);
+	TestEqual(TEXT("Mid material interface keeps one runtime overlay layer"), Mid.MaxRuntimeOverlayLayers, 1);
+	TestFalse(TEXT("Mid material interface does not prefer source master material"), Mid.bPreferSourceMasterMaterial);
+	TestTrue(TEXT("Mid material interface prefers baked material"), Mid.bPreferBakedMaterial);
+
+	const FYogMaterialPerformanceTierInterface Low =
+		UYogPerformanceSettingsLibrary::GetMaterialPerformanceInterfaceForTargetTier(EYogPerformanceTargetTier::Low);
+	TestEqual(TEXT("Low material interface reduces to one unique texture set"), Low.MaxUniqueTextureSets, 1);
+	TestEqual(TEXT("Low material interface reduces to one runtime blend layer"), Low.MaxRuntimeBlendLayers, 1);
+	TestEqual(TEXT("Low material interface disables runtime overlay layers"), Low.MaxRuntimeOverlayLayers, 0);
+	TestFalse(TEXT("Low material interface disables ground RVT overlay"), Low.bAllowGroundRuntimeRVTOverlay);
+	TestFalse(TEXT("Wall RVT overlay is not enabled by default"), Low.bAllowWallRuntimeRVTOverlay);
+	TestTrue(TEXT("Low material interface prefers baked material"), Low.bPreferBakedMaterial);
 
 	return true;
 }
@@ -89,15 +130,10 @@ bool FYogGraphicsSettingsWidgetContractTest::RunTest(const FString& Parameters)
 {
 	const TArray<FName> RequiredWidgets = UYogGraphicsSettingsWidgetBase::GetRequiredDesignerWidgetNames();
 
-	TestTrue(TEXT("Graphics settings widget requires a Low preset button"), RequiredWidgets.Contains(TEXT("BtnProfileLow")));
-	TestTrue(TEXT("Graphics settings widget requires a Medium preset button"), RequiredWidgets.Contains(TEXT("BtnProfileMedium")));
-	TestTrue(TEXT("Graphics settings widget requires a High preset button"), RequiredWidgets.Contains(TEXT("BtnProfileHigh")));
-	TestTrue(TEXT("Graphics settings widget requires an Ultra preset button"), RequiredWidgets.Contains(TEXT("BtnProfileUltra")));
-	TestTrue(TEXT("Graphics settings widget requires a PC Ultra target button"), RequiredWidgets.Contains(TEXT("BtnTargetPCUltra")));
-	TestTrue(TEXT("Graphics settings widget requires a Steam Deck 15W target button"), RequiredWidgets.Contains(TEXT("BtnTargetSteamDeck15W")));
-	TestTrue(TEXT("Graphics settings widget requires a Switch 2 target button"), RequiredWidgets.Contains(TEXT("BtnTargetSwitch2Candidate")));
-	TestTrue(TEXT("Graphics settings widget requires a Steam Deck 5W target button"), RequiredWidgets.Contains(TEXT("BtnTargetSteamDeck5W")));
-	TestTrue(TEXT("Graphics settings widget requires a fallback target button"), RequiredWidgets.Contains(TEXT("BtnTargetFallbackLow")));
+	TestTrue(TEXT("Graphics settings widget requires an Epic tier button"), RequiredWidgets.Contains(TEXT("BtnTierEpic")));
+	TestTrue(TEXT("Graphics settings widget requires a High tier button"), RequiredWidgets.Contains(TEXT("BtnTierHigh")));
+	TestTrue(TEXT("Graphics settings widget requires a Mid tier button"), RequiredWidgets.Contains(TEXT("BtnTierMid")));
+	TestTrue(TEXT("Graphics settings widget requires a Low tier button"), RequiredWidgets.Contains(TEXT("BtnTierLow")));
 	TestTrue(TEXT("Graphics settings widget requires an Apply Custom button"), RequiredWidgets.Contains(TEXT("BtnApplyCustom")));
 	TestTrue(TEXT("Graphics settings widget requires a Back button"), RequiredWidgets.Contains(TEXT("BtnBack")));
 	TestTrue(TEXT("Graphics settings widget requires a resolution scale text field"), RequiredWidgets.Contains(TEXT("ResolutionScaleText")));
@@ -114,8 +150,8 @@ bool FYogGraphicsSettingsWidgetContractTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Default focus target is a required designer widget"),
 		RequiredWidgets.Contains(UYogGraphicsSettingsWidgetBase::GetDefaultFocusWidgetName()));
 
-	FYogGraphicsSettings SavedSettings = UYogPerformanceSettingsLibrary::MakeGraphicsSettingsForProfile(EYogPerformanceProfile::Medium);
-	SavedSettings.SelectedTargetTier = EYogPerformanceTargetTier::Switch2Candidate;
+	FYogGraphicsSettings SavedSettings = UYogPerformanceSettingsLibrary::MakeGraphicsSettingsForProfile(EYogPerformanceProfile::Mid);
+	SavedSettings.SelectedTargetTier = EYogPerformanceTargetTier::Mid;
 	SavedSettings.ResolutionScalePercent = 73.f;
 	SavedSettings.FrameRateLimit = 40;
 	SavedSettings.bUseLumenLite = false;
@@ -124,7 +160,7 @@ bool FYogGraphicsSettingsWidgetContractTest::RunTest(const FString& Parameters)
 	TestNotNull(TEXT("Graphics settings widget base is constructible"), Widget);
 	Widget->SetPendingSettings(SavedSettings);
 	const FYogGraphicsSettings InitialPendingSettings = Widget->GetPendingSettings();
-	TestEqual(TEXT("Widget stores pending target tier before customization"), InitialPendingSettings.SelectedTargetTier, EYogPerformanceTargetTier::Switch2Candidate);
+	TestEqual(TEXT("Widget stores pending target tier before customization"), InitialPendingSettings.SelectedTargetTier, EYogPerformanceTargetTier::Mid);
 
 	Widget->SetPendingModelQuality(3);
 	Widget->SetPendingShadowQuality(2);
@@ -143,7 +179,8 @@ bool FYogGraphicsSettingsWidgetContractTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Widget stores pending shadow quality"), PendingSettings.ShadowQuality, 2);
 	TestEqual(TEXT("Widget stores pending reflection quality"), PendingSettings.ReflectionQuality, 1);
 	TestEqual(TEXT("Widget stores pending texture quality"), PendingSettings.TextureQuality, 0);
-	TestEqual(TEXT("Widget stores pending material quality as shading"), PendingSettings.ShadingQuality, 2);
+	TestEqual(TEXT("Widget stores pending material quality"), PendingSettings.MaterialQuality, 2);
+	TestEqual(TEXT("Widget mirrors material quality to shading"), PendingSettings.ShadingQuality, 2);
 	TestEqual(TEXT("Widget mirrors material quality to effects"), PendingSettings.EffectsQuality, 2);
 	TestEqual(TEXT("Widget stores pending dynamic light quality"), PendingSettings.DynamicLightQuality, 1);
 	TestEqual(TEXT("Widget stores pending material light quality"), PendingSettings.MaterialLightQuality, 2);

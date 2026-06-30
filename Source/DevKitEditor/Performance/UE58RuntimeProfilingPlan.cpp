@@ -37,8 +37,8 @@ TArray<FUE58RuntimeProfilingScenario> FUE58RuntimeProfilingPlanBuilder::BuildDef
 	return {
 		MakeScenario(
 			TEXT("Baseline_LumenOff_NoBatch"),
-			TEXT("Medium"),
-			TEXT("Current project renderer baseline: Lumen off, no generated batch proxy."),
+			TEXT("Mid"),
+			TEXT("Explicit Lumen-off comparison baseline, no generated batch proxy."),
 			false,
 			{
 				TEXT("r.SetRes 1280x720"),
@@ -51,8 +51,8 @@ TArray<FUE58RuntimeProfilingScenario> FUE58RuntimeProfilingPlanBuilder::BuildDef
 			}),
 		MakeScenario(
 			TEXT("LumenLite_NoBatch"),
-			TEXT("Handheld15W"),
-			TEXT("Handheld 15W candidate with Lumen Lite enabled before proxy batching."),
+			TEXT("Mid"),
+			TEXT("Mid candidate with Lumen Lite enabled before proxy batching."),
 			false,
 			{
 				TEXT("r.SetRes 1280x720"),
@@ -68,7 +68,7 @@ TArray<FUE58RuntimeProfilingScenario> FUE58RuntimeProfilingPlanBuilder::BuildDef
 			}),
 		MakeScenario(
 			TEXT("BatchProxy_LumenOff"),
-			TEXT("Medium"),
+			TEXT("Mid"),
 			TEXT("Generated geometry-merge proxy path with Lumen off."),
 			true,
 			{
@@ -82,8 +82,8 @@ TArray<FUE58RuntimeProfilingScenario> FUE58RuntimeProfilingPlanBuilder::BuildDef
 			}),
 		MakeScenario(
 			TEXT("BatchProxy_LumenLite"),
-			TEXT("Handheld15W"),
-			TEXT("Combined handheld candidate: generated proxy plus Lumen Lite."),
+			TEXT("Mid"),
+			TEXT("Combined Mid candidate: generated proxy plus Lumen Lite."),
 			true,
 			{
 				TEXT("r.SetRes 1280x720"),
@@ -98,9 +98,9 @@ TArray<FUE58RuntimeProfilingScenario> FUE58RuntimeProfilingPlanBuilder::BuildDef
 				TEXT("t.MaxFPS 0")
 			}),
 		MakeScenario(
-			TEXT("Handheld5W_LumenOff_Aggressive"),
-			TEXT("Handheld5W"),
-			TEXT("Low-power safety profile; Lumen remains off and the batch/proxy path should be preferred."),
+			TEXT("Low_LumenOff_Aggressive"),
+			TEXT("Low"),
+			TEXT("Low-power profile; Lumen remains off and the batch/proxy path should be preferred."),
 			true,
 			{
 				TEXT("r.SetRes 1280x720"),
@@ -117,9 +117,9 @@ TArray<FUE58RuntimeProfilingScenario> FUE58RuntimeProfilingPlanBuilder::BuildDef
 				TEXT("t.MaxFPS 0")
 			}),
 		MakeScenario(
-			TEXT("PCUltra_LumenHigh"),
-			TEXT("PCUltra"),
-			TEXT("PC upper-bound quality profile for comparison against handheld cuts."),
+			TEXT("Epic_LumenHigh"),
+			TEXT("Epic"),
+			TEXT("Epic upper-bound quality profile for comparison against lower tiers."),
 			false,
 			{
 				TEXT("r.SetRes 1920x1080"),
@@ -155,7 +155,7 @@ TArray<FString> FUE58RuntimeProfilingPlanBuilder::BuildMarkdownReport(const FUE5
 	Lines.Add(TEXT("- Run every scenario from the same camera position and scene state."));
 	Lines.Add(TEXT("- Record at least a five-second stable sample for `stat unit`, `stat rhi`, and `stat scenerendering`."));
 	Lines.Add(TEXT("- Run `profilegpu` once per scenario and store the generated CSV path."));
-	Lines.Add(TEXT("- Batch proxy scenarios require the generated proxy to be visible and matching source actors to be hidden or isolated in a test layer."));
+	Lines.Add(TEXT("- Batch proxy scenarios require the generated proxy to be visible and matching source actors to be hidden or isolated in a test streaming level."));
 	Lines.Add(TEXT("- This report is a measurement checklist; it does not contain measured GPU values."));
 	Lines.Add(TEXT(""));
 	Lines.Add(TEXT("## Scenario Matrix"));
@@ -218,10 +218,10 @@ TArray<FString> FUE58RuntimeProfilingPlanBuilder::BuildMarkdownReport(const FUE5
 
 	Lines.Add(TEXT("## Acceptance Checks"));
 	Lines.Add(TEXT(""));
-	Lines.Add(TEXT("- Handheld15W passes only if `BatchProxy_LumenLite` is stable at the target frame budget or has a documented fallback to `BatchProxy_LumenOff`."));
-	Lines.Add(TEXT("- Handheld5W passes only if `Handheld5W_LumenOff_Aggressive` is stable at 30 FPS with acceptable visual loss."));
+	Lines.Add(TEXT("- Mid passes only if `BatchProxy_LumenLite` is stable at the target frame budget or has a documented fallback to `BatchProxy_LumenOff`."));
+	Lines.Add(TEXT("- Low passes only if `Low_LumenOff_Aggressive` is stable at 30 FPS with acceptable visual loss."));
 	Lines.Add(TEXT("- Batch proxy is considered useful only if mesh draw calls drop enough to offset any extra material shader cost."));
-	Lines.Add(TEXT("- Lumen Lite is optional for handheld if Lumen passes consume more frame time than the visual gain justifies."));
+	Lines.Add(TEXT("- Lumen Lite is optional for Mid if Lumen passes consume more frame time than the visual gain justifies."));
 
 	return Lines;
 }

@@ -31,6 +31,44 @@ function Test-FileText {
     return $text -match $Pattern
 }
 
+function Test-RuntimeCaptureReady {
+    param([string]$Path)
+
+    return (
+        ((Test-FileText -Path $Path -Pattern "(?m)^- Status: (Captured|Partial)\s*$") -and
+            (Test-FileText -Path $Path -Pattern "\|\s*[1-9][0-9]*\s*\|")) -or
+        ((Test-FileText -Path $Path -Pattern "(?m)^- Status: ParsedLogCaptured\s*$") -and
+            (Test-FileText -Path $Path -Pattern "Frame Time ms") -and
+            (Test-FileText -Path $Path -Pattern "\|\s*[0-9]+(?:\.[0-9]+)?\s*\|\s*[0-9]+(?:\.[0-9]+)?\s*\|"))
+    )
+}
+
+function Get-PreferredRuntimeCapturePath {
+    param([string]$LatestPath)
+
+    $paths = @()
+    if (Test-Path -LiteralPath $LatestPath) {
+        $paths += (Resolve-Path -LiteralPath $LatestPath).Path
+    }
+
+    $root = Split-Path -Parent $LatestPath
+    if (Test-Path -LiteralPath $root) {
+        $paths += @(
+            Get-ChildItem -LiteralPath $root -File -Filter "UE58RuntimeProfilingCapture_*.md" -ErrorAction SilentlyContinue |
+                Sort-Object LastWriteTime -Descending |
+                ForEach-Object { $_.FullName }
+        )
+    }
+
+    foreach ($path in ($paths | Select-Object -Unique)) {
+        if (Test-RuntimeCaptureReady -Path $path) {
+            return $path
+        }
+    }
+
+    return $LatestPath
+}
+
 function Get-UbtBuildStatus {
     $ubtLogPath = Join-Path $env:LOCALAPPDATA "UnrealBuildTool\Log.txt"
     if (-not (Test-Path -LiteralPath $ubtLogPath)) {
@@ -179,6 +217,9 @@ $batchVisualLatestPath = Join-Path $RepoRoot "Docs\GeneratedReports\UE58Performa
 $sceneParityLatestPath = Join-Path $RepoRoot "Docs\GeneratedReports\UE58PerformanceAutomation\SceneParityAudit\LATEST.md"
 $runtimeSmokeLatestPath = Join-Path $RepoRoot "Docs\GeneratedReports\UE58PerformanceAutomation\RuntimeProfilingSmoke\LATEST.md"
 $runtimeCaptureLatestPath = Join-Path $RepoRoot "Docs\GeneratedReports\UE58PerformanceAutomation\RuntimeProfilingCapture\LATEST.md"
+$runtimeCaptureEvidencePath = Get-PreferredRuntimeCapturePath -LatestPath $runtimeCaptureLatestPath
+$materialBatchDryRunLatestPath = Join-Path $RepoRoot "Docs\GeneratedReports\UE58PerformanceAutomation\MaterialBatchDryRun\LATEST.md"
+$commandletAvailabilityLatestPath = Join-Path $RepoRoot "Docs\GeneratedReports\UE58PerformanceAutomation\CommandletAvailability\LATEST.md"
 $remoteDeltaAuditLatestPath = Join-Path $RepoRoot "Docs\GeneratedReports\UE58PerformanceAutomation\RemoteDeltaAudit\LATEST.md"
 $artifactContractLatestPath = Join-Path $RepoRoot "Docs\GeneratedReports\UE58PerformanceAutomation\ArtifactContract\LATEST.md"
 $performanceSettingsLog = Join-Path $RepoRoot "Saved\Logs\Codex_PerformanceSettings_Focus_Tests.log"
@@ -236,14 +277,18 @@ $sceneParityReady = (Test-FileText -Path $sceneParityLatestPath -Pattern "(?m)^-
     (Test-FileText -Path $sceneParityLatestPath -Pattern "(?m)^- Viewport bytes: [1-9][0-9]{3,}\s*$")
 $runtimeSmokeReady = Test-FileText -Path $runtimeSmokeLatestPath -Pattern "Status: Ready"
 $artifactContractReady = Test-FileText -Path $artifactContractLatestPath -Pattern "(?m)^- Status: Passed\s*$"
+$commandletAvailabilityReady = Test-FileText -Path $commandletAvailabilityLatestPath -Pattern "(?m)^- Status: Available\s*$"
+$commandletAvailabilityBlockedByCleanLink = Test-FileText -Path $commandletAvailabilityLatestPath -Pattern "(?m)^- Status: BlockedByCleanLink\s*$"
 $remoteDeltaAuditReady = Test-FileText -Path $remoteDeltaAuditLatestPath -Pattern "(?m)^- Status: (ReadyForReviewedMerge|NoRemoteDelta)\s*$"
-$runtimeCaptureReady = (
-    ((Test-FileText -Path $runtimeCaptureLatestPath -Pattern "(?m)^- Status: (Captured|Partial)\s*$") -and
-        (Test-FileText -Path $runtimeCaptureLatestPath -Pattern "\|\s*[1-9][0-9]*\s*\|")) -or
-    ((Test-FileText -Path $runtimeCaptureLatestPath -Pattern "(?m)^- Status: ParsedLogCaptured\s*$") -and
-        (Test-FileText -Path $runtimeCaptureLatestPath -Pattern "Frame Time ms") -and
-        (Test-FileText -Path $runtimeCaptureLatestPath -Pattern "\|\s*[0-9]+(?:\.[0-9]+)?\s*\|\s*[0-9]+(?:\.[0-9]+)?\s*\|"))
-)
+$materialBatchDryRunCaptured = Test-FileText -Path $materialBatchDryRunLatestPath -Pattern "(?m)^- Status: DryRunCaptured\s*$"
+$materialBatchDryRunLayerEvidence = Test-FileText -Path $materialBatchDryRunLatestPath -Pattern "(?m)^- Actual layer evidence: True\s*$"
+$materialBatchDryRunSourceProxyAssetEvidence = Test-FileText -Path $materialBatchDryRunLatestPath -Pattern "(?m)^- Source/Proxy asset evidence: True\s*$"
+$materialBatchDryRunResidencyEvidence = Test-FileText -Path $materialBatchDryRunLatestPath -Pattern "(?m)^- Residency risk evidence: True\s*$"
+$materialBatchDryRunReady = $materialBatchDryRunCaptured -and
+    $materialBatchDryRunLayerEvidence -and
+    $materialBatchDryRunSourceProxyAssetEvidence -and
+    $materialBatchDryRunResidencyEvidence
+$runtimeCaptureReady = Test-RuntimeCaptureReady -Path $runtimeCaptureEvidencePath
 $mcpOnline = Test-FileText -Path $heartbeatLatestPath -Pattern "MCP: Listening on 127\.0\.0\.1:8765"
 $latestBuildStatus = Get-UbtBuildStatus
 $latestBuildSucceeded = $latestBuildStatus -match "Result: Succeeded"
@@ -270,6 +315,9 @@ if (-not $allTestsPassed) {
 if (-not $latestBuildSucceeded) {
     $hardBlocks += "Latest Unreal build result is not recorded as succeeded."
 }
+if (-not $commandletAvailabilityReady) {
+    $hardBlocks += "UE5.8 report-only commandlets are not all available in the current editor binaries."
+}
 
 $evidenceGaps = @()
 if (-not $staticAuditReady) {
@@ -287,8 +335,19 @@ if (-not $runtimeSmokeReady) {
 if (-not $artifactContractReady) {
     $evidenceGaps += "UE5.8 performance artifact contract is missing or failing; run Test-UE58PerformanceArtifactContract.ps1."
 }
+if (-not $commandletAvailabilityReady) {
+    if ($commandletAvailabilityBlockedByCleanLink) {
+        $evidenceGaps += "Report-only commandlets are blocked by a clean-link requirement; close UnrealEditor after saving work, link DevKitEditor, then rerun GraphicsSettingsWidgetSetup, MaterialBatchMaterialAudit, and UE58RuntimeProfilingPlan reports."
+    }
+    else {
+        $evidenceGaps += "Commandlet availability report is missing or not Available; run Test-UE58CommandletAvailability.ps1 before real dry-run or final upload."
+    }
+}
+if (-not $materialBatchDryRunReady) {
+    $evidenceGaps += "MaterialBatch real-cluster dry-run is not captured with actual StreamingLevel layer, Source/Proxy asset readiness, and residency evidence."
+}
 if (-not $runtimeCaptureReady) {
-    if (Test-FileText -Path $runtimeCaptureLatestPath -Pattern "(?m)^- Status: LogCaptured\s*$") {
+    if (Test-FileText -Path $runtimeCaptureEvidencePath -Pattern "(?m)^- Status: LogCaptured\s*$") {
         $evidenceGaps += "Runtime profiling automation ran baseline and Lumen Lite scenarios and invoked stat/profilegpu commands, but no ProfileGPU artifact was emitted; add a follow-up capture path for parseable GPU metrics before final handheld decisions."
     }
     else {
@@ -302,7 +361,7 @@ if ($gitBehind -and -not $remoteDeltaAuditReady) {
     $evidenceGaps += "Remote delta audit is missing or not ready; run Invoke-UE58RemoteDeltaAudit.ps1 before choosing a merge/rebase strategy."
 }
 
-$canCommitPhase1 = (-not $gitBehind) -and $allTestsPassed -and $latestBuildSucceeded -and $staticAuditReady -and $batchVisualReady -and $sceneParityReady -and $runtimeSmokeReady -and $artifactContractReady
+$canCommitPhase1 = (-not $gitBehind) -and $allTestsPassed -and $latestBuildSucceeded -and $staticAuditReady -and $batchVisualReady -and $sceneParityReady -and $runtimeSmokeReady -and $artifactContractReady -and $commandletAvailabilityReady -and $materialBatchDryRunReady
 $canUploadFinal = $canCommitPhase1 -and ($evidenceGaps.Count -eq 0)
 
 $phase1PathspecPath = Join-Path $OutputRoot "Phase1Candidate.paths.txt"
@@ -342,7 +401,15 @@ $lines = @(
     "- Scene parity MCP ready: $sceneParityReady",
     "- Runtime profiling MCP smoke ready: $runtimeSmokeReady",
     "- Artifact contract ready: $artifactContractReady",
+    "- Commandlet availability ready: $commandletAvailabilityReady",
+    "- Commandlet availability blocked by clean link: $commandletAvailabilityBlockedByCleanLink",
+    "- MaterialBatch dry-run captured: $materialBatchDryRunCaptured",
+    "- MaterialBatch dry-run layer evidence: $materialBatchDryRunLayerEvidence",
+    "- MaterialBatch dry-run Source/Proxy asset evidence: $materialBatchDryRunSourceProxyAssetEvidence",
+    "- MaterialBatch dry-run residency evidence: $materialBatchDryRunResidencyEvidence",
+    "- MaterialBatch dry-run ready: $materialBatchDryRunReady",
     "- Runtime profiling capture ready: $runtimeCaptureReady",
+    "- Runtime profiling capture evidence: $runtimeCaptureEvidencePath",
     "- Remote delta audit ready: $remoteDeltaAuditReady",
     "- Phase 1 pathspec: Docs\GeneratedReports\UE58PerformanceAutomation\SubmissionGate\Phase1Candidate.paths.txt",
     "- Evidence pathspec: Docs\GeneratedReports\UE58PerformanceAutomation\SubmissionGate\EvidenceOnly.paths.txt",

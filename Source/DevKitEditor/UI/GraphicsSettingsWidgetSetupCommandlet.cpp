@@ -302,24 +302,16 @@ namespace GraphicsSettingsWidgetSetup
 		RootScroll->AddChild(RootStack);
 
 		AddVertical(RootStack, MakeText(WidgetTree, TEXT("HeaderText"), TEXT("Graphics"), 34, MainTextColor, ETextJustify::Center), FMargin(0.f, 0.f, 0.f, 4.f));
-		AddVertical(RootStack, MakeText(WidgetTree, TEXT("HintText"), TEXT("Select a profile, then tune runtime options for handheld or PC targets."), 16, MutedTextColor, ETextJustify::Center), FMargin(0.f, 0.f, 0.f, 20.f));
+		AddVertical(RootStack, MakeText(WidgetTree, TEXT("HintText"), TEXT("Select Epic, High, Mid, or Low, then tune runtime options."), 16, MutedTextColor, ETextJustify::Center), FMargin(0.f, 0.f, 0.f, 20.f));
 
 		AddVertical(RootStack, ConstructNamedWidget<UTextBlock>(WidgetTree, TEXT("CurrentProfileText")), FMargin(0.f, 0.f, 0.f, 10.f));
-		ConfigureText(Cast<UTextBlock>(WidgetTree->FindWidget(TEXT("CurrentProfileText"))), TEXT("Current: Medium"), MainTextColor, 20, ETextJustify::Center, false);
+		ConfigureText(Cast<UTextBlock>(WidgetTree->FindWidget(TEXT("CurrentProfileText"))), TEXT("Current: Mid"), MainTextColor, 20, ETextJustify::Center, false);
 
 		AddVertical(RootStack, MakeButtonRow(WidgetTree, TEXT("TargetTierRow"), {
-			{ TEXT("BtnTargetPCUltra"), TEXT("PC Ultra") },
-			{ TEXT("BtnTargetSteamDeck15W"), TEXT("Deck 15W") },
-			{ TEXT("BtnTargetSwitch2Candidate"), TEXT("Switch 2") },
-			{ TEXT("BtnTargetSteamDeck5W"), TEXT("Deck 5W") },
-			{ TEXT("BtnTargetFallbackLow"), TEXT("Fallback") }
-		}), FMargin(0.f, 0.f, 0.f, 14.f));
-
-		AddVertical(RootStack, MakeButtonRow(WidgetTree, TEXT("ProfileRow"), {
-			{ TEXT("BtnProfileLow"), TEXT("Low") },
-			{ TEXT("BtnProfileMedium"), TEXT("Medium") },
-			{ TEXT("BtnProfileHigh"), TEXT("High") },
-			{ TEXT("BtnProfileUltra"), TEXT("Ultra") }
+			{ TEXT("BtnTierEpic"), TEXT("Epic") },
+			{ TEXT("BtnTierHigh"), TEXT("High") },
+			{ TEXT("BtnTierMid"), TEXT("Mid") },
+			{ TEXT("BtnTierLow"), TEXT("Low") }
 		}), FMargin(0.f, 0.f, 0.f, 18.f));
 
 		AddVertical(RootStack, ConstructNamedWidget<UTextBlock>(WidgetTree, TEXT("ResolutionScaleText")), FMargin(0.f, 0.f, 0.f, 6.f));

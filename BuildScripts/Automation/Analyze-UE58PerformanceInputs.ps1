@@ -74,6 +74,45 @@ function Get-MarkdownBulletValue {
     return ""
 }
 
+function Test-RuntimeCaptureReadyText {
+    param([string]$Text)
+
+    return (
+        ($Text -match "(?m)^- Status: (Captured|Partial)\s*$" -and
+            $Text -match "\|\s*[1-9][0-9]*\s*\|") -or
+        ($Text -match "(?m)^- Status: ParsedLogCaptured\s*$" -and
+            $Text -match "Frame Time ms" -and
+            $Text -match "\|\s*[0-9]+(?:\.[0-9]+)?\s*\|\s*[0-9]+(?:\.[0-9]+)?\s*\|")
+    )
+}
+
+function Get-PreferredRuntimeCapturePath {
+    param([string]$LatestPath)
+
+    $paths = @()
+    if (Test-Path -LiteralPath $LatestPath) {
+        $paths += (Resolve-Path -LiteralPath $LatestPath).Path
+    }
+
+    $root = Split-Path -Parent $LatestPath
+    if (Test-Path -LiteralPath $root) {
+        $paths += @(
+            Get-ChildItem -LiteralPath $root -File -Filter "UE58RuntimeProfilingCapture_*.md" -ErrorAction SilentlyContinue |
+                Sort-Object LastWriteTime -Descending |
+                ForEach-Object { $_.FullName }
+        )
+    }
+
+    foreach ($path in ($paths | Select-Object -Unique)) {
+        $text = Get-Content -LiteralPath $path -Raw
+        if (Test-RuntimeCaptureReadyText -Text $text) {
+            return $path
+        }
+    }
+
+    return $LatestPath
+}
+
 $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
 $reportPath = Join-Path $OutputRoot "UE58PerformanceAudit_$timestamp.md"
 $latestPath = Join-Path $OutputRoot "LATEST.md"
@@ -99,8 +138,23 @@ $ue58BatchVisualMcpAuditRoot = Join-Path $RepoRoot "Docs\GeneratedReports\UE58Pe
 $ue58SceneParityMcpAuditReportPath = Join-Path $RepoRoot "Docs\GeneratedReports\UE58PerformanceAutomation\SceneParityAudit\LATEST.md"
 $ue58SceneParityMcpAuditPngPath = Join-Path $RepoRoot "Docs\GeneratedReports\UE58PerformanceAutomation\SceneParityAudit\scene_parity_side_by_side.png"
 $ue58RuntimeProfilingMcpSmokeReportPath = Join-Path $RepoRoot "Docs\GeneratedReports\UE58PerformanceAutomation\RuntimeProfilingSmoke\LATEST.md"
+$ue58RuntimeProfilingPlanFallbackScriptPath = Join-Path $RepoRoot "BuildScripts\Automation\Write-UE58RuntimeProfilingPlanFallback.ps1"
+$ue58RuntimeProfilingPlanFallbackReportPath = Join-Path $RepoRoot "Docs\GeneratedReports\UE58PerformanceAutomation\RuntimeProfilingPlanFallback\LATEST.md"
+$ue58CommandletAvailabilityScriptPath = Join-Path $RepoRoot "BuildScripts\Automation\Test-UE58CommandletAvailability.ps1"
+$ue58CommandletAvailabilityReportPath = Join-Path $RepoRoot "Docs\GeneratedReports\UE58PerformanceAutomation\CommandletAvailability\LATEST.md"
+$ue58PostCleanLinkValidationScriptPath = Join-Path $RepoRoot "BuildScripts\Automation\Invoke-UE58PostCleanLinkValidation.ps1"
+$ue58PostCleanLinkValidationReportPath = Join-Path $RepoRoot "Docs\GeneratedReports\UE58PerformanceAutomation\PostCleanLinkValidation\LATEST.md"
+$ue58BuildValidationScriptPath = Join-Path $RepoRoot "BuildScripts\Automation\Invoke-UE58BuildValidation.ps1"
+$ue58BuildValidationReportPath = Join-Path $RepoRoot "Docs\GeneratedReports\UE58PerformanceAutomation\BuildValidation\LATEST.md"
 $ue58RuntimeProfilingCaptureScriptPath = Join-Path $RepoRoot "BuildScripts\Automation\Invoke-UE58RuntimeProfilingCapture.ps1"
 $ue58RuntimeProfilingCaptureReportPath = Join-Path $RepoRoot "Docs\GeneratedReports\UE58PerformanceAutomation\RuntimeProfilingCapture\LATEST.md"
+$ue58RuntimeProfilingCaptureEvidencePath = Get-PreferredRuntimeCapturePath -LatestPath $ue58RuntimeProfilingCaptureReportPath
+$ue58EnvBatchTagToolsScriptPath = Join-Path $RepoRoot "BuildScripts\Automation\Test-UE58EnvBatchTagTools.ps1"
+$ue58EnvBatchTagToolsReportPath = Join-Path $RepoRoot "Docs\GeneratedReports\UE58PerformanceAutomation\EnvBatchTagTools\LATEST.md"
+$ue58PilotClusterScriptPath = Join-Path $RepoRoot "BuildScripts\Automation\Select-UE58PilotCluster.ps1"
+$ue58PilotClusterReportPath = Join-Path $RepoRoot "Docs\GeneratedReports\UE58PerformanceAutomation\PilotCluster\LATEST.md"
+$ue58MaterialBatchDryRunScriptPath = Join-Path $RepoRoot "BuildScripts\Automation\Invoke-UE58MaterialBatchDryRun.ps1"
+$ue58MaterialBatchDryRunReportPath = Join-Path $RepoRoot "Docs\GeneratedReports\UE58PerformanceAutomation\MaterialBatchDryRun\LATEST.md"
 $materialBatchMappingDataAssetHeaderPath = Join-Path $RepoRoot "Source\DevKit\Public\System\MaterialBatchMappingDataAsset.h"
 $materialBatchMappingDataAssetCppPath = Join-Path $RepoRoot "Source\DevKit\Private\System\MaterialBatchMappingDataAsset.cpp"
 $materialBatchAuditCommandletPath = Join-Path $RepoRoot "Source\DevKitEditor\MaterialBatch\MaterialBatchAuditCommandlet.cpp"
@@ -110,6 +164,9 @@ $materialBatchParentMaterialSetupCommandletPath = Join-Path $RepoRoot "Source\De
 $materialBatchMaterialAuditCommandletPath = Join-Path $RepoRoot "Source\DevKitEditor\MaterialBatch\MaterialBatchMaterialAuditCommandlet.cpp"
 $materialBatchCandidateRulesPath = Join-Path $RepoRoot "Source\DevKitEditor\MaterialBatch\MaterialBatchCandidateRules.cpp"
 $materialBatchCandidateTestsPath = Join-Path $RepoRoot "Source\DevKitEditor\Private\Tests\MaterialBatchCandidateRulesTests.cpp"
+$envBatchPythonToolPath = Join-Path $RepoRoot "Source\DevKitEditor\MaterialBatch\EnvBatchTagTool.py"
+$envBatchTaggerWidgetHeaderPath = Join-Path $RepoRoot "Source\DevKitEditor\Private\Tools\SEnvBatchTaggerWidget.h"
+$envBatchTaggerWidgetCppPath = Join-Path $RepoRoot "Source\DevKitEditor\Private\Tools\SEnvBatchTaggerWidget.cpp"
 $materialBatchAuditReportPath = Join-Path $RepoRoot "Docs\GeneratedReports\CommandletReports\MaterialBatchAuditReport.md"
 $materialBatchBuildReportPath = Join-Path $RepoRoot "Docs\GeneratedReports\CommandletReports\MaterialBatchBuildReport.md"
 $materialBatchBuildManifestPath = Join-Path $RepoRoot "Docs\GeneratedReports\CommandletReports\MaterialBatchBuildManifest.json"
@@ -120,18 +177,22 @@ $ue58RuntimeProfilingPlanCommandletPath = Join-Path $RepoRoot "Source\DevKitEdit
 $ue58RuntimeProfilingPlanPath = Join-Path $RepoRoot "Source\DevKitEditor\Performance\UE58RuntimeProfilingPlan.cpp"
 $ue58ScenePerformanceTestsPath = Join-Path $RepoRoot "Source\DevKitEditor\Private\Tests\UE58ScenePerformanceAuditTests.cpp"
 $ue58RuntimeProfilingPlanReportPath = Join-Path $RepoRoot "Docs\GeneratedReports\CommandletReports\UE58RuntimeProfilingPlanReport.md"
-$materialBatchGeneratedMappingAssetPath = Join-Path $RepoRoot "Content\Generated\MaterialBatch\Medium\FloorBrick03_Probe\DA_MaterialBatchMap_FloorBrick03_Probe.uasset"
-$materialBatchGeneratedPropertyTexturePath = Join-Path $RepoRoot "Content\Generated\MaterialBatch\Medium\FloorBrick03_Probe\T_PropTexture_FloorBrick03_Probe.uasset"
-$materialBatchGeneratedProxyMeshPath = Join-Path $RepoRoot "Content\Generated\MaterialBatch\Medium\FloorBrick03_Probe\SM_BatchProxy_FloorBrick03_Probe.uasset"
-$materialBatchGeneratedBatchMaterialPath = Join-Path $RepoRoot "Content\Generated\MaterialBatch\Medium\FloorBrick03_Probe\MI_Env_Batch_FloorBrick03_Probe.uasset"
-$materialBatchGeneratedTextureArrayRoot = Join-Path $RepoRoot "Content\Generated\MaterialBatch\Medium\FloorBrick03_Probe"
-$materialBatchParentMaterialAssetPath = Join-Path $RepoRoot "Content\Art\Material\EnvMaterial\Main\M_Env_Building_Batch.uasset"
+$materialBatchGeneratedMappingAssetPath = Join-Path $RepoRoot "Content\Generated\MaterialBatch\Mid\FloorBrick03_Probe\DA_MaterialBatchMap_FloorBrick03_Probe.uasset"
+$materialBatchGeneratedPropertyTexturePath = Join-Path $RepoRoot "Content\Generated\MaterialBatch\Mid\FloorBrick03_Probe\T_PropTexture_FloorBrick03_Probe.uasset"
+$materialBatchGeneratedProxyMeshPath = Join-Path $RepoRoot "Content\Generated\MaterialBatch\Mid\FloorBrick03_Probe\SM_BatchProxy_FloorBrick03_Probe.uasset"
+$materialBatchGeneratedBatchMaterialPath = Join-Path $RepoRoot "Content\Generated\MaterialBatch\Mid\FloorBrick03_Probe\MI_Env_Batch_FloorBrick03_Probe.uasset"
+$materialBatchGeneratedTextureArrayRoot = Join-Path $RepoRoot "Content\Generated\MaterialBatch\Mid\FloorBrick03_Probe"
+$materialBatchParentMaterialAssetPath = Join-Path $RepoRoot "Content\Art\Material\EnvMaterial\Main\M_Env_Baked_VTAtlas.uasset"
 $targetMaterialPath = Join-Path $RepoRoot "Content\Art\Material\EnvMaterial\Main\M_Env_Building.uasset"
 $tierPlanMatch = Get-ChildItem -LiteralPath (Join-Path $RepoRoot "Docs") -Recurse -File -Filter "UE58_ArtPerformanceTieringAndBatching.md" -ErrorAction SilentlyContinue | Select-Object -First 1
 $tierPlanPath = if ($tierPlanMatch) { $tierPlanMatch.FullName } else { "(not found)" }
-$comprehensivePlanMatch = Get-ChildItem -LiteralPath (Join-Path $RepoRoot "Docs") -Recurse -File -Filter "UE58_*.md" -ErrorAction SilentlyContinue |
-    Where-Object { $_.Name -ne "UE58_ArtPerformanceTieringAndBatching.md" } |
+$comprehensivePlanMatch = Get-ChildItem -LiteralPath (Join-Path $RepoRoot "Docs") -Recurse -File -Filter "UE58_EpicHighMidLow_*.md" -ErrorAction SilentlyContinue |
     Select-Object -First 1
+if (-not $comprehensivePlanMatch) {
+    $comprehensivePlanMatch = Get-ChildItem -LiteralPath (Join-Path $RepoRoot "Docs") -Recurse -File -Filter "UE58_*.md" -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -ne "UE58_ArtPerformanceTieringAndBatching.md" } |
+        Select-Object -First 1
+}
 $comprehensivePlanPath = if ($comprehensivePlanMatch) { $comprehensivePlanMatch.FullName } else { "(not found)" }
 
 $defaultEngineLines = @()
@@ -220,8 +281,22 @@ $ue58MaterialMcpAuditReportText = if (Test-Path -LiteralPath $ue58MaterialMcpAud
 $ue58BatchVisualMcpAuditReportText = if (Test-Path -LiteralPath $ue58BatchVisualMcpAuditReportPath) { Get-Content -LiteralPath $ue58BatchVisualMcpAuditReportPath -Raw } else { "" }
 $ue58SceneParityMcpAuditReportText = if (Test-Path -LiteralPath $ue58SceneParityMcpAuditReportPath) { Get-Content -LiteralPath $ue58SceneParityMcpAuditReportPath -Raw } else { "" }
 $ue58RuntimeProfilingMcpSmokeReportText = if (Test-Path -LiteralPath $ue58RuntimeProfilingMcpSmokeReportPath) { Get-Content -LiteralPath $ue58RuntimeProfilingMcpSmokeReportPath -Raw } else { "" }
+$ue58RuntimeProfilingPlanFallbackScriptText = if (Test-Path -LiteralPath $ue58RuntimeProfilingPlanFallbackScriptPath) { Get-Content -LiteralPath $ue58RuntimeProfilingPlanFallbackScriptPath -Raw } else { "" }
+$ue58RuntimeProfilingPlanFallbackReportText = if (Test-Path -LiteralPath $ue58RuntimeProfilingPlanFallbackReportPath) { Get-Content -LiteralPath $ue58RuntimeProfilingPlanFallbackReportPath -Raw } else { "" }
+$ue58CommandletAvailabilityScriptText = if (Test-Path -LiteralPath $ue58CommandletAvailabilityScriptPath) { Get-Content -LiteralPath $ue58CommandletAvailabilityScriptPath -Raw } else { "" }
+$ue58CommandletAvailabilityReportText = if (Test-Path -LiteralPath $ue58CommandletAvailabilityReportPath) { Get-Content -LiteralPath $ue58CommandletAvailabilityReportPath -Raw } else { "" }
+$ue58PostCleanLinkValidationScriptText = if (Test-Path -LiteralPath $ue58PostCleanLinkValidationScriptPath) { Get-Content -LiteralPath $ue58PostCleanLinkValidationScriptPath -Raw } else { "" }
+$ue58PostCleanLinkValidationReportText = if (Test-Path -LiteralPath $ue58PostCleanLinkValidationReportPath) { Get-Content -LiteralPath $ue58PostCleanLinkValidationReportPath -Raw } else { "" }
+$ue58BuildValidationScriptText = if (Test-Path -LiteralPath $ue58BuildValidationScriptPath) { Get-Content -LiteralPath $ue58BuildValidationScriptPath -Raw } else { "" }
+$ue58BuildValidationReportText = if (Test-Path -LiteralPath $ue58BuildValidationReportPath) { Get-Content -LiteralPath $ue58BuildValidationReportPath -Raw } else { "" }
 $ue58RuntimeProfilingCaptureScriptText = if (Test-Path -LiteralPath $ue58RuntimeProfilingCaptureScriptPath) { Get-Content -LiteralPath $ue58RuntimeProfilingCaptureScriptPath -Raw } else { "" }
-$ue58RuntimeProfilingCaptureReportText = if (Test-Path -LiteralPath $ue58RuntimeProfilingCaptureReportPath) { Get-Content -LiteralPath $ue58RuntimeProfilingCaptureReportPath -Raw } else { "" }
+$ue58RuntimeProfilingCaptureReportText = if (Test-Path -LiteralPath $ue58RuntimeProfilingCaptureEvidencePath) { Get-Content -LiteralPath $ue58RuntimeProfilingCaptureEvidencePath -Raw } else { "" }
+$ue58EnvBatchTagToolsScriptText = if (Test-Path -LiteralPath $ue58EnvBatchTagToolsScriptPath) { Get-Content -LiteralPath $ue58EnvBatchTagToolsScriptPath -Raw } else { "" }
+$ue58EnvBatchTagToolsReportText = if (Test-Path -LiteralPath $ue58EnvBatchTagToolsReportPath) { Get-Content -LiteralPath $ue58EnvBatchTagToolsReportPath -Raw } else { "" }
+$ue58PilotClusterScriptText = if (Test-Path -LiteralPath $ue58PilotClusterScriptPath) { Get-Content -LiteralPath $ue58PilotClusterScriptPath -Raw } else { "" }
+$ue58PilotClusterReportText = if (Test-Path -LiteralPath $ue58PilotClusterReportPath) { Get-Content -LiteralPath $ue58PilotClusterReportPath -Raw } else { "" }
+$ue58MaterialBatchDryRunScriptText = if (Test-Path -LiteralPath $ue58MaterialBatchDryRunScriptPath) { Get-Content -LiteralPath $ue58MaterialBatchDryRunScriptPath -Raw } else { "" }
+$ue58MaterialBatchDryRunReportText = if (Test-Path -LiteralPath $ue58MaterialBatchDryRunReportPath) { Get-Content -LiteralPath $ue58MaterialBatchDryRunReportPath -Raw } else { "" }
 $materialBatchAuditCommandletText = if (Test-Path -LiteralPath $materialBatchAuditCommandletPath) { Get-Content -LiteralPath $materialBatchAuditCommandletPath -Raw } else { "" }
 $materialBatchBuildCommandletText = if (Test-Path -LiteralPath $materialBatchBuildCommandletPath) { Get-Content -LiteralPath $materialBatchBuildCommandletPath -Raw } else { "" }
 $materialBatchBuildPlanText = if (Test-Path -LiteralPath $materialBatchBuildPlanPath) { Get-Content -LiteralPath $materialBatchBuildPlanPath -Raw } else { "" }
@@ -232,6 +307,9 @@ $ue58RuntimeProfilingPlanText = if (Test-Path -LiteralPath $ue58RuntimeProfiling
 $ue58ScenePerformanceTestsText = if (Test-Path -LiteralPath $ue58ScenePerformanceTestsPath) { Get-Content -LiteralPath $ue58ScenePerformanceTestsPath -Raw } else { "" }
 $materialBatchCandidateRulesText = if (Test-Path -LiteralPath $materialBatchCandidateRulesPath) { Get-Content -LiteralPath $materialBatchCandidateRulesPath -Raw } else { "" }
 $materialBatchCandidateTestsText = if (Test-Path -LiteralPath $materialBatchCandidateTestsPath) { Get-Content -LiteralPath $materialBatchCandidateTestsPath -Raw } else { "" }
+$envBatchPythonToolText = if (Test-Path -LiteralPath $envBatchPythonToolPath) { Get-Content -LiteralPath $envBatchPythonToolPath -Raw } else { "" }
+$envBatchTaggerWidgetHeaderText = if (Test-Path -LiteralPath $envBatchTaggerWidgetHeaderPath) { Get-Content -LiteralPath $envBatchTaggerWidgetHeaderPath -Raw } else { "" }
+$envBatchTaggerWidgetCppText = if (Test-Path -LiteralPath $envBatchTaggerWidgetCppPath) { Get-Content -LiteralPath $envBatchTaggerWidgetCppPath -Raw } else { "" }
 $materialBatchMappingDataAssetHeaderText = if (Test-Path -LiteralPath $materialBatchMappingDataAssetHeaderPath) { Get-Content -LiteralPath $materialBatchMappingDataAssetHeaderPath -Raw } else { "" }
 $materialBatchAuditReportText = if (Test-Path -LiteralPath $materialBatchAuditReportPath) { Get-Content -LiteralPath $materialBatchAuditReportPath -Raw } else { "" }
 $materialBatchBuildReportText = if (Test-Path -LiteralPath $materialBatchBuildReportPath) { Get-Content -LiteralPath $materialBatchBuildReportPath -Raw } else { "" }
@@ -256,6 +334,12 @@ $frontendPresetStateSyncDetected = $gameInstanceCppText -match "\.OnClicked_Lamb
     $gameInstanceCppText -match "MakeGraphicsSettingsForProfile\(Profile\)"
 $performanceSettingsTestDetected = $performanceSettingsTestsText -match "DevKit.Performance.Settings.MakesClampedCustomSettings" -and
     $performanceSettingsTestsText -match "MakeCustomGraphicsSettings"
+$materialPerformanceInterfaceDetected = $performanceLibraryHeaderText -match "FYogMaterialPerformanceTierInterface" -and
+    $performanceLibraryHeaderText -match "GetMaterialPerformanceInterfaceForTargetTier" -and
+    $performanceLibraryCppText -match "GetMaterialPerformanceInterfaceForGraphicsSettings"
+$materialPerformanceInterfaceTestDetected = $performanceSettingsTestsText -match "DevKit.Performance.Settings.MaterialTierInterface" -and
+    $performanceSettingsTestsText -match "MaxUniqueTextureSets" -and
+    $performanceSettingsTestsText -match "bPreferBakedMaterial"
 $graphicsSettingsWidgetBaseDetected = $graphicsSettingsWidgetHeaderText -match "UYogGraphicsSettingsWidgetBase" -and
     $graphicsSettingsWidgetCppText -match "GetRequiredDesignerWidgetNames" -and
     $graphicsSettingsWidgetCppText -match "ApplyPendingSettings"
@@ -281,6 +365,9 @@ $ue58MaterialMcpAuditRequiredParamsDetected = $ue58MaterialMcpAuditReportText -m
 $ue58MaterialMcpAuditGraphDetected = $ue58MaterialMcpAuditReportText -match "MaterialAttributes connected: True" -and
     $ue58MaterialMcpAuditReportText -match "Expression count:" -and
     $ue58MaterialMcpAuditReportText -match "PerInstanceCustomData expression count:"
+$ue58MaterialMcpAuditFullExpressionGraphDetected = $ue58MaterialMcpAuditReportText -match "Expression graph mode: Full" -and
+    $ue58MaterialMcpAuditReportText -match "Expression count:" -and
+    $ue58MaterialMcpAuditReportText -notmatch "Expression count: 0"
 $ue58BatchVisualMcpAuditReportDetected = Test-Path -LiteralPath $ue58BatchVisualMcpAuditReportPath
 $ue58BatchVisualMcpAuditCapturedDetected = $ue58BatchVisualMcpAuditReportText -match "Status: Captured" -and
     $ue58BatchVisualMcpAuditReportText -match "Source floor mesh" -and
@@ -304,24 +391,103 @@ $ue58RuntimeProfilingMcpSmokeReadyDetected = $ue58RuntimeProfilingMcpSmokeReport
     $ue58RuntimeProfilingMcpSmokeReportText -match "sg\.GlobalIlluminationQuality.+True" -and
     $ue58RuntimeProfilingMcpSmokeReportText -match "r\.Lumen\.DiffuseIndirect\.Allow.+True" -and
     $ue58RuntimeProfilingMcpSmokeReportText -match "r\.MeshDrawCommands\.LogDynamicInstancingStats.+True"
+$ue58RuntimeProfilingPlanFallbackScriptDetected = $ue58RuntimeProfilingPlanFallbackScriptText -match "UE58RuntimeProfilingPlanReport.md" -and
+    $ue58RuntimeProfilingPlanFallbackScriptText -match "Baseline_LumenOff_NoBatch" -and
+    $ue58RuntimeProfilingPlanFallbackScriptText -match "Commandlet fallback"
+$ue58RuntimeProfilingPlanFallbackReportDetected = $ue58RuntimeProfilingPlanFallbackReportText -match "Commandlet fallback: True"
+$ue58CommandletAvailabilityScriptDetected = $ue58CommandletAvailabilityScriptText -match "ClassMissingUntilCleanLink" -and
+    $ue58CommandletAvailabilityScriptText -match "GraphicsSettingsWidgetSetup" -and
+    $ue58CommandletAvailabilityScriptText -match "MaterialBatchMaterialAudit" -and
+    $ue58CommandletAvailabilityScriptText -match "UE58RuntimeProfilingPlan"
+$ue58CommandletAvailabilityReportDetected = Test-Path -LiteralPath $ue58CommandletAvailabilityReportPath
+$ue58CommandletAvailabilityBlockedDetected = $ue58CommandletAvailabilityReportText -match "(?m)^- Status: BlockedByCleanLink\s*$" -and
+    $ue58CommandletAvailabilityReportText -match "ClassMissingUntilCleanLink"
+$ue58PostCleanLinkValidationScriptDetected = $ue58PostCleanLinkValidationScriptText -match "RunReportCommandlets" -and
+    $ue58PostCleanLinkValidationScriptText -match "RunMaterialBatchDryRun" -and
+    $ue58PostCleanLinkValidationScriptText -match "BlockedByOpenEditor" -and
+    $ue58PostCleanLinkValidationScriptText -match "CommandletAvailability" -and
+    $ue58PostCleanLinkValidationScriptText -match "MaterialBatchDryRun"
+$ue58PostCleanLinkValidationReportDetected = Test-Path -LiteralPath $ue58PostCleanLinkValidationReportPath
+$ue58PostCleanLinkValidationWaitingDetected = $ue58PostCleanLinkValidationReportText -match "(?m)^- Status: (WaitingForEditorClose|PreparedForCleanLink|BlockedByOpenEditor)\s*$"
+$ue58PostCleanLinkValidationReadyDetected = $ue58PostCleanLinkValidationReportText -match "(?m)^- Status: (ReportCommandletsAvailable|DryRunCaptured)\s*$"
+$ue58BuildValidationScriptDetected = $ue58BuildValidationScriptText -match "RunBuild" -and
+    $ue58BuildValidationScriptText -match "AllowOpenEditor" -and
+    $ue58BuildValidationScriptText -match "AutoCloseEditor" -and
+    $ue58BuildValidationScriptText -match "Editor close attempted" -and
+    $ue58BuildValidationScriptText -match "BlockedByOpenEditor" -and
+    $ue58BuildValidationScriptText -match "LatestBuildBlockedByOpenEditor"
+$ue58BuildValidationReportDetected = Test-Path -LiteralPath $ue58BuildValidationReportPath
+$ue58BuildValidationBlockedDetected = $ue58BuildValidationReportText -match "(?m)^- Status: (BlockedByOpenEditor|LatestBuildBlockedByOpenEditor)\s*$"
+$ue58BuildValidationSucceededDetected = $ue58BuildValidationReportText -match "(?m)^- Status: (BuildSucceeded|LatestBuildSucceeded)\s*$"
 $ue58RuntimeProfilingCaptureScriptDetected = $ue58RuntimeProfilingCaptureScriptText -match "UnrealEditor\.exe" -and
     $ue58RuntimeProfilingCaptureScriptText -match "-ExecCmds" -and
     $ue58RuntimeProfilingCaptureScriptText -match "Baseline_LumenOff_NoBatch" -and
     $ue58RuntimeProfilingCaptureScriptText -match "LumenLite_NoBatch" -and
     $ue58RuntimeProfilingCaptureScriptText -match "profilegpu"
-$ue58RuntimeProfilingCaptureReportDetected = Test-Path -LiteralPath $ue58RuntimeProfilingCaptureReportPath
-$ue58RuntimeProfilingCaptureReadyDetected = (
-    ($ue58RuntimeProfilingCaptureReportText -match "(?m)^- Status: (Captured|Partial)\s*$" -and
-        $ue58RuntimeProfilingCaptureReportText -match "\|\s*[1-9][0-9]*\s*\|") -or
-    ($ue58RuntimeProfilingCaptureReportText -match "(?m)^- Status: ParsedLogCaptured\s*$" -and
-        $ue58RuntimeProfilingCaptureReportText -match "Frame Time ms" -and
-        $ue58RuntimeProfilingCaptureReportText -match "\|\s*[0-9]+(?:\.[0-9]+)?\s*\|\s*[0-9]+(?:\.[0-9]+)?\s*\|")
-) -and
+$ue58RuntimeProfilingCaptureReportDetected = Test-Path -LiteralPath $ue58RuntimeProfilingCaptureEvidencePath
+$ue58RuntimeProfilingCaptureReadyDetected = (Test-RuntimeCaptureReadyText -Text $ue58RuntimeProfilingCaptureReportText) -and
     $ue58RuntimeProfilingCaptureReportText -match "Baseline_LumenOff_NoBatch" -and
     $ue58RuntimeProfilingCaptureReportText -match "LumenLite_NoBatch"
+$ue58EnvBatchTagToolsScriptDetected = $ue58EnvBatchTagToolsScriptText -match "EnvBatch\.Baked\.Ground\.Mid" -and
+    $ue58EnvBatchTagToolsScriptText -match "EnvBatch\.Baked\.Wall\.Low" -and
+    $ue58EnvBatchTagToolsScriptText -match "py_compile" -and
+    $ue58EnvBatchTagToolsScriptText -match "MUTUALLY_EXCLUSIVE_PREFIXES"
+$ue58EnvBatchTagToolsReportDetected = Test-Path -LiteralPath $ue58EnvBatchTagToolsReportPath
+$ue58EnvBatchTagToolsPassedDetected = $ue58EnvBatchTagToolsReportText -match "(?m)^- Status: Passed\s*$" -and
+    $ue58EnvBatchTagToolsReportText -match "EnvBatch\.Baked\.Wall\.Mid" -and
+    $ue58EnvBatchTagToolsReportText -match "Python fallback syntax compiles"
+$ue58PilotClusterScriptDetected = $ue58PilotClusterScriptText -match "Prison_S_01_SourceProxy" -and
+    $ue58PilotClusterScriptText -match "/Game/Art/Map/GameLevel_L1/Prison/L1_CommonLevel_Prison_S_01" -and
+    $ue58PilotClusterScriptText -match "ReadyForCommandlet" -and
+    $ue58PilotClusterScriptText -match "Required EnvBatch Tags" -and
+    $ue58PilotClusterScriptText -match "Invoke-UE58MaterialBatchDryRun.ps1"
+$ue58PilotClusterReportDetected = Test-Path -LiteralPath $ue58PilotClusterReportPath
+$ue58PilotClusterReadyDetected = $ue58PilotClusterReportText -match "(?m)^- Status: (ReadyForCommandlet|DryRunEvidenceCaptured)\s*$" -and
+    $ue58PilotClusterReportText -match "(?m)^- Ready for commandlet: True\s*$" -and
+    $ue58PilotClusterReportText -match "(?m)^- Map file exists: True\s*$" -and
+    $ue58PilotClusterReportText -match "(?m)^- Target material exists: True\s*$" -and
+    $ue58PilotClusterReportText -match "(?m)^- Material MCP ready: True\s*$" -and
+    $ue58PilotClusterReportText -match "(?m)^- EnvBatch tool ready: True\s*$"
+$ue58MaterialBatchDryRunScriptDetected = $ue58MaterialBatchDryRunScriptText -match "MaterialBatchAudit" -and
+    $ue58MaterialBatchDryRunScriptText -match "MaterialBatchBuild" -and
+    $ue58MaterialBatchDryRunScriptText -match "BlockedByBuild" -and
+    $ue58MaterialBatchDryRunScriptText -match "actualLayerEvidence" -and
+    $ue58MaterialBatchDryRunScriptText -match "Layer evidence mode" -and
+    $ue58MaterialBatchDryRunScriptText -match "sourceProxyAssetReadiness" -and
+    $ue58MaterialBatchDryRunScriptText -match "sourceProxyAssetConfigSet"
+$ue58MaterialBatchDryRunReportDetected = Test-Path -LiteralPath $ue58MaterialBatchDryRunReportPath
+$ue58MaterialBatchDryRunBlockedByBuildDetected = $ue58MaterialBatchDryRunReportText -match "(?m)^- Status: BlockedByBuild\s*$"
+$ue58MaterialBatchDryRunCapturedDetected = $ue58MaterialBatchDryRunReportText -match "(?m)^- Status: DryRunCaptured\s*$" -and
+    $ue58MaterialBatchDryRunReportText -match "(?m)^- Actual layer evidence: True\s*$" -and
+    $ue58MaterialBatchDryRunReportText -match "(?m)^- Source/Proxy asset evidence: True\s*$" -and
+    $ue58MaterialBatchDryRunReportText -match "(?m)^- Residency risk evidence: True\s*$"
 $materialBatchAuditDetected = $materialBatchAuditCommandletText -match "MaterialBatchAuditReport.md" -and $materialBatchCandidateRulesText -match "ClassifyComponent"
 $materialBatchBuildDetected = $materialBatchBuildCommandletText -match "MaterialBatchBuildReport.md" -and
     $materialBatchBuildPlanText -match "CreateDryRunPlan"
+$envBatchTaggerBakedSurfaceTagsDetected = $envBatchTaggerWidgetHeaderText -match "ApplyBakedGroundMidTag" -and
+    $envBatchTaggerWidgetHeaderText -match "ApplyBakedWallMidTag" -and
+    $envBatchTaggerWidgetCppText -match "EnvBatch\.Baked\.Ground\.Mid" -and
+    $envBatchTaggerWidgetCppText -match "EnvBatch\.Baked\.Ground\.Low" -and
+    $envBatchTaggerWidgetCppText -match "EnvBatch\.Baked\.Wall\.Mid" -and
+    $envBatchTaggerWidgetCppText -match "EnvBatch\.Baked\.Wall\.Low"
+$envBatchPythonFallbackDetected = $envBatchPythonToolText -match "MUTUALLY_EXCLUSIVE_PREFIXES" -and
+    $envBatchPythonToolText -match "EnvBatch\.Source\." -and
+    $envBatchPythonToolText -match "EnvBatch\.Proxy\." -and
+    $envBatchPythonToolText -match "EnvBatch\.Baked\.Ground\.Mid" -and
+    $envBatchPythonToolText -match "EnvBatch\.Baked\.Wall\.Mid" -and
+    $envBatchPythonToolText -match "EnvBatch\.Baked\.Wall\.Low"
+$envBatchStreamingLevelEvidenceDetected = $materialBatchBuildCommandletText -match "GetActorStreamingLayerNames" -and
+    $materialBatchBuildCommandletText -match "FlushLevelStreaming" -and
+    $materialBatchBuildPlanText -match "LayerBackend" -and
+    $materialBatchBuildPlanText -match "actualLayers"
+$envBatchAssetReadinessUiDetected = $envBatchTaggerWidgetHeaderText -match "GetAssetReadinessSummaryText" -and
+    $envBatchTaggerWidgetCppText -match "Source/Proxy asset readiness" -and
+    $envBatchTaggerWidgetCppText -match "SourceLOD0" -and
+    $envBatchTaggerWidgetCppText -match "ProxyLOD1" -and
+    $envBatchTaggerWidgetCppText -match "proxy missing explicit Source config" -and
+    $envBatchPythonToolText -match "_asset_readiness_summary" -and
+    $envBatchPythonToolText -match "print_asset_readiness" -and
+    $envBatchPythonToolText -match "MissingSourceAssetReference"
 $materialBatchMappingDataAssetTypeDetected = $materialBatchMappingDataAssetHeaderText -match "UMaterialBatchMappingDataAsset" -and
     $materialBatchMappingDataAssetHeaderText -match "FMaterialBatchMappingGeometrySource" -and
     $materialBatchMappingDataAssetHeaderText -match "FMaterialBatchMappingPropertyRow"
@@ -355,6 +521,7 @@ $materialBatchBuildManifestDetected = Test-Path -LiteralPath $materialBatchBuild
 $materialBatchMaterialAuditReportDetected = Test-Path -LiteralPath $materialBatchMaterialAuditReportPath
 $ue58ScenePerformanceAuditReportDetected = Test-Path -LiteralPath $ue58ScenePerformanceAuditReportPath
 $ue58RuntimeProfilingPlanReportDetected = Test-Path -LiteralPath $ue58RuntimeProfilingPlanReportPath
+$ue58RuntimeProfilingPlanSharedReportIsFallback = $ue58RuntimeProfilingPlanReportText -match "(?m)^- Commandlet fallback: True\s*$"
 $ue58ScenePerformanceAuditLoadedDetected = $ue58ScenePerformanceAuditReportText -match "- Loaded: Yes"
 $ue58ScenePerformanceAuditStaticMeshDetected = $ue58ScenePerformanceAuditReportText -match "StaticMesh components:" -and
     $ue58ScenePerformanceAuditReportText -match "StaticMesh material slot upper-bound:"
@@ -429,26 +596,48 @@ $materialBatchBuildManifestPropertyTextureLayoutDetected = $materialBatchBuildMa
 $materialBatchBuildReportPropertyTextureLayoutDetected = $materialBatchBuildReportText -match "## Property Texture Layout" -and
     $materialBatchBuildReportText -match "BaseColorSlice" -and
     $materialBatchBuildReportText -match "batchMaterialIndex"
-$materialBatchBuildParentContractSourceDetected = $materialBatchBuildPlanText -match "M_Env_Building_Batch" -and
+$materialBatchBuildParentContractSourceDetected = $materialBatchBuildPlanText -match "M_Env_Baked_VTAtlas" -and
     $materialBatchBuildPlanText -match "Batch Material Parent Contract" -and
     $materialBatchBuildPlanText -match "_PropTexture" -and
     $materialBatchBuildPlanText -match "TexCoord7\.x" -and
     $materialBatchCandidateTestsText -match "BuildsBatchMaterialPayload"
 $materialBatchBuildReportParentContractDetected = $materialBatchBuildReportText -match "## Batch Material Parent Contract" -and
-    $materialBatchBuildReportText -match "M_Env_Building_Batch" -and
+    $materialBatchBuildReportText -match "M_Env_Baked_VTAtlas" -and
     $materialBatchBuildReportText -match "_PropTexture"
 $materialBatchBuildManifestParentContractDetected = $materialBatchBuildManifestSchemaDetected -and
     $materialBatchBuildManifestText -match '"batchMaterialContract"\s*:' -and
-    $materialBatchBuildManifestText -match '"batchParentMaterial"\s*:\s*"/Game/Art/Material/EnvMaterial/Main/M_Env_Building_Batch\.M_Env_Building_Batch"' -and
+    $materialBatchBuildManifestText -match '"batchParentMaterial"\s*:\s*"/Game/Art/Material/EnvMaterial/Main/M_Env_Baked_VTAtlas\.M_Env_Baked_VTAtlas"' -and
     $materialBatchBuildManifestText -match '"propertyTextureParameter"\s*:\s*"_PropTexture"'
+$materialBatchBuildReportActualLayerReadinessDetected = $materialBatchBuildReportText -match "## Source/Proxy/Baked Layer Readiness" -and
+    $materialBatchBuildReportText -match "Actual layer matches" -and
+    $materialBatchBuildReportText -match "Layer Status"
+$materialBatchBuildManifestActualLayerReadinessDetected = $materialBatchBuildManifestSchemaDetected -and
+    $materialBatchBuildManifestText -match '"sourceProxyLayerReadiness"\s*:' -and
+    $materialBatchBuildManifestText -match '"actualLayers"\s*:' -and
+    $materialBatchBuildManifestText -match '"layerValidationStatus"\s*:'
+$materialBatchBuildSourceProxyAssetReadinessDetected = $materialBatchBuildPlanText -match "BuildSourceProxyAssetReadiness" -and
+    $materialBatchBuildPlanText -match "Source/Proxy Asset Readiness" -and
+    $materialBatchBuildPlanText -match "sourceProxyAssetReadiness" -and
+    $materialBatchBuildPlanText -match "sourceLODIndex" -and
+    $materialBatchBuildPlanText -match "proxyLODIndex" -and
+    $materialBatchBuildPlanText -match "MissingSourceAssetReference" -and
+    $materialBatchMappingDataAssetHeaderText -match "FMaterialBatchMappingSourceProxyAssetReadiness" -and
+    $materialBatchCandidateTestsText -match "ReadyGeneratedProxy"
+$materialBatchBuildSourceProxyAssetConfigSetDetected = $materialBatchBuildPlanText -match "BuildSourceProxyAssetConfigSet" -and
+    $materialBatchBuildPlanText -match "Source/Proxy Asset Config Set" -and
+    $materialBatchBuildPlanText -match "sourceProxyAssetConfigSet" -and
+    $materialBatchBuildPlanText -match "GeneratedFallback" -and
+    $materialBatchBuildPlanText -match "ImportSettingsOrArtAssetManagerRequired" -and
+    $materialBatchMappingDataAssetHeaderText -match "FMaterialBatchMappingSourceProxyAssetConfigSet" -and
+    $materialBatchMappingDataAssetHeaderText -match "ConfigSource"
 $materialBatchParentMaterialSetupCommandletDetected = $materialBatchParentMaterialSetupCommandletText -match "MaterialBatchParentMaterialSetupReport.md" -and
-    $materialBatchParentMaterialSetupCommandletText -match "Texture2DArraySample" -and
+    $materialBatchParentMaterialSetupCommandletText -match "Texture2DSample\(VT_Atlas" -and
     $materialBatchParentMaterialSetupCommandletText -match "TexCoord7"
 $materialBatchParentMaterialAssetDetected = Test-Path -LiteralPath $materialBatchParentMaterialAssetPath
 $materialBatchParentMaterialSetupReportDetected = $materialBatchParentMaterialSetupReportText -match "# Material Batch Parent Material Setup" -and
-    $materialBatchParentMaterialSetupReportText -match "M_Env_Building_Batch" -and
+    $materialBatchParentMaterialSetupReportText -match "M_Env_Baked_VTAtlas" -and
     $materialBatchParentMaterialSetupReportText -match "TextureCoordinate index 7 \| Yes" -and
-    $materialBatchParentMaterialSetupReportText -match 'Custom HLSL `Texture2DArraySample` \| Yes' -and
+    $materialBatchParentMaterialSetupReportText -match 'Custom HLSL `VT_Atlas` sample \| Yes' -and
     $materialBatchParentMaterialSetupReportText -match 'Custom HLSL `_PropTexture` sample \| Yes'
 $materialBatchBuildReportGeometryMergePlanDetected = $materialBatchBuildReportText -match "## Geometry Merge Plan" -and
     $materialBatchBuildReportText -match "TexCoord7.x" -and
@@ -476,7 +665,7 @@ $materialBatchBuildReportBatchMaterialSavedDetected = $materialBatchBuildReportT
     $materialBatchBuildReportText -match "Saved:" -and
     $materialBatchBuildReportText -match "MI_Env_Batch_FloorBrick03_Probe"
 $materialBatchBuildReportBatchMaterialBoundDetected = $materialBatchBuildReportText -match "## Batch Material Instance" -and
-    $materialBatchBuildReportText -match 'Bound `T_Array_A`' -and
+    $materialBatchBuildReportText -match 'Bound `VT_Atlas`' -and
     $materialBatchBuildReportText -match "Bound proxy mesh slot 0"
 $materialBatchGeneratedBatchMaterialDetected = Test-Path -LiteralPath $materialBatchGeneratedBatchMaterialPath
 $materialBatchBuildManifestGeometryMergePlanDetected = $materialBatchBuildManifestSchemaDetected -and
@@ -489,7 +678,12 @@ $materialBatchBuildManifestMaterialSlotRemapDetected = $materialBatchBuildManife
     $materialBatchBuildManifestText -match '"sourceMaterialSlotIndex"\s*:' -and
     $materialBatchBuildManifestText -match '"batchMaterialIndex"\s*:'
 $tierPlanDetected = $tierPlanText -match "Geometry Merge" -and $tierPlanText -match "Texture2DArray" -and $tierPlanText -match "Player Graphics Settings"
-$comprehensivePlanDetected = $comprehensivePlanText -match "Texture2DArray" -and $comprehensivePlanText -match "VT/SVT" -and $comprehensivePlanText -match "Geometry Merge" -and $comprehensivePlanText -match "MaterialBatchBuild"
+$comprehensivePlanDetected = $comprehensivePlanText -match "Epic / High / Mid / Low" -and
+    $comprehensivePlanText -match "VT Atlas" -and
+    $comprehensivePlanText -match "Geometry Merge" -and
+    $comprehensivePlanText -match "MaterialBatchBuild" -and
+    $comprehensivePlanText -match "ResidencyRiskPlan" -and
+    $comprehensivePlanText -match "Source/Proxy/Baked"
 
 $materialBatchReportRows = @(
     [pscustomobject]@{ Metric = "Root"; Value = Get-MarkdownBulletValue -Text $materialBatchAuditReportText -Label "Root" },
@@ -587,11 +781,62 @@ if ($ue58MaterialMcpAuditReportDetected -and -not $ue58MaterialMcpAuditRequiredP
 if ($ue58MaterialMcpAuditReportDetected -and -not $ue58MaterialMcpAuditGraphDetected) {
     $riskRows += "UE58MaterialMcpAudit_LATEST.md exists but does not prove MaterialAttributes and expression graph evidence."
 }
+if ($ue58MaterialMcpAuditGraphDetected -and -not $ue58MaterialMcpAuditFullExpressionGraphDetected) {
+    $riskRows += "UE58MaterialMcpAudit_LATEST.md is in quick MCP mode; it proves MaterialAttributes output connection and batch parameters but skips full expression graph traversal."
+}
 if (-not $materialBatchAuditDetected) {
     $riskRows += "MaterialBatchAudit commandlet and candidate rules were not detected."
 }
 if (-not $materialBatchBuildDetected) {
     $riskRows += "MaterialBatchBuild dry-run commandlet and plan builder were not detected."
+}
+if (-not $materialBatchBuildSourceProxyAssetReadinessDetected) {
+    $riskRows += "MaterialBatchBuild does not yet expose Source/Proxy asset pairing readiness with Source LOD0, Proxy LOD1, and optional explicit-proxy missing-source validation."
+}
+if (-not $materialBatchBuildSourceProxyAssetConfigSetDetected) {
+    $riskRows += "MaterialBatchBuild does not yet persist Source/Proxy asset config sets for import settings and the art asset manager."
+}
+if (-not $envBatchTaggerBakedSurfaceTagsDetected) {
+    $riskRows += "Native EnvBatch Tagger does not expose both ground and wall Mid/Low baked-surface tags."
+}
+if (-not $envBatchPythonFallbackDetected) {
+    $riskRows += "EnvBatch Python fallback tool is missing or no longer matches the Source/Proxy/Baked ground/wall tag contract."
+}
+if (-not $envBatchAssetReadinessUiDetected) {
+    $riskRows += "EnvBatch tools do not expose Source/Proxy asset readiness for selected actors; art cannot yet see SourceLOD0/ProxyLOD1 pairing state in the tagger."
+}
+if (-not $envBatchStreamingLevelEvidenceDetected) {
+    $riskRows += "MaterialBatchBuild does not yet prove actual StreamingLevel ownership for Source/Proxy/Baked layer readiness in the non-World-Partition workflow."
+}
+if (-not $ue58EnvBatchTagToolsScriptDetected) {
+    $riskRows += "UE58 EnvBatch tag tool contract script is missing or does not validate native/Python tag parity."
+}
+elseif (-not $ue58EnvBatchTagToolsReportDetected) {
+    $riskRows += "UE58 EnvBatch tag tool contract report was not found; run Test-UE58EnvBatchTagTools.ps1."
+}
+elseif (-not $ue58EnvBatchTagToolsPassedDetected) {
+    $riskRows += "UE58 EnvBatch tag tool contract report exists but is not passing."
+}
+if (-not $ue58PilotClusterScriptDetected) {
+    $riskRows += "UE58 pilot cluster selection script is missing or does not define the Prison_S_01 Source/Proxy pilot contract."
+}
+elseif (-not $ue58PilotClusterReportDetected) {
+    $riskRows += "UE58 pilot cluster selection report was not found; run Select-UE58PilotCluster.ps1 before real-cluster dry-run."
+}
+elseif (-not $ue58PilotClusterReadyDetected) {
+    $riskRows += "UE58 pilot cluster report exists but is not ready for commandlet; check map, material, MCP, EnvBatch tool, and dry-run alignment evidence."
+}
+if (-not $ue58MaterialBatchDryRunScriptDetected) {
+    $riskRows += "UE58 MaterialBatch real-cluster dry-run automation is missing or does not guard stale binaries and actual StreamingLevel layer evidence."
+}
+elseif (-not $ue58MaterialBatchDryRunReportDetected) {
+    $riskRows += "UE58 MaterialBatch real-cluster dry-run report was not found; run Invoke-UE58MaterialBatchDryRun.ps1 first in prepared mode, then with -Run after a clean link."
+}
+elseif ($ue58MaterialBatchDryRunBlockedByBuildDetected) {
+    $riskRows += "UE58 MaterialBatch real-cluster dry-run is blocked by the latest failed UBT link; close UnrealEditor after saving work, complete a clean link, then rerun Invoke-UE58MaterialBatchDryRun.ps1 -Run."
+}
+elseif (-not $ue58MaterialBatchDryRunCapturedDetected) {
+    $riskRows += "UE58 MaterialBatch real-cluster dry-run report exists but does not yet prove actual StreamingLevel layer readiness, Source/Proxy asset readiness/config-set evidence, and residency evidence."
 }
 if (-not $materialBatchMaterialAuditDetected) {
     $riskRows += "MaterialBatchMaterialAudit commandlet and target-material tests were not detected."
@@ -651,7 +896,7 @@ elseif (-not $materialBatchBuildManifestPropertyTextureLayoutDetected) {
     $riskRows += "MaterialBatchBuildManifest.json does not include propertyTextureLayout for deterministic property texture generation."
 }
 elseif (-not $materialBatchBuildParentContractSourceDetected) {
-    $riskRows += "MaterialBatchBuild does not source-control the final M_Env_Building_Batch parent material contract."
+    $riskRows += "MaterialBatchBuild does not source-control the final M_Env_Baked_VTAtlas parent material contract."
 }
 elseif (-not $materialBatchBuildReportParentContractDetected) {
     $riskRows += "MaterialBatchBuildReport.md does not include the final batch parent material contract."
@@ -663,10 +908,10 @@ elseif (-not $materialBatchParentMaterialSetupCommandletDetected) {
     $riskRows += "MaterialBatchParentMaterialSetup commandlet was not detected; final batch parent material asset cannot be generated repeatably."
 }
 elseif (-not $materialBatchParentMaterialAssetDetected) {
-    $riskRows += "M_Env_Building_Batch.uasset was not found; run MaterialBatchParentMaterialSetup -Apply before production batch material binding."
+    $riskRows += "M_Env_Baked_VTAtlas.uasset was not found; run MaterialBatchParentMaterialSetup -Apply before production batch material binding."
 }
 elseif (-not $materialBatchParentMaterialSetupReportDetected) {
-    $riskRows += "MaterialBatchParentMaterialSetupReport.md does not prove TexCoord7.x, _PropTexture, and Texture2DArraySample evidence for M_Env_Building_Batch."
+    $riskRows += "MaterialBatchParentMaterialSetupReport.md does not prove TexCoord7.x, _PropTexture, and VT_Atlas sampling evidence for M_Env_Baked_VTAtlas."
 }
 elseif (-not $materialBatchBuildManifestGeometryMergePlanDetected) {
     $riskRows += "MaterialBatchBuildManifest.json does not include geometryMergePlan for deterministic proxy mesh generation."
@@ -680,38 +925,32 @@ elseif (-not $materialBatchMappingDataAssetTypeDetected) {
 elseif (-not $materialBatchBuildApplyMappingOnlyDetected) {
     $riskRows += "MaterialBatchBuild does not expose ApplyMappingOnly mapping asset generation."
 }
-elseif (-not $materialBatchBuildApplyTextureArraysOnlyDetected) {
-    $riskRows += "MaterialBatchBuild does not expose ApplyTextureArraysOnly Texture2DArray generation."
-}
 elseif (-not $materialBatchGeneratedMappingAssetDetected) {
-    $riskRows += "Generated mapping data asset was not found under Content/Generated/MaterialBatch/Medium/FloorBrick03_Probe."
-}
-elseif (-not $materialBatchGeneratedTextureArraysDetected) {
-    $riskRows += "Generated Texture2DArray assets were not found under Content/Generated/MaterialBatch/Medium/FloorBrick03_Probe; run ApplyTextureArraysOnly on a real eligible art cluster."
+    $riskRows += "Generated mapping data asset was not found under Content/Generated/MaterialBatch/Mid/FloorBrick03_Probe."
 }
 elseif (-not $materialBatchBuildApplyPropertyTextureOnlyDetected) {
     $riskRows += "MaterialBatchBuild does not expose ApplyPropertyTextureOnly property texture generation."
 }
 elseif (-not $materialBatchGeneratedPropertyTextureDetected) {
-    $riskRows += "Generated property texture asset was not found under Content/Generated/MaterialBatch/Medium/FloorBrick03_Probe."
+    $riskRows += "Generated property texture asset was not found under Content/Generated/MaterialBatch/Mid/FloorBrick03_Probe."
 }
 elseif (-not $materialBatchBuildApplyProxyMeshOnlyDetected) {
     $riskRows += "MaterialBatchBuild does not expose ApplyProxyMeshOnly proxy mesh generation."
 }
 elseif (-not $materialBatchGeneratedProxyMeshDetected) {
-    $riskRows += "Generated proxy mesh asset was not found under Content/Generated/MaterialBatch/Medium/FloorBrick03_Probe."
+    $riskRows += "Generated proxy mesh asset was not found under Content/Generated/MaterialBatch/Mid/FloorBrick03_Probe."
 }
 elseif (-not $materialBatchBuildApplyBatchMaterialOnlyDetected) {
     $riskRows += "MaterialBatchBuild does not expose ApplyBatchMaterialOnly batch material instance generation."
 }
 elseif (-not $materialBatchGeneratedBatchMaterialDetected) {
-    $riskRows += "Generated batch material instance was not found under Content/Generated/MaterialBatch/Medium/FloorBrick03_Probe."
+    $riskRows += "Generated batch material instance was not found under Content/Generated/MaterialBatch/Mid/FloorBrick03_Probe."
 }
 elseif (-not $materialBatchBuildReportBatchMaterialSavedDetected) {
     $riskRows += "MaterialBatchBuildReport.md does not record the saved batch material instance path."
 }
 elseif (-not $materialBatchBuildReportBatchMaterialBoundDetected) {
-    $riskRows += "MaterialBatchBuildReport.md does not record Texture2DArray parameter bindings and proxy mesh material assignment."
+    $riskRows += "MaterialBatchBuildReport.md does not record VT_Atlas parameter binding and proxy mesh material assignment."
 }
 elseif (-not ($ue58BatchVisualMcpAuditCapturedDetected -and $ue58BatchVisualMcpAuditPngDetected)) {
     $riskRows += "UE58 batch visual MCP audit does not yet prove source and generated batch assets can render non-empty thumbnail captures."
@@ -740,7 +979,31 @@ elseif (-not $ue58RuntimeProfilingPlanMatrixDetected) {
 elseif (-not $ue58RuntimeProfilingPlanCaptureDetected) {
     $riskRows += "UE58RuntimeProfilingPlanReport.md does not include the required stat/profilegpu capture commands."
 }
-elseif (-not $ue58RuntimeProfilingMcpSmokeReadyDetected) {
+if ($ue58RuntimeProfilingPlanSharedReportIsFallback) {
+    $riskRows += "UE58RuntimeProfilingPlanReport.md is currently generated by the PowerShell fallback because the commandlet class is unavailable until a clean link; rerun the UE58RuntimeProfilingPlan commandlet after compiling."
+}
+if ($ue58CommandletAvailabilityBlockedDetected) {
+    $riskRows += "UE58 report-only commandlets are currently class-missing in the loaded editor binaries; close UnrealEditor after saving work, complete a clean link, then rerun GraphicsSettingsWidgetSetup, MaterialBatchMaterialAudit, and UE58RuntimeProfilingPlan."
+}
+if (-not $ue58PostCleanLinkValidationScriptDetected) {
+    $riskRows += "UE58 post-clean-link validation script is missing; add a safe continuation entry that reruns report-only commandlets and then the real MaterialBatch dry-run after commandlets are available."
+}
+elseif (-not $ue58PostCleanLinkValidationReportDetected) {
+    $riskRows += "UE58 post-clean-link validation report was not found; run Invoke-UE58PostCleanLinkValidation.ps1 in prepared mode."
+}
+elseif (-not $ue58PostCleanLinkValidationReadyDetected -and -not $ue58PostCleanLinkValidationWaitingDetected) {
+    $riskRows += "UE58 post-clean-link validation report has an unexpected status; inspect PostCleanLinkValidation/LATEST.md before continuing validation."
+}
+if (-not $ue58BuildValidationScriptDetected) {
+    $riskRows += "UE58 build validation script is missing; add a non-compiling heartbeat-safe build-status report plus an explicit -RunBuild path."
+}
+elseif (-not $ue58BuildValidationReportDetected) {
+    $riskRows += "UE58 build validation report was not found; run Invoke-UE58BuildValidation.ps1 in default mode."
+}
+elseif ($ue58BuildValidationBlockedDetected) {
+    $riskRows += "UE58 build validation shows the latest build is still blocked by an open UnrealEditor DLL lock; save and close the editor before the next clean link."
+}
+if (-not $ue58RuntimeProfilingMcpSmokeReadyDetected) {
     $riskRows += "UE58 runtime profiling MCP smoke is missing or not ready; run Invoke-UE58RuntimeProfilingMcpSmoke.ps1 while the UE5.8 MCP server is listening."
 }
 elseif (-not $ue58RuntimeProfilingCaptureScriptDetected) {
@@ -785,7 +1048,7 @@ else {
 $materialBatchBuildReportRows = @(
     [pscustomobject]@{ Metric = "Root"; Value = Get-MarkdownBulletValue -Text $materialBatchBuildReportText -Label "Root" },
     [pscustomobject]@{ Metric = "Map"; Value = Get-MarkdownBulletValue -Text $materialBatchBuildReportText -Label "Map" },
-    [pscustomobject]@{ Metric = "DataLayer"; Value = Get-MarkdownBulletValue -Text $materialBatchBuildReportText -Label "DataLayer" },
+    [pscustomobject]@{ Metric = "LayerBackend"; Value = Get-MarkdownBulletValue -Text $materialBatchBuildReportText -Label "LayerBackend" },
     [pscustomobject]@{ Metric = "Cluster"; Value = Get-MarkdownBulletValue -Text $materialBatchBuildReportText -Label "Cluster" },
     [pscustomobject]@{ Metric = "Tier"; Value = Get-MarkdownBulletValue -Text $materialBatchBuildReportText -Label "Tier" },
     [pscustomobject]@{ Metric = "OutputRoot"; Value = Get-MarkdownBulletValue -Text $materialBatchBuildReportText -Label "OutputRoot" },
@@ -810,6 +1073,17 @@ $materialBatchBuildReportRows = @(
     [pscustomobject]@{ Metric = "JSON property rows"; Value = if ($materialBatchBuildManifestPropertyRowsDetected) { "present" } else { "" } },
     [pscustomobject]@{ Metric = "Report property texture layout"; Value = if ($materialBatchBuildReportPropertyTextureLayoutDetected) { "present" } else { "" } },
     [pscustomobject]@{ Metric = "JSON property texture layout"; Value = if ($materialBatchBuildManifestPropertyTextureLayoutDetected) { "present" } else { "" } },
+    [pscustomobject]@{ Metric = "Report actual layer readiness"; Value = if ($materialBatchBuildReportActualLayerReadinessDetected) { "present" } else { "" } },
+    [pscustomobject]@{ Metric = "JSON actual layer readiness"; Value = if ($materialBatchBuildManifestActualLayerReadinessDetected) { "present" } else { "" } },
+    [pscustomobject]@{ Metric = "Source/Proxy asset readiness"; Value = if ($materialBatchBuildSourceProxyAssetReadinessDetected) { "present" } else { "" } },
+    [pscustomobject]@{ Metric = "Source/Proxy asset config set"; Value = if ($materialBatchBuildSourceProxyAssetConfigSetDetected) { "present" } else { "" } },
+    [pscustomobject]@{ Metric = "Pilot cluster report"; Value = if ($ue58PilotClusterReportDetected) { Get-MarkdownBulletValue -Text $ue58PilotClusterReportText -Label "Status" } else { "" } },
+    [pscustomobject]@{ Metric = "Pilot cluster ready for commandlet"; Value = if ($ue58PilotClusterReportDetected) { Get-MarkdownBulletValue -Text $ue58PilotClusterReportText -Label "Ready for commandlet" } else { "" } },
+    [pscustomobject]@{ Metric = "Pilot cluster actor tag evidence"; Value = if ($ue58PilotClusterReportDetected) { Get-MarkdownBulletValue -Text $ue58PilotClusterReportText -Label "Actor tag evidence captured" } else { "" } },
+    [pscustomobject]@{ Metric = "Real-cluster dry-run report"; Value = if ($ue58MaterialBatchDryRunReportDetected) { Get-MarkdownBulletValue -Text $ue58MaterialBatchDryRunReportText -Label "Status" } else { "" } },
+    [pscustomobject]@{ Metric = "Real-cluster dry-run actual layer evidence"; Value = if ($ue58MaterialBatchDryRunReportText -match "(?m)^- Actual layer evidence: (.+)$") { $Matches[1] } else { "" } },
+    [pscustomobject]@{ Metric = "Real-cluster dry-run Source/Proxy asset evidence"; Value = if ($ue58MaterialBatchDryRunReportText -match "(?m)^- Source/Proxy asset evidence: (.+)$") { $Matches[1] } else { "" } },
+    [pscustomobject]@{ Metric = "Real-cluster dry-run residency evidence"; Value = if ($ue58MaterialBatchDryRunReportText -match "(?m)^- Residency risk evidence: (.+)$") { $Matches[1] } else { "" } },
     [pscustomobject]@{ Metric = "Report geometry merge plan"; Value = if ($materialBatchBuildReportGeometryMergePlanDetected) { "present" } else { "" } },
     [pscustomobject]@{ Metric = "Report material slot remap"; Value = if ($materialBatchBuildReportMaterialSlotRemapDetected) { "present" } else { "" } },
     [pscustomobject]@{ Metric = "JSON geometry merge plan"; Value = if ($materialBatchBuildManifestGeometryMergePlanDetected) { "present" } else { "" } },
@@ -899,7 +1173,8 @@ $ue58RuntimeProfilingPlanRows = @(
     [pscustomobject]@{ Metric = "Evidence status"; Value = Get-MarkdownBulletValue -Text $ue58RuntimeProfilingPlanReportText -Label "Evidence status" },
     [pscustomobject]@{ Metric = "Scenario matrix"; Value = if ($ue58RuntimeProfilingPlanMatrixDetected) { "present" } else { "" } },
     [pscustomobject]@{ Metric = "Capture commands"; Value = if ($ue58RuntimeProfilingPlanCaptureDetected) { "present" } else { "" } },
-    [pscustomobject]@{ Metric = "NotMeasured guard"; Value = if ($ue58RuntimeProfilingPlanNotMeasuredDetected) { "present" } else { "" } }
+    [pscustomobject]@{ Metric = "NotMeasured guard"; Value = if ($ue58RuntimeProfilingPlanNotMeasuredDetected) { "present" } else { "" } },
+    [pscustomobject]@{ Metric = "Fallback report"; Value = if ($ue58RuntimeProfilingPlanFallbackReportDetected) { "present" } else { "" } }
 ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_.Value) }
 
 $ue58RuntimeProfilingPlanTable = @("| Metric | Value |", "| --- | --- |")
@@ -941,6 +1216,8 @@ $lines = @(
     "| Frontend Options detailed custom UI | $detailedFrontendOptionsDetected |",
     "| Frontend preset state sync | $frontendPresetStateSyncDetected |",
     "| Performance settings automation test | $performanceSettingsTestDetected |",
+    "| Material performance tier interface | $materialPerformanceInterfaceDetected |",
+    "| Material performance tier interface test | $materialPerformanceInterfaceTestDetected |",
     "| Graphics settings UMG base | $graphicsSettingsWidgetBaseDetected |",
     "| Graphics settings frontend entry | $graphicsSettingsFrontendEntryDetected |",
     "| Graphics settings setup commandlet | $graphicsSettingsWidgetSetupCommandletDetected |",
@@ -951,7 +1228,8 @@ $lines = @(
     "| Graphics settings config/cook path | $graphicsSettingsConfigDetected |",
     "| UE58 Material MCP audit report | $ue58MaterialMcpAuditReportDetected |",
     "| UE58 Material MCP required batch params | $ue58MaterialMcpAuditRequiredParamsDetected |",
-    "| UE58 Material MCP graph evidence | $ue58MaterialMcpAuditGraphDetected |",
+    "| UE58 Material MCP output connection evidence | $ue58MaterialMcpAuditGraphDetected |",
+    "| UE58 Material MCP full expression graph | $ue58MaterialMcpAuditFullExpressionGraphDetected |",
     "| UE58 Batch Visual MCP audit report | $ue58BatchVisualMcpAuditReportDetected |",
     "| UE58 Batch Visual MCP captures | $ue58BatchVisualMcpAuditCapturedDetected |",
     "| UE58 Batch Visual MCP PNG files | $ue58BatchVisualMcpAuditPngDetected |",
@@ -960,6 +1238,18 @@ $lines = @(
     "| UE58 Scene Parity MCP ready | $ue58SceneParityMcpAuditReadyDetected |",
     "| MaterialBatchAudit commandlet | $materialBatchAuditDetected |",
     "| MaterialBatchBuild dry-run commandlet | $materialBatchBuildDetected |",
+    "| Source/Proxy asset readiness | $materialBatchBuildSourceProxyAssetReadinessDetected |",
+    "| Source/Proxy asset config set | $materialBatchBuildSourceProxyAssetConfigSetDetected |",
+    "| EnvBatch native baked surface tags | $envBatchTaggerBakedSurfaceTagsDetected |",
+    "| EnvBatch Python fallback tags | $envBatchPythonFallbackDetected |",
+    "| EnvBatch asset readiness UI | $envBatchAssetReadinessUiDetected |",
+    "| StreamingLevel layer evidence | $envBatchStreamingLevelEvidenceDetected |",
+    "| UE58 EnvBatch tag tool script | $ue58EnvBatchTagToolsScriptDetected |",
+    "| UE58 EnvBatch tag tool report | $ue58EnvBatchTagToolsReportDetected |",
+    "| UE58 EnvBatch tag tool passed | $ue58EnvBatchTagToolsPassedDetected |",
+    "| UE58 pilot cluster script | $ue58PilotClusterScriptDetected |",
+    "| UE58 pilot cluster report | $ue58PilotClusterReportDetected |",
+    "| UE58 pilot cluster ready | $ue58PilotClusterReadyDetected |",
     "| MaterialBatchMaterialAudit commandlet | $materialBatchMaterialAuditDetected |",
     "| Material batch candidate test | $materialBatchAuditTestDetected |",
     "| Material batch build plan test | $materialBatchBuildTestDetected |",
@@ -1004,7 +1294,7 @@ $lines = @(
     "| MaterialBatchBuild report parent material contract | $materialBatchBuildReportParentContractDetected |",
     "| MaterialBatchBuild JSON parent material contract | $materialBatchBuildManifestParentContractDetected |",
     "| MaterialBatchParentMaterialSetup commandlet | $materialBatchParentMaterialSetupCommandletDetected |",
-    "| M_Env_Building_Batch asset | $materialBatchParentMaterialAssetDetected |",
+    "| M_Env_Baked_VTAtlas asset | $materialBatchParentMaterialAssetDetected |",
     "| MaterialBatchParentMaterialSetup report evidence | $materialBatchParentMaterialSetupReportDetected |",
     "| MaterialBatchBuild report geometry merge plan | $materialBatchBuildReportGeometryMergePlanDetected |",
     "| MaterialBatchBuild report material slot remap | $materialBatchBuildReportMaterialSlotRemapDetected |",
@@ -1025,11 +1315,28 @@ $lines = @(
     "| UE58RuntimeProfilingPlan report | $ue58RuntimeProfilingPlanReportDetected |",
     "| UE58RuntimeProfilingPlan scenario matrix | $ue58RuntimeProfilingPlanMatrixDetected |",
     "| UE58RuntimeProfilingPlan capture commands | $ue58RuntimeProfilingPlanCaptureDetected |",
+    "| UE58RuntimeProfilingPlan fallback script | $ue58RuntimeProfilingPlanFallbackScriptDetected |",
+    "| UE58RuntimeProfilingPlan fallback report | $ue58RuntimeProfilingPlanFallbackReportDetected |",
+    "| UE58 commandlet availability script | $ue58CommandletAvailabilityScriptDetected |",
+    "| UE58 commandlet availability report | $ue58CommandletAvailabilityReportDetected |",
+    "| UE58 commandlet availability blocked by clean link | $ue58CommandletAvailabilityBlockedDetected |",
+    "| UE58 post-clean-link validation script | $ue58PostCleanLinkValidationScriptDetected |",
+    "| UE58 post-clean-link validation report | $ue58PostCleanLinkValidationReportDetected |",
+    "| UE58 post-clean-link validation waiting | $ue58PostCleanLinkValidationWaitingDetected |",
+    "| UE58 post-clean-link validation ready | $ue58PostCleanLinkValidationReadyDetected |",
+    "| UE58 build validation script | $ue58BuildValidationScriptDetected |",
+    "| UE58 build validation report | $ue58BuildValidationReportDetected |",
+    "| UE58 build validation blocked | $ue58BuildValidationBlockedDetected |",
+    "| UE58 build validation succeeded | $ue58BuildValidationSucceededDetected |",
     "| UE58RuntimeProfiling MCP smoke report | $ue58RuntimeProfilingMcpSmokeReportDetected |",
     "| UE58RuntimeProfiling MCP smoke ready | $ue58RuntimeProfilingMcpSmokeReadyDetected |",
     "| UE58RuntimeProfiling capture script | $ue58RuntimeProfilingCaptureScriptDetected |",
     "| UE58RuntimeProfiling capture report | $ue58RuntimeProfilingCaptureReportDetected |",
     "| UE58RuntimeProfiling capture ready | $ue58RuntimeProfilingCaptureReadyDetected |",
+    "| UE58 MaterialBatch dry-run script | $ue58MaterialBatchDryRunScriptDetected |",
+    "| UE58 MaterialBatch dry-run report | $ue58MaterialBatchDryRunReportDetected |",
+    "| UE58 MaterialBatch dry-run blocked by build | $ue58MaterialBatchDryRunBlockedByBuildDetected |",
+    "| UE58 MaterialBatch dry-run captured | $ue58MaterialBatchDryRunCapturedDetected |",
     "",
     "## DevKit Device Profiles",
     ""
@@ -1046,6 +1353,18 @@ $requiredNextEvidence = @()
 if (-not ($ue58MaterialMcpAuditRequiredParamsDetected -and $ue58MaterialMcpAuditGraphDetected)) {
     $requiredNextEvidence += "- Use UE MCP MaterialTools when the local MCP server is reachable to cross-check `/Game/Art/Material/EnvMaterial/Main/M_Env_Building.M_Env_Building` expression graph connections; the local `MaterialBatchMaterialAudit` commandlet already captures parameter, texture, scalar, vector, and static-switch evidence."
 }
+elseif (-not $ue58MaterialMcpAuditFullExpressionGraphDetected) {
+    $requiredNextEvidence += "- Optional deeper material MCP evidence remains: rerun `Invoke-UE58MaterialMcpAudit.ps1 -FullExpressionGraph -ProbeAllOutputs` when UE MCP can traverse the full `M_Env_Building` expression graph without timing out."
+}
+if ($ue58MaterialBatchDryRunBlockedByBuildDetected) {
+    $requiredNextEvidence += "- Complete a clean UE5.8 link before real-cluster validation: close the currently open UnrealEditor after saving work, rerun the DevKitEditor build, then run `Invoke-UE58PostCleanLinkValidation.ps1 -RunReportCommandlets -RunMaterialBatchDryRun` so commandlet reports and actual StreamingLevel layer, Source/Proxy asset readiness/config-set, and residency evidence are produced by current binaries."
+}
+elseif (-not $ue58MaterialBatchDryRunCapturedDetected) {
+    $requiredNextEvidence += "- Run `Invoke-UE58PostCleanLinkValidation.ps1 -RunReportCommandlets -RunMaterialBatchDryRun` after a clean link to generate report-only commandlet evidence and the first real-cluster MaterialBatch report/manifest with actual StreamingLevel layer readiness, Source/Proxy asset readiness/config-set evidence, and residency evidence."
+}
+if (-not $ue58PilotClusterReadyDetected) {
+    $requiredNextEvidence += "- Run `Select-UE58PilotCluster.ps1` and resolve its map/material/MCP/EnvBatch readiness checks before treating WP1 target cluster selection as complete."
+}
 if (-not $ue58RuntimeProfilingCaptureReadyDetected) {
     if ($ue58RuntimeProfilingCaptureReportText -match "(?m)^- Status: LogCaptured\s*$") {
         $requiredNextEvidence += "- Runtime profiling automation now launches baseline and Lumen Lite scenarios and invokes the stat/profilegpu commands, but UE did not emit a ProfileGPU artifact. Add a follow-up capture mode that writes a GPU profile artifact or parseable frame metrics before using the data for handheld decisions."
@@ -1056,7 +1375,7 @@ if (-not $ue58RuntimeProfilingCaptureReadyDetected) {
 }
 if ($materialBatchBuildParentContractSourceDetected) {
     if (-not ($materialBatchParentMaterialAssetDetected -and $materialBatchParentMaterialSetupReportDetected)) {
-        $requiredNextEvidence += "- Create or validate the actual `M_Env_Building_Batch` material asset against the source-controlled parent contract: read `TexCoord7.x`, sample `_PropTexture`, and use the row data as Texture2DArray slice indices."
+        $requiredNextEvidence += "- Create or validate the actual `M_Env_Baked_VTAtlas` material asset against the source-controlled parent contract: read `TexCoord7.x`, sample `_PropTexture`, fetch the matching VT Atlas UVRect row, then sample `VT_Atlas` as the production path."
     }
     elseif (-not ($ue58BatchVisualMcpAuditCapturedDetected -and $ue58BatchVisualMcpAuditPngDetected)) {
         $requiredNextEvidence += "- Run `Invoke-UE58BatchVisualMcpAudit.ps1` with the UE5.8 MCP server available to capture source and generated batch asset thumbnails before production replacement."
@@ -1069,7 +1388,7 @@ if ($materialBatchBuildParentContractSourceDetected) {
     }
 }
 else {
-    $requiredNextEvidence += "- Create or validate the final `M_Env_Building_Batch` parent material contract before production use; the current generated MI binds Texture2DArray parameters but does not yet read `TexCoord7.x` plus the property texture row data."
+    $requiredNextEvidence += "- Create or validate the final `M_Env_Baked_VTAtlas` parent material contract before production use; the current production target is `VT_Atlas + _PropTexture UVRect`, while Texture2DArray remains legacy fallback only."
 }
 if (-not $graphicsSettingsFocusContractDetected) {
     $requiredNextEvidence += "- Add and test a stable controller focus target for `WBP_GraphicsSettingsWidget`; keep all profile/cvar logic routed through UYogPerformanceSettingsLibrary."

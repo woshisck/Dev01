@@ -105,6 +105,7 @@ public class DevKitEditor : ModuleRules
 				"JsonUtilities",
 				"MeshDescription",
 				"StaticMeshDescription",
+				"AdvancedPreviewScene",
 				"ClassViewer",
 			}
         );

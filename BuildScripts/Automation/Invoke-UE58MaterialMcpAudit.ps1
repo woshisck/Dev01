@@ -3,7 +3,9 @@ param(
     [string]$MaterialPath = "/Game/Art/Material/EnvMaterial/Main/M_Env_Building.M_Env_Building",
     [string]$ServerUrl = "http://127.0.0.1:8765/mcp",
     [string]$OutputRoot = "",
-    [int]$TimeoutSec = 30
+    [int]$TimeoutSec = 30,
+    [switch]$FullExpressionGraph,
+    [switch]$ProbeAllOutputs
 )
 
 $ErrorActionPreference = "Stop"
@@ -164,21 +166,30 @@ $materialInstanceTools = "editor_toolset.toolsets.material_instance.MaterialInst
 $parametersResult = Invoke-Tool -Headers $headers -ToolsetName $materialInstanceTools -ToolName "list_parameters" -Arguments @{
     material = $materialRef
 }
-$expressionsResult = Invoke-Tool -Headers $headers -ToolsetName $materialTools -ToolName "get_expressions" -Arguments @{
-    material_or_function = $materialRef
+
+$expressionsResult = $null
+if ($FullExpressionGraph) {
+    $expressionsResult = Invoke-Tool -Headers $headers -ToolsetName $materialTools -ToolName "get_expressions" -Arguments @{
+        material_or_function = $materialRef
+    }
 }
 
-$propertiesToProbe = @(
-    "MP_MaterialAttributes",
-    "MP_BaseColor",
-    "MP_Normal",
-    "MP_Roughness",
-    "MP_Metallic",
-    "MP_Specular",
-    "MP_EmissiveColor",
-    "MP_OpacityMask",
-    "MP_AmbientOcclusion"
-)
+$propertiesToProbe = if ($ProbeAllOutputs) {
+    @(
+        "MP_MaterialAttributes",
+        "MP_BaseColor",
+        "MP_Normal",
+        "MP_Roughness",
+        "MP_Metallic",
+        "MP_Specular",
+        "MP_EmissiveColor",
+        "MP_OpacityMask",
+        "MP_AmbientOcclusion"
+    )
+}
+else {
+    @("MP_MaterialAttributes")
+}
 
 $propertyInputs = @()
 foreach ($propertyName in $propertiesToProbe) {
@@ -195,7 +206,7 @@ foreach ($propertyName in $propertiesToProbe) {
 }
 
 $parameters = @($parametersResult.returnValue)
-$expressions = @($expressionsResult.returnValue)
+$expressions = if ($FullExpressionGraph -and $expressionsResult) { @($expressionsResult.returnValue) } else { @() }
 $expressionPaths = $expressions | ForEach-Object { [string]$_.refPath }
 $expressionTypeCounts = Get-ExpressionTypeCounts -Expressions $expressions
 
@@ -260,6 +271,8 @@ $lines = @(
     "- MCP server: $ServerUrl",
     ('- Material: `' + $MaterialPath + '`'),
     ('- Toolsets: `' + $materialTools + '`, `' + $materialInstanceTools + '`'),
+    "- Expression graph mode: $(if ($FullExpressionGraph) { 'Full' } else { 'SkippedQuickMaterialOutputs' })",
+    "- Output probe mode: $(if ($ProbeAllOutputs) { 'AllCommonOutputs' } else { 'MaterialAttributesOnly' })",
     "- Parameter count: $($parameters.Count)",
     "- Expression count: $($expressions.Count)",
     "- MaterialAttributes connected: $materialAttributesConnected",
@@ -295,8 +308,9 @@ $lines = @(
     "## Interpretation",
     "",
     "- MCP confirms this material is driven through `MP_MaterialAttributes`; individual BaseColor/Normal/Roughness pins may be disconnected by design.",
-    "- MCP confirms the existing material exposes the source parameters needed by the Texture2DArray/property-texture batch plan.",
-    "- This audit does not prove the final batch parent samples `TexCoord7.x`; that remains the next material-authoring validation step for `M_Env_Building_Batch`."
+    "- MCP confirms the existing source material exposes the unique texture, Texture2DArray fallback, `Tex_LightInfo`, surface switch, and property-texture source parameters needed by the VT Atlas batch plan.",
+    "- Default audit mode intentionally skips the full expression graph because `get_expressions` can be slow on this material through MCP; rerun with `-FullExpressionGraph -ProbeAllOutputs` when graph-wide expression counts are specifically needed.",
+    "- This audit does not prove the final batch parent samples `TexCoord7.x`; that remains the next material-authoring validation step for `M_Env_Baked_VTAtlas`."
 )
 
 Set-Content -LiteralPath $reportPath -Value $lines -Encoding UTF8

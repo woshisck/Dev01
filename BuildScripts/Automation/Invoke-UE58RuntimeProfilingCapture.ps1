@@ -4,8 +4,10 @@ param(
     [string]$OutputRoot = "",
     [string]$Map = "/Game/Art/Map/GameLevel_L1/Prison/L1_CommonLevel_Prison_S_01",
     [string[]]$Scenario = @("Baseline_LumenOff_NoBatch", "LumenLite_NoBatch"),
+    [int]$CsvCaptureFrames = 180,
     [int]$TimeoutSec = 300,
     [switch]$NoQuit,
+    [switch]$DisableCsvCapture,
     [switch]$Run
 )
 
@@ -45,6 +47,7 @@ function Resolve-UE58EngineRoot {
     if (-not [string]::IsNullOrWhiteSpace($env:UE58_ENGINE_ROOT)) {
         $candidates += $env:UE58_ENGINE_ROOT
     }
+    $candidates += "Z:\GZA_Software\RealityCapture\UE_5.8"
     $candidates += "D:\UE\UE_5.8"
     $candidates += "D:\Epic Library\UE_5.8"
 
@@ -61,10 +64,12 @@ function Resolve-UE58EngineRoot {
 function New-ScenarioDefinitions {
     $definitions = @{}
     $definitions["Baseline_LumenOff_NoBatch"] = [pscustomobject]@{
-        Tier = "Medium"
+        Tier = "Mid"
         RequiresBatchProxy = $false
         CVars = @(
             "r.SetRes 1280x720",
+            "r.DynamicGlobalIlluminationMethod 0",
+            "r.ReflectionMethod 2",
             "sg.GlobalIlluminationQuality 0",
             "sg.ReflectionQuality 1",
             "sg.ShadowQuality 1",
@@ -74,10 +79,12 @@ function New-ScenarioDefinitions {
         )
     }
     $definitions["LumenLite_NoBatch"] = [pscustomobject]@{
-        Tier = "Handheld15W"
+        Tier = "Mid"
         RequiresBatchProxy = $false
         CVars = @(
             "r.SetRes 1280x720",
+            "r.DynamicGlobalIlluminationMethod 1",
+            "r.ReflectionMethod 2",
             "sg.GlobalIlluminationQuality 1",
             "sg.ReflectionQuality 1",
             "sg.ShadowQuality 1",
@@ -90,10 +97,12 @@ function New-ScenarioDefinitions {
         )
     }
     $definitions["BatchProxy_LumenOff"] = [pscustomobject]@{
-        Tier = "Medium"
+        Tier = "Mid"
         RequiresBatchProxy = $true
         CVars = @(
             "r.SetRes 1280x720",
+            "r.DynamicGlobalIlluminationMethod 0",
+            "r.ReflectionMethod 2",
             "sg.GlobalIlluminationQuality 0",
             "sg.ReflectionQuality 1",
             "sg.ShadowQuality 1",
@@ -103,10 +112,12 @@ function New-ScenarioDefinitions {
         )
     }
     $definitions["BatchProxy_LumenLite"] = [pscustomobject]@{
-        Tier = "Handheld15W"
+        Tier = "Mid"
         RequiresBatchProxy = $true
         CVars = @(
             "r.SetRes 1280x720",
+            "r.DynamicGlobalIlluminationMethod 1",
+            "r.ReflectionMethod 2",
             "sg.GlobalIlluminationQuality 1",
             "sg.ReflectionQuality 1",
             "sg.ShadowQuality 1",
@@ -118,11 +129,13 @@ function New-ScenarioDefinitions {
             "t.MaxFPS 60"
         )
     }
-    $definitions["Handheld5W_LumenOff_Aggressive"] = [pscustomobject]@{
-        Tier = "Handheld5W"
+    $definitions["Low_LumenOff_Aggressive"] = [pscustomobject]@{
+        Tier = "Low"
         RequiresBatchProxy = $true
         CVars = @(
             "r.SetRes 1280x720",
+            "r.DynamicGlobalIlluminationMethod 0",
+            "r.ReflectionMethod 2",
             "sg.ViewDistanceQuality 0",
             "sg.ShadowQuality 0",
             "sg.GlobalIlluminationQuality 0",
@@ -136,11 +149,13 @@ function New-ScenarioDefinitions {
             "t.MaxFPS 30"
         )
     }
-    $definitions["PCUltra_LumenHigh"] = [pscustomobject]@{
-        Tier = "PCUltra"
+    $definitions["Epic_LumenHigh"] = [pscustomobject]@{
+        Tier = "Epic"
         RequiresBatchProxy = $false
         CVars = @(
             "r.SetRes 1920x1080",
+            "r.DynamicGlobalIlluminationMethod 1",
+            "r.ReflectionMethod 1",
             "sg.ViewDistanceQuality 3",
             "sg.ShadowQuality 3",
             "sg.GlobalIlluminationQuality 3",
@@ -184,12 +199,117 @@ function Get-NewProfilingArtifacts {
             $files += Get-ChildItem -LiteralPath $root -Recurse -File -ErrorAction SilentlyContinue |
                 Where-Object {
                     $_.LastWriteTime -ge $Since -and
-                    ($_.Name -match "ProfileGPU|profilegpu|GPU|\.csv$|\.ue4stats$|\.utrace$")
+                    ($_.Name -match "ProfileGPU|profilegpu|GPU|\.csv$|\.ue4stats$|\.uestats$|\.utrace$")
                 }
         }
     }
 
     return @($files | Sort-Object LastWriteTime -Descending -Unique)
+}
+
+function Get-CsvProfilerSummary {
+    param([string[]]$ArtifactPaths)
+
+    $summary = [ordered]@{
+        CsvPath = ""
+        CsvRows = ""
+        CsvColumns = ""
+        FrameTimeAvgMs = ""
+        GameThreadAvgMs = ""
+        RenderThreadAvgMs = ""
+        GpuAvgMs = ""
+    }
+
+    $csvPath = @($ArtifactPaths | Where-Object { $_ -match "\.csv$" } | Select-Object -First 1)
+    if (-not $csvPath) {
+        return [pscustomobject]$summary
+    }
+
+    $summary.CsvPath = $csvPath
+    try {
+        $csvLines = @(Get-Content -LiteralPath $csvPath)
+        $headerIndex = -1
+        for ($lineIndex = 0; $lineIndex -lt $csvLines.Count; $lineIndex++) {
+            if ($csvLines[$lineIndex] -match "(^|,)FrameTime(,|$)" -and $csvLines[$lineIndex] -match "(^|,)GPUTime(,|$)") {
+                $headerIndex = $lineIndex
+                break
+            }
+        }
+
+        if ($headerIndex -lt 0) {
+            $summary.CsvRows = "ParseFailed"
+            return [pscustomobject]$summary
+        }
+
+        $headers = @($csvLines[$headerIndex].Split([char]","))
+        $summary.CsvColumns = [string]$headers.Count
+        $dataLines = @(
+            $csvLines |
+                Select-Object -Skip ($headerIndex + 1) |
+                Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+        )
+        $summary.CsvRows = [string]$dataLines.Count
+
+        $metricPatterns = [ordered]@{
+            FrameTimeAvgMs = @("FrameTime", "MaxFrameTime")
+            GameThreadAvgMs = @("GameThreadTime", "GameThreadTime_CriticalPath", "GameThread")
+            RenderThreadAvgMs = @("RenderThreadTime", "RenderThreadTime_CriticalPath", "RenderThread")
+            GpuAvgMs = @("GPUTime", "GPU")
+        }
+
+        foreach ($metric in $metricPatterns.Keys) {
+            $columnIndex = -1
+            foreach ($pattern in $metricPatterns[$metric]) {
+                for ($headerIndexCandidate = 0; $headerIndexCandidate -lt $headers.Count; $headerIndexCandidate++) {
+                    if ([string]::Equals($headers[$headerIndexCandidate], $pattern, [System.StringComparison]::OrdinalIgnoreCase)) {
+                        $columnIndex = $headerIndexCandidate
+                        break
+                    }
+                }
+                if ($columnIndex -ge 0) {
+                    break
+                }
+            }
+            if ($columnIndex -lt 0) {
+                foreach ($pattern in $metricPatterns[$metric]) {
+                    for ($headerIndexCandidate = 0; $headerIndexCandidate -lt $headers.Count; $headerIndexCandidate++) {
+                        if ($headers[$headerIndexCandidate].IndexOf($pattern, [System.StringComparison]::OrdinalIgnoreCase) -ge 0) {
+                            $columnIndex = $headerIndexCandidate
+                            break
+                        }
+                    }
+                    if ($columnIndex -ge 0) {
+                        break
+                    }
+                }
+            }
+            if ($columnIndex -lt 0) {
+                continue
+            }
+
+            $values = New-Object System.Collections.Generic.List[double]
+            foreach ($dataLine in $dataLines) {
+                $columns = $dataLine.Split([char]",")
+                if ($columnIndex -ge $columns.Count) {
+                    continue
+                }
+
+                $rawValue = [string]$columns[$columnIndex]
+                $numericValue = 0.0
+                if ([double]::TryParse($rawValue, [System.Globalization.NumberStyles]::Float, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$numericValue)) {
+                    $values.Add($numericValue)
+                }
+            }
+            if ($values.Count -gt 0) {
+                $summary[$metric] = ("{0:0.###}" -f (($values | Measure-Object -Average).Average))
+            }
+        }
+    }
+    catch {
+        $summary.CsvRows = "ParseFailed"
+    }
+
+    return [pscustomobject]$summary
 }
 
 function Get-GpuProfileSummary {
@@ -277,6 +397,55 @@ function Get-GpuProfileSummary {
     return [pscustomobject]$summary
 }
 
+function Get-RuntimeMapSummary {
+    param([string]$LogText)
+
+    $summary = [ordered]@{
+        ActualSampledMap = ""
+        LoadedMapSequence = ""
+    }
+
+    if ([string]::IsNullOrWhiteSpace($LogText)) {
+        return [pscustomobject]$summary
+    }
+
+    $loadedMaps = New-Object System.Collections.Generic.List[string]
+    $lastLoadedMap = ""
+    $sampledMap = ""
+
+    foreach ($line in ($LogText -split "`r?`n")) {
+        $mapPath = ""
+        if ($line -match "LoadMap\(([^)]+)\)") {
+            $mapPath = $Matches[1]
+        }
+        elseif ($line -match "LogWorld:\s+Bringing World\s+([^\s]+)\s+up") {
+            $mapPath = ($Matches[1] -replace "\.[^./]+$", "")
+        }
+        elseif ($line -match "LogNet:\s+Browse:\s+([^?\s]+)") {
+            $mapPath = $Matches[1]
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($mapPath)) {
+            if ($loadedMaps.Count -eq 0 -or $loadedMaps[$loadedMaps.Count - 1] -ne $mapPath) {
+                $loadedMaps.Add($mapPath)
+            }
+            $lastLoadedMap = $mapPath
+        }
+
+        if ($line -match "CsvProfile STARTFILE=" -and -not [string]::IsNullOrWhiteSpace($lastLoadedMap)) {
+            $sampledMap = $lastLoadedMap
+        }
+    }
+
+    if ([string]::IsNullOrWhiteSpace($sampledMap)) {
+        $sampledMap = $lastLoadedMap
+    }
+
+    $summary.ActualSampledMap = $sampledMap
+    $summary.LoadedMapSequence = ($loadedMaps -join " -> ")
+    return [pscustomobject]$summary
+}
+
 function Invoke-ProfilingScenario {
     param(
         [string]$Name,
@@ -301,7 +470,15 @@ function Invoke-ProfilingScenario {
         "r.MeshDrawCommands.LogDynamicInstancingStats 1",
         "profilegpu"
     )
-    if (-not $NoQuit) {
+    if (-not $DisableCsvCapture) {
+        $csvFileStem = "UE58Runtime_${Name}_$(Get-Date -Format 'yyyyMMdd_HHmmss')"
+        $commands += @(
+            "CsvProfile STARTFILE=$csvFileStem",
+            "CsvProfile EXITONCOMPLETION",
+            "CsvProfile FRAMES=$CsvCaptureFrames"
+        )
+    }
+    if ($DisableCsvCapture -and -not $NoQuit) {
         $commands += "quit"
     }
     $execCmds = $commands -join ", "
@@ -318,6 +495,8 @@ function Invoke-ProfilingScenario {
         "-nop4",
         "-NoSound",
         "-unattended",
+        "-csvGpuStats",
+        "-csvMetadata=scenario=$Name,tier=$($Definition.Tier)",
         "-log",
         "-AbsLog=`"$logPath`"",
         "-ExecCmds=`"$execCmds`""
@@ -341,6 +520,8 @@ function Invoke-ProfilingScenario {
     $profileGpuReportFound = $logText -match "GPU Profile for Frame"
     $meshDrawMentioned = $logText -match "MeshDrawCommands|DynamicInstancing"
     $gpuSummary = Get-GpuProfileSummary -LogText $logText
+    $mapSummary = Get-RuntimeMapSummary -LogText $logText
+    $csvSummary = Get-CsvProfilerSummary -ArtifactPaths @($artifacts | ForEach-Object { $_.FullName })
     $exitCode = if ($completed) { $process.ExitCode } else { $null }
     $status = if ($completed -and $exitCode -eq 0 -and $artifacts.Count -gt 0) {
         "Captured"
@@ -373,6 +554,8 @@ function Invoke-ProfilingScenario {
         ProfileGpuReportFound = $profileGpuReportFound
         MeshDrawMentioned = $meshDrawMentioned
         GpuSummary = $gpuSummary
+        MapSummary = $mapSummary
+        CsvSummary = $csvSummary
         ArtifactPaths = @($artifacts | ForEach-Object { $_.FullName })
         ExecCmds = $execCmds
     }
@@ -428,31 +611,36 @@ $lines = @(
     "- Repo: $RepoRoot",
     "- Engine root: $engineRootResolved",
     "- Editor executable: $editorExe",
-    "- Map: $Map",
+    "- Requested launch map: $Map",
     "- Run requested: $Run",
     "- NoQuit mode: $NoQuit",
+    "- CSV capture enabled: $(-not $DisableCsvCapture)",
+    "- CSV capture frames: $CsvCaptureFrames",
     "- Status: $status",
     "- Selected scenarios: $($Scenario -join ', ')",
     "- Timeout per scenario: $TimeoutSec seconds",
     "",
     "## Scenario Results",
     "",
-    "| Scenario | Tier | Requires Batch Proxy | Status | ExitCode | TimedOut | Frame Time ms | Root Incl ms | Root Draws | Root Dispatches | Root Prims | Root Verts | Top Incl Event | Top Incl ms | ProfileGPU Report | MeshDraw Mentioned | Log | Artifacts |",
-    "| --- | --- | --- | --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- | ---: | --- | --- | --- | ---: |"
+    "| Scenario | Tier | Requires Batch Proxy | Actual Sampled Map | Status | ExitCode | TimedOut | CSV Rows | CSV Frame Avg ms | CSV GPU Avg ms | Frame Time ms | Root Incl ms | Root Draws | Root Dispatches | Root Prims | Root Verts | Top Incl Event | Top Incl ms | ProfileGPU Report | MeshDraw Mentioned | Log | Artifacts |",
+    "| --- | --- | --- | --- | --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | ---: | --- | --- | --- | ---: |"
 )
 
 if ($results.Count -gt 0) {
     foreach ($result in $results) {
         $relativeLog = ConvertTo-RelativePath -Path $result.LogPath
         $summary = $result.GpuSummary
+        $mapSummary = $result.MapSummary
+        $csv = $result.CsvSummary
         $topEvent = if ($summary.TopEvent) { $summary.TopEvent.Replace("|", "/") } else { "" }
-        $lines += "| ``$($result.Name)`` | $($result.Tier) | $($result.RequiresBatchProxy) | $($result.Status) | $($result.ExitCode) | $($result.TimedOut) | $($summary.FrameTimeMs) | $($summary.RootInclusiveTimeMs) | $($summary.RootInclusiveDraws) | $($summary.RootInclusiveDispatches) | $($summary.RootInclusivePrimitives) | $($summary.RootInclusiveVertices) | $topEvent | $($summary.TopEventInclusiveTimeMs) | $($result.ProfileGpuReportFound) | $($result.MeshDrawMentioned) | ``$relativeLog`` | $($result.ArtifactPaths.Count) |"
+        $actualSampledMap = if ($mapSummary.ActualSampledMap) { $mapSummary.ActualSampledMap } else { "" }
+        $lines += "| ``$($result.Name)`` | $($result.Tier) | $($result.RequiresBatchProxy) | ``$actualSampledMap`` | $($result.Status) | $($result.ExitCode) | $($result.TimedOut) | $($csv.CsvRows) | $($csv.FrameTimeAvgMs) | $($csv.GpuAvgMs) | $($summary.FrameTimeMs) | $($summary.RootInclusiveTimeMs) | $($summary.RootInclusiveDraws) | $($summary.RootInclusiveDispatches) | $($summary.RootInclusivePrimitives) | $($summary.RootInclusiveVertices) | $topEvent | $($summary.TopEventInclusiveTimeMs) | $($result.ProfileGpuReportFound) | $($result.MeshDrawMentioned) | ``$relativeLog`` | $($result.ArtifactPaths.Count) |"
     }
 }
 else {
     foreach ($scenarioName in $Scenario) {
         $definition = $definitions[$scenarioName]
-        $lines += "| ``$scenarioName`` | $($definition.Tier) | $($definition.RequiresBatchProxy) | Prepared |  | False |  |  |  |  |  |  |  |  | False | False | (not run) | 0 |"
+        $lines += "| ``$scenarioName`` | $($definition.Tier) | $($definition.RequiresBatchProxy) |  | Prepared |  | False |  |  |  |  |  |  |  |  |  |  |  | False | False | (not run) | 0 |"
     }
 }
 
@@ -476,6 +664,24 @@ if ($results.Count -gt 0) {
                 $lines += ("- ``{0}``" -f (ConvertTo-RelativePath -Path $artifact))
             }
         }
+        if ($result.MapSummary.ActualSampledMap -or $result.MapSummary.LoadedMapSequence) {
+            $lines += ""
+            $lines += "Map routing:"
+            $lines += "- Requested launch map: ``$Map``"
+            $lines += "- Actual sampled map: ``$($result.MapSummary.ActualSampledMap)``"
+            if ($result.MapSummary.LoadedMapSequence) {
+                $lines += "- Loaded map sequence: ``$($result.MapSummary.LoadedMapSequence)``"
+            }
+        }
+        if ($result.CsvSummary.CsvPath) {
+            $lines += ""
+            $lines += "CSV summary:"
+            $lines += "- File: ``$(ConvertTo-RelativePath -Path $result.CsvSummary.CsvPath)``"
+            $lines += "- Rows: $($result.CsvSummary.CsvRows)"
+            $lines += "- Columns: $($result.CsvSummary.CsvColumns)"
+            $lines += "- Frame avg ms: $($result.CsvSummary.FrameTimeAvgMs)"
+            $lines += "- GPU avg ms: $($result.CsvSummary.GpuAvgMs)"
+        }
         $lines += ""
     }
 }
@@ -485,7 +691,10 @@ else {
         $commands = @()
         $commands += $definition.CVars
         $commands += @("r.ProfileGPU.ShowUI 0", "r.ProfileGPU.UnicodeOutput 0", "r.ProfileGPU.TableFormatting 1", "stat unit", "stat rhi", "stat scenerendering", "stat gpu", "r.MeshDrawCommands.LogDynamicInstancingStats 1", "profilegpu")
-        if (-not $NoQuit) {
+        if (-not $DisableCsvCapture) {
+            $commands += @("CsvProfile STARTFILE=UE58Runtime_$scenarioName", "CsvProfile EXITONCOMPLETION", "CsvProfile FRAMES=$CsvCaptureFrames")
+        }
+        if ($DisableCsvCapture -and -not $NoQuit) {
             $commands += "quit"
         }
         $lines += "### $scenarioName"
@@ -504,8 +713,10 @@ $lines += @(
     "- ``Status: Prepared`` only proves the command harness is ready; it is not performance evidence.",
     "- ``Status: LogCaptured`` means the UE process exited and logs show the profiling commands were invoked, but no ProfileGPU artifact was found.",
     "- ``Status: ParsedLogCaptured`` means the UE process produced a ``GPU Profile for Frame`` log table and this report parsed frame/root/top-pass metrics, but no separate artifact file.",
-    "- ``Status: Captured`` requires at least one generated profiling artifact in addition to a successful UE process exit.",
-    "- Final handheld decisions still require reviewing the captured logs/artifacts and comparing at least baseline versus Lumen Lite scenarios."
+    "- ``Status: Captured`` requires at least one generated profiling artifact such as CSV profiler output in addition to a successful UE process exit.",
+    "- The requested launch map can differ from the actual sampled map when game startup logic redirects to a hub or runtime entry room.",
+    "- CSV capture is the default unattended artifact path; ProfileGPU remains a supplementary path because it may not emit a table or file in ``-game -unattended`` sessions.",
+    "- Final tier decisions still require reviewing the captured logs/artifacts and comparing at least baseline versus Lumen Lite scenarios."
 )
 
 Set-Content -LiteralPath $reportPath -Value $lines -Encoding UTF8
