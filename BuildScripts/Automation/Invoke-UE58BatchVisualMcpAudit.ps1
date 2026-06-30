@@ -27,6 +27,42 @@ if (-not (Test-Path -LiteralPath $mcpToolScriptPath)) {
 $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
 $reportPath = Join-Path $OutputRoot "UE58BatchVisualMcpAudit_$timestamp.md"
 $latestPath = Join-Path $OutputRoot "LATEST.md"
+$manifestPath = Join-Path $RepoRoot "Docs\GeneratedReports\CommandletReports\MaterialBatchBuildManifest.json"
+
+function ConvertTo-ObjectAssetPath {
+    param([string]$PackagePath)
+
+    if ([string]::IsNullOrWhiteSpace($PackagePath)) {
+        return ""
+    }
+
+    if ($PackagePath.Contains(".")) {
+        return $PackagePath
+    }
+
+    $leaf = Split-Path -Leaf ($PackagePath.Replace("/", "\"))
+    return "$PackagePath.$leaf"
+}
+
+$plannedProxyMeshAssetPath = "/Game/Generated/MaterialBatch/Mid/Prison_S_01_SourceProxy/SM_BatchProxy_Prison_S_01_SourceProxy.SM_BatchProxy_Prison_S_01_SourceProxy"
+$plannedBatchMaterialAssetPath = "/Game/Generated/MaterialBatch/Mid/Prison_S_01_SourceProxy/MI_Env_Batch_Prison_S_01_SourceProxy.MI_Env_Batch_Prison_S_01_SourceProxy"
+
+if (Test-Path -LiteralPath $manifestPath) {
+    try {
+        $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+        $proxyFromManifest = ConvertTo-ObjectAssetPath -PackagePath ([string]$manifest.packages.proxyMesh)
+        $materialFromManifest = ConvertTo-ObjectAssetPath -PackagePath ([string]$manifest.packages.batchMaterialInstance)
+        if (-not [string]::IsNullOrWhiteSpace($proxyFromManifest)) {
+            $plannedProxyMeshAssetPath = $proxyFromManifest
+        }
+        if (-not [string]::IsNullOrWhiteSpace($materialFromManifest)) {
+            $plannedBatchMaterialAssetPath = $materialFromManifest
+        }
+    }
+    catch {
+        Write-Warning "Unable to read MaterialBatch manifest for planned visual assets: $($_.Exception.Message)"
+    }
+}
 
 $assets = @(
     [pscustomobject]@{
@@ -41,12 +77,12 @@ $assets = @(
     },
     [pscustomobject]@{
         Label = "Generated batch proxy mesh"
-        AssetPath = "/Game/Generated/MaterialBatch/Medium/FloorBrick03_Probe/SM_BatchProxy_FloorBrick03_Probe.SM_BatchProxy_FloorBrick03_Probe"
+        AssetPath = $plannedProxyMeshAssetPath
         FileName = "generated_batch_proxy_mesh.png"
     },
     [pscustomobject]@{
         Label = "Generated batch material instance"
-        AssetPath = "/Game/Generated/MaterialBatch/Medium/FloorBrick03_Probe/MI_Env_Batch_FloorBrick03_Probe.MI_Env_Batch_FloorBrick03_Probe"
+        AssetPath = $plannedBatchMaterialAssetPath
         FileName = "generated_batch_material_instance.png"
     }
 )
@@ -81,6 +117,23 @@ function Get-ImageStats {
     }
 }
 
+function Resolve-GameAssetPackagePath {
+    param([string]$AssetPath)
+
+    if ([string]::IsNullOrWhiteSpace($AssetPath) -or -not $AssetPath.StartsWith("/Game/")) {
+        return ""
+    }
+
+    $packagePath = $AssetPath
+    $dotIndex = $packagePath.LastIndexOf(".")
+    if ($dotIndex -gt 0) {
+        $packagePath = $packagePath.Substring(0, $dotIndex)
+    }
+
+    $contentRelativePath = $packagePath.Substring("/Game/".Length).Replace("/", "\") + ".uasset"
+    return Join-Path $RepoRoot (Join-Path "Content" $contentRelativePath)
+}
+
 $rows = @()
 $failures = @()
 
@@ -88,8 +141,17 @@ foreach ($asset in $assets) {
     $argsJson = @{ assetPath = $asset.AssetPath } | ConvertTo-Json -Compress
     $argsJsonPath = Join-Path $OutputRoot "$($asset.FileName).args.json"
     $pngPath = Join-Path $OutputRoot $asset.FileName
+    $expectedPackagePath = Resolve-GameAssetPackagePath -AssetPath $asset.AssetPath
+    $packageExists = -not [string]::IsNullOrWhiteSpace($expectedPackagePath) -and (Test-Path -LiteralPath $expectedPackagePath)
 
     try {
+        if (-not $packageExists) {
+            if (Test-Path -LiteralPath $pngPath) {
+                Remove-Item -LiteralPath $pngPath -Force
+            }
+            throw "Expected asset package is missing: $expectedPackagePath"
+        }
+
         Set-Content -LiteralPath $argsJsonPath -Value $argsJson -Encoding UTF8
         $raw = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $mcpToolScriptPath `
             -ServerUrl $ServerUrl `
@@ -118,6 +180,8 @@ foreach ($asset in $assets) {
             Sha256 = $stats.Sha256
             NonEmpty = $stats.NonEmpty
             Status = if ($stats.NonEmpty) { "Captured" } else { "SuspiciousEmpty" }
+            ExpectedPackagePath = $expectedPackagePath
+            PackageExists = $packageExists
         }
     }
     catch {
@@ -130,7 +194,9 @@ foreach ($asset in $assets) {
             ByteCount = 0
             Sha256 = ""
             NonEmpty = $false
-            Status = "Failed"
+            Status = if ($packageExists) { "Failed" } else { "MissingAssetFile" }
+            ExpectedPackagePath = $expectedPackagePath
+            PackageExists = $packageExists
         }
     }
 }
@@ -143,14 +209,15 @@ $lines = @(
     "- Time: $(Get-Date -Format o)",
     "- Repo: $RepoRoot",
     "- MCP server: $ServerUrl",
+    "- MaterialBatch manifest: $manifestPath",
     "- Status: $(if ($allCaptured) { "Captured" } else { "Incomplete" })",
     "- Scope: asset thumbnail capture for source and generated material-batch artifacts.",
     "- Limitation: this proves UE can load and render thumbnails through MCP; final visual parity still requires side-by-side review in the target scene.",
     "",
     "## Captures",
     "",
-    "| Label | Asset | Status | PNG | Bytes | SHA256 |",
-    "| --- | --- | --- | --- | ---: | --- |"
+    "| Label | Asset | Status | Package Exists | PNG | Bytes | SHA256 |",
+    "| --- | --- | --- | --- | --- | ---: | --- |"
 )
 
 foreach ($row in $rows) {
@@ -161,9 +228,10 @@ foreach ($row in $rows) {
     $label = $row.Label
     $assetPath = $row.AssetPath
     $status = $row.Status
+    $packageExists = $row.PackageExists
     $byteCount = $row.ByteCount
     $sha256 = $row.Sha256
-    $lines += "| $label | ``$assetPath`` | $status | ``$relativePng`` | $byteCount | ``$sha256`` |"
+    $lines += "| $label | ``$assetPath`` | $status | $packageExists | ``$relativePng`` | $byteCount | ``$sha256`` |"
 }
 
 if ($failures.Count -gt 0) {
@@ -183,7 +251,8 @@ $lines += @(
     "",
     "- Open the generated PNGs side by side before production replacement.",
     "- In-scene parity must still be checked with the proxy visible and the matching source actors hidden or isolated.",
-    "- If the generated batch material thumbnail is blank, distorted, or untextured, review the `M_Env_Building_Batch` graph, `TexCoord7.x` material-index path, and `_PropTexture` slice rows before enabling map replacement."
+    "- `MissingAssetFile` means the generated package is not present in `Content` yet; run the clean-link commandlets and MaterialBatch dry-run before treating the batch visual gate as failed art.",
+    "- If the generated batch material thumbnail is blank, distorted, or untextured, review the `M_Env_Baked_VTAtlas` graph, `TexCoord7.x` material-index path, and `_PropTexture` slice rows before enabling map replacement."
 )
 
 Set-Content -LiteralPath $reportPath -Value $lines -Encoding UTF8

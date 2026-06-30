@@ -54,7 +54,7 @@ bool FUE58RuntimeProfilingPlanReportTest::RunTest(const FString& Parameters)
 
 	TestEqual(TEXT("Default runtime profiling scenario count"), Scenarios.Num(), 6);
 	TestEqual(TEXT("First scenario is the baseline"), Scenarios[0].Name, FString(TEXT("Baseline_LumenOff_NoBatch")));
-	TestEqual(TEXT("Lumen Lite scenario targets handheld 15W"), Scenarios[1].Tier, FString(TEXT("Handheld15W")));
+	TestEqual(TEXT("Lumen Lite scenario targets Mid tier"), Scenarios[1].Tier, FString(TEXT("Mid")));
 	TestTrue(TEXT("Batch + Lumen scenario requires generated proxy visibility"), Scenarios[3].bRequiresBatchProxy);
 
 	FUE58RuntimeProfilingPlanOptions Options;
@@ -73,7 +73,7 @@ bool FUE58RuntimeProfilingPlanReportTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Report includes stat rhi capture command"), Report.Contains(TEXT("stat rhi")));
 	TestTrue(TEXT("Report includes profilegpu capture command"), Report.Contains(TEXT("profilegpu")));
 	TestTrue(TEXT("Report includes mesh draw call metric"), Report.Contains(TEXT("| Mesh draw calls | NotMeasured |")));
-	TestTrue(TEXT("Report includes handheld acceptance check"), Report.Contains(TEXT("Handheld15W passes only if")));
+	TestTrue(TEXT("Report includes Mid acceptance check"), Report.Contains(TEXT("Mid passes only if")));
 
 	return true;
 }

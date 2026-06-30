@@ -4,7 +4,7 @@ param(
     [string]$ServerUrl = "http://127.0.0.1:8765/mcp",
     [string]$Map = "/Game/Art/Map/GameLevel_L1/Prison/L1_CommonLevel_Prison_S_01",
     [string]$SourceAsset = "/Game/Art/EnvironmentAsset/L1/Prop/FloorBrick_03/SM_FloorBrick_03a1",
-    [string]$ProxyAsset = "/Game/Generated/MaterialBatch/Medium/FloorBrick03_Probe/SM_BatchProxy_FloorBrick03_Probe",
+    [string]$ProxyAsset = "/Game/Generated/MaterialBatch/Mid/FloorBrick03_Probe/SM_BatchProxy_FloorBrick03_Probe",
     [double]$IsolationX = 200000,
     [double]$ScratchScale = 5,
     [int]$TimeoutSec = 60

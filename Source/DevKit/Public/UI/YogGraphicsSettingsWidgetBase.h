@@ -87,31 +87,16 @@ protected:
 	virtual TOptional<FUIInputConfig> GetDesiredInputConfig() const override;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "Settings|Graphics")
-	TObjectPtr<UButton> BtnProfileLow;
+	TObjectPtr<UButton> BtnTierEpic;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "Settings|Graphics")
-	TObjectPtr<UButton> BtnProfileMedium;
+	TObjectPtr<UButton> BtnTierHigh;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "Settings|Graphics")
-	TObjectPtr<UButton> BtnProfileHigh;
+	TObjectPtr<UButton> BtnTierMid;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "Settings|Graphics")
-	TObjectPtr<UButton> BtnProfileUltra;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "Settings|Graphics")
-	TObjectPtr<UButton> BtnTargetPCUltra;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "Settings|Graphics")
-	TObjectPtr<UButton> BtnTargetSteamDeck15W;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "Settings|Graphics")
-	TObjectPtr<UButton> BtnTargetSwitch2Candidate;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "Settings|Graphics")
-	TObjectPtr<UButton> BtnTargetSteamDeck5W;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "Settings|Graphics")
-	TObjectPtr<UButton> BtnTargetFallbackLow;
+	TObjectPtr<UButton> BtnTierLow;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "Settings|Graphics")
 	TObjectPtr<UButton> BtnFrame30;
@@ -201,31 +186,16 @@ private:
 	void MarkPendingAsCustom();
 
 	UFUNCTION()
-	void HandleLowProfileClicked();
+	void HandleTierEpicClicked();
 
 	UFUNCTION()
-	void HandleMediumProfileClicked();
+	void HandleTierHighClicked();
 
 	UFUNCTION()
-	void HandleHighProfileClicked();
+	void HandleTierMidClicked();
 
 	UFUNCTION()
-	void HandleUltraProfileClicked();
-
-	UFUNCTION()
-	void HandleTargetPCUltraClicked();
-
-	UFUNCTION()
-	void HandleTargetSteamDeck15WClicked();
-
-	UFUNCTION()
-	void HandleTargetSwitch2CandidateClicked();
-
-	UFUNCTION()
-	void HandleTargetSteamDeck5WClicked();
-
-	UFUNCTION()
-	void HandleTargetFallbackLowClicked();
+	void HandleTierLowClicked();
 
 	UFUNCTION()
 	void HandleFrame30Clicked();

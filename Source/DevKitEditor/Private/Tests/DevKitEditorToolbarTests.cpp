@@ -6,11 +6,11 @@
 #include "ToolMenuSection.h"
 #include "ToolMenus.h"
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDevKitNoCustomEntryMenuPlayButtonTest,
-	"DevKitEditor.Toolbar.NoCustomEntryMenuPlayButtonRegistered",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDevKitPerformanceQuickEntryToolbarTest,
+	"DevKitEditor.Toolbar.PerformanceQuickEntriesRegistered",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FDevKitNoCustomEntryMenuPlayButtonTest::RunTest(const FString& Parameters)
+bool FDevKitPerformanceQuickEntryToolbarTest::RunTest(const FString& Parameters)
 {
 	UToolMenus* ToolMenus = UToolMenus::Get();
 	if (!TestNotNull(TEXT("ToolMenus subsystem is available"), ToolMenus))
@@ -32,8 +32,25 @@ bool FDevKitNoCustomEntryMenuPlayButtonTest::RunTest(const FString& Parameters)
 	}
 
 	const FToolMenuEntry* Entry = PlaySection->FindEntry(TEXT("DevKitPlayFromMainMenu"));
-	TestNull(TEXT("Custom entry-menu play toolbar button is not registered"), Entry);
-	return Entry == nullptr;
+	TestNotNull(TEXT("Custom entry-menu play toolbar button is registered"), Entry);
+
+	const FName UserToolbarName(TEXT("LevelEditor.LevelEditorToolBar.User"));
+	UToolMenu* UserToolbar = ToolMenus->FindMenu(UserToolbarName);
+	if (!TestNotNull(TEXT("Level editor user toolbar menu is registered"), UserToolbar))
+	{
+		return false;
+	}
+
+	const FToolMenuSection* PerformanceSection = UserToolbar->FindSection(TEXT("DevKitPerformanceTools"));
+	if (!TestNotNull(TEXT("Level editor user toolbar contains the DevKit performance section"), PerformanceSection))
+	{
+		return false;
+	}
+
+	const FToolMenuEntry* LauncherEntry = PerformanceSection->FindEntry(TEXT("OpenDevKitPerformanceToolsLauncher"));
+	TestNotNull(TEXT("Performance tools launcher toolbar button is registered"), LauncherEntry);
+
+	return Entry != nullptr && LauncherEntry != nullptr;
 }
 
 #endif

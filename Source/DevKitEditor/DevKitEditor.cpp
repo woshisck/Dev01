@@ -11,6 +11,13 @@
 #include "Customization/RuneDataAssetDetails.h"
 #include "Data/RuneDataAsset.h"
 #include "Editor.h"
+#include "Editor/EditorEngine.h"
+#include "FileHelpers.h"
+#include "LevelEditor.h"
+#include "Misc/ConfigCacheIni.h"
+#include "Misc/MessageDialog.h"
+#include "Misc/PackageName.h"
+#include "PlayInEditorDataTypes.h"
 #include "RuneEditor/SRuneEditorWidget.h"
 #include "Styling/AppStyle.h"
 #include "ToolMenuEntry.h"
@@ -22,13 +29,20 @@
 #include "Tools/SDataEditorWidget.h"
 #include "Tools/SEnvBatchTaggerWidget.h"
 #include "Tools/SLevelDataWorkbenchWidget.h"
+#include "Tools/SMaterialBatchToolsWidget.h"
+#include "Tools/SMaterialTextureRulesWidget.h"
 #include "Tools/SMetaProgressionWorkbenchWidget.h"
+#include "Tools/SModelAssetComplianceWidget.h"
 #include "Tools/StoryEncounter/SStoryEncounterWorkbenchWidget.h"
 #include "Customization/GameplayAbilityComboGraphNodeDetails.h"
 #include "Data/GameplayAbilityComboGraph.h"
 #include "UI/CombatLogEditorUtilityWidget.h"
 #include "UObject/StrongObjectPtr.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/Layout/SScrollBox.h"
+#include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "DevKitEditor"
@@ -46,6 +60,27 @@ namespace
 	const FName MetaProgressionWorkbenchTabName(TEXT("DevKitMetaProgressionWorkbench"));
 	const FName StoryEncounterWorkbenchTabName(TEXT("DevKitStoryEncounterWorkbench"));
 	const FName EnvBatchTaggerTabName(TEXT("DevKitEnvBatchTagger"));
+	const FName MaterialBatchToolsTabName(TEXT("DevKitMaterialBatchTools"));
+	const FName ModelAssetComplianceTabName(TEXT("DevKitModelAssetCompliance"));
+	const FName MaterialTextureRulesTabName(TEXT("DevKitMaterialTextureRules"));
+	const FName PerformanceToolsLauncherTabName(TEXT("DevKitPerformanceToolsLauncher"));
+	const TCHAR* DefaultEntryMenuMapPackagePath = TEXT("/Game/Maps/L_EntryMenu");
+
+	FString NormalizeConfiguredMapPath(FString MapPath)
+	{
+		MapPath.TrimStartAndEndInline();
+		if (MapPath.IsEmpty() || MapPath.Equals(TEXT("None"), ESearchCase::IgnoreCase))
+		{
+			return FString();
+		}
+
+		int32 ObjectNameSeparatorIndex = INDEX_NONE;
+		if (MapPath.FindChar(TEXT('.'), ObjectNameSeparatorIndex))
+		{
+			MapPath.LeftInline(ObjectNameSeparatorIndex);
+		}
+		return MapPath;
+	}
 }
 
 class FDevKitEditorModule : public FDefaultGameModuleImpl {
@@ -139,8 +174,36 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
 			EnvBatchTaggerTabName,
 			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnEnvBatchTaggerTab))
-			.SetDisplayName(LOCTEXT("EnvBatchTaggerTabTitle", "EnvBatch Tagger"))
-			.SetTooltipText(LOCTEXT("EnvBatchTaggerTabTooltip", "Batch assign EnvBatch actor tags to the current editor selection."))
+			.SetDisplayName(LOCTEXT("EnvBatchTaggerTabTitle", "环境合批标记"))
+			.SetTooltipText(LOCTEXT("EnvBatchTaggerTabTooltip", "给当前选中的关卡 Actor 批量写入 EnvBatch 标记。"))
+			.SetMenuType(ETabSpawnerMenuType::Hidden);
+
+		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
+			MaterialBatchToolsTabName,
+			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnMaterialBatchToolsTab))
+			.SetDisplayName(LOCTEXT("MaterialBatchToolsTabTitle", "关卡模型材质合批"))
+			.SetTooltipText(LOCTEXT("MaterialBatchToolsTabTooltip", "根据 EnvBatch Actor Tag 生成关卡模型材质合批 dry-run 和 partial apply 命令。"))
+			.SetMenuType(ETabSpawnerMenuType::Hidden);
+
+		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
+			ModelAssetComplianceTabName,
+			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnModelAssetComplianceTab))
+			.SetDisplayName(LOCTEXT("ModelAssetComplianceTabTitle", "模型资产合规检查"))
+			.SetTooltipText(LOCTEXT("ModelAssetComplianceTabTooltip", "扫描 /Game/Art 下 StaticMesh，检查 LOD、材质槽、碰撞和静态环境分类是否符合性能分级制作标准。"))
+			.SetMenuType(ETabSpawnerMenuType::Hidden);
+
+		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
+			MaterialTextureRulesTabName,
+			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnMaterialTextureRulesTab))
+			.SetDisplayName(LOCTEXT("MaterialTextureRulesTabTitle", "贴图命名规则与检查"))
+			.SetTooltipText(LOCTEXT("MaterialTextureRulesTabTooltip", "创建贴图命名规则表，并检查选中 Texture2D 后缀与 sRGB 设置。"))
+			.SetMenuType(ETabSpawnerMenuType::Hidden);
+
+		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
+			PerformanceToolsLauncherTabName,
+			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnPerformanceToolsLauncherTab))
+			.SetDisplayName(LOCTEXT("PerformanceToolsLauncherTabTitle", "性能工具快捷入口"))
+			.SetTooltipText(LOCTEXT("PerformanceToolsLauncherTabTooltip", "打开性能分级、美术标记和主菜单运行的常用入口。"))
 			.SetMenuType(ETabSpawnerMenuType::Hidden);
 
 		UToolMenus::RegisterStartupCallback(FSimpleMulticastDelegate::FDelegate::CreateRaw(this, &FDevKitEditorModule::RegisterDataEditorMenus));
@@ -165,6 +228,10 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(MetaProgressionWorkbenchTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(StoryEncounterWorkbenchTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(EnvBatchTaggerTabName);
+		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(MaterialBatchToolsTabName);
+		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(ModelAssetComplianceTabName);
+		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(MaterialTextureRulesTabName);
+		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(PerformanceToolsLauncherTabName);
 		CombatLogWidgetInstance.Reset();
 
 		FEditorDelegates::OnMapOpened.RemoveAll(this);
@@ -321,9 +388,120 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 	{
 		return SNew(SDockTab)
 			.TabRole(ETabRole::NomadTab)
-			.Label(LOCTEXT("EnvBatchTaggerTabLabel", "EnvBatch Tagger"))
+			.Label(LOCTEXT("EnvBatchTaggerTabLabel", "环境合批标记"))
 			[
 				SNew(SEnvBatchTaggerWidget)
+			];
+	}
+
+	TSharedRef<SDockTab> SpawnMaterialBatchToolsTab(const FSpawnTabArgs& SpawnTabArgs)
+	{
+		return SNew(SDockTab)
+			.TabRole(ETabRole::NomadTab)
+			.Label(LOCTEXT("MaterialBatchToolsTabLabel", "关卡模型材质合批"))
+			[
+				SNew(SMaterialBatchToolsWidget)
+			];
+	}
+
+	TSharedRef<SDockTab> SpawnModelAssetComplianceTab(const FSpawnTabArgs& SpawnTabArgs)
+	{
+		return SNew(SDockTab)
+			.TabRole(ETabRole::NomadTab)
+			.Label(LOCTEXT("ModelAssetComplianceTabLabel", "模型资产合规检查"))
+			[
+				SNew(SModelAssetComplianceWidget)
+			];
+	}
+
+	TSharedRef<SDockTab> SpawnMaterialTextureRulesTab(const FSpawnTabArgs& SpawnTabArgs)
+	{
+		return SNew(SDockTab)
+			.TabRole(ETabRole::NomadTab)
+			.Label(LOCTEXT("MaterialTextureRulesTabLabel", "贴图命名规则与检查"))
+			[
+				SNew(SMaterialTextureRulesWidget)
+			];
+	}
+
+	TSharedRef<SDockTab> SpawnPerformanceToolsLauncherTab(const FSpawnTabArgs& SpawnTabArgs)
+	{
+		return SNew(SDockTab)
+			.TabRole(ETabRole::NomadTab)
+			.Label(LOCTEXT("PerformanceToolsLauncherTabLabel", "性能工具快捷入口"))
+			[
+				SNew(SBorder)
+				.Padding(16.f)
+				[
+					SNew(SScrollBox)
+					+ SScrollBox::Slot()
+					[
+						SNew(SVerticalBox)
+						+ SVerticalBox::Slot()
+						.AutoHeight()
+						[
+							SNew(STextBlock)
+							.Text(LOCTEXT("PerformanceToolsLauncherTitle", "性能工具快捷入口"))
+							.Font(FAppStyle::GetFontStyle(TEXT("DetailsView.CategoryFontStyle")))
+						]
+						+ SVerticalBox::Slot()
+						.AutoHeight()
+						.Padding(0.f, 8.f, 0.f, 14.f)
+						[
+							SNew(STextBlock)
+							.Text(LOCTEXT("PerformanceToolsLauncherDescription", "常用性能入口集中在这里：从游戏主菜单运行，以及打开环境合批标记工具。模型合规和贴图命名规则在编辑器工具栏或 DevKit 工具的美术资产工具中打开。"))
+							.AutoWrapText(true)
+						]
+						+ SVerticalBox::Slot()
+						.AutoHeight()
+						.Padding(0.f, 0.f, 0.f, 8.f)
+						[
+							SNew(SHorizontalBox)
+							+ SHorizontalBox::Slot()
+							.AutoWidth()
+							.Padding(0.f, 0.f, 8.f, 0.f)
+							[
+								SNew(SButton)
+								.Text(LOCTEXT("LauncherPlayFromMainMenu", "从主菜单运行"))
+								.ToolTipText(LOCTEXT("LauncherPlayFromMainMenuTooltip", "打开项目入口地图，然后用编辑器正常 Play 流程启动。"))
+								.OnClicked(FOnClicked::CreateRaw(this, &FDevKitEditorModule::HandlePlayFromMainMenuClicked))
+							]
+							+ SHorizontalBox::Slot()
+							.AutoWidth()
+							.Padding(0.f, 0.f, 8.f, 0.f)
+							[
+								SNew(SButton)
+								.Text(LOCTEXT("LauncherOpenEnvBatchTagger", "环境合批标记"))
+								.ToolTipText(LOCTEXT("LauncherOpenEnvBatchTaggerTooltip", "打开 Source / Proxy / Baked / Exclude 标记窗口。"))
+								.OnClicked(FOnClicked::CreateRaw(this, &FDevKitEditorModule::HandleOpenEnvBatchTaggerClicked))
+							]
+							+ SHorizontalBox::Slot()
+							.AutoWidth()
+							[
+								SNew(SButton)
+								.Text(LOCTEXT("LauncherOpenThisPanel", "刷新快捷入口"))
+								.ToolTipText(LOCTEXT("LauncherOpenThisPanelTooltip", "重新聚焦当前性能工具快捷入口窗口。"))
+								.OnClicked(FOnClicked::CreateRaw(this, &FDevKitEditorModule::HandleOpenPerformanceToolsLauncherClicked))
+							]
+						]
+						+ SVerticalBox::Slot()
+						.AutoHeight()
+						.Padding(0.f, 4.f, 0.f, 6.f)
+						[
+							SNew(STextBlock)
+							.Text(LOCTEXT("PerformanceToolsLauncherWorkflow", "推荐顺序：1. 在 DevKit 工具的美术资产工具中检查模型合规和贴图命名；2. 在这里使用环境合批标记给关卡对象写 EnvBatch Actor Tag；3. 正式打包链再执行关卡模型材质合批、VT Atlas、代理和替换。"))
+							.AutoWrapText(true)
+						]
+						+ SVerticalBox::Slot()
+						.AutoHeight()
+						.Padding(0.f, 10.f, 0.f, 0.f)
+						[
+							SNew(STextBlock)
+							.Text(LOCTEXT("PerformanceToolsLauncherNote", "主菜单运行入口读取 YogGameInstanceBase.FrontendMap；当前项目默认是 /Game/Maps/L_EntryMenu。"))
+							.AutoWrapText(true)
+						]
+					]
+				]
 			];
 	}
 
@@ -339,9 +517,45 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 		FToolMenuSection& Section = ToolsMenu->FindOrAddSection(TEXT("DevKitTools"), LOCTEXT("DevKitToolsSection", "DevKit"));
 		Section.AddSubMenu(
 			TEXT("DevKitToolsMenu"),
-			LOCTEXT("DevKitToolsMenuLabel", "DevKit Tools"),
-			LOCTEXT("DevKitToolsMenuTooltip", "Open DevKit authoring, balance, and debug editor tools."),
+			LOCTEXT("DevKitToolsMenuLabel", "DevKit 工具"),
+			LOCTEXT("DevKitToolsMenuTooltip", "打开 DevKit 编辑器工具。"),
 			FNewToolMenuDelegate::CreateRaw(this, &FDevKitEditorModule::FillDevKitDataMenu));
+
+		UToolMenu* PlayToolbar = UToolMenus::Get()->ExtendMenu(TEXT("LevelEditor.LevelEditorToolBar.PlayToolBar"));
+		FToolMenuSection& PlaySection = PlayToolbar->FindOrAddSection(TEXT("Play"));
+		FToolMenuEntry& QuickPlayEntry = PlaySection.AddEntry(FToolMenuEntry::InitToolBarButton(
+			TEXT("DevKitPlayFromMainMenu"),
+			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::PlayFromMainMenu)),
+			LOCTEXT("PlayFromMainMenuToolbarLabel", "从主菜单运行"),
+			LOCTEXT("PlayFromMainMenuToolbarTooltip", "打开入口地图并从游戏主菜单开始 Play。"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), TEXT("Icons.Play"))));
+		QuickPlayEntry.ToolBarData.LabelOverride = FText::GetEmpty();
+
+		UToolMenu* UserToolbar = UToolMenus::Get()->ExtendMenu(TEXT("LevelEditor.LevelEditorToolBar.User"));
+		FToolMenuSection& UserSection = UserToolbar->FindOrAddSection(TEXT("DevKitPerformanceTools"));
+		FToolMenuEntry& LauncherEntry = UserSection.AddEntry(FToolMenuEntry::InitToolBarButton(
+			TEXT("OpenDevKitPerformanceToolsLauncher"),
+			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenPerformanceToolsLauncherTab)),
+			LOCTEXT("OpenPerformanceToolsLauncherToolbarLabel", "性能工具"),
+			LOCTEXT("OpenPerformanceToolsLauncherToolbarTooltip", "打开性能工具快捷入口。"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), TEXT("Icons.Tools"))));
+		LauncherEntry.ToolBarData.LabelOverride = LOCTEXT("OpenPerformanceToolsLauncherToolbarShortLabel", "性能工具");
+
+		FToolMenuEntry& ModelComplianceEntry = UserSection.AddEntry(FToolMenuEntry::InitToolBarButton(
+			TEXT("OpenDevKitModelAssetCompliance"),
+			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenModelAssetComplianceTab)),
+			LOCTEXT("OpenModelAssetComplianceToolbarLabel", "模型合规"),
+			LOCTEXT("OpenModelAssetComplianceToolbarTooltip", "打开模型资产合规检查。"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), TEXT("Icons.Audit"))));
+		ModelComplianceEntry.ToolBarData.LabelOverride = LOCTEXT("OpenModelAssetComplianceToolbarShortLabel", "模型合规");
+
+		FToolMenuEntry& TextureRulesEntry = UserSection.AddEntry(FToolMenuEntry::InitToolBarButton(
+			TEXT("OpenDevKitMaterialTextureRules"),
+			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenMaterialTextureRulesTab)),
+			LOCTEXT("OpenMaterialTextureRulesToolbarLabel", "贴图规则"),
+			LOCTEXT("OpenMaterialTextureRulesToolbarTooltip", "打开贴图命名规则与检查。"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), TEXT("Icons.Search"))));
+		TextureRulesEntry.ToolBarData.LabelOverride = LOCTEXT("OpenMaterialTextureRulesToolbarShortLabel", "贴图规则");
 
 	}
 
@@ -394,12 +608,38 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenMetaProgressionWorkbenchTab)));
 
-		FToolMenuSection& PerformanceSection = Menu->FindOrAddSection(TEXT("DevKitPerformanceTools"), LOCTEXT("DevKitPerformanceToolsSection", "Performance Tools"));
+		FToolMenuSection& ArtAssetSection = Menu->FindOrAddSection(TEXT("DevKitArtAssetTools"), LOCTEXT("DevKitArtAssetToolsSection", "美术资产工具"));
+		ArtAssetSection.AddMenuEntry(
+			TEXT("OpenModelAssetCompliance"),
+			LOCTEXT("OpenModelAssetComplianceLabel", "模型资产合规检查"),
+			LOCTEXT("OpenModelAssetComplianceTooltip", "扫描 /Game/Art 下 StaticMesh，检查性能分级制作合规，不执行合批或写入生成资产。"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), TEXT("Icons.Audit")),
+			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenModelAssetComplianceTab)));
+		ArtAssetSection.AddMenuEntry(
+			TEXT("OpenMaterialTextureRules"),
+			LOCTEXT("OpenMaterialTextureRulesLabel", "贴图命名规则与检查"),
+			LOCTEXT("OpenMaterialTextureRulesTooltip", "创建贴图命名规则表，并检查 Content Browser 选中的 Texture2D。"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), TEXT("Icons.Search")),
+			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenMaterialTextureRulesTab)));
+
+		FToolMenuSection& PerformanceSection = Menu->FindOrAddSection(TEXT("DevKitPerformanceTools"), LOCTEXT("DevKitPerformanceToolsSection", "性能工具"));
+		PerformanceSection.AddMenuEntry(
+			TEXT("OpenPerformanceToolsLauncher"),
+			LOCTEXT("OpenPerformanceToolsLauncherLabel", "性能工具快捷入口"),
+			LOCTEXT("OpenPerformanceToolsLauncherTooltip", "打开主菜单运行入口和关卡环境合批标记入口；模型、贴图资产检查在美术资产工具中打开。"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), TEXT("Icons.Tools")),
+			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenPerformanceToolsLauncherTab)));
+		PerformanceSection.AddMenuEntry(
+			TEXT("DevKitPlayFromMainMenu"),
+			LOCTEXT("OpenPlayFromMainMenuLabel", "从主菜单运行"),
+			LOCTEXT("OpenPlayFromMainMenuTooltip", "打开入口地图并从游戏主菜单开始 Play。"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), TEXT("Icons.Play")),
+			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::PlayFromMainMenu)));
 		PerformanceSection.AddMenuEntry(
 			TEXT("OpenEnvBatchTagger"),
-			LOCTEXT("OpenEnvBatchTaggerLabel", "EnvBatch Tagger"),
-			LOCTEXT("OpenEnvBatchTaggerTooltip", "Assign EnvBatch Source, Proxy, Baked, or Exclude actor tags to the current level selection."),
-			FSlateIcon(),
+			LOCTEXT("OpenEnvBatchTaggerLabel", "环境合批标记"),
+			LOCTEXT("OpenEnvBatchTaggerTooltip", "给当前选中的静态环境 Actor 写入 Source、Proxy、Baked 或 Exclude 标记。"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), TEXT("Icons.Audit")),
 			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenEnvBatchTaggerTab)));
 
 		FToolMenuSection& DebugSection = Menu->FindOrAddSection(TEXT("DevKitDebugTools"), LOCTEXT("DevKitDebugToolsSection", "Debug Tools"));
@@ -416,6 +656,108 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenBuffFlowDebugTab)));
 
+	}
+
+	FReply HandlePlayFromMainMenuClicked()
+	{
+		PlayFromMainMenu();
+		return FReply::Handled();
+	}
+
+	FReply HandleOpenEnvBatchTaggerClicked()
+	{
+		OpenEnvBatchTaggerTab();
+		return FReply::Handled();
+	}
+
+	FReply HandleOpenMaterialBatchToolsClicked()
+	{
+		OpenMaterialBatchToolsTab();
+		return FReply::Handled();
+	}
+
+	FReply HandleOpenModelAssetComplianceClicked()
+	{
+		OpenModelAssetComplianceTab();
+		return FReply::Handled();
+	}
+
+	FReply HandleOpenMaterialTextureRulesClicked()
+	{
+		OpenMaterialTextureRulesTab();
+		return FReply::Handled();
+	}
+
+	FReply HandleOpenPerformanceToolsLauncherClicked()
+	{
+		OpenPerformanceToolsLauncherTab();
+		return FReply::Handled();
+	}
+
+	FString ResolveEntryMenuMapPackagePath() const
+	{
+		FString ConfiguredFrontendMap;
+		if (GConfig)
+		{
+			GConfig->GetString(
+				TEXT("/Script/DevKit.YogGameInstanceBase"),
+				TEXT("FrontendMap"),
+				ConfiguredFrontendMap,
+				GGameIni);
+		}
+
+		FString MapPackagePath = NormalizeConfiguredMapPath(ConfiguredFrontendMap);
+		if (MapPackagePath.IsEmpty())
+		{
+			MapPackagePath = DefaultEntryMenuMapPackagePath;
+		}
+		return MapPackagePath;
+	}
+
+	void PlayFromMainMenu()
+	{
+		if (!GEditor)
+		{
+			FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("PlayFromMainMenuNoEditor", "当前没有可用的编辑器实例。"));
+			return;
+		}
+
+		if (GEditor->IsPlaySessionInProgress())
+		{
+			FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("PlayFromMainMenuAlreadyPlaying", "当前已经在 Play 或正在启动 Play。请先停止当前会话。"));
+			return;
+		}
+
+		const FString MapPackagePath = ResolveEntryMenuMapPackagePath();
+		FString MapFilename;
+		if (!FPackageName::DoesPackageExist(MapPackagePath, &MapFilename))
+		{
+			FMessageDialog::Open(
+				EAppMsgType::Ok,
+				FText::Format(LOCTEXT("PlayFromMainMenuMapMissing", "找不到入口地图：{0}"), FText::FromString(MapPackagePath)));
+			return;
+		}
+
+		const bool bLoadedMap = FEditorFileUtils::LoadMap(MapFilename, false, true);
+		if (!bLoadedMap)
+		{
+			FMessageDialog::Open(
+				EAppMsgType::Ok,
+				FText::Format(LOCTEXT("PlayFromMainMenuMapLoadFailed", "入口地图加载失败：{0}"), FText::FromString(MapPackagePath)));
+			return;
+		}
+
+		FRequestPlaySessionParams SessionParams;
+		SessionParams.WorldType = EPlaySessionWorldType::PlayInEditor;
+
+		FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
+		if (TSharedPtr<IAssetViewport> ActiveViewport = LevelEditorModule.GetFirstActiveViewport())
+		{
+			SessionParams.DestinationSlateViewport = TWeakPtr<IAssetViewport>(ActiveViewport);
+		}
+
+		GEditor->RequestPlaySession(SessionParams);
+		GEditor->StartQueuedPlaySessionRequest();
 	}
 
 	void OpenRuneBalanceTab()
@@ -471,6 +813,26 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 	void OpenEnvBatchTaggerTab()
 	{
 		FGlobalTabmanager::Get()->TryInvokeTab(EnvBatchTaggerTabName);
+	}
+
+	void OpenMaterialBatchToolsTab()
+	{
+		FGlobalTabmanager::Get()->TryInvokeTab(MaterialBatchToolsTabName);
+	}
+
+	void OpenModelAssetComplianceTab()
+	{
+		FGlobalTabmanager::Get()->TryInvokeTab(ModelAssetComplianceTabName);
+	}
+
+	void OpenMaterialTextureRulesTab()
+	{
+		FGlobalTabmanager::Get()->TryInvokeTab(MaterialTextureRulesTabName);
+	}
+
+	void OpenPerformanceToolsLauncherTab()
+	{
+		FGlobalTabmanager::Get()->TryInvokeTab(PerformanceToolsLauncherTabName);
 	}
 
 	void RegisterAssetTypeAction(IAssetTools& AssetTools, TSharedRef<IAssetTypeActions> Action)

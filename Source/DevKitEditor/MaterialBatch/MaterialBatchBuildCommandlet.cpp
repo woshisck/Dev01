@@ -240,6 +240,167 @@ bool SaveTextureArrayAssets(
 	return bAllSaved;
 }
 
+bool CopyTextureSourceIntoAtlasCell(
+	const FMaterialBatchBuildVTAtlasPayload& Payload,
+	const FMaterialBatchBuildVTAtlasEntry& Entry,
+	TArray<uint8>& AtlasPixels,
+	FString& OutFailureReason)
+{
+	if (Payload.Columns <= 0 || Payload.Rows <= 0 || Payload.Width <= 0 || Payload.Height <= 0)
+	{
+		OutFailureReason = TEXT("invalid atlas layout");
+		return false;
+	}
+
+	UTexture2D* SourceTexture = Cast<UTexture2D>(
+		StaticLoadObject(UTexture2D::StaticClass(), nullptr, *Entry.TexturePath, nullptr, LOAD_NoWarn));
+	if (!SourceTexture)
+	{
+		OutFailureReason = FString::Printf(TEXT("could not load source texture `%s`"), *Entry.TexturePath);
+		return false;
+	}
+	if (SourceTexture->Source.GetFormat() != ETextureSourceFormat::TSF_BGRA8)
+	{
+		OutFailureReason = FString::Printf(
+			TEXT("source texture `%s` has unsupported source format `%d`; first VT atlas apply only supports TSF_BGRA8"),
+			*Entry.TexturePath,
+			static_cast<int32>(SourceTexture->Source.GetFormat()));
+		return false;
+	}
+
+	const int32 SourceWidth = SourceTexture->Source.GetSizeX();
+	const int32 SourceHeight = SourceTexture->Source.GetSizeY();
+	if (SourceWidth <= 0 || SourceHeight <= 0)
+	{
+		OutFailureReason = FString::Printf(TEXT("source texture `%s` has invalid source size"), *Entry.TexturePath);
+		return false;
+	}
+
+	TArray64<uint8> SourceMipData;
+	if (!SourceTexture->Source.GetMipData(SourceMipData, 0))
+	{
+		OutFailureReason = FString::Printf(TEXT("could not read source mip data from `%s`"), *Entry.TexturePath);
+		return false;
+	}
+
+	const int32 BytesPerPixel = 4;
+	const int32 CellWidth = Payload.Width / Payload.Columns;
+	const int32 CellHeight = Payload.Height / Payload.Rows;
+	const int32 ColumnIndex = Entry.AtlasEntryIndex % Payload.Columns;
+	const int32 RowIndex = Entry.AtlasEntryIndex / Payload.Columns;
+	const int32 DestBaseX = ColumnIndex * CellWidth;
+	const int32 DestBaseY = RowIndex * CellHeight;
+	const int32 CopyWidth = FMath::Min(SourceWidth, CellWidth);
+	const int32 CopyHeight = FMath::Min(SourceHeight, CellHeight);
+
+	const int64 ExpectedSourceBytes = static_cast<int64>(SourceWidth) * static_cast<int64>(SourceHeight) * BytesPerPixel;
+	if (SourceMipData.Num() < ExpectedSourceBytes)
+	{
+		OutFailureReason = FString::Printf(TEXT("source texture `%s` mip data is smaller than expected"), *Entry.TexturePath);
+		return false;
+	}
+
+	for (int32 Y = 0; Y < CopyHeight; ++Y)
+	{
+		const int64 SourceOffset = static_cast<int64>(Y) * static_cast<int64>(SourceWidth) * BytesPerPixel;
+		const int64 DestOffset =
+			(static_cast<int64>(DestBaseY + Y) * static_cast<int64>(Payload.Width) + static_cast<int64>(DestBaseX)) * BytesPerPixel;
+		FMemory::Memcpy(
+			AtlasPixels.GetData() + DestOffset,
+			SourceMipData.GetData() + SourceOffset,
+			static_cast<SIZE_T>(CopyWidth * BytesPerPixel));
+	}
+
+	return true;
+}
+
+bool SaveVTAtlasAsset(const FMaterialBatchBuildPlan& Plan, FString& OutObjectPath, FString& OutFailureReason)
+{
+	const FMaterialBatchBuildVTAtlasPayload Payload =
+		FMaterialBatchBuildPlanBuilder::BuildVTAtlasPayload(Plan);
+	if (Payload.PackagePath.IsEmpty())
+	{
+		OutFailureReason = TEXT("empty package path");
+		return false;
+	}
+	if (Payload.Entries.IsEmpty())
+	{
+		OutFailureReason = TEXT("no eligible VT atlas entries");
+		return false;
+	}
+	if (Payload.Width <= 0 || Payload.Height <= 0)
+	{
+		OutFailureReason = TEXT("invalid atlas dimensions");
+		return false;
+	}
+
+	const FString AssetName = FPackageName::GetLongPackageAssetName(Payload.PackagePath);
+	if (AssetName.IsEmpty())
+	{
+		OutFailureReason = FString::Printf(TEXT("could not derive asset name from package `%s`"), *Payload.PackagePath);
+		return false;
+	}
+
+	TArray<uint8> AtlasPixels;
+	AtlasPixels.SetNumZeroed(Payload.Width * Payload.Height * 4);
+	for (const FMaterialBatchBuildVTAtlasEntry& Entry : Payload.Entries)
+	{
+		if (!CopyTextureSourceIntoAtlasCell(Payload, Entry, AtlasPixels, OutFailureReason))
+		{
+			return false;
+		}
+	}
+
+	const FString ObjectPath = BuildObjectPathFromPackagePath(Payload.PackagePath);
+	UTexture2D* AtlasTexture = Cast<UTexture2D>(
+		StaticLoadObject(UTexture2D::StaticClass(), nullptr, *ObjectPath, nullptr, LOAD_NoWarn));
+	UPackage* Package = AtlasTexture ? AtlasTexture->GetOutermost() : CreatePackage(*Payload.PackagePath);
+	if (!Package)
+	{
+		OutFailureReason = FString::Printf(TEXT("could not create package `%s`"), *Payload.PackagePath);
+		return false;
+	}
+
+	if (!AtlasTexture)
+	{
+		AtlasTexture = NewObject<UTexture2D>(
+			Package,
+			*AssetName,
+			RF_Public | RF_Standalone | RF_Transactional);
+		FAssetRegistryModule::AssetCreated(AtlasTexture);
+	}
+
+	AtlasTexture->Modify();
+	AtlasTexture->Source.Init(
+		Payload.Width,
+		Payload.Height,
+		1,
+		1,
+		ETextureSourceFormat::TSF_BGRA8,
+		AtlasPixels.GetData());
+	AtlasTexture->SRGB = false;
+	AtlasTexture->CompressionSettings = TC_Default;
+	AtlasTexture->MipGenSettings = TMGS_SimpleAverage;
+	AtlasTexture->NeverStream = false;
+	AtlasTexture->VirtualTextureStreaming = true;
+	AtlasTexture->AddressX = TA_Clamp;
+	AtlasTexture->AddressY = TA_Clamp;
+	AtlasTexture->UpdateResource();
+	AtlasTexture->MarkPackageDirty();
+	Package->MarkPackageDirty();
+
+	TArray<UPackage*> PackagesToSave;
+	PackagesToSave.Add(Package);
+	if (!UEditorLoadingAndSavingUtils::SavePackages(PackagesToSave, true))
+	{
+		OutFailureReason = FString::Printf(TEXT("could not save `%s`"), *ObjectPath);
+		return false;
+	}
+
+	OutObjectPath = ObjectPath;
+	return true;
+}
+
 bool SavePropertyTextureAsset(const FMaterialBatchBuildPlan& Plan, FString& OutObjectPath)
 {
 	const FMaterialBatchBuildPropertyTexturePayload Payload =
@@ -687,6 +848,139 @@ void AddComponentMaterialSlots(
 	}
 }
 
+TArray<FString> GetEnvBatchTags(const TArray<FName>& Tags)
+{
+	TArray<FString> Result;
+	for (const FName& Tag : Tags)
+	{
+		const FString TagString = Tag.ToString();
+		if (TagString.StartsWith(TEXT("EnvBatch.")))
+		{
+			Result.Add(TagString);
+		}
+	}
+	Result.Sort();
+	return Result;
+}
+
+FString NormalizeLayerBackend(const FString& LayerBackend)
+{
+	return LayerBackend.Equals(TEXT("DataLayer"), ESearchCase::IgnoreCase)
+		? TEXT("DataLayer")
+		: TEXT("StreamingLevel");
+}
+
+FString GetLevelPackageName(const ULevel* Level)
+{
+	return Level && Level->GetOutermost()
+		? Level->GetOutermost()->GetName()
+		: FString();
+}
+
+FString GetLevelShortName(const FString& LevelPackageName)
+{
+	return LevelPackageName.IsEmpty()
+		? FString()
+		: FPackageName::GetShortName(LevelPackageName);
+}
+
+TArray<FString> GetActorStreamingLayerNames(const AActor& Actor)
+{
+	TArray<FString> Result;
+	const FString LevelPackageName = GetLevelPackageName(Actor.GetLevel());
+	const FString LevelShortName = GetLevelShortName(LevelPackageName);
+	if (!LevelShortName.IsEmpty())
+	{
+		Result.AddUnique(LevelShortName);
+	}
+	if (!LevelPackageName.IsEmpty() && LevelPackageName != LevelShortName)
+	{
+		Result.AddUnique(LevelPackageName);
+	}
+	Result.Sort();
+	return Result;
+}
+
+bool HasEnvBatchTagPrefix(const TArray<FString>& Tags, const TCHAR* Prefix)
+{
+	for (const FString& Tag : Tags)
+	{
+		if (Tag.StartsWith(Prefix))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+void UpdateTagDiagnosticsForActor(
+	const AActor& Actor,
+	const TArray<FString>& EnvBatchTags,
+	const FMaterialBatchBuildPlanOptions& Options,
+	FMaterialBatchBuildTagDiagnostics& Diagnostics)
+{
+	if (EnvBatchTags.IsEmpty())
+	{
+		return;
+	}
+
+	++Diagnostics.ActorCount;
+	const bool bHasSource = HasEnvBatchTagPrefix(EnvBatchTags, TEXT("EnvBatch.Source."));
+	const bool bHasProxy = HasEnvBatchTagPrefix(EnvBatchTags, TEXT("EnvBatch.Proxy."));
+	const bool bHasBaked = HasEnvBatchTagPrefix(EnvBatchTags, TEXT("EnvBatch.Baked."));
+	const bool bHasExclude = EnvBatchTags.Contains(TEXT("EnvBatch.Exclude"));
+	const bool bHasBakeStaticDecal = HasEnvBatchTagPrefix(EnvBatchTags, TEXT("EnvBatch.BakeStaticDecal."));
+	const bool bHasRuntimeDecal = HasEnvBatchTagPrefix(EnvBatchTags, TEXT("EnvBatch.RuntimeDecal"));
+	const bool bHasGameplayIndicator = HasEnvBatchTagPrefix(EnvBatchTags, TEXT("EnvBatch.GameplayIndicator"));
+
+	if (bHasSource)
+	{
+		++Diagnostics.SourceActorCount;
+	}
+	if (bHasProxy)
+	{
+		++Diagnostics.ProxyActorCount;
+	}
+	if (bHasBaked)
+	{
+		++Diagnostics.BakedActorCount;
+	}
+	if (bHasExclude)
+	{
+		++Diagnostics.ExcludeActorCount;
+	}
+	if (bHasBakeStaticDecal)
+	{
+		++Diagnostics.BakeStaticDecalActorCount;
+	}
+	if (bHasRuntimeDecal)
+	{
+		++Diagnostics.RuntimeDecalActorCount;
+	}
+	if (bHasGameplayIndicator)
+	{
+		++Diagnostics.GameplayIndicatorActorCount;
+	}
+
+	if (Options.bValidateSourceProxyExclusivity && bHasSource && (bHasProxy || bHasBaked))
+	{
+		++Diagnostics.SourceProxyConflictActorCount;
+		Diagnostics.Warnings.Add(FString::Printf(
+			TEXT("%s has mutually exclusive EnvBatch tags in group `%s`: %s"),
+			*Actor.GetActorNameOrLabel(),
+			Options.SourceProxyExclusivityGroup.IsEmpty() ? *Options.ClusterName : *Options.SourceProxyExclusivityGroup,
+			*FString::Join(EnvBatchTags, TEXT(", "))));
+	}
+
+	if (Options.bReportStaticDecals && bHasBakeStaticDecal && bHasRuntimeDecal)
+	{
+		Diagnostics.Warnings.Add(FString::Printf(
+			TEXT("%s is tagged as both BakeStaticDecal and RuntimeDecal: %s"),
+			*Actor.GetActorNameOrLabel(),
+			*FString::Join(EnvBatchTags, TEXT(", "))));
+	}
+}
+
 FMaterialBatchBuildCandidateSummary ScanAssetCandidates(
 	const FString& RootPath,
 	int32 MaxAssets,
@@ -760,6 +1054,8 @@ FMaterialBatchBuildCandidateSummary ScanMapCandidates(
 	const FString& MapPath,
 	int32 MaxActors,
 	const FString& RequireTagPrefix,
+	const FMaterialBatchBuildPlanOptions& Options,
+	FMaterialBatchBuildTagDiagnostics& OutTagDiagnostics,
 	TArray<FMaterialBatchBuildPlannedEntry>& OutEntries)
 {
 	FMaterialBatchBuildCandidateSummary Summary;
@@ -803,6 +1099,12 @@ FMaterialBatchBuildCandidateSummary ScanMapCandidates(
 			}
 			++ActorsInspected;
 
+			const TArray<FString> ActorEnvBatchTags = GetEnvBatchTags(Actor->Tags);
+			const FString ActorLevelPackageName = GetLevelPackageName(Actor->GetLevel());
+			const FString ActorStreamingLevelName = GetLevelShortName(ActorLevelPackageName);
+			const TArray<FString> ActorLayerNames = GetActorStreamingLayerNames(*Actor);
+			UpdateTagDiagnosticsForActor(*Actor, ActorEnvBatchTags, Options, OutTagDiagnostics);
+
 			// Optional tag filter: only consider actors carrying the requested EnvBatch.* tag prefix.
 			if (!RequireTagPrefix.IsEmpty())
 			{
@@ -843,6 +1145,7 @@ FMaterialBatchBuildCandidateSummary ScanMapCandidates(
 				{
 					CombinedTags.Append(Component->ComponentTags);
 				}
+				const TArray<FString> CombinedEnvBatchTags = GetEnvBatchTags(CombinedTags);
 
 				FMaterialBatchComponentScanInput Input;
 				Input.bIsStaticMeshComponent = StaticMesh != nullptr;
@@ -863,6 +1166,10 @@ FMaterialBatchBuildCandidateSummary ScanMapCandidates(
 				Entry.ActorName = Actor->GetActorNameOrLabel();
 				Entry.ComponentName = Component ? Component->GetName() : TEXT("(null)");
 				Entry.AssetPath = StaticMesh ? StaticMesh->GetPathName() : TEXT("(no static mesh)");
+				Entry.EnvBatchTags = CombinedEnvBatchTags;
+				Entry.ActualLayerNames = ActorLayerNames;
+				Entry.ActualStreamingLevelName = ActorStreamingLevelName;
+				Entry.ActualLevelPackageName = ActorLevelPackageName;
 				if (Component)
 				{
 					const FTransform ComponentTransform = Component->GetComponentTransform();
@@ -913,17 +1220,26 @@ int32 UMaterialBatchBuildCommandlet::Main(const FString& Params)
 	Options.RootPath = GetParamValue(Params, TEXT("Root="), TEXT("/Game/Art"));
 	Options.MapPath = GetParamValue(Params, TEXT("Map="), TEXT(""));
 	Options.DataLayerName = GetParamValue(Params, TEXT("DataLayer="), TEXT(""));
+	Options.LayerBackend = NormalizeLayerBackend(GetParamValue(Params, TEXT("LayerBackend="), TEXT("StreamingLevel")));
 	Options.ClusterName = GetParamValue(Params, TEXT("Cluster="), TEXT("Default"));
-	Options.TierName = GetParamValue(Params, TEXT("Tier="), TEXT("Medium"));
+	Options.TierName = GetParamValue(Params, TEXT("Tier="), TEXT("Mid"));
+	Options.TextureBackend = GetParamValue(Params, TEXT("TextureBackend="), TEXT("VTAtlas"));
+	Options.SurfaceKind = GetParamValue(Params, TEXT("SurfaceKind="), TEXT("MixedStatic"));
+	Options.BakePolicy = GetParamValue(Params, TEXT("BakePolicy="), TEXT("StaticBake"));
+	Options.SourceProxyExclusivityGroup = GetParamValue(Params, TEXT("SourceProxyExclusivityGroup="), TEXT(""));
 	Options.RulesPath = GetParamValue(Params, TEXT("Rules="), TEXT(""));
 	Options.OutputRoot = GetParamValue(Params, TEXT("OutputRoot="), TEXT("/Game/Generated/MaterialBatch"));
 	const bool bApply = FParse::Param(*Params, TEXT("Apply"));
+	const bool bApplyVTAtlasOnly = HasSwitch(Params, TEXT("ApplyVTAtlasOnly"));
 	const bool bApplyMappingOnly = HasSwitch(Params, TEXT("ApplyMappingOnly"));
 	const bool bApplyTextureArraysOnly = HasSwitch(Params, TEXT("ApplyTextureArraysOnly"));
 	const bool bApplyPropertyTextureOnly = HasSwitch(Params, TEXT("ApplyPropertyTextureOnly"));
 	const bool bApplyProxyMeshOnly = HasSwitch(Params, TEXT("ApplyProxyMeshOnly"));
 	const bool bApplyBatchMaterialOnly = HasSwitch(Params, TEXT("ApplyBatchMaterialOnly"));
+	Options.bReportStaticDecals = HasSwitch(Params, TEXT("ReportStaticDecals"));
+	Options.bValidateSourceProxyExclusivity = HasSwitch(Params, TEXT("ValidateSourceProxyExclusivity"));
 	Options.bDryRun = !(bApply ||
+		bApplyVTAtlasOnly ||
 		bApplyMappingOnly ||
 		bApplyTextureArraysOnly ||
 		bApplyPropertyTextureOnly ||
@@ -947,9 +1263,11 @@ int32 UMaterialBatchBuildCommandlet::Main(const FString& Params)
 
 	FMaterialBatchBuildPlan Plan = FMaterialBatchBuildPlanBuilder::CreateDryRunPlan(Options);
 	TArray<FMaterialBatchBuildPlannedEntry> PlannedEntries;
+	FMaterialBatchBuildTagDiagnostics TagDiagnostics;
 	const FMaterialBatchBuildCandidateSummary Summary = Options.MapPath.IsEmpty()
 		? ScanAssetCandidates(Options.RootPath, MaxAssets, PlannedEntries)
-		: ScanMapCandidates(Options.MapPath, MaxActors, RequireTagPrefix, PlannedEntries);
+		: ScanMapCandidates(Options.MapPath, MaxActors, RequireTagPrefix, Options, TagDiagnostics, PlannedEntries);
+	Plan.TagDiagnostics = TagDiagnostics;
 	FMaterialBatchBuildPlanBuilder::ApplyCandidateSummary(Plan, Summary);
 	FMaterialBatchBuildPlanBuilder::ApplyPlannedEntries(Plan, PlannedEntries);
 	FMaterialBatchBuildPlanBuilder::ApplyTextureChannelPlans(Plan);
@@ -965,7 +1283,7 @@ int32 UMaterialBatchBuildCommandlet::Main(const FString& Params)
 		{
 			ReportLines.Add(TEXT("- Failed: `-Apply` is intentionally disabled until generated proxy meshes are reviewed and map replacement is implemented."));
 		}
-		else if (bApplyMappingOnly || bApplyTextureArraysOnly || bApplyPropertyTextureOnly || bApplyProxyMeshOnly || bApplyBatchMaterialOnly)
+		else if (bApplyVTAtlasOnly || bApplyMappingOnly || bApplyTextureArraysOnly || bApplyPropertyTextureOnly || bApplyProxyMeshOnly || bApplyBatchMaterialOnly)
 		{
 			ReportLines.Add(TEXT("- Partial apply requested: writes only the explicitly requested generated assets. Map replacement generation remains disabled."));
 		}
@@ -998,6 +1316,20 @@ int32 UMaterialBatchBuildCommandlet::Main(const FString& Params)
 			ReportLines,
 			SavedTextureArrayCount,
 			SkippedTextureArrayCount);
+	}
+
+	FString SavedVTAtlasObjectPath;
+	FString VTAtlasFailureReason;
+	bool bSavedVTAtlas = false;
+	if (!bApply && bApplyVTAtlasOnly)
+	{
+		bSavedVTAtlas = SaveVTAtlasAsset(Plan, SavedVTAtlasObjectPath, VTAtlasFailureReason);
+		ReportLines.Add(TEXT(""));
+		ReportLines.Add(TEXT("## VT Atlas Asset"));
+		ReportLines.Add(TEXT(""));
+		ReportLines.Add(bSavedVTAtlas
+			? FString::Printf(TEXT("- Saved: `%s`"), *SavedVTAtlasObjectPath)
+			: FString::Printf(TEXT("- Failed to save VT atlas asset: %s"), VTAtlasFailureReason.IsEmpty() ? TEXT("unknown error") : *VTAtlasFailureReason));
 	}
 
 	FString SavedPropertyTextureObjectPath;
@@ -1076,14 +1408,15 @@ int32 UMaterialBatchBuildCommandlet::Main(const FString& Params)
 	{
 		return 1;
 	}
-	if (bApplyMappingOnly || bApplyTextureArraysOnly || bApplyPropertyTextureOnly || bApplyProxyMeshOnly || bApplyBatchMaterialOnly)
+	if (bApplyVTAtlasOnly || bApplyMappingOnly || bApplyTextureArraysOnly || bApplyPropertyTextureOnly || bApplyProxyMeshOnly || bApplyBatchMaterialOnly)
 	{
+		const bool bVTAtlasOk = !bApplyVTAtlasOnly || bSavedVTAtlas;
 		const bool bMappingOk = !bApplyMappingOnly || bSavedMappingData;
 		const bool bTextureArraysOk = !bApplyTextureArraysOnly || bSavedTextureArrays;
 		const bool bPropertyTextureOk = !bApplyPropertyTextureOnly || bSavedPropertyTexture;
 		const bool bProxyMeshOk = !bApplyProxyMeshOnly || bSavedProxyMesh;
 		const bool bBatchMaterialOk = !bApplyBatchMaterialOnly || bSavedBatchMaterial;
-		return (bMappingOk && bTextureArraysOk && bPropertyTextureOk && bProxyMeshOk && bBatchMaterialOk) ? 0 : 1;
+		return (bVTAtlasOk && bMappingOk && bTextureArraysOk && bPropertyTextureOk && bProxyMeshOk && bBatchMaterialOk) ? 0 : 1;
 	}
 	return Plan.bDryRun ? 0 : 1;
 }

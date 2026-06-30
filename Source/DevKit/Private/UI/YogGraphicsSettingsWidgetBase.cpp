@@ -118,15 +118,10 @@ FText FormatQualityText(const FText& Label, int32 Quality)
 TArray<FName> UYogGraphicsSettingsWidgetBase::GetRequiredDesignerWidgetNames()
 {
 	return {
-		TEXT("BtnTargetPCUltra"),
-		TEXT("BtnTargetSteamDeck15W"),
-		TEXT("BtnTargetSwitch2Candidate"),
-		TEXT("BtnTargetSteamDeck5W"),
-		TEXT("BtnTargetFallbackLow"),
-		TEXT("BtnProfileLow"),
-		TEXT("BtnProfileMedium"),
-		TEXT("BtnProfileHigh"),
-		TEXT("BtnProfileUltra"),
+		TEXT("BtnTierEpic"),
+		TEXT("BtnTierHigh"),
+		TEXT("BtnTierMid"),
+		TEXT("BtnTierLow"),
 		TEXT("BtnFrame30"),
 		TEXT("BtnFrame40"),
 		TEXT("BtnFrame60"),
@@ -251,8 +246,10 @@ void UYogGraphicsSettingsWidgetBase::SetPendingTextureQuality(int32 Quality)
 
 void UYogGraphicsSettingsWidgetBase::SetPendingMaterialQuality(int32 Quality)
 {
-	PendingSettings.ShadingQuality = ClampQuality(Quality);
-	PendingSettings.EffectsQuality = ClampQuality(Quality);
+	const int32 ClampedQuality = ClampQuality(Quality);
+	PendingSettings.ShadingQuality = ClampedQuality;
+	PendingSettings.EffectsQuality = ClampedQuality;
+	PendingSettings.MaterialQuality = ClampedQuality;
 	MarkPendingAsCustom();
 	SyncControlsFromPendingSettings();
 }
@@ -317,28 +314,15 @@ void UYogGraphicsSettingsWidgetBase::BuildFallbackLayout()
 	AddRow(Root, CurrentProfileText);
 
 	UHorizontalBox* TargetRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("TargetTierRow"));
-	BtnTargetPCUltra = MakeSettingsButton(WidgetTree, TEXT("BtnTargetPCUltra"), NSLOCTEXT("DevKitGraphicsSettings", "TargetPCUltra", "PC Ultra"));
-	BtnTargetSteamDeck15W = MakeSettingsButton(WidgetTree, TEXT("BtnTargetSteamDeck15W"), NSLOCTEXT("DevKitGraphicsSettings", "TargetDeck15W", "Deck 15W"));
-	BtnTargetSwitch2Candidate = MakeSettingsButton(WidgetTree, TEXT("BtnTargetSwitch2Candidate"), NSLOCTEXT("DevKitGraphicsSettings", "TargetSwitch2", "Switch 2"));
-	BtnTargetSteamDeck5W = MakeSettingsButton(WidgetTree, TEXT("BtnTargetSteamDeck5W"), NSLOCTEXT("DevKitGraphicsSettings", "TargetDeck5W", "Deck 5W"));
-	BtnTargetFallbackLow = MakeSettingsButton(WidgetTree, TEXT("BtnTargetFallbackLow"), NSLOCTEXT("DevKitGraphicsSettings", "TargetFallbackLow", "Fallback"));
-	AddInline(TargetRow, BtnTargetPCUltra);
-	AddInline(TargetRow, BtnTargetSteamDeck15W);
-	AddInline(TargetRow, BtnTargetSwitch2Candidate);
-	AddInline(TargetRow, BtnTargetSteamDeck5W);
-	AddInline(TargetRow, BtnTargetFallbackLow);
+	BtnTierEpic = MakeSettingsButton(WidgetTree, TEXT("BtnTierEpic"), NSLOCTEXT("DevKitGraphicsSettings", "TierEpic", "Epic"));
+	BtnTierHigh = MakeSettingsButton(WidgetTree, TEXT("BtnTierHigh"), NSLOCTEXT("DevKitGraphicsSettings", "TierHigh", "High"));
+	BtnTierMid = MakeSettingsButton(WidgetTree, TEXT("BtnTierMid"), NSLOCTEXT("DevKitGraphicsSettings", "TierMid", "Mid"));
+	BtnTierLow = MakeSettingsButton(WidgetTree, TEXT("BtnTierLow"), NSLOCTEXT("DevKitGraphicsSettings", "TierLow", "Low"));
+	AddInline(TargetRow, BtnTierEpic);
+	AddInline(TargetRow, BtnTierHigh);
+	AddInline(TargetRow, BtnTierMid);
+	AddInline(TargetRow, BtnTierLow);
 	AddRow(Root, TargetRow);
-
-	UHorizontalBox* ProfileRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("ProfileRow"));
-	BtnProfileLow = MakeSettingsButton(WidgetTree, TEXT("BtnProfileLow"), NSLOCTEXT("DevKitGraphicsSettings", "Low", "Low"));
-	BtnProfileMedium = MakeSettingsButton(WidgetTree, TEXT("BtnProfileMedium"), NSLOCTEXT("DevKitGraphicsSettings", "Medium", "Medium"));
-	BtnProfileHigh = MakeSettingsButton(WidgetTree, TEXT("BtnProfileHigh"), NSLOCTEXT("DevKitGraphicsSettings", "High", "High"));
-	BtnProfileUltra = MakeSettingsButton(WidgetTree, TEXT("BtnProfileUltra"), NSLOCTEXT("DevKitGraphicsSettings", "Ultra", "Ultra"));
-	AddInline(ProfileRow, BtnProfileLow);
-	AddInline(ProfileRow, BtnProfileMedium);
-	AddInline(ProfileRow, BtnProfileHigh);
-	AddInline(ProfileRow, BtnProfileUltra);
-	AddRow(Root, ProfileRow);
 
 	ResolutionScaleText = MakeSettingsText(WidgetTree, TEXT("ResolutionScaleText"), FText::GetEmpty(), 18);
 	AddRow(Root, ResolutionScaleText);
@@ -422,50 +406,25 @@ void UYogGraphicsSettingsWidgetBase::BuildFallbackLayout()
 
 void UYogGraphicsSettingsWidgetBase::BindControls()
 {
-	if (BtnProfileLow)
+	if (BtnTierEpic)
 	{
-		BtnProfileLow->OnClicked.RemoveDynamic(this, &UYogGraphicsSettingsWidgetBase::HandleLowProfileClicked);
-		BtnProfileLow->OnClicked.AddDynamic(this, &UYogGraphicsSettingsWidgetBase::HandleLowProfileClicked);
+		BtnTierEpic->OnClicked.RemoveDynamic(this, &UYogGraphicsSettingsWidgetBase::HandleTierEpicClicked);
+		BtnTierEpic->OnClicked.AddDynamic(this, &UYogGraphicsSettingsWidgetBase::HandleTierEpicClicked);
 	}
-	if (BtnProfileMedium)
+	if (BtnTierHigh)
 	{
-		BtnProfileMedium->OnClicked.RemoveDynamic(this, &UYogGraphicsSettingsWidgetBase::HandleMediumProfileClicked);
-		BtnProfileMedium->OnClicked.AddDynamic(this, &UYogGraphicsSettingsWidgetBase::HandleMediumProfileClicked);
+		BtnTierHigh->OnClicked.RemoveDynamic(this, &UYogGraphicsSettingsWidgetBase::HandleTierHighClicked);
+		BtnTierHigh->OnClicked.AddDynamic(this, &UYogGraphicsSettingsWidgetBase::HandleTierHighClicked);
 	}
-	if (BtnProfileHigh)
+	if (BtnTierMid)
 	{
-		BtnProfileHigh->OnClicked.RemoveDynamic(this, &UYogGraphicsSettingsWidgetBase::HandleHighProfileClicked);
-		BtnProfileHigh->OnClicked.AddDynamic(this, &UYogGraphicsSettingsWidgetBase::HandleHighProfileClicked);
+		BtnTierMid->OnClicked.RemoveDynamic(this, &UYogGraphicsSettingsWidgetBase::HandleTierMidClicked);
+		BtnTierMid->OnClicked.AddDynamic(this, &UYogGraphicsSettingsWidgetBase::HandleTierMidClicked);
 	}
-	if (BtnProfileUltra)
+	if (BtnTierLow)
 	{
-		BtnProfileUltra->OnClicked.RemoveDynamic(this, &UYogGraphicsSettingsWidgetBase::HandleUltraProfileClicked);
-		BtnProfileUltra->OnClicked.AddDynamic(this, &UYogGraphicsSettingsWidgetBase::HandleUltraProfileClicked);
-	}
-	if (BtnTargetPCUltra)
-	{
-		BtnTargetPCUltra->OnClicked.RemoveDynamic(this, &UYogGraphicsSettingsWidgetBase::HandleTargetPCUltraClicked);
-		BtnTargetPCUltra->OnClicked.AddDynamic(this, &UYogGraphicsSettingsWidgetBase::HandleTargetPCUltraClicked);
-	}
-	if (BtnTargetSteamDeck15W)
-	{
-		BtnTargetSteamDeck15W->OnClicked.RemoveDynamic(this, &UYogGraphicsSettingsWidgetBase::HandleTargetSteamDeck15WClicked);
-		BtnTargetSteamDeck15W->OnClicked.AddDynamic(this, &UYogGraphicsSettingsWidgetBase::HandleTargetSteamDeck15WClicked);
-	}
-	if (BtnTargetSwitch2Candidate)
-	{
-		BtnTargetSwitch2Candidate->OnClicked.RemoveDynamic(this, &UYogGraphicsSettingsWidgetBase::HandleTargetSwitch2CandidateClicked);
-		BtnTargetSwitch2Candidate->OnClicked.AddDynamic(this, &UYogGraphicsSettingsWidgetBase::HandleTargetSwitch2CandidateClicked);
-	}
-	if (BtnTargetSteamDeck5W)
-	{
-		BtnTargetSteamDeck5W->OnClicked.RemoveDynamic(this, &UYogGraphicsSettingsWidgetBase::HandleTargetSteamDeck5WClicked);
-		BtnTargetSteamDeck5W->OnClicked.AddDynamic(this, &UYogGraphicsSettingsWidgetBase::HandleTargetSteamDeck5WClicked);
-	}
-	if (BtnTargetFallbackLow)
-	{
-		BtnTargetFallbackLow->OnClicked.RemoveDynamic(this, &UYogGraphicsSettingsWidgetBase::HandleTargetFallbackLowClicked);
-		BtnTargetFallbackLow->OnClicked.AddDynamic(this, &UYogGraphicsSettingsWidgetBase::HandleTargetFallbackLowClicked);
+		BtnTierLow->OnClicked.RemoveDynamic(this, &UYogGraphicsSettingsWidgetBase::HandleTierLowClicked);
+		BtnTierLow->OnClicked.AddDynamic(this, &UYogGraphicsSettingsWidgetBase::HandleTierLowClicked);
 	}
 	if (BtnFrame30)
 	{
@@ -610,7 +569,7 @@ void UYogGraphicsSettingsWidgetBase::SyncControlsFromPendingSettings()
 	}
 	if (MaterialQualityText)
 	{
-		MaterialQualityText->SetText(FormatQualityText(NSLOCTEXT("DevKitGraphicsSettings", "MaterialQuality", "Material Quality"), PendingSettings.ShadingQuality));
+		MaterialQualityText->SetText(FormatQualityText(NSLOCTEXT("DevKitGraphicsSettings", "MaterialQuality", "Material Quality"), PendingSettings.MaterialQuality));
 	}
 	if (DynamicLightQualityText)
 	{
@@ -641,7 +600,7 @@ void UYogGraphicsSettingsWidgetBase::SyncControlsFromPendingSettings()
 	}
 	if (MaterialQualitySlider)
 	{
-		MaterialQualitySlider->SetValue(static_cast<float>(ClampQuality(PendingSettings.ShadingQuality)));
+		MaterialQualitySlider->SetValue(static_cast<float>(ClampQuality(PendingSettings.MaterialQuality)));
 	}
 	if (DynamicLightQualitySlider)
 	{
@@ -663,49 +622,24 @@ void UYogGraphicsSettingsWidgetBase::MarkPendingAsCustom()
 		PendingSettings.bPreferBatchedGeometryProxies);
 }
 
-void UYogGraphicsSettingsWidgetBase::HandleLowProfileClicked()
+void UYogGraphicsSettingsWidgetBase::HandleTierEpicClicked()
 {
-	ApplyProfile(EYogPerformanceProfile::Low);
+	ApplyTargetTier(EYogPerformanceTargetTier::Epic);
 }
 
-void UYogGraphicsSettingsWidgetBase::HandleMediumProfileClicked()
+void UYogGraphicsSettingsWidgetBase::HandleTierHighClicked()
 {
-	ApplyProfile(EYogPerformanceProfile::Medium);
+	ApplyTargetTier(EYogPerformanceTargetTier::High);
 }
 
-void UYogGraphicsSettingsWidgetBase::HandleHighProfileClicked()
+void UYogGraphicsSettingsWidgetBase::HandleTierMidClicked()
 {
-	ApplyProfile(EYogPerformanceProfile::High);
+	ApplyTargetTier(EYogPerformanceTargetTier::Mid);
 }
 
-void UYogGraphicsSettingsWidgetBase::HandleUltraProfileClicked()
+void UYogGraphicsSettingsWidgetBase::HandleTierLowClicked()
 {
-	ApplyProfile(EYogPerformanceProfile::Ultra);
-}
-
-void UYogGraphicsSettingsWidgetBase::HandleTargetPCUltraClicked()
-{
-	ApplyTargetTier(EYogPerformanceTargetTier::PCUltra);
-}
-
-void UYogGraphicsSettingsWidgetBase::HandleTargetSteamDeck15WClicked()
-{
-	ApplyTargetTier(EYogPerformanceTargetTier::SteamDeck15W);
-}
-
-void UYogGraphicsSettingsWidgetBase::HandleTargetSwitch2CandidateClicked()
-{
-	ApplyTargetTier(EYogPerformanceTargetTier::Switch2Candidate);
-}
-
-void UYogGraphicsSettingsWidgetBase::HandleTargetSteamDeck5WClicked()
-{
-	ApplyTargetTier(EYogPerformanceTargetTier::SteamDeck5W);
-}
-
-void UYogGraphicsSettingsWidgetBase::HandleTargetFallbackLowClicked()
-{
-	ApplyTargetTier(EYogPerformanceTargetTier::FallbackLow);
+	ApplyTargetTier(EYogPerformanceTargetTier::Low);
 }
 
 void UYogGraphicsSettingsWidgetBase::HandleFrame30Clicked()
