@@ -1,11 +1,14 @@
 #include "AbilitySystem/Abilities/GA_RangeAttack.h"
 #include "AbilitySystem/AbilityTask/YogAbilityTask_PlayMontageAndWaitForEvent.h"
 #include "AbilitySystem/Abilities/GA_MeleeAttack.h"
+#include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "Animation/AN_FireProjectile.h"
 #include "Character/YogCharacterBase.h"
+#include "AbilitySystemComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"
 #include "Projectile/BuffFlowProjectile.h"
+#include "Projectile/YogBulletManagerSubsystem.h"
 
 UGA_RangeAttack::UGA_RangeAttack()
 {
@@ -118,10 +121,25 @@ void UGA_RangeAttack::OnEventReceived(FGameplayTag EventTag, FGameplayEventData 
 	}
 }
 
+float UGA_RangeAttack::ComputeProjectileMagnitude(UAbilitySystemComponent* SourceASC) const
+{
+	if (!SourceASC)
+	{
+		return ProjectileConfig.BaseEffectMagnitude;
+	}
+
+	const float Attack      = SourceASC->GetNumericAttribute(UBaseAttributeSet::GetAttackAttribute());
+	const float AttackPower = SourceASC->GetNumericAttribute(UBaseAttributeSet::GetAttackPowerAttribute());
+
+	return ProjectileConfig.BaseEffectMagnitude
+		+ Attack      * ProjectileConfig.CreatorAttackMagnitudeScale
+		+ AttackPower * ProjectileConfig.CreatorAttackPowerMagnitudeScale;
+}
+
 void UGA_RangeAttack::SpawnProjectile(const FGameplayEventData& FireEventData,
 	const FGameplayAbilityActorInfo* ActorInfo)
 {
-	if (!ProjectileClass || !ActorInfo)
+	if (!ActorInfo)
 	{
 		return;
 	}
@@ -153,8 +171,45 @@ void UGA_RangeAttack::SpawnProjectile(const FGameplayEventData& FireEventData,
 		}
 	}
 
+	if (bUseBulletManager)
+	{
+		UYogBulletManagerSubsystem* BulletMgr = World->GetSubsystem<UYogBulletManagerSubsystem>();
+		if (!BulletMgr)
+		{
+			return;
+		}
+
+		UAbilitySystemComponent* SourceASC = ActorInfo->AbilitySystemComponent.Get();
+
+		FYogBulletSpawnParams Params;
+		Params.SpawnLocation         = SpawnTransform.GetLocation();
+		Params.Direction             = SpawnTransform.GetRotation().GetForwardVector();
+		Params.Speed                 = ProjectileConfig.Speed;
+		Params.Lifetime              = FMath::Max(0.01f, ProjectileConfig.Lifetime);
+		// Use the largest box extent side as the sphere radius.
+		Params.CollisionRadius       = ProjectileConfig.CollisionBoxExtent.GetMax();
+		Params.bPiercing             = !ProjectileConfig.bDestroyOnHitTrigger;
+		Params.MaxHits               = 0;
+		Params.HitEventTag           = HitEventTag;
+		Params.ExpireEventTag        = ProjectileConfig.ExpireGameplayEventTag;
+		Params.bSendHitEventToCreator = ProjectileConfig.bSendTriggerEventToCreator;
+		Params.EffectMagnitude       = ComputeProjectileMagnitude(SourceASC);
+		Params.SourceCharacter       = Cast<ACharacter>(AvatarActor);
+		Params.SourceASC             = SourceASC;
+		Params.HitNiagaraSystem      = nullptr;
+		Params.ExpireNiagaraSystem   = nullptr;
+
+		BulletMgr->SpawnBullet(Params);
+		return;
+	}
+
+	if (!ProjectileClass)
+	{
+		return;
+	}
+
 	FActorSpawnParameters SpawnParams;
-	SpawnParams.Owner     = AvatarActor;
+	SpawnParams.Owner      = AvatarActor;
 	SpawnParams.Instigator = Cast<APawn>(AvatarActor);
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
@@ -166,7 +221,7 @@ void UGA_RangeAttack::SpawnProjectile(const FGameplayEventData& FireEventData,
 		return;
 	}
 
-	// Start from designer values but override the two fields that enable the live-capture pattern:
+	// Override the two fields that enable the live-capture pattern:
 	//   - TriggerGameplayEventTag → routes hit notification back to this ability
 	//   - EffectClass = null → GA_RangeAttack creates the damage spec at hit time (live attributes)
 	FBuffFlowProjectileRuntimeConfig RuntimeConfig = ProjectileConfig;

@@ -89,7 +89,16 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Range")
 	FGameplayTag HitEffectContainerTag;
 
+	/**
+	 * When true, route SpawnProjectile through UYogBulletManagerSubsystem instead of
+	 * spawning an ABuffFlowProjectile actor. Shares ProjectileConfig for speed/lifetime/
+	 * collision/visual settings. Recommended for bullet-hell scenarios (up to ~500 bullets).
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Range")
+	bool bUseBulletManager = false;
+
 private:
+	float ComputeProjectileMagnitude(UAbilitySystemComponent* SourceASC) const;
 	UFUNCTION()
 	void OnMontageCompleted(FGameplayTag EventTag, FGameplayEventData EventData);
 
