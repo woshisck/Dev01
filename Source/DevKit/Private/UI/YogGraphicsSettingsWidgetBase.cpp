@@ -78,6 +78,22 @@ int32 RoundQuality(float Quality)
 	return ClampQuality(FMath::RoundToInt(Quality));
 }
 
+FText QualityDisplayName(int32 Quality)
+{
+	switch (ClampQuality(Quality))
+	{
+	case 3:
+		return NSLOCTEXT("DevKitGraphicsSettings", "QualityEpic", "Epic");
+	case 2:
+		return NSLOCTEXT("DevKitGraphicsSettings", "QualityHigh", "High");
+	case 1:
+		return NSLOCTEXT("DevKitGraphicsSettings", "QualityMid", "Mid");
+	case 0:
+	default:
+		return NSLOCTEXT("DevKitGraphicsSettings", "QualityLow", "Low");
+	}
+}
+
 int32 LightInfoCountForMaterialLightQuality(int32 Quality)
 {
 	switch (ClampQuality(Quality))
@@ -109,8 +125,9 @@ void ConfigureQualitySlider(USlider* Slider)
 FText FormatQualityText(const FText& Label, int32 Quality)
 {
 	return FText::Format(
-		NSLOCTEXT("DevKitGraphicsSettings", "QualityLabel", "{0}: {1}"),
+		NSLOCTEXT("DevKitGraphicsSettings", "QualityLabel", "{0}: {1} ({2})"),
 		Label,
+		QualityDisplayName(Quality),
 		FText::AsNumber(ClampQuality(Quality)));
 }
 }

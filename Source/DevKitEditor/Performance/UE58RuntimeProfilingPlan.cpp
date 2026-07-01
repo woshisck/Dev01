@@ -58,10 +58,14 @@ TArray<FUE58RuntimeProfilingScenario> FUE58RuntimeProfilingPlanBuilder::BuildDef
 				TEXT("r.SetRes 1280x720"),
 				TEXT("sg.GlobalIlluminationQuality 1"),
 				TEXT("sg.ReflectionQuality 1"),
+				TEXT("sg.PostProcessQuality 2"),
 				TEXT("sg.ShadowQuality 1"),
 				TEXT("r.ScreenPercentage 70"),
 				TEXT("r.Lumen.DiffuseIndirect.Allow 1"),
 				TEXT("r.Lumen.FinalGatherMethod 0"),
+				TEXT("r.Lumen.IrradianceFieldGather.InterpolateDownsampleFactor 2"),
+				TEXT("r.LumenScene.SurfaceCache.AtlasSize 2048"),
+				TEXT("r.LumenScene.DirectLighting.UpdateFactor 128"),
 				TEXT("r.Lumen.TraceMeshSDFs.Allow 0"),
 				TEXT("r.Lumen.HardwareRayTracing.HitLighting.Allowed 0"),
 				TEXT("t.MaxFPS 0")
@@ -89,31 +93,44 @@ TArray<FUE58RuntimeProfilingScenario> FUE58RuntimeProfilingPlanBuilder::BuildDef
 				TEXT("r.SetRes 1280x720"),
 				TEXT("sg.GlobalIlluminationQuality 1"),
 				TEXT("sg.ReflectionQuality 1"),
+				TEXT("sg.PostProcessQuality 2"),
 				TEXT("sg.ShadowQuality 1"),
 				TEXT("r.ScreenPercentage 70"),
 				TEXT("r.Lumen.DiffuseIndirect.Allow 1"),
 				TEXT("r.Lumen.FinalGatherMethod 0"),
+				TEXT("r.Lumen.IrradianceFieldGather.InterpolateDownsampleFactor 2"),
+				TEXT("r.LumenScene.SurfaceCache.AtlasSize 2048"),
+				TEXT("r.LumenScene.DirectLighting.UpdateFactor 128"),
 				TEXT("r.Lumen.TraceMeshSDFs.Allow 0"),
 				TEXT("r.Lumen.HardwareRayTracing.HitLighting.Allowed 0"),
 				TEXT("t.MaxFPS 0")
 			}),
 		MakeScenario(
-			TEXT("Low_LumenOff_Aggressive"),
+			TEXT("Low_LumenLite_VisualSafe"),
 			TEXT("Low"),
-			TEXT("Low-power profile; Lumen remains off and the batch/proxy path should be preferred."),
+			TEXT("Low-power Lumen Lite profile that keeps GI, local exposure, and one material-light entry for visual continuity."),
 			true,
 			{
 				TEXT("r.SetRes 1280x720"),
 				TEXT("sg.ViewDistanceQuality 0"),
 				TEXT("sg.ShadowQuality 0"),
-				TEXT("sg.GlobalIlluminationQuality 0"),
+				TEXT("sg.GlobalIlluminationQuality 1"),
 				TEXT("sg.ReflectionQuality 0"),
-				TEXT("sg.PostProcessQuality 0"),
+				TEXT("sg.PostProcessQuality 1"),
 				TEXT("sg.TextureQuality 1"),
 				TEXT("sg.EffectsQuality 0"),
 				TEXT("sg.FoliageQuality 0"),
 				TEXT("r.ScreenPercentage 55"),
-				TEXT("r.Lumen.DiffuseIndirect.Allow 0"),
+				TEXT("r.DynamicGlobalIlluminationMethod 1"),
+				TEXT("r.Lumen.DiffuseIndirect.Allow 1"),
+				TEXT("r.Lumen.FinalGatherMethod 0"),
+				TEXT("r.Lumen.IrradianceFieldGather.InterpolateDownsampleFactor 2"),
+				TEXT("r.LumenScene.SurfaceCache.AtlasSize 2048"),
+				TEXT("r.LumenScene.DirectLighting.UpdateFactor 128"),
+				TEXT("r.ReflectionMethod 2"),
+				TEXT("r.Lumen.Reflections.Allow 0"),
+				TEXT("r.Yog.MaterialLightQuality 1"),
+				TEXT("r.Yog.MaterialLight.MaxLightInfoCount 1"),
 				TEXT("t.MaxFPS 0")
 			}),
 		MakeScenario(
@@ -219,9 +236,9 @@ TArray<FString> FUE58RuntimeProfilingPlanBuilder::BuildMarkdownReport(const FUE5
 	Lines.Add(TEXT("## Acceptance Checks"));
 	Lines.Add(TEXT(""));
 	Lines.Add(TEXT("- Mid passes only if `BatchProxy_LumenLite` is stable at the target frame budget or has a documented fallback to `BatchProxy_LumenOff`."));
-	Lines.Add(TEXT("- Low passes only if `Low_LumenOff_Aggressive` is stable at 30 FPS with acceptable visual loss."));
+	Lines.Add(TEXT("- Low passes only if `Low_LumenLite_VisualSafe` is stable at 30 FPS with acceptable visual loss."));
 	Lines.Add(TEXT("- Batch proxy is considered useful only if mesh draw calls drop enough to offset any extra material shader cost."));
-	Lines.Add(TEXT("- Lumen Lite is optional for Mid if Lumen passes consume more frame time than the visual gain justifies."));
+	Lines.Add(TEXT("- Lumen Lite is the default GI path for Low, Mid, and High; explicit Lumen-off captures are comparison fallbacks only."));
 
 	return Lines;
 }

@@ -5,10 +5,14 @@
 #include "FileHelpers.h"
 #include "MaterialDomain.h"
 #include "Materials/Material.h"
+#include "Materials/MaterialExpressionClamp.h"
 #include "Materials/MaterialExpressionComponentMask.h"
+#include "Materials/MaterialExpressionConstant.h"
 #include "Materials/MaterialExpressionLinearInterpolate.h"
 #include "Materials/MaterialExpressionMultiply.h"
+#include "Materials/MaterialExpressionQualitySwitch.h"
 #include "Materials/MaterialExpressionScalarParameter.h"
+#include "Materials/MaterialExpressionSubtract.h"
 #include "Materials/MaterialExpressionTextureCoordinate.h"
 #include "Materials/MaterialExpressionTextureSampleParameter2D.h"
 #include "Materials/MaterialInstanceConstant.h"
@@ -24,7 +28,7 @@ constexpr const TCHAR* SourceParentMaterialPath = TEXT("/Game/Art/Material/EnvMa
 constexpr const TCHAR* BakedVTAtlasMaterialPath = TEXT("/Game/Art/Material/EnvMaterial/Main/M_Env_Baked_VTAtlas");
 constexpr const TCHAR* TierInstanceRoot = TEXT("/Game/Art/Material/EnvMaterial/Instances");
 constexpr const TCHAR* DefaultTexturePath = TEXT("/Engine/EngineResources/DefaultTexture.DefaultTexture");
-constexpr const TCHAR* DefaultNormalTexturePath = TEXT("/Engine/EngineResources/DefaultNormal.DefaultNormal");
+constexpr const TCHAR* DefaultNormalTexturePath = TEXT("/Engine/EngineMaterials/DefaultNormal.DefaultNormal");
 
 FString ToObjectPath(const FString& PackagePath)
 {
@@ -59,7 +63,8 @@ UMaterialExpressionTextureSampleParameter2D* AddTextureSampleParameter(
 	UTexture* DefaultTexture,
 	EMaterialSamplerType SamplerType,
 	int32 NodeX,
-	int32 NodeY)
+	int32 NodeY,
+	const FName Group = TEXT("Source Material Contract"))
 {
 	UMaterialExpressionTextureSampleParameter2D* Parameter =
 		AddExpression<UMaterialExpressionTextureSampleParameter2D>(Material, NodeX, NodeY);
@@ -68,7 +73,7 @@ UMaterialExpressionTextureSampleParameter2D* AddTextureSampleParameter(
 		Parameter->ParameterName = ParameterName;
 		Parameter->Texture = DefaultTexture;
 		Parameter->SamplerType = SamplerType;
-		Parameter->Group = TEXT("Source Material Contract");
+		Parameter->Group = Group;
 	}
 	return Parameter;
 }
@@ -90,6 +95,53 @@ UMaterialExpressionScalarParameter* AddScalarParameter(
 		Parameter->Group = Group;
 	}
 	return Parameter;
+}
+
+UMaterialExpressionConstant* AddConstant(UMaterial* Material, float Value, int32 NodeX, int32 NodeY)
+{
+	UMaterialExpressionConstant* Constant = AddExpression<UMaterialExpressionConstant>(Material, NodeX, NodeY);
+	if (Constant)
+	{
+		Constant->R = Value;
+	}
+	return Constant;
+}
+
+UMaterialExpressionSubtract* AddSubtract(
+	UMaterial* Material,
+	UMaterialExpression* A,
+	UMaterialExpression* B,
+	int32 NodeX,
+	int32 NodeY)
+{
+	UMaterialExpressionSubtract* Subtract = AddExpression<UMaterialExpressionSubtract>(Material, NodeX, NodeY);
+	if (Subtract)
+	{
+		if (A)
+		{
+			Subtract->A.Connect(0, A);
+		}
+		if (B)
+		{
+			Subtract->B.Connect(0, B);
+		}
+	}
+	return Subtract;
+}
+
+UMaterialExpressionClamp* AddSaturate(UMaterial* Material, UMaterialExpression* Input, int32 NodeX, int32 NodeY)
+{
+	UMaterialExpressionClamp* Clamp = AddExpression<UMaterialExpressionClamp>(Material, NodeX, NodeY);
+	if (Clamp)
+	{
+		Clamp->MinDefault = 0.0f;
+		Clamp->MaxDefault = 1.0f;
+		if (Input)
+		{
+			Clamp->Input.Connect(0, Input);
+		}
+	}
+	return Clamp;
 }
 
 UMaterialExpressionLinearInterpolate* AddLerp(
@@ -117,6 +169,43 @@ UMaterialExpressionLinearInterpolate* AddLerp(
 		}
 	}
 	return Lerp;
+}
+
+UMaterialExpressionQualitySwitch* AddQualitySwitch(
+	UMaterial* Material,
+	UMaterialExpression* Default,
+	UMaterialExpression* Low,
+	UMaterialExpression* Medium,
+	UMaterialExpression* High,
+	UMaterialExpression* Epic,
+	int32 NodeX,
+	int32 NodeY)
+{
+	UMaterialExpressionQualitySwitch* Switch = AddExpression<UMaterialExpressionQualitySwitch>(Material, NodeX, NodeY);
+	if (Switch)
+	{
+		if (Default)
+		{
+			Switch->Default.Connect(0, Default);
+		}
+		if (Low)
+		{
+			Switch->Inputs[EMaterialQualityLevel::Low].Connect(0, Low);
+		}
+		if (Medium)
+		{
+			Switch->Inputs[EMaterialQualityLevel::Medium].Connect(0, Medium);
+		}
+		if (High)
+		{
+			Switch->Inputs[EMaterialQualityLevel::High].Connect(0, High);
+		}
+		if (Epic)
+		{
+			Switch->Inputs[EMaterialQualityLevel::Epic].Connect(0, Epic);
+		}
+	}
+	return Switch;
 }
 
 UMaterialExpressionMultiply* AddMultiply(
@@ -244,6 +333,14 @@ UMaterial* CreateOrResetSourceMaterial(bool bForce, TArray<FString>& ReportLines
 		AddTextureSampleParameter(Material, TEXT("T_Mask_A"), DefaultTexture, SAMPLERTYPE_Masks, -1260, 620);
 	UMaterialExpressionTextureSampleParameter2D* LightInfo =
 		AddTextureSampleParameter(Material, TEXT("T_LightInfo"), DefaultTexture, SAMPLERTYPE_LinearColor, -1260, 800);
+	UMaterialExpressionTextureSampleParameter2D* BatchBaseColor =
+		AddTextureSampleParameter(Material, TEXT("T_BatchVT_BaseColor"), DefaultTexture, SAMPLERTYPE_Color, -1540, 1040, TEXT("Batch VT Contract"));
+	UMaterialExpressionTextureSampleParameter2D* BatchNormal =
+		AddTextureSampleParameter(Material, TEXT("T_BatchVT_Normal"), DefaultNormalTexture, SAMPLERTYPE_Normal, -1540, 1200, TEXT("Batch VT Contract"));
+	UMaterialExpressionTextureSampleParameter2D* BatchOrm =
+		AddTextureSampleParameter(Material, TEXT("T_BatchVT_ORM"), DefaultTexture, SAMPLERTYPE_Masks, -1540, 1360, TEXT("Batch VT Contract"));
+	UMaterialExpressionTextureSampleParameter2D* BatchLightInfo =
+		AddTextureSampleParameter(Material, TEXT("T_BatchVT_LightInfo"), DefaultTexture, SAMPLERTYPE_LinearColor, -1540, 1520, TEXT("Batch VT Contract"));
 
 	UMaterialExpressionScalarParameter* LayerBWeight =
 		AddScalarParameter(Material, TEXT("LayerBWeight"), 1.0f, -980, -520, TEXT("Source Blend"));
@@ -266,24 +363,43 @@ UMaterial* CreateOrResetSourceMaterial(bool bForce, TArray<FString>& ReportLines
 
 	UMaterialExpressionComponentMask* HeightBMask = AddMask(Material, HeightB, true, false, false, false, -980, 320);
 	UMaterialExpressionComponentMask* HeightCMask = AddMask(Material, HeightC, true, false, false, false, -980, 460);
-	UMaterialExpressionMultiply* LayerBAlpha = AddMultiply(Material, LayerBWeight, HeightBMask, -740, -520);
-	UMaterialExpressionMultiply* LayerCAlpha = AddMultiply(Material, LayerCWeight, HeightCMask, -740, -380);
-	UMaterialExpressionLinearInterpolate* BaseAB = AddLerp(Material, BaseColorA, BaseColorB, LayerBAlpha, -500, -560);
-	UMaterialExpressionLinearInterpolate* BaseABC = AddLerp(Material, BaseAB, BaseColorC, LayerCAlpha, -260, -520);
+	UMaterialExpressionConstant* OneLayerThreshold = AddConstant(Material, 1.0f, -740, -160);
+	UMaterialExpressionConstant* TwoLayerThreshold = AddConstant(Material, 2.0f, -740, -20);
+	UMaterialExpressionSubtract* LayerBEnabledRaw = AddSubtract(Material, MaxRuntimeBlendLayers, OneLayerThreshold, -500, -160);
+	UMaterialExpressionSubtract* LayerCEnabledRaw = AddSubtract(Material, MaxRuntimeBlendLayers, TwoLayerThreshold, -500, -20);
+	UMaterialExpressionClamp* LayerBEnabled = AddSaturate(Material, LayerBEnabledRaw, -260, -160);
+	UMaterialExpressionClamp* LayerCEnabled = AddSaturate(Material, LayerCEnabledRaw, -260, -20);
+	UMaterialExpressionMultiply* LayerBHeightAlpha = AddMultiply(Material, LayerBWeight, HeightBMask, -740, -520);
+	UMaterialExpressionMultiply* LayerCHeightAlpha = AddMultiply(Material, LayerCWeight, HeightCMask, -740, -380);
+	UMaterialExpressionMultiply* LayerBAlpha = AddMultiply(Material, LayerBHeightAlpha, LayerBEnabled, -500, -520);
+	UMaterialExpressionMultiply* LayerCAlpha = AddMultiply(Material, LayerCHeightAlpha, LayerCEnabled, -500, -380);
+	UMaterialExpressionLinearInterpolate* BaseAB = AddLerp(Material, BaseColorA, BaseColorB, LayerBAlpha, -260, -560);
+	UMaterialExpressionLinearInterpolate* BaseABC = AddLerp(Material, BaseAB, BaseColorC, LayerCAlpha, -20, -520);
 
 	UMaterialExpressionComponentMask* AO = AddMask(Material, OrmA, true, false, false, false, -500, 40);
 	UMaterialExpressionComponentMask* Roughness = AddMask(Material, OrmA, false, true, false, false, -500, 140);
 	UMaterialExpressionComponentMask* Metallic = AddMask(Material, OrmA, false, false, true, false, -500, 240);
 	UMaterialExpressionComponentMask* LightRGB = AddMask(Material, LightInfo, true, true, true, false, -740, 760);
+	UMaterialExpressionComponentMask* BatchAO = AddMask(Material, BatchOrm, true, false, false, false, -980, 1360);
+	UMaterialExpressionComponentMask* BatchRoughness = AddMask(Material, BatchOrm, false, true, false, false, -980, 1480);
+	UMaterialExpressionComponentMask* BatchMetallic = AddMask(Material, BatchOrm, false, false, true, false, -980, 1600);
+	UMaterialExpressionComponentMask* BatchLightRGB = AddMask(Material, BatchLightInfo, true, true, true, false, -980, 1720);
 	UMaterialExpressionMultiply* LightScaledByQuality = AddMultiply(Material, LightRGB, MaterialLightQuality, -500, 760);
 	UMaterialExpressionMultiply* LightEmissive = AddMultiply(Material, LightScaledByQuality, LightInfoIntensity, -260, 760);
 
-	Data->BaseColor.Connect(0, BaseABC);
-	Data->Normal.Connect(0, NormalA);
-	Data->AmbientOcclusion.Connect(0, AO);
-	Data->Roughness.Connect(0, Roughness);
-	Data->Metallic.Connect(0, Metallic);
-	Data->EmissiveColor.Connect(0, LightEmissive);
+	UMaterialExpressionQualitySwitch* BaseColorQuality = AddQualitySwitch(Material, BaseABC, BatchBaseColor, BaseAB, BaseABC, BaseABC, 260, -520);
+	UMaterialExpressionQualitySwitch* NormalQuality = AddQualitySwitch(Material, NormalA, BatchNormal, NormalA, NormalA, NormalA, 260, -120);
+	UMaterialExpressionQualitySwitch* AOQuality = AddQualitySwitch(Material, AO, BatchAO, AO, AO, AO, 260, 40);
+	UMaterialExpressionQualitySwitch* RoughnessQuality = AddQualitySwitch(Material, Roughness, BatchRoughness, Roughness, Roughness, Roughness, 260, 180);
+	UMaterialExpressionQualitySwitch* MetallicQuality = AddQualitySwitch(Material, Metallic, BatchMetallic, Metallic, Metallic, Metallic, 260, 320);
+	UMaterialExpressionQualitySwitch* EmissiveQuality = AddQualitySwitch(Material, LightEmissive, BatchLightRGB, LightEmissive, LightEmissive, LightEmissive, 40, 760);
+
+	Data->BaseColor.Connect(0, BaseColorQuality);
+	Data->Normal.Connect(0, NormalQuality);
+	Data->AmbientOcclusion.Connect(0, AOQuality);
+	Data->Roughness.Connect(0, RoughnessQuality);
+	Data->Metallic.Connect(0, MetallicQuality);
+	Data->EmissiveColor.Connect(0, EmissiveQuality);
 
 	// Keep these parameters visible in the graph so material instances expose the tier contract even before final feature wiring.
 	(void)UV0;
@@ -373,8 +489,12 @@ void AppendTemplateEvidence(const UMaterial* Material, TArray<FString>& ReportLi
 	bool bHasBaseColorC = false;
 	bool bHasHeightB = false;
 	bool bHasLightInfo = false;
+	bool bHasBatchBaseColor = false;
+	bool bHasBatchOrm = false;
+	bool bHasBatchNormal = false;
 	bool bHasTierQuality = false;
 	bool bHasMaxBlendLayers = false;
+	int32 QualitySwitchCount = 0;
 
 	if (Material && Material->GetEditorOnlyData())
 	{
@@ -388,11 +508,18 @@ void AppendTemplateEvidence(const UMaterial* Material, TArray<FString>& ReportLi
 				bHasBaseColorC |= TextureParameter->ParameterName == TEXT("T_BaseColor_C");
 				bHasHeightB |= TextureParameter->ParameterName == TEXT("T_Height_B");
 				bHasLightInfo |= TextureParameter->ParameterName == TEXT("T_LightInfo");
+				bHasBatchBaseColor |= TextureParameter->ParameterName == TEXT("T_BatchVT_BaseColor");
+				bHasBatchNormal |= TextureParameter->ParameterName == TEXT("T_BatchVT_Normal");
+				bHasBatchOrm |= TextureParameter->ParameterName == TEXT("T_BatchVT_ORM");
 			}
 			else if (const UMaterialExpressionScalarParameter* ScalarParameter = Cast<UMaterialExpressionScalarParameter>(Expression))
 			{
 				bHasTierQuality |= ScalarParameter->ParameterName == TEXT("TierMaterialQuality");
 				bHasMaxBlendLayers |= ScalarParameter->ParameterName == TEXT("MaxRuntimeBlendLayers");
+			}
+			else if (Cast<UMaterialExpressionQualitySwitch>(Expression))
+			{
+				++QualitySwitchCount;
 			}
 		}
 	}
@@ -407,6 +534,10 @@ void AppendTemplateEvidence(const UMaterial* Material, TArray<FString>& ReportLi
 	ReportLines.Add(FString::Printf(TEXT("| `T_BaseColor_C` sample | %s |"), bHasBaseColorC ? TEXT("Yes") : TEXT("No")));
 	ReportLines.Add(FString::Printf(TEXT("| `T_Height_B` blend input | %s |"), bHasHeightB ? TEXT("Yes") : TEXT("No")));
 	ReportLines.Add(FString::Printf(TEXT("| `T_LightInfo` material-light input | %s |"), bHasLightInfo ? TEXT("Yes") : TEXT("No")));
+	ReportLines.Add(FString::Printf(TEXT("| `T_BatchVT_BaseColor` baked low-path input | %s |"), bHasBatchBaseColor ? TEXT("Yes") : TEXT("No")));
+	ReportLines.Add(FString::Printf(TEXT("| `T_BatchVT_Normal` baked low-path input | %s |"), bHasBatchNormal ? TEXT("Yes") : TEXT("No")));
+	ReportLines.Add(FString::Printf(TEXT("| `T_BatchVT_ORM` baked low-path input | %s |"), bHasBatchOrm ? TEXT("Yes") : TEXT("No")));
+	ReportLines.Add(FString::Printf(TEXT("| Quality Switch node count | %d |"), QualitySwitchCount));
 	ReportLines.Add(FString::Printf(TEXT("| `TierMaterialQuality` scalar | %s |"), bHasTierQuality ? TEXT("Yes") : TEXT("No")));
 	ReportLines.Add(FString::Printf(TEXT("| `MaxRuntimeBlendLayers` scalar | %s |"), bHasMaxBlendLayers ? TEXT("Yes") : TEXT("No")));
 }
@@ -433,7 +564,7 @@ int32 UMaterialPerformanceTemplateSetupCommandlet::Main(const FString& Params)
 	ReportLines.Add(FString::Printf(TEXT("- Apply: %s"), bApply ? TEXT("Yes") : TEXT("No")));
 	ReportLines.Add(FString::Printf(TEXT("- Force: %s"), bForce ? TEXT("Yes") : TEXT("No")));
 	ReportLines.Add(TEXT("- Source template approach: Unreal material graph nodes; no project .ush dependency."));
-	ReportLines.Add(TEXT("- Tier control surface: material instance scalar parameters plus runtime `FYogMaterialPerformanceTierInterface`."));
+	ReportLines.Add(TEXT("- Tier control surface: UE native `Quality Switch` nodes plus material instance scalar parameters for authoring metadata."));
 	ReportLines.Add(TEXT("- Baked/VT control surface: `TexCoord7.x -> _PropTexture row -> VT_Atlas UV rect` on `M_Env_Baked_VTAtlas`."));
 
 	UMaterial* SourceMaterial = nullptr;
@@ -496,6 +627,13 @@ int32 UMaterialPerformanceTemplateSetupCommandlet::Main(const FString& Params)
 	ReportLines.Add(TEXT("| High | 2 | 3 | 1 | 1 | 2 | 2 | 2 | 0 |"));
 	ReportLines.Add(TEXT("| Mid | 1 | 2 | 1 | 0 | 1 | 1 | 1 | 0 |"));
 	ReportLines.Add(TEXT("| Low | 0 | 1 | 0 | 0 | 0 | 0 | 0 | 1 |"));
+
+	ReportLines.Add(TEXT(""));
+	ReportLines.Add(TEXT("## Quality Switch Contract"));
+	ReportLines.Add(TEXT(""));
+	ReportLines.Add(TEXT("- Epic/High use the full Source A/B/C height-blend path."));
+	ReportLines.Add(TEXT("- Mid uses the reduced Source A/B height-blend path."));
+	ReportLines.Add(TEXT("- Low uses `T_BatchVT_BaseColor`, `T_BatchVT_Normal`, `T_BatchVT_ORM`, and `T_BatchVT_LightInfo`; generated batch tools must bind these to UDIM/SVT/VT atlas outputs."));
 
 	FString ReportPath;
 	FString SharedReportPath;

@@ -5,6 +5,36 @@
 
 ---
 
+## 2026-07-01
+
+### [PERF-VT-001] VirtualTexture 开启 + VTC 编辑器工具
+
+**状态**：C++ 完整，已编译（零错误）
+
+| 项目 | 内容 |
+|------|------|
+| 涉及文件 | `Config/DefaultEngine.ini`（开 VT）<br>`Source/DevKitEditor/Private/Tools/STextureVTAuditWidget.{h,cpp}`（贴图 VT 审计）<br>`Source/DevKitEditor/Private/Tools/SVirtualTextureCollectionManagerWidget.{h,cpp}`（VTC 管理器）<br>`Source/DevKitEditor/DevKitEditor.cpp`（Tab 注册 + 菜单入口） |
+| 入口 | Tools → DevKit 工具 → 美术资产工具 → `贴图 VT 审计` / `VTC 管理器` |
+| VT 开启 | `r.VirtualTextures=True`、`r.VT.PoolSizeInMegabyte=128`、`r.VT.AnisotropicFiltering=1` |
+| 审计工具 | 扫 `/Game/Art` 下所有 Texture2D；显示 VT 状态、尺寸、格式、VRAM；批量勾选/关闭 `VirtualTextureStreaming` |
+| VTC 工具 | 扫所有 UVirtualTextureCollection；从 Content Browser 一键新建/追加；成员合规校验（4K 上限 + 格式白名单） |
+| 文档 | `Docs/04_开发实现与系统文档/性能/UE58_VirtualTexture_And_VTC_Guide.md` |
+| 已知限制 | VTC 是 Experimental；单张源贴图 ≤ 4K；T2DA 系统保留作 fallback 未删 |
+
+### [PERF-TIER-004] 性能分级 CVar 启动时不生效修复
+
+**状态**：C++ 完整，已编译，日志验证通过
+
+| 项目 | 内容 |
+|------|------|
+| 涉及文件 | `Source/DevKit/Private/System/YogPerformanceSettingsLibrary.cpp` |
+| 症状 | `r.Yog.DynamicLightQuality` 长期显示 `LastSetBy: Constructor`，Low/Mid/High/Epic 档位切换无画面差异 |
+| 根因 | `ApplySavedGraphicsSettings` 直接使用存档 struct，若存档为空或版本过期，会把非 Custom 档位错传成 Custom 的 0 值 |
+| 修复 | 无存档 → 默认 Mid；非 Custom 档位 → 用 `MakeGraphicsSettingsForProfile` 从当前代码重新生成，忽略存档旧值；`ApplyGraphicsSettings` 加详细日志（`[PerfSettings]`） |
+| 验证 | 启动后 log 输出 `[PerfSettings] ApplyGraphicsSettings END — r.Yog.DynamicLightQuality=3 ...` |
+
+---
+
 ## 2026-05-08
 
 ### [RUNE-EDITOR-003] 连携配方表 — ComboRecipe 编辑器页

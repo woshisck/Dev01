@@ -1,5 +1,8 @@
 # UE5.8 Art Production, Batching, and Performance Tier Plan
 
+> **Historical note (superseded on 2026-07-01).**
+> This document preserves the earlier platform-tier and `Texture2DArray` batching investigation. It is not the current production plan. For new work, use `Epic / High / Mid / Low` as the formal tier names, `M_Env_MasterA_Source` as the editable source contract, `M_Env_Baked_VTAtlas` as the baked/batch contract, and `VT Atlas / UDIM-style SVT` as the primary environment texture backend. `Texture2DArray` remains a legacy fallback only and should not be treated as the default material-batch route.
+
 > Scope: PC, Nintendo Switch 2 candidate, Steam Deck 15W, and Steam Deck 5W.
 > Current project baseline: Lumen GI/reflections on by default, Nanite off, VSM off, environment lighting uses directional light, dynamic lights, and Celes/material lighting.
 
@@ -18,7 +21,7 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | PCUltra | PC high quality | Lumen High/Epic | Lumen or high SSR | Original mesh detail, conservative HLOD, Nanite optional experiment | Highest material lighting samples, high texture resolution | Higher dynamic light budget |
 | Handheld15W | Steam Deck 15W, Switch 2 candidate | Lumen Lite, `sg.GlobalIlluminationQuality=1` | SSR, `sg.ReflectionQuality=1` | Batch proxy, HLOD, tighter LOD/cull distances | Reduced samples, Texture2DArray batch preferred | Strict dynamic light/shadow budget |
-| Handheld5W | Steam Deck low power | Lumen off | SSR low/off as needed | Aggressive batch proxy and HLOD | Low samples, lower texture resolution | Minimal dynamic lights, short shadow distance |
+| Handheld5W | Steam Deck low power | Lumen Lite Minimal by default, Lumen off fallback only | SSR low/off as needed | Aggressive batch proxy and HLOD | Low samples, lower texture resolution | Minimal dynamic lights, short shadow distance |
 | FallbackLow | Safety/debug floor | Lumen off | Off/low SSR | Max culling, simple proxies | Lowest material switches | Static/unshadowed fallback where acceptable |
 
 Acceptance starts from measured frame budgets, not feature availability. If Handheld15W cannot hold 60 FPS with Lumen Lite, keep the profile but add a 40/30 FPS downgrade recommendation in the generated report.
@@ -111,7 +114,7 @@ Material sampling:
 
 - PCUltra may use Lumen High/Epic and higher reflection/shadow quality.
 - Handheld15W and Switch 2 candidate test Lumen Lite plus SSR and no Nanite/VSM dependency.
-- Handheld5W defaults to Lumen off.
+- Handheld5W defaults to Lumen Lite Minimal so the lighting composition stays close to Mid/High; Lumen off is a fallback path for over-budget hardware or diagnostics.
 - Dynamic local lights need per-tier budgets for count, radius, shadow casting, and visibility distance.
 - Directional light and skylight settings must be documented per tier.
 - Material lights from the cel/material lighting plugin must expose per-tier sample count and feature switches.

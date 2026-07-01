@@ -3,7 +3,7 @@ param(
     [string]$EngineRoot = "",
     [string]$OutputRoot = "",
     [string]$Map = "/Game/Art/Map/GameLevel_L1/Prison/L1_CommonLevel_Prison_S_01",
-    [string[]]$Scenario = @("Baseline_LumenOff_NoBatch", "LumenLite_NoBatch"),
+    [string[]]$Scenario = @("Low_VisualSafe_LumenOff_Isolated", "Low_LumenLite_VisualSafe"),
     [int]$CsvCaptureFrames = 180,
     [int]$TimeoutSec = 300,
     [switch]$NoQuit,
@@ -75,7 +75,7 @@ function New-ScenarioDefinitions {
             "sg.ShadowQuality 1",
             "r.ScreenPercentage 70",
             "r.Lumen.DiffuseIndirect.Allow 0",
-            "t.MaxFPS 60"
+            "t.MaxFPS 0"
         )
     }
     $definitions["LumenLite_NoBatch"] = [pscustomobject]@{
@@ -87,13 +87,17 @@ function New-ScenarioDefinitions {
             "r.ReflectionMethod 2",
             "sg.GlobalIlluminationQuality 1",
             "sg.ReflectionQuality 1",
+            "sg.PostProcessQuality 2",
             "sg.ShadowQuality 1",
             "r.ScreenPercentage 70",
             "r.Lumen.DiffuseIndirect.Allow 1",
             "r.Lumen.FinalGatherMethod 0",
+            "r.Lumen.IrradianceFieldGather.InterpolateDownsampleFactor 2",
+            "r.LumenScene.SurfaceCache.AtlasSize 2048",
+            "r.LumenScene.DirectLighting.UpdateFactor 128",
             "r.Lumen.TraceMeshSDFs.Allow 0",
             "r.Lumen.HardwareRayTracing.HitLighting.Allowed 0",
-            "t.MaxFPS 60"
+            "t.MaxFPS 0"
         )
     }
     $definitions["BatchProxy_LumenOff"] = [pscustomobject]@{
@@ -108,7 +112,7 @@ function New-ScenarioDefinitions {
             "sg.ShadowQuality 1",
             "r.ScreenPercentage 70",
             "r.Lumen.DiffuseIndirect.Allow 0",
-            "t.MaxFPS 60"
+            "t.MaxFPS 0"
         )
     }
     $definitions["BatchProxy_LumenLite"] = [pscustomobject]@{
@@ -120,16 +124,20 @@ function New-ScenarioDefinitions {
             "r.ReflectionMethod 2",
             "sg.GlobalIlluminationQuality 1",
             "sg.ReflectionQuality 1",
+            "sg.PostProcessQuality 2",
             "sg.ShadowQuality 1",
             "r.ScreenPercentage 70",
             "r.Lumen.DiffuseIndirect.Allow 1",
             "r.Lumen.FinalGatherMethod 0",
+            "r.Lumen.IrradianceFieldGather.InterpolateDownsampleFactor 2",
+            "r.LumenScene.SurfaceCache.AtlasSize 2048",
+            "r.LumenScene.DirectLighting.UpdateFactor 128",
             "r.Lumen.TraceMeshSDFs.Allow 0",
             "r.Lumen.HardwareRayTracing.HitLighting.Allowed 0",
-            "t.MaxFPS 60"
+            "t.MaxFPS 0"
         )
     }
-    $definitions["Low_LumenOff_Aggressive"] = [pscustomobject]@{
+    $definitions["Low_VisualSafe_LumenOff_Isolated"] = [pscustomobject]@{
         Tier = "Low"
         RequiresBatchProxy = $true
         CVars = @(
@@ -138,15 +146,47 @@ function New-ScenarioDefinitions {
             "r.ReflectionMethod 2",
             "sg.ViewDistanceQuality 0",
             "sg.ShadowQuality 0",
-            "sg.GlobalIlluminationQuality 0",
+            "sg.GlobalIlluminationQuality 1",
             "sg.ReflectionQuality 0",
-            "sg.PostProcessQuality 0",
+            "sg.PostProcessQuality 1",
             "sg.TextureQuality 1",
             "sg.EffectsQuality 0",
             "sg.FoliageQuality 0",
             "r.ScreenPercentage 55",
             "r.Lumen.DiffuseIndirect.Allow 0",
-            "t.MaxFPS 30"
+            "r.Lumen.Reflections.Allow 0",
+            "r.Yog.MaterialLightQuality 1",
+            "r.Yog.MaterialLight.MaxLightInfoCount 1",
+            "t.MaxFPS 0"
+        )
+    }
+    $definitions["Low_LumenLite_VisualSafe"] = [pscustomobject]@{
+        Tier = "Low"
+        RequiresBatchProxy = $true
+        CVars = @(
+            "r.SetRes 1280x720",
+            "r.DynamicGlobalIlluminationMethod 1",
+            "r.ReflectionMethod 2",
+            "sg.ViewDistanceQuality 0",
+            "sg.ShadowQuality 0",
+            "sg.GlobalIlluminationQuality 1",
+            "sg.ReflectionQuality 0",
+            "sg.PostProcessQuality 1",
+            "sg.TextureQuality 1",
+            "sg.EffectsQuality 0",
+            "sg.FoliageQuality 0",
+            "r.ScreenPercentage 55",
+            "r.Lumen.DiffuseIndirect.Allow 1",
+            "r.Lumen.FinalGatherMethod 0",
+            "r.Lumen.IrradianceFieldGather.InterpolateDownsampleFactor 2",
+            "r.LumenScene.SurfaceCache.AtlasSize 2048",
+            "r.LumenScene.DirectLighting.UpdateFactor 128",
+            "r.Lumen.TraceMeshSDFs.Allow 0",
+            "r.Lumen.HardwareRayTracing.HitLighting.Allowed 0",
+            "r.Lumen.Reflections.Allow 0",
+            "r.Yog.MaterialLightQuality 1",
+            "r.Yog.MaterialLight.MaxLightInfoCount 1",
+            "t.MaxFPS 0"
         )
     }
     $definitions["Epic_LumenHigh"] = [pscustomobject]@{

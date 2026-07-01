@@ -43,6 +43,7 @@ bool FYogPerformanceTargetTierTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("Epic is source-biased"), Epic.bPreferBatchedGeometryProxies);
 	TestEqual(TEXT("Epic uses the highest material quality"), Epic.MaterialQuality, 3);
 	TestEqual(TEXT("Epic uses the highest VT atlas quality"), Epic.VTAtlasQuality, 3);
+	TestEqual(TEXT("Epic maps to UE material quality Epic"), UYogPerformanceSettingsLibrary::GetNativeMaterialQualityLevelForProjectMaterialQuality(Epic.MaterialQuality), 3);
 
 	const FYogGraphicsSettings High =
 		UYogPerformanceSettingsLibrary::MakeGraphicsSettingsForTargetTier(EYogPerformanceTargetTier::High);
@@ -52,24 +53,31 @@ bool FYogPerformanceTargetTierTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("High is still source-biased by default"), High.bPreferBatchedGeometryProxies);
 	TestEqual(TEXT("High uses high material quality"), High.MaterialQuality, 2);
 	TestEqual(TEXT("High uses high VT atlas quality"), High.VTAtlasQuality, 2);
+	TestEqual(TEXT("High maps to UE material quality High"), UYogPerformanceSettingsLibrary::GetNativeMaterialQualityLevelForProjectMaterialQuality(High.MaterialQuality), 1);
 
 	const FYogGraphicsSettings Mid =
 		UYogPerformanceSettingsLibrary::MakeGraphicsSettingsForTargetTier(EYogPerformanceTargetTier::Mid);
 	TestEqual(TEXT("Mid records the selected target tier"), Mid.SelectedTargetTier, EYogPerformanceTargetTier::Mid);
 	TestEqual(TEXT("Mid uses the Mid base profile"), Mid.PerformanceProfile, EYogPerformanceProfile::Mid);
 	TestTrue(TEXT("Mid enables Lumen Lite for validation"), Mid.bUseLumenLite);
+	TestEqual(TEXT("Mid uses the standard UE5.8 Lumen Lite GI tier"), Mid.GlobalIlluminationQuality, 1);
+	TestEqual(TEXT("Mid keeps local exposure available through the High post process tier"), Mid.PostProcessQuality, 2);
 	TestTrue(TEXT("Mid prefers batch proxies"), Mid.bPreferBatchedGeometryProxies);
 	TestEqual(TEXT("Mid uses standard material quality"), Mid.MaterialQuality, 1);
 	TestEqual(TEXT("Mid uses standard VT atlas quality"), Mid.VTAtlasQuality, 1);
+	TestEqual(TEXT("Mid maps to UE material quality Medium"), UYogPerformanceSettingsLibrary::GetNativeMaterialQualityLevelForProjectMaterialQuality(Mid.MaterialQuality), 2);
 
 	const FYogGraphicsSettings Low =
 		UYogPerformanceSettingsLibrary::MakeGraphicsSettingsForTargetTier(EYogPerformanceTargetTier::Low);
 	TestEqual(TEXT("Low records the selected target tier"), Low.SelectedTargetTier, EYogPerformanceTargetTier::Low);
 	TestEqual(TEXT("Low uses the Low base profile"), Low.PerformanceProfile, EYogPerformanceProfile::Low);
-	TestFalse(TEXT("Low disables Lumen"), Low.bUseLumenLite);
+	TestTrue(TEXT("Low uses the Lumen Lite floor by default"), Low.bUseLumenLite);
+	TestEqual(TEXT("Low uses the standard UE5.8 Lumen Lite GI tier"), Low.GlobalIlluminationQuality, 1);
+	TestEqual(TEXT("Low keeps local exposure available through the Low post process tier"), Low.PostProcessQuality, 1);
 	TestTrue(TEXT("Low prefers batch proxies"), Low.bPreferBatchedGeometryProxies);
-	TestEqual(TEXT("Low disables material-light entries"), Low.MaterialLightMaxLightInfoCount, 0);
+	TestEqual(TEXT("Low keeps one material-light entry for scene readability"), Low.MaterialLightMaxLightInfoCount, 1);
 	TestEqual(TEXT("Low uses the lowest dynamic overlay quality"), Low.DynamicOverlayQuality, 0);
+	TestEqual(TEXT("Low maps to UE material quality Low"), UYogPerformanceSettingsLibrary::GetNativeMaterialQualityLevelForProjectMaterialQuality(Low.MaterialQuality), 0);
 
 	const TArray<EYogPerformanceTargetTier> TargetTiers = UYogPerformanceSettingsLibrary::GetSelectablePerformanceTargetTiers();
 	TestEqual(TEXT("Selectable target tiers expose only the four formal tiers"), TargetTiers.Num(), 4);
@@ -89,6 +97,7 @@ bool FYogMaterialPerformanceInterfaceTest::RunTest(const FString& Parameters)
 {
 	const FYogMaterialPerformanceTierInterface Epic =
 		UYogPerformanceSettingsLibrary::GetMaterialPerformanceInterfaceForTargetTier(EYogPerformanceTargetTier::Epic);
+	TestEqual(TEXT("Epic material interface exposes native UE material quality"), Epic.NativeMaterialQualityLevel, 3);
 	TestEqual(TEXT("Epic material interface keeps three unique texture sets"), Epic.MaxUniqueTextureSets, 3);
 	TestEqual(TEXT("Epic material interface keeps three runtime blend layers"), Epic.MaxRuntimeBlendLayers, 3);
 	TestEqual(TEXT("Epic material interface keeps two runtime overlay layers"), Epic.MaxRuntimeOverlayLayers, 2);
@@ -98,12 +107,14 @@ bool FYogMaterialPerformanceInterfaceTest::RunTest(const FString& Parameters)
 
 	const FYogMaterialPerformanceTierInterface High =
 		UYogPerformanceSettingsLibrary::GetMaterialPerformanceInterfaceForTargetTier(EYogPerformanceTargetTier::High);
+	TestEqual(TEXT("High material interface exposes native UE material quality"), High.NativeMaterialQualityLevel, 1);
 	TestEqual(TEXT("High material interface keeps three unique texture sets"), High.MaxUniqueTextureSets, 3);
 	TestEqual(TEXT("High material interface keeps one runtime overlay layer"), High.MaxRuntimeOverlayLayers, 1);
 	TestTrue(TEXT("High material interface still prefers source master material"), High.bPreferSourceMasterMaterial);
 
 	const FYogMaterialPerformanceTierInterface Mid =
 		UYogPerformanceSettingsLibrary::GetMaterialPerformanceInterfaceForTargetTier(EYogPerformanceTargetTier::Mid);
+	TestEqual(TEXT("Mid material interface exposes native UE material quality"), Mid.NativeMaterialQualityLevel, 2);
 	TestEqual(TEXT("Mid material interface reduces to two unique texture sets"), Mid.MaxUniqueTextureSets, 2);
 	TestEqual(TEXT("Mid material interface reduces to two runtime blend layers"), Mid.MaxRuntimeBlendLayers, 2);
 	TestEqual(TEXT("Mid material interface keeps one runtime overlay layer"), Mid.MaxRuntimeOverlayLayers, 1);
@@ -112,6 +123,7 @@ bool FYogMaterialPerformanceInterfaceTest::RunTest(const FString& Parameters)
 
 	const FYogMaterialPerformanceTierInterface Low =
 		UYogPerformanceSettingsLibrary::GetMaterialPerformanceInterfaceForTargetTier(EYogPerformanceTargetTier::Low);
+	TestEqual(TEXT("Low material interface exposes native UE material quality"), Low.NativeMaterialQualityLevel, 0);
 	TestEqual(TEXT("Low material interface reduces to one unique texture set"), Low.MaxUniqueTextureSets, 1);
 	TestEqual(TEXT("Low material interface reduces to one runtime blend layer"), Low.MaxRuntimeBlendLayers, 1);
 	TestEqual(TEXT("Low material interface disables runtime overlay layers"), Low.MaxRuntimeOverlayLayers, 0);

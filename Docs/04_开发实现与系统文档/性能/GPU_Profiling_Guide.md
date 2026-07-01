@@ -70,15 +70,19 @@ MSYS_NO_PATHCONV=1 "D:/UE/UE_5.8/Engine/Binaries/Win64/UnrealEditor-Cmd.exe" \
 r.SetRes 1280x720
 sg.ViewDistanceQuality 0
 sg.ShadowQuality 0
-sg.GlobalIlluminationQuality 0
+sg.GlobalIlluminationQuality 1
 sg.ReflectionQuality 0
-sg.PostProcessQuality 0
+sg.PostProcessQuality 1
 sg.TextureQuality 1
 sg.EffectsQuality 0
 sg.FoliageQuality 0
 r.ScreenPercentage 55
-t.MaxFPS 30
-r.Lumen.DiffuseIndirect.Allow 0
+t.MaxFPS 0
+r.Lumen.DiffuseIndirect.Allow 1
+r.Lumen.FinalGatherMethod 0
+r.Lumen.IrradianceFieldGather.InterpolateDownsampleFactor 2
+r.LumenScene.SurfaceCache.AtlasSize 2048
+r.LumenScene.DirectLighting.UpdateFactor 128
 
 # 中档（掌机 15W / Lumen Lite）
 r.SetRes 1280x720
@@ -86,9 +90,12 @@ sg.GlobalIlluminationQuality 1
 sg.ShadowQuality 1
 sg.ViewDistanceQuality 1
 r.ScreenPercentage 70
-t.MaxFPS 60
+t.MaxFPS 0
 r.Lumen.DiffuseIndirect.Allow 1
 r.Lumen.FinalGatherMethod 0
+r.Lumen.IrradianceFieldGather.InterpolateDownsampleFactor 2
+r.LumenScene.SurfaceCache.AtlasSize 2048
+r.LumenScene.DirectLighting.UpdateFactor 128
 
 # 高档（PC）
 sg.GlobalIlluminationQuality 2
@@ -146,7 +153,7 @@ r.MeshDrawCommands.LogDynamicInstancingStats 1
 | **Lumen Lite Only** | | | sg.GlobalIlluminationQuality=1，无合批 |
 | **Batch Only** | | | 合批代理可见，Lumen Off |
 | **Batch + Lumen Lite** | | | 合批 + Lumen Lite 组合 |
-| **Low 档烘培方案** | | | 地面烘培平面替代，Lumen Off |
+| **Low 档 Lumen Lite Minimal** | | | 地面烘培平面替代 + Lumen Lite Minimal；Lumen Off 只作为兜底对照 |
 
 每次测试记录：
 - `stat unit` → GPU ms（取 5 秒均值）
