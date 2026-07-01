@@ -81,6 +81,7 @@ INSTANCE_FOLDER = "/Game/Art/Material/EnvMaterial/Instances"
 MATERIAL_NAME = "M_Env_MasterA_Source"
 MATERIAL_PATH = MATERIAL_FOLDER + "/" + MATERIAL_NAME
 DEFAULT_TEX = {"refPath": "/Engine/EngineResources/DefaultTexture.DefaultTexture"}
+DEFAULT_NORMAL = {"refPath": "/Engine/EngineMaterials/DefaultNormal.DefaultNormal"}
 FORCE_REBUILD = __FORCE_REBUILD__
 
 PARAMETERS = [
@@ -91,7 +92,15 @@ PARAMETERS = [
     "DynamicOverlayQuality",
     "MaterialLightQuality",
     "MaterialLightMaxLightInfoCount",
+    "LightInfoIntensity",
     "UseBakedResult",
+]
+
+BATCH_VT_TEXTURES = [
+    "T_BatchVT_BaseColor",
+    "T_BatchVT_Normal",
+    "T_BatchVT_ORM",
+    "T_BatchVT_LightInfo",
 ]
 
 
@@ -139,21 +148,42 @@ def set_props(ref, values):
     })["returnValue"]
 
 
-def connect_output(expr, output, prop):
-    return tool(MAT_TOOLS + ".connect_to_output", {
-        "expression": expr,
-        "output_name": output,
-        "material_property": prop
-    })
+def output_candidates(output):
+    names = []
+    if output not in names:
+        names.append(output)
+    if output == "":
+        names.append("Result")
+    return names
 
 
 def connect_expr(src, output, dst, input_name):
-    return tool(MAT_TOOLS + ".connect_expressions", {
-        "from_expression": src,
-        "from_output_name": output,
-        "to_expression": dst,
-        "to_input_name": input_name
-    })
+    last_error = None
+    for output_name in output_candidates(output):
+        try:
+            return tool(MAT_TOOLS + ".connect_expressions", {
+                "from_expression": src,
+                "from_output_name": output_name,
+                "to_expression": dst,
+                "to_input_name": input_name
+            })
+        except Exception as error:
+            last_error = error
+    raise last_error
+
+
+def connect_output(expr, output, prop):
+    last_error = None
+    for output_name in output_candidates(output):
+        try:
+            return tool(MAT_TOOLS + ".connect_to_output", {
+                "expression": expr,
+                "output_name": output_name,
+                "material_property": prop
+            })
+        except Exception as error:
+            last_error = error
+    raise last_error
 
 
 def input_names(expr):
@@ -191,15 +221,66 @@ def get_scalar(instance, name):
     return tool(MI_TOOLS + ".get_scalar_parameter", {"instance": instance, "name": name})["returnValue"]
 
 
-def tex_param(material, name, x, y):
+def tex_param(material, name, x, y, texture=DEFAULT_TEX):
     expr = add_expr(material, "/Script/Engine.MaterialExpressionTextureSampleParameter2D", x, y)
-    set_props(expr, {"ParameterName": name, "Group": "01 Source Textures", "Texture": DEFAULT_TEX})
+    set_props(expr, {"ParameterName": name, "Group": "01 Source Textures", "Texture": texture})
     return expr
 
 
 def scalar_param(material, name, default, x, y):
     expr = add_expr(material, "/Script/Engine.MaterialExpressionScalarParameter", x, y)
     set_props(expr, {"ParameterName": name, "DefaultValue": default, "Group": "00 Performance Tier"})
+    return expr
+
+
+def const_expr(material, value, x, y):
+    expr = add_expr(material, "/Script/Engine.MaterialExpressionConstant", x, y)
+    set_props(expr, {"R": value})
+    return expr
+
+
+def multiply(material, a, b, x, y):
+    expr = add_expr(material, "/Script/Engine.MaterialExpressionMultiply", x, y)
+    connect_expr(a, "", expr, "A")
+    connect_expr(b, "", expr, "B")
+    return expr
+
+
+def subtract(material, a, b, x, y):
+    expr = add_expr(material, "/Script/Engine.MaterialExpressionSubtract", x, y)
+    connect_expr(a, "", expr, "A")
+    connect_expr(b, "", expr, "B")
+    return expr
+
+
+def saturate(material, value, x, y):
+    expr = add_expr(material, "/Script/Engine.MaterialExpressionClamp", x, y)
+    set_props(expr, {"MinDefault": 0.0, "MaxDefault": 1.0})
+    connect_expr(value, "", expr, input_names(expr)[0])
+    return expr
+
+
+def lerp(material, a, b, alpha, x, y):
+    expr = add_expr(material, "/Script/Engine.MaterialExpressionLinearInterpolate", x, y)
+    connect_expr(a, "", expr, "A")
+    connect_expr(b, "", expr, "B")
+    connect_expr(alpha, "", expr, "Alpha")
+    return expr
+
+
+def quality_switch(material, default_value, low, medium, high, epic, x, y):
+    expr = add_expr(material, "/Script/Engine.MaterialExpressionQualitySwitch", x, y)
+    pins = input_names(expr)
+    by_name = {name: name for name in pins}
+    for pin_name, source in [
+        ["Default", default_value],
+        ["Low", low],
+        ["Medium", medium],
+        ["High", high],
+        ["Epic", epic],
+    ]:
+        if source and pin_name in by_name:
+            connect_expr(source, "", expr, by_name[pin_name])
     return expr
 
 
@@ -236,7 +317,7 @@ def run():
 
     current_params = list_parameters(material)
     current_param_names = set([p["name"] for p in current_params])
-    required_names = set(PARAMETERS + [
+    required_names = set(PARAMETERS + BATCH_VT_TEXTURES + [
         "T_BaseColor_A",
         "T_BaseColor_B",
         "T_BaseColor_C",
@@ -245,6 +326,7 @@ def run():
         "T_Height_B",
         "T_Height_C",
         "T_LightInfo",
+        "LightInfoIntensity",
     ])
     missing_params = sorted(list(required_names - current_param_names))
 
@@ -264,13 +346,17 @@ def run():
 
     if graph_updated:
         base_a = tex_param(material, "T_BaseColor_A", -900, -360)
-        tex_param(material, "T_BaseColor_B", -900, -200)
-        tex_param(material, "T_BaseColor_C", -900, -40)
-        normal_a = tex_param(material, "T_Normal_A", -900, 140)
+        base_b = tex_param(material, "T_BaseColor_B", -900, -200)
+        base_c = tex_param(material, "T_BaseColor_C", -900, -40)
+        normal_a = tex_param(material, "T_Normal_A", -900, 140, DEFAULT_NORMAL)
         orm_a = tex_param(material, "T_ORM_A", -900, 320)
-        tex_param(material, "T_Height_B", -900, 500)
-        tex_param(material, "T_Height_C", -900, 660)
-        tex_param(material, "T_LightInfo", -900, 840)
+        height_b = tex_param(material, "T_Height_B", -900, 500)
+        height_c = tex_param(material, "T_Height_C", -900, 660)
+        light_info = tex_param(material, "T_LightInfo", -900, 840)
+        batch_base = tex_param(material, "T_BatchVT_BaseColor", -1180, 1040)
+        batch_normal = tex_param(material, "T_BatchVT_Normal", -1180, 1200, DEFAULT_NORMAL)
+        batch_orm = tex_param(material, "T_BatchVT_ORM", -1180, 1360)
+        batch_light_info = tex_param(material, "T_BatchVT_LightInfo", -1180, 1520)
 
         scalar_defaults = {
             "TierMaterialQuality": 3.0,
@@ -280,34 +366,82 @@ def run():
             "DynamicOverlayQuality": 3.0,
             "MaterialLightQuality": 3.0,
             "MaterialLightMaxLightInfoCount": 4.0,
+            "LightInfoIntensity": 0.0,
             "UseBakedResult": 0.0,
         }
+        scalar_refs = {}
         y = -360
         for name, default in scalar_defaults.items():
-            scalar_param(material, name, default, -520, y)
+            scalar_refs[name] = scalar_param(material, name, default, -520, y)
             y += 120
 
+        height_b_mask = mask(material, "Height_B_R", True, False, False, False, -560, 620)
+        height_c_mask = mask(material, "Height_C_R", True, False, False, False, -560, 740)
         orm_r = mask(material, "ORM_R_AO", True, False, False, False, -560, 300)
         orm_g = mask(material, "ORM_G_Roughness", False, True, False, False, -560, 420)
         orm_b = mask(material, "ORM_B_Metallic", False, False, True, False, -560, 540)
+        light_rgb = mask(material, "LightInfo_RGB", True, True, True, False, -560, 880)
+        batch_ao = mask(material, "BatchVT_ORM_R_AO", True, False, False, False, -800, 1360)
+        batch_roughness = mask(material, "BatchVT_ORM_G_Roughness", False, True, False, False, -800, 1480)
+        batch_metallic = mask(material, "BatchVT_ORM_B_Metallic", False, False, True, False, -800, 1600)
+        batch_light_rgb = mask(material, "BatchVT_LightInfo_RGB", True, True, True, False, -800, 1720)
         mask_input = input_names(orm_r)[0]
-        connect_expr(orm_a, "", orm_r, mask_input)
-        connect_expr(orm_a, "", orm_g, mask_input)
-        connect_expr(orm_a, "", orm_b, mask_input)
+        for src, dst in [
+            [height_b, height_b_mask],
+            [height_c, height_c_mask],
+            [orm_a, orm_r],
+            [orm_a, orm_g],
+            [orm_a, orm_b],
+            [light_info, light_rgb],
+            [batch_orm, batch_ao],
+            [batch_orm, batch_roughness],
+            [batch_orm, batch_metallic],
+            [batch_light_info, batch_light_rgb],
+        ]:
+            connect_expr(src, "", dst, mask_input)
 
-        connect_output(base_a, "", "MP_BaseColor")
-        connect_output(normal_a, "", "MP_Normal")
-        connect_output(orm_r, "", "MP_AmbientOcclusion")
-        connect_output(orm_g, "", "MP_Roughness")
-        connect_output(orm_b, "", "MP_Metallic")
+        one_layer = const_expr(material, 1.0, -260, -240)
+        two_layers = const_expr(material, 2.0, -260, -100)
+        layer_b_enabled = saturate(
+            material,
+            subtract(material, scalar_refs["MaxRuntimeBlendLayers"], one_layer, -80, -240),
+            120,
+            -240)
+        layer_c_enabled = saturate(
+            material,
+            subtract(material, scalar_refs["MaxRuntimeBlendLayers"], two_layers, -80, -100),
+            120,
+            -100)
+        layer_b_height_alpha = multiply(material, scalar_refs["LayerBWeight"], height_b_mask, -260, 540)
+        layer_c_height_alpha = multiply(material, scalar_refs["LayerCWeight"], height_c_mask, -260, 680)
+        layer_b_alpha = multiply(material, layer_b_height_alpha, layer_b_enabled, -40, 540)
+        layer_c_alpha = multiply(material, layer_c_height_alpha, layer_c_enabled, -40, 680)
+        base_ab = lerp(material, base_a, base_b, layer_b_alpha, 200, -260)
+        base_abc = lerp(material, base_ab, base_c, layer_c_alpha, 440, -220)
+        light_quality = multiply(material, light_rgb, scalar_refs["MaterialLightQuality"], -260, 900)
+        light_emissive = multiply(material, light_quality, scalar_refs["LightInfoIntensity"], -40, 900)
+
+        base_quality = quality_switch(material, base_abc, batch_base, base_ab, base_abc, base_abc, 700, -260)
+        normal_quality = quality_switch(material, normal_a, batch_normal, normal_a, normal_a, normal_a, 700, 120)
+        ao_quality = quality_switch(material, orm_r, batch_ao, orm_r, orm_r, orm_r, 700, 300)
+        roughness_quality = quality_switch(material, orm_g, batch_roughness, orm_g, orm_g, orm_g, 700, 440)
+        metallic_quality = quality_switch(material, orm_b, batch_metallic, orm_b, orm_b, orm_b, 700, 580)
+        emissive_quality = quality_switch(material, light_emissive, batch_light_rgb, light_emissive, light_emissive, light_emissive, 700, 900)
+
+        connect_output(base_quality, "", "MP_BaseColor")
+        connect_output(normal_quality, "", "MP_Normal")
+        connect_output(ao_quality, "", "MP_AmbientOcclusion")
+        connect_output(roughness_quality, "", "MP_Roughness")
+        connect_output(metallic_quality, "", "MP_Metallic")
+        connect_output(emissive_quality, "", "MP_EmissiveColor")
 
         recompile(material)
 
     tiers = {
-        "Epic": [3, 3, 1, 1, 3, 3, 4, 0],
-        "High": [2, 3, 1, 1, 2, 2, 2, 0],
-        "Mid": [1, 2, 1, 0, 1, 1, 1, 0],
-        "Low": [0, 1, 0, 0, 0, 0, 0, 1],
+        "Epic": [3, 3, 1, 1, 3, 3, 4, 1, 0],
+        "High": [2, 3, 1, 1, 2, 2, 2, 1, 0],
+        "Mid": [1, 2, 1, 0, 1, 1, 1, 1, 0],
+        "Low": [0, 1, 0, 0, 0, 0, 0, 0, 1],
     }
 
     instance_paths = []
@@ -325,7 +459,7 @@ def run():
 
     saved = save([MATERIAL_PATH] + instance_paths)
     parameter_list = list_parameters(material)
-    output_properties = ["MP_BaseColor", "MP_Normal", "MP_AmbientOcclusion", "MP_Roughness", "MP_Metallic"]
+    output_properties = ["MP_BaseColor", "MP_Normal", "MP_AmbientOcclusion", "MP_Roughness", "MP_Metallic", "MP_EmissiveColor"]
     output_wiring = {}
     for prop in output_properties:
         output_wiring[prop] = property_input(material, prop)
@@ -364,16 +498,16 @@ $textureParameters = @($result.parameters | Where-Object { $_.type -eq "Texture"
 $scalarParameters = @($result.parameters | Where-Object { $_.type -eq "Scalar" } | ForEach-Object { $_.name })
 
 $tierRows = @(
-    "| Tier | TierMaterialQuality | MaxRuntimeBlendLayers | LayerBWeight | LayerCWeight | DynamicOverlayQuality | MaterialLightQuality | MaterialLightMaxLightInfoCount | UseBakedResult |",
-    "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |"
+    "| Tier | TierMaterialQuality | MaxRuntimeBlendLayers | LayerBWeight | LayerCWeight | DynamicOverlayQuality | MaterialLightQuality | MaterialLightMaxLightInfoCount | LightInfoIntensity | UseBakedResult |",
+    "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |"
 )
 foreach ($tier in @("Epic", "High", "Mid", "Low")) {
     $values = $result.scalar_values.$tier
-    $tierRows += "| $tier | $($values.TierMaterialQuality) | $($values.MaxRuntimeBlendLayers) | $($values.LayerBWeight) | $($values.LayerCWeight) | $($values.DynamicOverlayQuality) | $($values.MaterialLightQuality) | $($values.MaterialLightMaxLightInfoCount) | $($values.UseBakedResult) |"
+    $tierRows += "| $tier | $($values.TierMaterialQuality) | $($values.MaxRuntimeBlendLayers) | $($values.LayerBWeight) | $($values.LayerCWeight) | $($values.DynamicOverlayQuality) | $($values.MaterialLightQuality) | $($values.MaterialLightMaxLightInfoCount) | $($values.LightInfoIntensity) | $($values.UseBakedResult) |"
 }
 
 $outputRows = @("| Material output | Connected expression | Output pin |", "| --- | --- | --- |")
-foreach ($prop in @("MP_BaseColor", "MP_Normal", "MP_AmbientOcclusion", "MP_Roughness", "MP_Metallic")) {
+foreach ($prop in @("MP_BaseColor", "MP_Normal", "MP_AmbientOcclusion", "MP_Roughness", "MP_Metallic", "MP_EmissiveColor")) {
     $input = $result.output_wiring.$prop
     $expressionPath = if ($input.expression) { [string]$input.expression.refPath } else { "" }
     $outputRows += "| $prop | $expressionPath | $($input.output_name) |"
@@ -416,6 +550,12 @@ $reportLines += @(
     ""
 ) + $outputRows + @(
     "",
+    "## Batch VT Contract",
+    "",
+    "- Low material quality path is wired through UE `Quality Switch` nodes to the `T_BatchVT_*` texture parameters.",
+    "- Generated batch/packaging tools must replace `T_BatchVT_BaseColor`, `T_BatchVT_Normal`, `T_BatchVT_ORM`, and `T_BatchVT_LightInfo` with the UDIM/SVT/VT atlas outputs for the merged proxy.",
+    "- Epic and High keep the full Source A/B/C height-blend path; Medium uses the reduced Source A/B path; Low uses the baked BatchVT path.",
+    "",
     "## Tier Instance Values",
     ""
 ) + $tierRows + @(
@@ -423,7 +563,8 @@ $reportLines += @(
     "## Limits",
     "",
     "- This creates the Source material interface template, not the final ground/wall production material network.",
-    "- This does not validate final M_Env_Baked_VTAtlas sampling or bake visual parity.",
+    "- The Source shader graph uses UE material nodes: BaseColor A/B/C texture samples, Height B/C alpha, ORM channel masks, LightInfo emissive scaling, and UE native `Quality Switch` nodes.",
+    "- This proves the Source material has a baked BatchVT contract slot, but final mesh merge, UDIM/SVT tile generation, and `M_Env_Baked_VTAtlas` visual parity still need a production batch validation pass.",
     "- Full project asset audit, lighting budget, and final validation automation remain deferred."
 )
 

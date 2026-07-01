@@ -21,6 +21,15 @@ struct DEVKIT_API FYogMaterialTextureNamingRule
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Performance|Material")
 	bool bSRGB = false;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Performance|Material", meta = (ClampMin = "1"))
+	int32 RecommendedMaxTextureSize = 2048;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Performance|Material")
+	bool bRequirePowerOfTwo = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Performance|Material")
+	bool bPreferVirtualTextureForBatchedEnvironment = true;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Performance|Material")
 	FString CompressionIntent;
 

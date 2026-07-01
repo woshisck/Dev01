@@ -4,6 +4,7 @@
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "AssetToolsModule.h"
+#include "Brushes/SlateImageBrush.h"
 #include "IAssetTools.h"
 #include "IAssetTypeActions.h"
 #include "PropertyEditorModule.h"
@@ -17,9 +18,12 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/MessageDialog.h"
 #include "Misc/PackageName.h"
+#include "Misc/Paths.h"
 #include "PlayInEditorDataTypes.h"
 #include "RuneEditor/SRuneEditorWidget.h"
 #include "Styling/AppStyle.h"
+#include "Styling/SlateStyle.h"
+#include "Styling/SlateStyleRegistry.h"
 #include "ToolMenuEntry.h"
 #include "ToolMenus.h"
 #include "Tools/SActionBalanceWidget.h"
@@ -64,7 +68,12 @@ namespace
 	const FName ModelAssetComplianceTabName(TEXT("DevKitModelAssetCompliance"));
 	const FName MaterialTextureRulesTabName(TEXT("DevKitMaterialTextureRules"));
 	const FName PerformanceToolsLauncherTabName(TEXT("DevKitPerformanceToolsLauncher"));
+	const FName DevKitEditorStyleSetName(TEXT("DevKitEditorStyle"));
+	const FName ModelAssetComplianceIconName(TEXT("DevKitEditor.ModelAssetCompliance"));
+	const FName ModelAssetComplianceIconSmallName(TEXT("DevKitEditor.ModelAssetCompliance.Small"));
 	const TCHAR* DefaultEntryMenuMapPackagePath = TEXT("/Game/Maps/L_EntryMenu");
+
+	TSharedPtr<FSlateStyleSet> DevKitEditorStyleSet;
 
 	FString NormalizeConfiguredMapPath(FString MapPath)
 	{
@@ -81,6 +90,39 @@ namespace
 		}
 		return MapPath;
 	}
+
+	void RegisterDevKitEditorStyle()
+	{
+		if (DevKitEditorStyleSet.IsValid())
+		{
+			return;
+		}
+
+		DevKitEditorStyleSet = MakeShared<FSlateStyleSet>(DevKitEditorStyleSetName);
+		DevKitEditorStyleSet->SetContentRoot(FPaths::Combine(FPaths::ProjectDir(), TEXT("Source/DevKitEditor/Resources")));
+
+		const FString ModelComplianceIconPath = DevKitEditorStyleSet->RootToContentDir(TEXT("ModelAssetComplianceIcon"), TEXT(".png"));
+		DevKitEditorStyleSet->Set(ModelAssetComplianceIconName, new FSlateImageBrush(ModelComplianceIconPath, FVector2D(40.f, 40.f)));
+		DevKitEditorStyleSet->Set(ModelAssetComplianceIconSmallName, new FSlateImageBrush(ModelComplianceIconPath, FVector2D(16.f, 16.f)));
+
+		FSlateStyleRegistry::RegisterSlateStyle(*DevKitEditorStyleSet);
+	}
+
+	void UnregisterDevKitEditorStyle()
+	{
+		if (!DevKitEditorStyleSet.IsValid())
+		{
+			return;
+		}
+
+		FSlateStyleRegistry::UnRegisterSlateStyle(*DevKitEditorStyleSet);
+		DevKitEditorStyleSet.Reset();
+	}
+
+	FSlateIcon GetModelAssetComplianceIcon()
+	{
+		return FSlateIcon(DevKitEditorStyleSetName, ModelAssetComplianceIconName, ModelAssetComplianceIconSmallName);
+	}
 }
 
 class FDevKitEditorModule : public FDefaultGameModuleImpl {
@@ -89,6 +131,8 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 
 	virtual void StartupModule() override
 	{
+		RegisterDevKitEditorStyle();
+
 		FEditorDelegates::OnMapOpened.AddRaw(this, &FDevKitEditorModule::OnMapOpened);
 		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 		PropertyModule.RegisterCustomPropertyTypeLayout("ShopEntry", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FYogEntryCustomization::MakeInstance));
@@ -195,8 +239,8 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
 			MaterialTextureRulesTabName,
 			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnMaterialTextureRulesTab))
-			.SetDisplayName(LOCTEXT("MaterialTextureRulesTabTitle", "贴图命名规则与检查"))
-			.SetTooltipText(LOCTEXT("MaterialTextureRulesTabTooltip", "创建贴图命名规则表，并检查选中 Texture2D 后缀与 sRGB 设置。"))
+			.SetDisplayName(LOCTEXT("MaterialTextureRulesTabTitle", "材质合规检查"))
+			.SetTooltipText(LOCTEXT("MaterialTextureRulesTabTooltip", "检查贴图命名、sRGB、尺寸、VT 建议和材质性能分级接口。"))
 			.SetMenuType(ETabSpawnerMenuType::Hidden);
 
 		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
@@ -262,6 +306,7 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			}
 		}
 		RegisteredAssetTypeActions.Reset();
+		UnregisterDevKitEditorStyle();
 	}
 
 	void OnMapOpened(const FString& Filename, bool bAsTemplate);
@@ -418,7 +463,7 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 	{
 		return SNew(SDockTab)
 			.TabRole(ETabRole::NomadTab)
-			.Label(LOCTEXT("MaterialTextureRulesTabLabel", "贴图命名规则与检查"))
+			.Label(LOCTEXT("MaterialTextureRulesTabLabel", "材质合规检查"))
 			[
 				SNew(SMaterialTextureRulesWidget)
 			];
@@ -449,7 +494,7 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 						.Padding(0.f, 8.f, 0.f, 14.f)
 						[
 							SNew(STextBlock)
-							.Text(LOCTEXT("PerformanceToolsLauncherDescription", "常用性能入口集中在这里：从游戏主菜单运行，以及打开环境合批标记工具。模型合规和贴图命名规则在编辑器工具栏或 DevKit 工具的美术资产工具中打开。"))
+							.Text(LOCTEXT("PerformanceToolsLauncherDescription", "常用性能入口集中在这里：从游戏主菜单运行，以及打开环境合批标记工具。模型合规和材质合规检查在编辑器工具栏或 DevKit 工具的美术资产工具中打开。"))
 							.AutoWrapText(true)
 						]
 						+ SVerticalBox::Slot()
@@ -489,7 +534,7 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 						.Padding(0.f, 4.f, 0.f, 6.f)
 						[
 							SNew(STextBlock)
-							.Text(LOCTEXT("PerformanceToolsLauncherWorkflow", "推荐顺序：1. 在 DevKit 工具的美术资产工具中检查模型合规和贴图命名；2. 在这里使用环境合批标记给关卡对象写 EnvBatch Actor Tag；3. 正式打包链再执行关卡模型材质合批、VT Atlas、代理和替换。"))
+							.Text(LOCTEXT("PerformanceToolsLauncherWorkflow", "推荐顺序：1. 在 DevKit 工具的美术资产工具中检查模型合规和材质合规；2. 在这里使用环境合批标记给关卡对象写 EnvBatch Actor Tag；3. 正式打包链再执行关卡模型材质合批、VT Atlas、代理和替换。"))
 							.AutoWrapText(true)
 						]
 						+ SVerticalBox::Slot()
@@ -546,16 +591,16 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenModelAssetComplianceTab)),
 			LOCTEXT("OpenModelAssetComplianceToolbarLabel", "模型合规"),
 			LOCTEXT("OpenModelAssetComplianceToolbarTooltip", "打开模型资产合规检查。"),
-			FSlateIcon(FAppStyle::GetAppStyleSetName(), TEXT("Icons.Audit"))));
+			GetModelAssetComplianceIcon()));
 		ModelComplianceEntry.ToolBarData.LabelOverride = LOCTEXT("OpenModelAssetComplianceToolbarShortLabel", "模型合规");
 
 		FToolMenuEntry& TextureRulesEntry = UserSection.AddEntry(FToolMenuEntry::InitToolBarButton(
 			TEXT("OpenDevKitMaterialTextureRules"),
 			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenMaterialTextureRulesTab)),
-			LOCTEXT("OpenMaterialTextureRulesToolbarLabel", "贴图规则"),
-			LOCTEXT("OpenMaterialTextureRulesToolbarTooltip", "打开贴图命名规则与检查。"),
+			LOCTEXT("OpenMaterialTextureRulesToolbarLabel", "材质合规"),
+			LOCTEXT("OpenMaterialTextureRulesToolbarTooltip", "打开材质合规检查，检查贴图规则和材质性能分级接口。"),
 			FSlateIcon(FAppStyle::GetAppStyleSetName(), TEXT("Icons.Search"))));
-		TextureRulesEntry.ToolBarData.LabelOverride = LOCTEXT("OpenMaterialTextureRulesToolbarShortLabel", "贴图规则");
+		TextureRulesEntry.ToolBarData.LabelOverride = LOCTEXT("OpenMaterialTextureRulesToolbarShortLabel", "材质合规");
 
 	}
 
@@ -613,12 +658,12 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			TEXT("OpenModelAssetCompliance"),
 			LOCTEXT("OpenModelAssetComplianceLabel", "模型资产合规检查"),
 			LOCTEXT("OpenModelAssetComplianceTooltip", "扫描 /Game/Art 下 StaticMesh，检查性能分级制作合规，不执行合批或写入生成资产。"),
-			FSlateIcon(FAppStyle::GetAppStyleSetName(), TEXT("Icons.Audit")),
+			GetModelAssetComplianceIcon(),
 			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenModelAssetComplianceTab)));
 		ArtAssetSection.AddMenuEntry(
 			TEXT("OpenMaterialTextureRules"),
-			LOCTEXT("OpenMaterialTextureRulesLabel", "贴图命名规则与检查"),
-			LOCTEXT("OpenMaterialTextureRulesTooltip", "创建贴图命名规则表，并检查 Content Browser 选中的 Texture2D。"),
+			LOCTEXT("OpenMaterialTextureRulesLabel", "材质合规检查"),
+			LOCTEXT("OpenMaterialTextureRulesTooltip", "检查贴图命名、sRGB、尺寸、VT 建议和材质性能分级接口。"),
 			FSlateIcon(FAppStyle::GetAppStyleSetName(), TEXT("Icons.Search")),
 			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenMaterialTextureRulesTab)));
 

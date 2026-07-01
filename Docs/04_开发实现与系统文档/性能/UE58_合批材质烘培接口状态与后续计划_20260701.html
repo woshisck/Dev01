@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>UE5.8 合批与材质烘培接口状态及后续计划</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f7fb;
+      --panel: #ffffff;
+      --text: #1b2533;
+      --muted: #607086;
+      --line: #d9e0ea;
+      --blue: #1b6fd8;
+      --green: #18864b;
+      --amber: #a86600;
+      --red: #bc2f2f;
+    }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Microsoft YaHei", "Segoe UI", Arial, sans-serif;
+      line-height: 1.65;
+    }
+    main {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 32px 24px 56px;
+    }
+    header {
+      padding: 28px 32px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+    h1, h2, h3 {
+      line-height: 1.25;
+      margin: 0 0 12px;
+    }
+    h1 { font-size: 30px; }
+    h2 {
+      margin-top: 28px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--line);
+      font-size: 22px;
+    }
+    h3 {
+      margin-top: 20px;
+      font-size: 18px;
+    }
+    section {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 24px 32px;
+      margin-bottom: 16px;
+    }
+    ul { padding-left: 22px; }
+    li { margin: 4px 0; }
+    code {
+      background: #eef3f9;
+      border: 1px solid #d7e2ef;
+      border-radius: 4px;
+      padding: 1px 5px;
+      font-family: Consolas, "Courier New", monospace;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0;
+      background: #fff;
+    }
+    th, td {
+      border: 1px solid var(--line);
+      padding: 9px 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: #edf3fa; }
+    .meta { color: var(--muted); }
+    .ok { color: var(--green); font-weight: 700; }
+    .warn { color: var(--amber); font-weight: 700; }
+    .todo { color: var(--red); font-weight: 700; }
+    .pill {
+      display: inline-block;
+      margin: 2px 6px 2px 0;
+      padding: 2px 8px;
+      border: 1px solid #bfd4ef;
+      border-radius: 999px;
+      color: var(--blue);
+      background: #eef6ff;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>UE5.8 合批与材质烘培接口状态及后续计划</h1>
+    <p class="meta">日期：2026-07-01　项目：DevKit / UE5.8　目标平台：PC 端优先</p>
+    <p>当前项目已经具备静态环境合批和材质烘培/VT Atlas 方向的基础接口，但还没有完成正式生产替换闭环。</p>
+    <span class="pill">Epic</span><span class="pill">High</span><span class="pill">Mid</span><span class="pill">Low</span>
+  </header>
+
+  <section>
+    <h2>1. 当前结论</h2>
+    <p><span class="ok">已有：</span><code>EnvBatch.*</code> Actor Tag、<code>MaterialBatchBuild</code> dry-run/report/manifest、Mapping DataAsset、PropertyTexture、VT Atlas、ProxyMesh、BatchMaterial 分阶段接口、模型资产合规检查、材质合规检查，以及 UE 原生 <code>r.MaterialQualityLevel</code> 接入。</p>
+    <p><span class="todo">未完成：</span>正式打包前自动替换关卡资产、墙面/建筑复杂材质所见即所得烘培、真实关卡 VT Atlas 视觉验收、VT pool / streaming pool profiling，以及最终合批父材质的完整采样验收。</p>
+  </section>
+
+  <section>
+    <h2>2. 三块材质处理方向</h2>
+    <h3>地面</h3>
+    <p>使用一套 RVT 地面主材，不通过性能分级做分支。多层混合、贴花混合、Mesh Paint、顶点色等静态效果在 RVT 写入前完成；动态效果放在 RVT 后叠加。</p>
+    <h3>墙面、建筑</h3>
+    <p>保留 2 层混合、顶点色或 Mesh Paint、贴花、可能的 RVT 接收。该部分暂时搁置，后续单独做“编辑器复杂材质到出包 baked 材质”的转换链。</p>
+    <h3>静态模型、物件、非交互道具</h3>
+    <p>继续走合批主线：美术制作普通单体资产和 unique 贴图，场景中通过 <code>EnvBatch.Source.&lt;Group&gt;</code> 标记，正式打包链生成 VT/UDIM-style Atlas、Mapping、PropertyTexture、ProxyMesh、BatchMaterial 和替换计划。</p>
+  </section>
+
+  <section>
+    <h2>3. 性能分级调用方式</h2>
+    <p>项目四档面向玩家和美术仍为 Epic / High / Mid / Low。运行时材质分级主线使用 UE 原生 <code>r.MaterialQualityLevel</code> 和材质 <code>Quality Switch</code>。</p>
+    <table>
+      <thead><tr><th>项目档位</th><th>UE Material Quality</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td>Epic</td><td>Epic = 3</td><td>PC 高规格目标</td></tr>
+        <tr><td>High</td><td>High = 1</td><td>UE 原生枚举中 High 为 1</td></tr>
+        <tr><td>Mid</td><td>Medium = 2</td><td>项目 Mid 映射到 UE Medium</td></tr>
+        <tr><td>Low</td><td>Low = 0</td><td>最低运行时材质质量</td></tr>
+      </tbody>
+    </table>
+    <p>项目自定义 CVar 如 <code>r.Yog.VTAtlasQuality</code>、<code>r.Yog.BatchProxyPreference</code>、<code>r.Yog.MaterialLightQuality</code> 仅作为增强预算和生产链参数，不替代 UE 原生 Scalability。</p>
+  </section>
+
+  <section>
+    <h2>4. 已完成工作进展</h2>
+    <ul>
+      <li>模型资产合规检查编辑器第一版完成，支持目录树、分类筛选、状态设置、模型预览、打开模型和定位 Content Browser。</li>
+      <li>环境合批标记只负责 Actor Tag，不混入模型 LOD 配置或贴图规则。</li>
+      <li>材质合规检查替代旧贴图规则入口，支持贴图命名、sRGB、尺寸、VT 建议和材质接口检查。</li>
+      <li><code>MaterialBatchBuild</code> 保留 dry-run 和 partial apply 接口，全量替换仍不作为日常入口。</li>
+      <li>项目四档性能设置已接入 UE 原生 <code>r.MaterialQualityLevel</code>。</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>5. 后续计划</h2>
+    <table>
+      <thead><tr><th>阶段</th><th>任务</th><th>验收</th></tr></thead>
+      <tbody>
+        <tr><td>P0</td><td>保持当前模型合规、材质合规、EnvBatch 标记工具可用</td><td>编译通过，工具入口可见</td></tr>
+        <tr><td>P1</td><td>选择真实 Streaming Level 运行 <code>MaterialBatchBuild</code> dry-run</td><td>输出 report / manifest，拒绝原因可复查</td></tr>
+        <tr><td>P2</td><td>验证真实 unique 贴图到 VT/UDIM-style Atlas 的生成链</td><td>确认尺寸、格式、mip、VT pool 和 streaming pool 风险</td></tr>
+        <tr><td>P3</td><td>验证 ProxyMesh、PropertyTexture、batch index 和材质采样一致性</td><td>视觉对比、draw call、GPU time、碰撞和遮挡表现通过</td></tr>
+        <tr><td>P4</td><td>单独推进墙面/建筑材质烘培专项</td><td>编辑器可编辑效果可转换为 baked 结果</td></tr>
+        <tr><td>P5</td><td>纳入打包前 gate</td><td>阻断项失败，警告项报告，PC 端性能基线可追踪</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>6. 注意事项</h2>
+    <ul>
+      <li>地面 RVT 不需要强行做性能分级分支。</li>
+      <li>墙面/建筑材质烘培暂时不要混入当前模型合规工具。</li>
+      <li>交互物、角色、武器和运行时动态物件默认不进入静态环境合批。</li>
+      <li>美术不需要手工维护 UDIM、SVT tile 或 Atlas。</li>
+      <li><code>Quality Switch</code> 是 UE 原生材质分级接口，但不是所有材质都必须使用。</li>
+      <li>当前合批/烘培接口已经存在，正式生产替换仍需要真实关卡验证后才能开放。</li>
+    </ul>
+  </section>
+</main>
+</body>
+</html>

@@ -17,6 +17,9 @@ struct DEVKIT_API FYogMaterialPerformanceTierInterface
 	int32 MaterialQuality = 3;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Performance|Material", meta = (ClampMin = "0", ClampMax = "3"))
+	int32 NativeMaterialQualityLevel = 3;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Performance|Material", meta = (ClampMin = "0", ClampMax = "3"))
 	int32 TextureQuality = 3;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Performance|Material", meta = (ClampMin = "0", ClampMax = "3"))
@@ -114,6 +117,9 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Settings|Performance")
 	static FText GetPerformanceTargetTierDescription(EYogPerformanceTargetTier Tier);
+
+	UFUNCTION(BlueprintPure, Category = "Settings|Performance|Material")
+	static int32 GetNativeMaterialQualityLevelForProjectMaterialQuality(int32 ProjectMaterialQuality);
 
 	UFUNCTION(BlueprintPure, Category = "Settings|Performance|Material")
 	static FYogMaterialPerformanceTierInterface GetMaterialPerformanceInterfaceForTargetTier(EYogPerformanceTargetTier Tier);

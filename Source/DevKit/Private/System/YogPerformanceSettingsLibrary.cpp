@@ -48,6 +48,24 @@ int32 ClampQuality(int32 Value)
 	return FMath::Clamp(Value, 0, 3);
 }
 
+int32 NativeMaterialQualityLevelForProjectQuality(int32 ProjectMaterialQuality)
+{
+	// UE material quality enum order is Low=0, High=1, Medium=2, Epic=3.
+	// Project-facing order remains Low=0, Mid=1, High=2, Epic=3.
+	switch (ClampQuality(ProjectMaterialQuality))
+	{
+	case 3:
+		return 3; // Epic
+	case 2:
+		return 1; // High
+	case 1:
+		return 2; // Medium
+	case 0:
+	default:
+		return 0; // Low
+	}
+}
+
 EYogPerformanceTargetTier TargetTierForProfile(EYogPerformanceProfile Profile)
 {
 	switch (Profile)
@@ -372,6 +390,7 @@ bool UYogPerformanceSettingsLibrary::ApplyGraphicsSettings(UObject* WorldContext
 	SetCVarInt(TEXT("r.Shadow.Virtual.Enable"), Settings.bUseVirtualShadowMaps ? 1 : 0);
 	SetCVarInt(TEXT("r.Yog.DynamicLightQuality"), ClampQuality(Settings.DynamicLightQuality));
 	SetCVarInt(TEXT("r.Yog.MaterialQuality"), ClampedMaterialQuality);
+	SetCVarInt(TEXT("r.MaterialQualityLevel"), NativeMaterialQualityLevelForProjectQuality(ClampedMaterialQuality));
 	SetCVarInt(TEXT("r.Yog.DynamicOverlayQuality"), ClampQuality(Settings.DynamicOverlayQuality));
 	SetCVarInt(TEXT("r.Yog.MaterialLightQuality"), ClampedMaterialLightQuality);
 	SetCVarInt(TEXT("r.Yog.MaterialLight.MaxLightInfoCount"),
@@ -516,6 +535,11 @@ FText UYogPerformanceSettingsLibrary::GetPerformanceTargetTierDescription(EYogPe
 	}
 }
 
+int32 UYogPerformanceSettingsLibrary::GetNativeMaterialQualityLevelForProjectMaterialQuality(int32 ProjectMaterialQuality)
+{
+	return NativeMaterialQualityLevelForProjectQuality(ProjectMaterialQuality);
+}
+
 FYogMaterialPerformanceTierInterface UYogPerformanceSettingsLibrary::GetMaterialPerformanceInterfaceForTargetTier(EYogPerformanceTargetTier Tier)
 {
 	return GetMaterialPerformanceInterfaceForGraphicsSettings(MakeGraphicsSettingsForTargetTier(Tier));
@@ -526,6 +550,7 @@ FYogMaterialPerformanceTierInterface UYogPerformanceSettingsLibrary::GetMaterial
 	FYogMaterialPerformanceTierInterface MaterialInterface;
 	MaterialInterface.TargetTier = Settings.SelectedTargetTier;
 	MaterialInterface.MaterialQuality = ClampQuality(Settings.MaterialQuality);
+	MaterialInterface.NativeMaterialQualityLevel = NativeMaterialQualityLevelForProjectQuality(Settings.MaterialQuality);
 	MaterialInterface.TextureQuality = ClampQuality(Settings.TextureQuality);
 	MaterialInterface.VTAtlasQuality = ClampQuality(Settings.VTAtlasQuality);
 	MaterialInterface.DynamicOverlayQuality = ClampQuality(Settings.DynamicOverlayQuality);
