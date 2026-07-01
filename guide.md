@@ -34,7 +34,7 @@ This guide captures current project direction and working assumptions. `AGENTS.m
 
 ## Attack / WeaponSkill Refactor Follow-ups
 
-- Build/compile was not run for the Attack / WeaponSkill / Dash / Skill refactor because this guide says not to compile unless explicitly requested.
+- Build/compile was not run for the Attack / WeaponSkill / Dash / Skill refactor under the earlier opt-in compile policy.
 - Add Unreal `ClassRedirects` for deleted native classes if legacy Blueprint assets still reference them:
   `UGA_Player_LightAtk1-4`, `UGA_Player_HeavyAtk1-4`, `UGA_Player_DashAtk`, and possibly `UGA_PlayerMeleeAttack`.
 - Asset migration/resave was not done. Existing input assets, combo graph assets, Blueprint GA assets, and UI data may still need editor-side validation after the C++ rename.
@@ -157,7 +157,7 @@ This guide captures current project direction and working assumptions. `AGENTS.m
 
 ## Working Rules
 
-- DO NOT COMPILE THE CODE UNLESS THE USER EXPLICITLY TELLS YOU TO DO SO.
+- Run a UE5.8 compile/build validation before finishing each task, unless the user explicitly says not to compile for that task.
 - Read relevant code and local docs before editing.
 - Use existing systems, naming, and asset conventions.
 - Keep changes scoped to the requested behavior.
@@ -168,7 +168,7 @@ This guide captures current project direction and working assumptions. `AGENTS.m
 
 ## Verification
 
-- Do not compile code unless the user explicitly asks for compilation in the current thread.
+- Compile/build-validate at task completion by default, and always before any upload, push, or final handoff of code/config changes.
 - For Unreal builds, prefer `CompileAndOpen.bat` when opening the editor is acceptable.
 - For build-only checks, use the UE 5.8 `Build.bat` path available on this machine.
 - If a full build is too expensive or blocked, run targeted searches/checks and clearly state what was not verified.

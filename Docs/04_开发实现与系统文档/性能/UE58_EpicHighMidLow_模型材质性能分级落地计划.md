@@ -98,9 +98,9 @@ UnrealEditor-Cmd.exe X:\Project\Dev01\DevKit.uproject -run=MaterialBatchBuild -M
 | 档位 | 定位 | 模型策略 | 材质策略 | 光照/反射策略 | 运行目标 |
 | --- | --- | --- | --- | --- | --- |
 | Epic | 最高画质 | Source 为主，少量远景 HLOD，可保留高 LOD | 最高 VT Atlas 分辨率，完整静态 bake 结果，允许高质量动态 overlay | Lumen High/Epic，高反射，高阴影预算 | 高配 PC |
-| High | 高画质 | Source + 选择性 Proxy/HLOD | 高质量 VT Atlas，少量降级细节层 | Lumen Medium/High，中高反射和阴影 | 普通 PC |
-| Mid | 默认推荐 | Proxy/HLOD 优先，必要 Source | 标准 VT Atlas，bake 结果为主，限制动态 overlay | Lumen Lite 作为测试项，默认以实测决定 | 主流 PC / 掌机候选 |
-| Low | 低配/省电 | Proxy/Baked 优先，Source 最少 | 降低 VT Atlas 分辨率，关闭高成本材质层和非必要动态 overlay | Lumen Off，SSR Low/Off，低阴影预算 | 低配 PC / 低功耗 |
+| High | 高画质 | Source + 选择性 Proxy/HLOD | 高质量 VT Atlas，少量降级细节层 | Lumen Lite Plus，SSR Medium，低 VSM 依赖 | 普通 PC |
+| Mid | 默认推荐 | Proxy/HLOD 优先，必要 Source | 标准 VT Atlas，bake 结果为主，限制动态 overlay | Lumen Lite / Medium，SSR Low/Medium，默认随实测调参 | 主流 PC / 掌机候选 |
+| Low | 低配/省电 | Proxy/Baked 优先，Source 最少 | 降低 VT Atlas 分辨率，关闭高成本材质层和非必要动态 overlay | Lumen Lite Minimal，SSR Low/Off，Lumen Off 仅作 fallback | 低配 PC / 低功耗 |
 
 ### 2.2 商业游戏常见设置项
 
@@ -169,7 +169,7 @@ r.Yog.VTAtlasQuality
 | Model Quality | 3 | 2 | 1 | 0 | 控制 Source / Proxy / Baked 倾向 |
 | Effects Quality | 3 | 2 | 1 | 0 | VFX 不进入合批，但需随档位降级 |
 | Post Process Quality | 3 | 2 | 1 | 0 | Bloom、DOF、SSR 等常规后处理 |
-| Global Illumination | Lumen High/Epic | Lumen Medium/High | Lumen Lite 实验 / 实测决定 | Lumen Off | Mid 的默认值必须以 profiling 决定 |
+| Global Illumination | Lumen High/Epic | Lumen Lite Plus | Lumen Lite / Medium | Lumen Lite Minimal | Lumen Off 仅作为超预算 fallback 或诊断路线 |
 | Reflection Quality | Lumen/SSR High | SSR Medium | SSR Low | Off/Low | 反射成本不得掩盖合批收益 |
 | Dynamic Overlay | 3 | 2 | 1 | 0 | 运行时 RVT/Decal/overlay 质量 |
 | Batch Proxy Preference | SourceFirst | Hybrid | ProxyFirst | BakedFirst | 资源层选择策略 |

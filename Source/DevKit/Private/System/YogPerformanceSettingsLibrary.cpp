@@ -283,7 +283,7 @@ FYogGraphicsSettings UYogPerformanceSettingsLibrary::MakeGraphicsSettingsForProf
 		Settings.ShadowQuality = 1;
 		Settings.GlobalIlluminationQuality = 1;
 		Settings.ReflectionQuality = 1;
-		Settings.PostProcessQuality = 1;
+		Settings.PostProcessQuality = 2;
 		Settings.TextureQuality = 2;
 		Settings.EffectsQuality = 1;
 		Settings.FoliageQuality = 1;
@@ -303,9 +303,9 @@ FYogGraphicsSettings UYogPerformanceSettingsLibrary::MakeGraphicsSettingsForProf
 		Settings.FrameRateLimit = 0;
 		Settings.ViewDistanceQuality = 0;
 		Settings.ShadowQuality = 0;
-		Settings.GlobalIlluminationQuality = 0;
+		Settings.GlobalIlluminationQuality = 1;
 		Settings.ReflectionQuality = 0;
-		Settings.PostProcessQuality = 0;
+		Settings.PostProcessQuality = 1;
 		Settings.TextureQuality = 1;
 		Settings.EffectsQuality = 0;
 		Settings.FoliageQuality = 0;
@@ -314,9 +314,9 @@ FYogGraphicsSettings UYogPerformanceSettingsLibrary::MakeGraphicsSettingsForProf
 		Settings.DynamicOverlayQuality = 0;
 		Settings.VTAtlasQuality = 0;
 		Settings.DynamicLightQuality = 0;
-		Settings.MaterialLightQuality = 0;
-		Settings.MaterialLightMaxLightInfoCount = 0;
-		Settings.bUseLumenLite = false;
+		Settings.MaterialLightQuality = 1;
+		Settings.MaterialLightMaxLightInfoCount = 1;
+		Settings.bUseLumenLite = true;
 		Settings.bPreferBatchedGeometryProxies = true;
 		break;
 
@@ -364,8 +364,17 @@ bool UYogPerformanceSettingsLibrary::ApplyGraphicsSettings(UObject* WorldContext
 	UGameUserSettings* UserSettings = GEngine ? GEngine->GetGameUserSettings() : nullptr;
 	if (!UserSettings)
 	{
+		UE_LOG(LogTemp, Error, TEXT("[PerfSettings] ApplyGraphicsSettings: GEngine or GameUserSettings is null — settings NOT applied"));
 		return false;
 	}
+
+	UE_LOG(LogTemp, Log, TEXT("[PerfSettings] ApplyGraphicsSettings BEGIN profile=%d GIQ=%d ShadowQ=%d DynLightQ=%d MatLightQ=%d LightCount=%d"),
+		static_cast<int32>(Settings.PerformanceProfile),
+		Settings.GlobalIlluminationQuality,
+		Settings.ShadowQuality,
+		Settings.DynamicLightQuality,
+		Settings.MaterialLightQuality,
+		Settings.MaterialLightMaxLightInfoCount);
 
 	UserSettings->SetViewDistanceQuality(ClampQuality(Settings.ViewDistanceQuality));
 	UserSettings->SetShadowQuality(ClampQuality(Settings.ShadowQuality));
@@ -383,9 +392,15 @@ bool UYogPerformanceSettingsLibrary::ApplyGraphicsSettings(UObject* WorldContext
 
 	const int32 ClampedMaterialQuality = ClampQuality(Settings.MaterialQuality);
 	const int32 ClampedMaterialLightQuality = ClampQuality(Settings.MaterialLightQuality);
+	const int32 ClampedReflectionQuality = ClampQuality(Settings.ReflectionQuality);
+	const bool bUseLumenGI = Settings.bUseLumenLite;
+	const bool bUseLumenReflections = bUseLumenGI && ClampedReflectionQuality >= 3;
 
-	SetCVarInt(TEXT("r.DynamicGlobalIlluminationMethod"), Settings.bUseLumenLite ? 1 : 0);
-	SetCVarInt(TEXT("r.ReflectionMethod"), Settings.bUseLumenLite ? 1 : 2);
+	SetCVarInt(TEXT("r.DynamicGlobalIlluminationMethod"), bUseLumenGI ? 1 : 0);
+	SetCVarInt(TEXT("r.Lumen.DiffuseIndirect.Allow"), bUseLumenGI ? 1 : 0);
+	SetCVarInt(TEXT("r.ReflectionMethod"), bUseLumenReflections ? 1 : 2);
+	SetCVarInt(TEXT("r.Lumen.Reflections.Allow"), bUseLumenReflections ? 1 : 0);
+	SetCVarInt(TEXT("r.VolumetricFog"), 0);
 	SetCVarInt(TEXT("r.Nanite"), Settings.bUseNanite ? 1 : 0);
 	SetCVarInt(TEXT("r.Shadow.Virtual.Enable"), Settings.bUseVirtualShadowMaps ? 1 : 0);
 	SetCVarInt(TEXT("r.Yog.DynamicLightQuality"), ClampQuality(Settings.DynamicLightQuality));
@@ -400,6 +415,11 @@ bool UYogPerformanceSettingsLibrary::ApplyGraphicsSettings(UObject* WorldContext
 	SetCVarFloat(TEXT("r.ScreenPercentage"), FMath::Clamp(Settings.ResolutionScalePercent, 25.f, 100.f));
 	SetCVarFloat(TEXT("t.MaxFPS"), Settings.FrameRateLimit > 0 ? static_cast<float>(Settings.FrameRateLimit) : 0.f);
 
+	UE_LOG(LogTemp, Log, TEXT("[PerfSettings] ApplyGraphicsSettings END — r.Yog.DynamicLightQuality=%d r.Yog.MaterialLightQuality=%d r.Yog.MaterialLight.MaxLightInfoCount=%d"),
+		ClampQuality(Settings.DynamicLightQuality),
+		ClampQuality(Settings.MaterialLightQuality),
+		FMath::Clamp(Settings.MaterialLightMaxLightInfoCount, 0, 4));
+
 	if (bSaveToDisk)
 	{
 		SaveGraphicsSettings(WorldContextObject, Settings);
@@ -413,11 +433,30 @@ bool UYogPerformanceSettingsLibrary::ApplySavedGraphicsSettings(UObject* WorldCo
 	const UYogSettingsSave* SettingsSave = GetSettingsSave(WorldContextObject);
 	if (!SettingsSave)
 	{
-		return false;
+		// No settings file — apply Mid as a safe default for first-time users.
+		UE_LOG(LogTemp, Warning, TEXT("[PerfSettings] ApplySavedGraphicsSettings: no settings save; applying Mid default"));
+		return ApplyGraphicsSettings(WorldContextObject, MakeGraphicsSettingsForProfile(EYogPerformanceProfile::Mid), false);
 	}
 
 	FYogGraphicsSettings Settings = SettingsSave->GraphicsSettings;
+
+	// For preset profiles, always regenerate from current code definitions so stale saved
+	// values (from an older build or a corrupted save) never produce wrong quality levels.
+	if (Settings.PerformanceProfile != EYogPerformanceProfile::Custom)
+	{
+		const EYogPerformanceProfile SavedProfile = Settings.PerformanceProfile;
+		Settings = MakeGraphicsSettingsForProfile(SavedProfile);
+	}
+
 	Settings.FrameRateLimit = 0;
+
+	UE_LOG(LogTemp, Log, TEXT("[PerfSettings] ApplySavedGraphicsSettings: profile=%d DynLightQ=%d MatLightQ=%d GIQ=%d ShadowQ=%d"),
+		static_cast<int32>(Settings.PerformanceProfile),
+		Settings.DynamicLightQuality,
+		Settings.MaterialLightQuality,
+		Settings.GlobalIlluminationQuality,
+		Settings.ShadowQuality);
+
 	return ApplyGraphicsSettings(WorldContextObject, Settings, false);
 }
 

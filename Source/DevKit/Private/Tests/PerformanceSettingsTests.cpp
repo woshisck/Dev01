@@ -60,6 +60,8 @@ bool FYogPerformanceTargetTierTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Mid records the selected target tier"), Mid.SelectedTargetTier, EYogPerformanceTargetTier::Mid);
 	TestEqual(TEXT("Mid uses the Mid base profile"), Mid.PerformanceProfile, EYogPerformanceProfile::Mid);
 	TestTrue(TEXT("Mid enables Lumen Lite for validation"), Mid.bUseLumenLite);
+	TestEqual(TEXT("Mid uses the standard UE5.8 Lumen Lite GI tier"), Mid.GlobalIlluminationQuality, 1);
+	TestEqual(TEXT("Mid keeps local exposure available through the High post process tier"), Mid.PostProcessQuality, 2);
 	TestTrue(TEXT("Mid prefers batch proxies"), Mid.bPreferBatchedGeometryProxies);
 	TestEqual(TEXT("Mid uses standard material quality"), Mid.MaterialQuality, 1);
 	TestEqual(TEXT("Mid uses standard VT atlas quality"), Mid.VTAtlasQuality, 1);
@@ -69,9 +71,11 @@ bool FYogPerformanceTargetTierTest::RunTest(const FString& Parameters)
 		UYogPerformanceSettingsLibrary::MakeGraphicsSettingsForTargetTier(EYogPerformanceTargetTier::Low);
 	TestEqual(TEXT("Low records the selected target tier"), Low.SelectedTargetTier, EYogPerformanceTargetTier::Low);
 	TestEqual(TEXT("Low uses the Low base profile"), Low.PerformanceProfile, EYogPerformanceProfile::Low);
-	TestFalse(TEXT("Low disables Lumen"), Low.bUseLumenLite);
+	TestTrue(TEXT("Low uses the Lumen Lite floor by default"), Low.bUseLumenLite);
+	TestEqual(TEXT("Low uses the standard UE5.8 Lumen Lite GI tier"), Low.GlobalIlluminationQuality, 1);
+	TestEqual(TEXT("Low keeps local exposure available through the Low post process tier"), Low.PostProcessQuality, 1);
 	TestTrue(TEXT("Low prefers batch proxies"), Low.bPreferBatchedGeometryProxies);
-	TestEqual(TEXT("Low disables material-light entries"), Low.MaterialLightMaxLightInfoCount, 0);
+	TestEqual(TEXT("Low keeps one material-light entry for scene readability"), Low.MaterialLightMaxLightInfoCount, 1);
 	TestEqual(TEXT("Low uses the lowest dynamic overlay quality"), Low.DynamicOverlayQuality, 0);
 	TestEqual(TEXT("Low maps to UE material quality Low"), UYogPerformanceSettingsLibrary::GetNativeMaterialQualityLevelForProjectMaterialQuality(Low.MaterialQuality), 0);
 

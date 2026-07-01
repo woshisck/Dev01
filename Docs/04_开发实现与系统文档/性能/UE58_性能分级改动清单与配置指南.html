@@ -39,6 +39,18 @@
       margin: 0;
       color: #cbd5e1;
     }
+    .legacy-note {
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      color: #7c2d12;
+      border-radius: 8px;
+      padding: 14px 16px;
+      margin-bottom: 16px;
+    }
+    .legacy-note strong {
+      display: block;
+      margin-bottom: 4px;
+    }
     main {
       max-width: 1180px;
       margin: 0 auto;
@@ -181,6 +193,10 @@
       <a href="#next">下一步</a>
     </nav>
     <article>
+      <section class="legacy-note">
+        <strong>历史口径提示（2026-07-01 纠偏）</strong>
+        本 HTML 记录的是早期 Texture2DArray / M_Env_Building_Batch 方案说明。当前新开发主线已经调整为 M_Env_MasterA_Source + M_Env_Baked_VTAtlas，贴图后端优先 VT Atlas / UDIM-style SVT；Texture2DArray 仅作为 legacy fallback 或历史样板，不应作为默认路线。
+      </section>
       <section id="summary">
         <h2>本轮结论</h2>
         <div class="grid">
@@ -234,8 +250,8 @@ git ls-files Docs/GeneratedReports</code></pre>
           <tbody>
             <tr><td>Ultra</td><td>PC 最高</td><td>100%</td><td>不限制</td><td>3</td><td>关闭</td></tr>
             <tr><td>High</td><td>PC 高</td><td>100%</td><td>不限制</td><td>2</td><td>关闭</td></tr>
-            <tr><td>Medium</td><td>掌机 15W / Switch 2 候选</td><td>70%</td><td>60</td><td>1</td><td>开启</td></tr>
-            <tr><td>Low</td><td>掌机 5W</td><td>55%</td><td>30</td><td>0</td><td>开启</td></tr>
+            <tr><td>Medium</td><td>掌机 15W / Switch 2 候选</td><td>70%</td><td>不限制</td><td>1</td><td>开启</td></tr>
+            <tr><td>Low</td><td>掌机 5W</td><td>55%</td><td>不限制</td><td>1</td><td>开启</td></tr>
           </tbody>
         </table>
         <h3>实际应用的 CVar</h3>
@@ -302,7 +318,7 @@ UnrealEditor.exe DevKit.uproject -DeviceProfile=DevKit_Low</code></pre>
             <tr><td>PC</td><td>允许 Lumen High / Ultra。</td></tr>
             <tr><td>Steam Deck 15W</td><td>可以测试 Lumen Lite，但以实测 GPU ms 为准。</td></tr>
             <tr><td>Switch 2 Candidate</td><td>暂时复用掌机 15W 候选策略，不代表真机结论。</td></tr>
-            <tr><td>Steam Deck 5W</td><td>默认 Lumen Off。</td></tr>
+            <tr><td>Steam Deck 5W</td><td>默认 Low / Lumen Lite Minimal；若实机超预算，再用 Lumen Off 作为 fallback 诊断路线。</td></tr>
           </tbody>
         </table>
         <p>Nanite 和 VSM 当前不作为掌机方案依赖。</p>
@@ -400,9 +416,9 @@ rg -n "DevKit_|GlobalIlluminationQuality|r.DynamicGlobalIlluminationMethod|r.Nan
         </ol>
         <p>工具只写 Actor Tags，不自动保存地图；打完标签后按 UE 正常流程保存对应关卡或子关卡。</p>
 
-        <h3>Lumen Off 档位使用什么</h3>
+        <h3>Low / Lumen Lite Minimal 使用什么</h3>
         <ul>
-          <li>Low / Steam Deck 5W 默认不依赖 Lumen，采用静态/烘焙光照、低频补光和材质灯降采样。</li>
+          <li>Low / Steam Deck 5W 默认保留 Lumen Lite，避免光照结构和 Mid/High 差异过大；若实机超预算，再用 Lumen Off 作为 fallback 路线。</li>
           <li>装饰性动态灯转为静态烘焙贡献或材质贴图表现，只保留玩法关键动态灯。</li>
           <li>地面、远景和重复建筑件优先使用 Batch Proxy / HLOD / Baked Replacement。</li>
           <li>反射使用 SSR Low 或关闭，避免 Lumen Reflection。</li>
@@ -431,7 +447,7 @@ rg -n "DevKit_|GlobalIlluminationQuality|r.DynamicGlobalIlluminationMethod|r.Nan
           <li>跑 partial apply，生成 Mapping、T2DA、PropertyTexture、ProxyMesh、BatchMaterial。</li>
           <li>在测试关卡中切换 Source / Proxy。</li>
           <li>做 Baseline、Lumen Lite、Batch、Batch + Lumen Lite 的 GPU profile。</li>
-          <li>根据数据决定 Medium 是否默认开 Lumen Lite。</li>
+          <li>根据数据微调 Medium / Low 的 Lumen Lite 参数；Lumen Off 只作为兜底诊断路线。</li>
         </ol>
       </section>
     </article>

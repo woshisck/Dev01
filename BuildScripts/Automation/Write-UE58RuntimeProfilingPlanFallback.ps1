@@ -82,6 +82,9 @@ $scenarios = @(
             "r.ScreenPercentage 70",
             "r.Lumen.DiffuseIndirect.Allow 1",
             "r.Lumen.FinalGatherMethod 0",
+            "r.Lumen.IrradianceFieldGather.InterpolateDownsampleFactor 2",
+            "r.LumenScene.SurfaceCache.AtlasSize 2048",
+            "r.LumenScene.DirectLighting.UpdateFactor 128",
             "r.Lumen.TraceMeshSDFs.Allow 0",
             "r.Lumen.HardwareRayTracing.HitLighting.Allowed 0",
             "t.MaxFPS 0"
@@ -113,27 +116,41 @@ $scenarios = @(
             "r.ScreenPercentage 70",
             "r.Lumen.DiffuseIndirect.Allow 1",
             "r.Lumen.FinalGatherMethod 0",
+            "r.Lumen.IrradianceFieldGather.InterpolateDownsampleFactor 2",
+            "r.LumenScene.SurfaceCache.AtlasSize 2048",
+            "r.LumenScene.DirectLighting.UpdateFactor 128",
             "r.Lumen.TraceMeshSDFs.Allow 0",
             "r.Lumen.HardwareRayTracing.HitLighting.Allowed 0",
             "t.MaxFPS 0"
         )
     New-Scenario `
-        -Name "Low_LumenOff_Aggressive" `
+        -Name "Low_LumenLite_VisualSafe" `
         -Tier "Low" `
-        -Description "Low-power profile; Lumen remains off and the batch/proxy path should be preferred." `
+        -Description "Low-power default profile: Lumen Lite Minimal plus the batch/proxy path for visual continuity." `
         -RequiresBatchProxy $true `
         -CVars @(
             "r.SetRes 1280x720",
+            "r.DynamicGlobalIlluminationMethod 1",
+            "r.ReflectionMethod 2",
             "sg.ViewDistanceQuality 0",
             "sg.ShadowQuality 0",
-            "sg.GlobalIlluminationQuality 0",
+            "sg.GlobalIlluminationQuality 1",
             "sg.ReflectionQuality 0",
-            "sg.PostProcessQuality 0",
+            "sg.PostProcessQuality 1",
             "sg.TextureQuality 1",
             "sg.EffectsQuality 0",
             "sg.FoliageQuality 0",
             "r.ScreenPercentage 55",
-            "r.Lumen.DiffuseIndirect.Allow 0",
+            "r.Lumen.DiffuseIndirect.Allow 1",
+            "r.Lumen.FinalGatherMethod 0",
+            "r.Lumen.IrradianceFieldGather.InterpolateDownsampleFactor 2",
+            "r.LumenScene.SurfaceCache.AtlasSize 2048",
+            "r.LumenScene.DirectLighting.UpdateFactor 128",
+            "r.Lumen.TraceMeshSDFs.Allow 0",
+            "r.Lumen.HardwareRayTracing.HitLighting.Allowed 0",
+            "r.Lumen.Reflections.Allow 0",
+            "r.Yog.MaterialLightQuality 1",
+            "r.Yog.MaterialLight.MaxLightInfoCount 1",
             "t.MaxFPS 0"
         )
     New-Scenario `
@@ -231,7 +248,7 @@ $lines += @(
     "## Acceptance Checks",
     "",
     "- Mid passes only if ``BatchProxy_LumenLite`` is stable at the target frame budget or has a documented fallback to ``BatchProxy_LumenOff``.",
-    "- Low passes only if ``Low_LumenOff_Aggressive`` is stable at 30 FPS with acceptable visual loss.",
+    "- Low passes only if ``Low_LumenLite_VisualSafe`` is stable at the target frame budget; Lumen off remains a diagnostic fallback, not the default visual route.",
     "- Batch proxy is considered useful only if mesh draw calls drop enough to offset any extra material shader cost.",
     "- Lumen Lite is optional for Mid if Lumen passes consume more frame time than the visual gain justifies."
 )

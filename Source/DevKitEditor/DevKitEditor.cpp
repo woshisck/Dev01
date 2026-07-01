@@ -37,6 +37,8 @@
 #include "Tools/SMaterialTextureRulesWidget.h"
 #include "Tools/SMetaProgressionWorkbenchWidget.h"
 #include "Tools/SModelAssetComplianceWidget.h"
+#include "Tools/STextureVTAuditWidget.h"
+#include "Tools/SVirtualTextureCollectionManagerWidget.h"
 #include "Tools/StoryEncounter/SStoryEncounterWorkbenchWidget.h"
 #include "Customization/GameplayAbilityComboGraphNodeDetails.h"
 #include "Data/GameplayAbilityComboGraph.h"
@@ -67,6 +69,8 @@ namespace
 	const FName MaterialBatchToolsTabName(TEXT("DevKitMaterialBatchTools"));
 	const FName ModelAssetComplianceTabName(TEXT("DevKitModelAssetCompliance"));
 	const FName MaterialTextureRulesTabName(TEXT("DevKitMaterialTextureRules"));
+	const FName TextureVTAuditTabName(TEXT("DevKitTextureVTAudit"));
+	const FName VirtualTextureCollectionManagerTabName(TEXT("DevKitVirtualTextureCollectionManager"));
 	const FName PerformanceToolsLauncherTabName(TEXT("DevKitPerformanceToolsLauncher"));
 	const FName DevKitEditorStyleSetName(TEXT("DevKitEditorStyle"));
 	const FName ModelAssetComplianceIconName(TEXT("DevKitEditor.ModelAssetCompliance"));
@@ -244,6 +248,20 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			.SetMenuType(ETabSpawnerMenuType::Hidden);
 
 		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
+			TextureVTAuditTabName,
+			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnTextureVTAuditTab))
+			.SetDisplayName(LOCTEXT("TextureVTAuditTabTitle", "贴图 VT 审计"))
+			.SetTooltipText(LOCTEXT("TextureVTAuditTabTooltip", "扫描 /Game/Art 下 Texture2D，检查 VT 状态、尺寸警告和 VTC 兼容性。"))
+			.SetMenuType(ETabSpawnerMenuType::Hidden);
+
+		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
+			VirtualTextureCollectionManagerTabName,
+			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnVirtualTextureCollectionManagerTab))
+			.SetDisplayName(LOCTEXT("VTCManagerTabTitle", "VTC 管理器"))
+			.SetTooltipText(LOCTEXT("VTCManagerTabTooltip", "管理项目中所有 VirtualTextureCollection，支持批量创建、追加成员、合规检查。"))
+			.SetMenuType(ETabSpawnerMenuType::Hidden);
+
+		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
 			PerformanceToolsLauncherTabName,
 			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnPerformanceToolsLauncherTab))
 			.SetDisplayName(LOCTEXT("PerformanceToolsLauncherTabTitle", "性能工具快捷入口"))
@@ -275,6 +293,8 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(MaterialBatchToolsTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(ModelAssetComplianceTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(MaterialTextureRulesTabName);
+		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(TextureVTAuditTabName);
+		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(VirtualTextureCollectionManagerTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(PerformanceToolsLauncherTabName);
 		CombatLogWidgetInstance.Reset();
 
@@ -466,6 +486,26 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			.Label(LOCTEXT("MaterialTextureRulesTabLabel", "材质合规检查"))
 			[
 				SNew(SMaterialTextureRulesWidget)
+			];
+	}
+
+	TSharedRef<SDockTab> SpawnTextureVTAuditTab(const FSpawnTabArgs& SpawnTabArgs)
+	{
+		return SNew(SDockTab)
+			.TabRole(ETabRole::NomadTab)
+			.Label(LOCTEXT("TextureVTAuditTabLabel", "贴图 VT 审计"))
+			[
+				SNew(STextureVTAuditWidget)
+			];
+	}
+
+	TSharedRef<SDockTab> SpawnVirtualTextureCollectionManagerTab(const FSpawnTabArgs& SpawnTabArgs)
+	{
+		return SNew(SDockTab)
+			.TabRole(ETabRole::NomadTab)
+			.Label(LOCTEXT("VTCManagerTabLabel", "VTC 管理器"))
+			[
+				SNew(SVirtualTextureCollectionManagerWidget)
 			];
 	}
 
@@ -666,6 +706,18 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			LOCTEXT("OpenMaterialTextureRulesTooltip", "检查贴图命名、sRGB、尺寸、VT 建议和材质性能分级接口。"),
 			FSlateIcon(FAppStyle::GetAppStyleSetName(), TEXT("Icons.Search")),
 			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenMaterialTextureRulesTab)));
+		ArtAssetSection.AddMenuEntry(
+			TEXT("OpenTextureVTAudit"),
+			LOCTEXT("OpenTextureVTAuditLabel", "贴图 VT 审计"),
+			LOCTEXT("OpenTextureVTAuditTooltip", "检查所有 Texture2D 的 VT 开启状态、尺寸、格式，以及是否可加入 VirtualTextureCollection。支持批量开关 VT。"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), TEXT("Icons.Audit")),
+			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenTextureVTAuditTab)));
+		ArtAssetSection.AddMenuEntry(
+			TEXT("OpenVTCManager"),
+			LOCTEXT("OpenVTCManagerLabel", "VTC 管理器"),
+			LOCTEXT("OpenVTCManagerTooltip", "管理项目中所有 VirtualTextureCollection：新建、批量添加成员、合规校验。"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), TEXT("Icons.Layers")),
+			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenVirtualTextureCollectionManagerTab)));
 
 		FToolMenuSection& PerformanceSection = Menu->FindOrAddSection(TEXT("DevKitPerformanceTools"), LOCTEXT("DevKitPerformanceToolsSection", "性能工具"));
 		PerformanceSection.AddMenuEntry(
@@ -873,6 +925,16 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 	void OpenMaterialTextureRulesTab()
 	{
 		FGlobalTabmanager::Get()->TryInvokeTab(MaterialTextureRulesTabName);
+	}
+
+	void OpenTextureVTAuditTab()
+	{
+		FGlobalTabmanager::Get()->TryInvokeTab(TextureVTAuditTabName);
+	}
+
+	void OpenVirtualTextureCollectionManagerTab()
+	{
+		FGlobalTabmanager::Get()->TryInvokeTab(VirtualTextureCollectionManagerTabName);
 	}
 
 	void OpenPerformanceToolsLauncherTab()
