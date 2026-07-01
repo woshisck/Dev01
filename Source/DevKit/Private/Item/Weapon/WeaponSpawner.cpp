@@ -171,6 +171,7 @@ void AWeaponSpawner::BeginPlay()
 
 void AWeaponSpawner::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	Super::EndPlay(EndPlayReason);
 }
 
 // Called every frame
