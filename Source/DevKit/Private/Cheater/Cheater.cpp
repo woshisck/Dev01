@@ -13,6 +13,7 @@
 #include "GameModes/YogGameMode.h"
 #include "GameFramework/PlayerController.h"
 #include "System/YogGameInstanceBase.h"
+#include "System/YogRuntimeGMSubsystem.h"
 #include "EngineUtils.h"
 #include "HAL/IConsoleManager.h"
 
@@ -130,6 +131,26 @@ namespace
 		}
 	}
 
+	void ToggleRuntimeGMPanelForWorld(UWorld* World)
+	{
+#if !UE_BUILD_SHIPPING
+		APlayerController* PC = World ? World->GetFirstPlayerController() : nullptr;
+		UGameInstance* GameInstance = PC ? PC->GetGameInstance() : nullptr;
+		UYogRuntimeGMSubsystem* RuntimeGM = GameInstance ? GameInstance->GetSubsystem<UYogRuntimeGMSubsystem>() : nullptr;
+		if (!PC || !RuntimeGM)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[RuntimeGM] Yog.GM failed: PlayerController or RuntimeGM subsystem not found."));
+			if (GEngine)
+			{
+				GEngine->AddOnScreenDebugMessage(-1, 4.f, FColor::Red, TEXT("[RuntimeGM] Yog.GM failed: no playable world."));
+			}
+			return;
+		}
+
+		RuntimeGM->ToggleGMPanel(PC);
+#endif
+	}
+
 	FAutoConsoleCommandWithWorld GGiveMoonlightLinkCardsCommand(
 		TEXT("Yog_GiveMoonlightLinkCards"),
 		TEXT("Adds Moonlight link test cards directly to the current player's combat deck."),
@@ -149,6 +170,18 @@ namespace
 		TEXT("Yog.SetLevelEnded"),
 		TEXT("Forces the current level into ended / Arrangement phase for card and backpack testing."),
 		FConsoleCommandWithWorldDelegate::CreateStatic(&SetLevelEndedForWorld));
+
+#if !UE_BUILD_SHIPPING
+	FAutoConsoleCommandWithWorld GToggleRuntimeGMPanelCommand(
+		TEXT("Yog.GM"),
+		TEXT("Toggles the Runtime GM panel for the current PIE, Standalone, or Development game world."),
+		FConsoleCommandWithWorldDelegate::CreateStatic(&ToggleRuntimeGMPanelForWorld));
+
+	FAutoConsoleCommandWithWorld GToggleRuntimeGMPanelAliasCommand(
+		TEXT("Yog.GM.Toggle"),
+		TEXT("Alias for Yog.GM. Toggles the Runtime GM panel for the current game world."),
+		FConsoleCommandWithWorldDelegate::CreateStatic(&ToggleRuntimeGMPanelForWorld));
+#endif
 }
 
 APlayerCharacterBase* UYogCheatManager::GetPlayerChar() const

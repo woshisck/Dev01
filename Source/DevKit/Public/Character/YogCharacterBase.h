@@ -272,6 +272,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Character|State")
 	void UpdateCharacterState(EYogCharacterState newState);
 
+	UFUNCTION(BlueprintCallable, Category = "Character|Debug")
+	void ResetRuntimeGMDeathState();
+
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)

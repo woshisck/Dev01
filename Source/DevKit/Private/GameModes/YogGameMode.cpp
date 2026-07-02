@@ -47,6 +47,7 @@
 #include "GameFramework/PlayerController.h"
 #include "MetaProgression/YogMetaProgressionSubsystem.h"
 #include "World/HubFacilityActor.h"
+#include "NavigationSystem.h"
 
 namespace
 {
@@ -3510,6 +3511,105 @@ bool AYogGameMode::SpawnForcedSurvivalEnemyWithoutSpawner(const FPlannedEnemy& P
 		*GetNameSafe(SpawnedEnemy),
 		*SpawnLocation.ToCompactString());
 	return true;
+}
+
+AEnemyCharacterBase* AYogGameMode::SpawnGMEnemyNearPlayer(
+	UEnemyData* EnemyData,
+	FVector Origin,
+	float Radius,
+	float MinDistance,
+	float ZOffset,
+	bool bCountForLevelClear,
+	bool bApplyRoomBuffs)
+{
+	if (!EnemyData || !EnemyData->EnemyClass || !GetWorld())
+	{
+		return nullptr;
+	}
+
+	FPlannedEnemy Planned;
+	Planned.EnemyClass = EnemyData->EnemyClass;
+	Planned.EnemyData = EnemyData;
+	Planned.EnemyWeaponDefinition = RollEnemyWeaponDefinition(EnemyData);
+	CollectEnemyBuffs(EnemyData, Planned.EnemyBuffs);
+	Planned.PreSpawnFX = EnemyData->PreSpawnFX;
+	Planned.PreSpawnFXDuration = EnemyData->PreSpawnFXDuration;
+	Planned.SpawnLifecycleFlow = EnemyData->SpawnLifecycleFlow;
+	Planned.bAllowAnySpawner = true;
+
+	const float EffectiveRadius = FMath::Max(Radius, MinDistance + 100.f);
+	FVector SpawnLocation = Origin + FVector(EffectiveRadius, 0.f, ZOffset);
+	bool bFoundLocation = false;
+
+	if (UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld()))
+	{
+		for (int32 Attempt = 0; Attempt < 24; ++Attempt)
+		{
+			FNavLocation NavLocation;
+			if (NavSys->GetRandomReachablePointInRadius(Origin, EffectiveRadius, NavLocation))
+			{
+				const float Distance2D = FVector::Dist2D(Origin, NavLocation.Location);
+				if (Distance2D >= MinDistance)
+				{
+					SpawnLocation = NavLocation.Location + FVector(0.f, 0.f, ZOffset);
+					bFoundLocation = true;
+					break;
+				}
+			}
+		}
+	}
+
+	if (!bFoundLocation)
+	{
+		const float AngleRadians = FMath::FRandRange(0.f, UE_TWO_PI);
+		const float Distance = FMath::FRandRange(MinDistance, EffectiveRadius);
+		SpawnLocation = Origin + FVector(FMath::Cos(AngleRadians) * Distance, FMath::Sin(AngleRadians) * Distance, ZOffset);
+	}
+
+	AEnemyCharacterBase* SpawnedEnemy = GetWorld()->SpawnActorDeferred<AEnemyCharacterBase>(
+		Planned.EnemyClass,
+		FTransform(FRotator::ZeroRotator, SpawnLocation),
+		nullptr,
+		nullptr,
+		ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn);
+	if (!SpawnedEnemy)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[RuntimeGM] Failed to spawn enemy. EnemyData=%s Location=%s"),
+			*GetNameSafe(EnemyData),
+			*SpawnLocation.ToCompactString());
+		return nullptr;
+	}
+
+	SpawnedEnemy->bCountsForLevelClear = bCountForLevelClear;
+	SpawnedEnemy->SetPendingEnemyWeaponDefinition(Planned.EnemyWeaponDefinition.Get());
+	SpawnedEnemy->FinishSpawning(FTransform(FRotator::ZeroRotator, SpawnLocation));
+
+	if (!SpawnedEnemy->GetController())
+	{
+		SpawnedEnemy->SpawnDefaultController();
+	}
+
+	if (bApplyRoomBuffs)
+	{
+		for (const FBuffEntry& Entry : ActiveRoomBuffs)
+		{
+			ActivateEnemyRune(SpawnedEnemy, Entry.RuneDA.Get(), TEXT("RoomBuff.RuntimeGM"));
+		}
+	}
+	ActivateEnemyRunes(SpawnedEnemy, Planned.EnemyBuffs, TEXT("EnemyBuff.RuntimeGM"));
+	RegisterEnemy(SpawnedEnemy);
+
+	if (bCountForLevelClear)
+	{
+		++TotalAliveEnemies;
+	}
+
+	UE_LOG(LogTemp, Display, TEXT("[RuntimeGM] Spawned %s from %s at %s. CountForLevelClear=%s"),
+		*GetNameSafe(SpawnedEnemy),
+		*GetNameSafe(EnemyData),
+		*SpawnLocation.ToCompactString(),
+		bCountForLevelClear ? TEXT("true") : TEXT("false"));
+	return SpawnedEnemy;
 }
 
 bool AYogGameMode::ShouldSpawnFirstRunInitialCardReward() const
