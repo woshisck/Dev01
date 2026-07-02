@@ -14,6 +14,9 @@
 #include "Editor.h"
 #include "Editor/EditorEngine.h"
 #include "FileHelpers.h"
+#include "Framework/Application/IInputProcessor.h"
+#include "Framework/Application/SlateApplication.h"
+#include "GameFramework/PlayerController.h"
 #include "LevelEditor.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/MessageDialog.h"
@@ -37,11 +40,13 @@
 #include "Tools/SMaterialTextureRulesWidget.h"
 #include "Tools/SMetaProgressionWorkbenchWidget.h"
 #include "Tools/SModelAssetComplianceWidget.h"
+#include "Tools/SRuntimeGMSettingsWidget.h"
 #include "Tools/STextureVTAuditWidget.h"
 #include "Tools/SVirtualTextureCollectionManagerWidget.h"
 #include "Tools/StoryEncounter/SStoryEncounterWorkbenchWidget.h"
 #include "Customization/GameplayAbilityComboGraphNodeDetails.h"
 #include "Data/GameplayAbilityComboGraph.h"
+#include "System/YogRuntimeGMSubsystem.h"
 #include "UI/CombatLogEditorUtilityWidget.h"
 #include "UObject/StrongObjectPtr.h"
 #include "Widgets/Docking/SDockTab.h"
@@ -52,6 +57,8 @@
 #include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "DevKitEditor"
+
+DEFINE_LOG_CATEGORY(DevKitEditor);
 
 namespace
 {
@@ -72,9 +79,22 @@ namespace
 	const FName TextureVTAuditTabName(TEXT("DevKitTextureVTAudit"));
 	const FName VirtualTextureCollectionManagerTabName(TEXT("DevKitVirtualTextureCollectionManager"));
 	const FName PerformanceToolsLauncherTabName(TEXT("DevKitPerformanceToolsLauncher"));
+	const FName RuntimeGMSettingsTabName(TEXT("DevKitRuntimeGMSettings"));
 	const FName DevKitEditorStyleSetName(TEXT("DevKitEditorStyle"));
 	const FName ModelAssetComplianceIconName(TEXT("DevKitEditor.ModelAssetCompliance"));
 	const FName ModelAssetComplianceIconSmallName(TEXT("DevKitEditor.ModelAssetCompliance.Small"));
+	const FName MaterialTextureRulesIconName(TEXT("DevKitEditor.MaterialTextureRules"));
+	const FName MaterialTextureRulesIconSmallName(TEXT("DevKitEditor.MaterialTextureRules.Small"));
+	const FName TextureVTAuditIconName(TEXT("DevKitEditor.TextureVTAudit"));
+	const FName TextureVTAuditIconSmallName(TEXT("DevKitEditor.TextureVTAudit.Small"));
+	const FName VTCManagerIconName(TEXT("DevKitEditor.VTCManager"));
+	const FName VTCManagerIconSmallName(TEXT("DevKitEditor.VTCManager.Small"));
+	const FName PerformanceToolsIconName(TEXT("DevKitEditor.PerformanceTools"));
+	const FName PerformanceToolsIconSmallName(TEXT("DevKitEditor.PerformanceTools.Small"));
+	const FName PlayFromMainMenuIconName(TEXT("DevKitEditor.PlayFromMainMenu"));
+	const FName PlayFromMainMenuIconSmallName(TEXT("DevKitEditor.PlayFromMainMenu.Small"));
+	const FName EnvBatchTaggerIconName(TEXT("DevKitEditor.EnvBatchTagger"));
+	const FName EnvBatchTaggerIconSmallName(TEXT("DevKitEditor.EnvBatchTagger.Small"));
 	const TCHAR* DefaultEntryMenuMapPackagePath = TEXT("/Game/Maps/L_EntryMenu");
 
 	TSharedPtr<FSlateStyleSet> DevKitEditorStyleSet;
@@ -95,6 +115,13 @@ namespace
 		return MapPath;
 	}
 
+	void RegisterToolIcon(const FName& IconName, const FName& IconSmallName, const TCHAR* IconBaseName)
+	{
+		const FString IconPath = DevKitEditorStyleSet->RootToContentDir(IconBaseName, TEXT(".png"));
+		DevKitEditorStyleSet->Set(IconName, new FSlateImageBrush(IconPath, FVector2D(40.f, 40.f)));
+		DevKitEditorStyleSet->Set(IconSmallName, new FSlateImageBrush(IconPath, FVector2D(16.f, 16.f)));
+	}
+
 	void RegisterDevKitEditorStyle()
 	{
 		if (DevKitEditorStyleSet.IsValid())
@@ -105,9 +132,13 @@ namespace
 		DevKitEditorStyleSet = MakeShared<FSlateStyleSet>(DevKitEditorStyleSetName);
 		DevKitEditorStyleSet->SetContentRoot(FPaths::Combine(FPaths::ProjectDir(), TEXT("Source/DevKitEditor/Resources")));
 
-		const FString ModelComplianceIconPath = DevKitEditorStyleSet->RootToContentDir(TEXT("ModelAssetComplianceIcon"), TEXT(".png"));
-		DevKitEditorStyleSet->Set(ModelAssetComplianceIconName, new FSlateImageBrush(ModelComplianceIconPath, FVector2D(40.f, 40.f)));
-		DevKitEditorStyleSet->Set(ModelAssetComplianceIconSmallName, new FSlateImageBrush(ModelComplianceIconPath, FVector2D(16.f, 16.f)));
+		RegisterToolIcon(ModelAssetComplianceIconName, ModelAssetComplianceIconSmallName, TEXT("ToolIcon_ModelCompliance"));
+		RegisterToolIcon(MaterialTextureRulesIconName, MaterialTextureRulesIconSmallName, TEXT("ToolIcon_MaterialCompliance"));
+		RegisterToolIcon(TextureVTAuditIconName, TextureVTAuditIconSmallName, TEXT("ToolIcon_TextureVTAudit"));
+		RegisterToolIcon(VTCManagerIconName, VTCManagerIconSmallName, TEXT("ToolIcon_VTCManager"));
+		RegisterToolIcon(PerformanceToolsIconName, PerformanceToolsIconSmallName, TEXT("ToolIcon_PerformanceTools"));
+		RegisterToolIcon(PlayFromMainMenuIconName, PlayFromMainMenuIconSmallName, TEXT("ToolIcon_PlayMainMenu"));
+		RegisterToolIcon(EnvBatchTaggerIconName, EnvBatchTaggerIconSmallName, TEXT("ToolIcon_EnvBatchTagger"));
 
 		FSlateStyleRegistry::RegisterSlateStyle(*DevKitEditorStyleSet);
 	}
@@ -127,6 +158,77 @@ namespace
 	{
 		return FSlateIcon(DevKitEditorStyleSetName, ModelAssetComplianceIconName, ModelAssetComplianceIconSmallName);
 	}
+
+	FSlateIcon GetMaterialTextureRulesIcon()
+	{
+		return FSlateIcon(DevKitEditorStyleSetName, MaterialTextureRulesIconName, MaterialTextureRulesIconSmallName);
+	}
+
+	FSlateIcon GetTextureVTAuditIcon()
+	{
+		return FSlateIcon(DevKitEditorStyleSetName, TextureVTAuditIconName, TextureVTAuditIconSmallName);
+	}
+
+	FSlateIcon GetVTCManagerIcon()
+	{
+		return FSlateIcon(DevKitEditorStyleSetName, VTCManagerIconName, VTCManagerIconSmallName);
+	}
+
+	FSlateIcon GetPerformanceToolsIcon()
+	{
+		return FSlateIcon(DevKitEditorStyleSetName, PerformanceToolsIconName, PerformanceToolsIconSmallName);
+	}
+
+	FSlateIcon GetPlayFromMainMenuIcon()
+	{
+		return FSlateIcon(DevKitEditorStyleSetName, PlayFromMainMenuIconName, PlayFromMainMenuIconSmallName);
+	}
+
+	FSlateIcon GetEnvBatchTaggerIcon()
+	{
+		return FSlateIcon(DevKitEditorStyleSetName, EnvBatchTaggerIconName, EnvBatchTaggerIconSmallName);
+	}
+
+	class FRuntimeGMPIEInputProcessor final : public IInputProcessor
+	{
+	public:
+		virtual void Tick(const float DeltaTime, FSlateApplication& SlateApp, TSharedRef<ICursor> Cursor) override
+		{
+		}
+
+		virtual bool HandleKeyDownEvent(FSlateApplication& SlateApp, const FKeyEvent& InKeyEvent) override
+		{
+#if !UE_BUILD_SHIPPING
+			if (InKeyEvent.GetKey() != EKeys::F12 || !GEditor || !GEditor->PlayWorld)
+			{
+				return false;
+			}
+
+			UWorld* PlayWorld = GEditor->PlayWorld;
+			APlayerController* PlayerController = PlayWorld ? PlayWorld->GetFirstPlayerController() : nullptr;
+			UGameInstance* GameInstance = PlayerController ? PlayerController->GetGameInstance() : nullptr;
+			UYogRuntimeGMSubsystem* RuntimeGM = GameInstance ? GameInstance->GetSubsystem<UYogRuntimeGMSubsystem>() : nullptr;
+			if (!RuntimeGM)
+			{
+				return false;
+			}
+
+			const bool bHandled = RuntimeGM->ToggleGMPanel(PlayerController);
+			if (bHandled)
+			{
+				UE_LOG(DevKitEditor, Display, TEXT("[RuntimeGM] PIE F12 toggled Runtime GM panel from editor input processor."));
+			}
+			return bHandled;
+#else
+			return false;
+#endif
+		}
+
+		virtual const TCHAR* GetDebugName() const override
+		{
+			return TEXT("DevKitRuntimeGMPIEInputProcessor");
+		}
+	};
 }
 
 class FDevKitEditorModule : public FDefaultGameModuleImpl {
@@ -136,6 +238,7 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 	virtual void StartupModule() override
 	{
 		RegisterDevKitEditorStyle();
+		RegisterRuntimeGMPIEInputProcessor();
 
 		FEditorDelegates::OnMapOpened.AddRaw(this, &FDevKitEditorModule::OnMapOpened);
 		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
@@ -268,12 +371,20 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			.SetTooltipText(LOCTEXT("PerformanceToolsLauncherTabTooltip", "打开性能分级、美术标记和主菜单运行的常用入口。"))
 			.SetMenuType(ETabSpawnerMenuType::Hidden);
 
+		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
+			RuntimeGMSettingsTabName,
+			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnRuntimeGMSettingsTab))
+			.SetDisplayName(LOCTEXT("RuntimeGMSettingsTabTitle", "运行时 GM 配置"))
+			.SetTooltipText(LOCTEXT("RuntimeGMSettingsTabTooltip", "配置 F12 Runtime GM 面板使用的武器、敌人、刷敌数量和快速打包入口。"))
+			.SetMenuType(ETabSpawnerMenuType::Hidden);
+
 		UToolMenus::RegisterStartupCallback(FSimpleMulticastDelegate::FDelegate::CreateRaw(this, &FDevKitEditorModule::RegisterDataEditorMenus));
 	}
 
 
 	virtual void ShutdownModule() override
 	{
+		UnregisterRuntimeGMPIEInputProcessor();
 		UToolMenus::UnRegisterStartupCallback(this);
 		if (UToolMenus::IsToolMenuUIEnabled())
 		{
@@ -296,6 +407,7 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(TextureVTAuditTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(VirtualTextureCollectionManagerTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(PerformanceToolsLauncherTabName);
+		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(RuntimeGMSettingsTabName);
 		CombatLogWidgetInstance.Reset();
 
 		FEditorDelegates::OnMapOpened.RemoveAll(this);
@@ -534,7 +646,7 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 						.Padding(0.f, 8.f, 0.f, 14.f)
 						[
 							SNew(STextBlock)
-							.Text(LOCTEXT("PerformanceToolsLauncherDescription", "常用性能入口集中在这里：从游戏主菜单运行，以及打开环境合批标记工具。模型合规和材质合规检查在编辑器工具栏或 DevKit 工具的美术资产工具中打开。"))
+							.Text(LOCTEXT("PerformanceToolsLauncherDescription", "常用性能入口集中在这里：从游戏主菜单运行、配置 PIE/Development 下 F12 Runtime GM、打开环境合批标记、模型/材质/贴图/VTC 检查也已经放到编辑器工具栏和 DevKit 工具菜单中。"))
 							.AutoWrapText(true)
 						]
 						+ SVerticalBox::Slot()
@@ -556,8 +668,17 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 							.Padding(0.f, 0.f, 8.f, 0.f)
 							[
 								SNew(SButton)
+								.Text(LOCTEXT("LauncherOpenRuntimeGMSettings", "运行时 GM 配置"))
+								.ToolTipText(LOCTEXT("LauncherOpenRuntimeGMSettingsTooltip", "配置 PIE、Standalone 和 Development 包中 F12 Runtime GM 面板使用的武器、敌人、刷敌数量和快速性能测试打包入口。"))
+								.OnClicked(FOnClicked::CreateRaw(this, &FDevKitEditorModule::HandleOpenRuntimeGMSettingsClicked))
+							]
+							+ SHorizontalBox::Slot()
+							.AutoWidth()
+							.Padding(0.f, 0.f, 8.f, 0.f)
+							[
+								SNew(SButton)
 								.Text(LOCTEXT("LauncherOpenEnvBatchTagger", "环境合批标记"))
-								.ToolTipText(LOCTEXT("LauncherOpenEnvBatchTaggerTooltip", "打开 Source / Proxy / Baked / Exclude 标记窗口。"))
+								.ToolTipText(LOCTEXT("LauncherOpenEnvBatchTaggerTooltip", "打开 EnvBatch.Source.<关卡>.<类型>.<方式>.<VTC组>.<流水号> Actor Tag 标记窗口。"))
 								.OnClicked(FOnClicked::CreateRaw(this, &FDevKitEditorModule::HandleOpenEnvBatchTaggerClicked))
 							]
 							+ SHorizontalBox::Slot()
@@ -574,7 +695,7 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 						.Padding(0.f, 4.f, 0.f, 6.f)
 						[
 							SNew(STextBlock)
-							.Text(LOCTEXT("PerformanceToolsLauncherWorkflow", "推荐顺序：1. 在 DevKit 工具的美术资产工具中检查模型合规和材质合规；2. 在这里使用环境合批标记给关卡对象写 EnvBatch Actor Tag；3. 正式打包链再执行关卡模型材质合批、VT Atlas、代理和替换。"))
+							.Text(LOCTEXT("PerformanceToolsLauncherWorkflow", "推荐顺序：1. 检查模型、材质、贴图 VT 和 VTC；2. 使用环境合批标记给关卡对象写 EnvBatch.Source.* Actor Tag，其中 VTC-A/VTC-B 是共享贴图集合父组，流水号是模型 merge 组；3. 后续正式工具链再执行按通道拆 VTC、几何合并、代理和替换。"))
 							.AutoWrapText(true)
 						]
 						+ SVerticalBox::Slot()
@@ -582,11 +703,21 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 						.Padding(0.f, 10.f, 0.f, 0.f)
 						[
 							SNew(STextBlock)
-							.Text(LOCTEXT("PerformanceToolsLauncherNote", "主菜单运行入口读取 YogGameInstanceBase.FrontendMap；当前项目默认是 /Game/Maps/L_EntryMenu。"))
+							.Text(LOCTEXT("PerformanceToolsLauncherNote", "主菜单运行入口读取 YogGameInstanceBase.FrontendMap；当前项目默认是 /Game/Maps/L_EntryMenu。PIE 运行时按 F12 可打开/关闭 Runtime GM 面板。"))
 							.AutoWrapText(true)
 						]
 					]
 				]
+			];
+	}
+
+	TSharedRef<SDockTab> SpawnRuntimeGMSettingsTab(const FSpawnTabArgs& SpawnTabArgs)
+	{
+		return SNew(SDockTab)
+			.TabRole(ETabRole::NomadTab)
+			.Label(LOCTEXT("RuntimeGMSettingsTabLabel", "运行时 GM 配置"))
+			[
+				SNew(SRuntimeGMSettingsWidget)
 			];
 	}
 
@@ -597,6 +728,8 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 
 	void RegisterDataEditorMenus()
 	{
+		RegisterRuntimeGMPIEInputProcessor();
+
 		FToolMenuOwnerScoped OwnerScoped(this);
 		UToolMenu* ToolsMenu = UToolMenus::Get()->ExtendMenu(TEXT("LevelEditor.MainMenu.Tools"));
 		FToolMenuSection& Section = ToolsMenu->FindOrAddSection(TEXT("DevKitTools"), LOCTEXT("DevKitToolsSection", "DevKit"));
@@ -613,7 +746,7 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::PlayFromMainMenu)),
 			LOCTEXT("PlayFromMainMenuToolbarLabel", "从主菜单运行"),
 			LOCTEXT("PlayFromMainMenuToolbarTooltip", "打开入口地图并从游戏主菜单开始 Play。"),
-			FSlateIcon(FAppStyle::GetAppStyleSetName(), TEXT("Icons.Play"))));
+			GetPlayFromMainMenuIcon()));
 		QuickPlayEntry.ToolBarData.LabelOverride = FText::GetEmpty();
 
 		UToolMenu* UserToolbar = UToolMenus::Get()->ExtendMenu(TEXT("LevelEditor.LevelEditorToolBar.User"));
@@ -623,8 +756,16 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenPerformanceToolsLauncherTab)),
 			LOCTEXT("OpenPerformanceToolsLauncherToolbarLabel", "性能工具"),
 			LOCTEXT("OpenPerformanceToolsLauncherToolbarTooltip", "打开性能工具快捷入口。"),
-			FSlateIcon(FAppStyle::GetAppStyleSetName(), TEXT("Icons.Tools"))));
+			GetPerformanceToolsIcon()));
 		LauncherEntry.ToolBarData.LabelOverride = LOCTEXT("OpenPerformanceToolsLauncherToolbarShortLabel", "性能工具");
+
+		FToolMenuEntry& RuntimeGMEntry = UserSection.AddEntry(FToolMenuEntry::InitToolBarButton(
+			TEXT("OpenDevKitRuntimeGMSettings"),
+			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenRuntimeGMSettingsTab)),
+			LOCTEXT("OpenRuntimeGMSettingsToolbarLabel", "Runtime GM"),
+			LOCTEXT("OpenRuntimeGMSettingsToolbarTooltip", "打开运行时 GM 配置；PIE、Standalone 和 Development 包里按 F12 打开/关闭 GM 面板。"),
+			GetPerformanceToolsIcon()));
+		RuntimeGMEntry.ToolBarData.LabelOverride = LOCTEXT("OpenRuntimeGMSettingsToolbarShortLabel", "Runtime GM");
 
 		FToolMenuEntry& ModelComplianceEntry = UserSection.AddEntry(FToolMenuEntry::InitToolBarButton(
 			TEXT("OpenDevKitModelAssetCompliance"),
@@ -639,8 +780,32 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenMaterialTextureRulesTab)),
 			LOCTEXT("OpenMaterialTextureRulesToolbarLabel", "材质合规"),
 			LOCTEXT("OpenMaterialTextureRulesToolbarTooltip", "打开材质合规检查，检查贴图规则和材质性能分级接口。"),
-			FSlateIcon(FAppStyle::GetAppStyleSetName(), TEXT("Icons.Search"))));
+			GetMaterialTextureRulesIcon()));
 		TextureRulesEntry.ToolBarData.LabelOverride = LOCTEXT("OpenMaterialTextureRulesToolbarShortLabel", "材质合规");
+
+		FToolMenuEntry& TextureVTAuditEntry = UserSection.AddEntry(FToolMenuEntry::InitToolBarButton(
+			TEXT("OpenDevKitTextureVTAudit"),
+			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenTextureVTAuditTab)),
+			LOCTEXT("OpenTextureVTAuditToolbarLabel", "贴图 VT"),
+			LOCTEXT("OpenTextureVTAuditToolbarTooltip", "打开贴图 VT 审计，检查 VT 状态、尺寸、格式和 VTC 兼容性。"),
+			GetTextureVTAuditIcon()));
+		TextureVTAuditEntry.ToolBarData.LabelOverride = LOCTEXT("OpenTextureVTAuditToolbarShortLabel", "贴图 VT");
+
+		FToolMenuEntry& VTCManagerEntry = UserSection.AddEntry(FToolMenuEntry::InitToolBarButton(
+			TEXT("OpenDevKitVTCManager"),
+			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenVirtualTextureCollectionManagerTab)),
+			LOCTEXT("OpenVTCManagerToolbarLabel", "VTC"),
+			LOCTEXT("OpenVTCManagerToolbarTooltip", "打开 VTC 管理器，管理 VirtualTextureCollection 的创建、成员和合规检查。"),
+			GetVTCManagerIcon()));
+		VTCManagerEntry.ToolBarData.LabelOverride = LOCTEXT("OpenVTCManagerToolbarShortLabel", "VTC");
+
+		FToolMenuEntry& EnvBatchTaggerEntry = UserSection.AddEntry(FToolMenuEntry::InitToolBarButton(
+			TEXT("OpenDevKitEnvBatchTagger"),
+			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenEnvBatchTaggerTab)),
+			LOCTEXT("OpenEnvBatchTaggerToolbarLabel", "环境合批"),
+			LOCTEXT("OpenEnvBatchTaggerToolbarTooltip", "打开环境合批 Actor 标记工具，写入 EnvBatch.Source.* 并按 tag 反选 Actor。"),
+			GetEnvBatchTaggerIcon()));
+		EnvBatchTaggerEntry.ToolBarData.LabelOverride = LOCTEXT("OpenEnvBatchTaggerToolbarShortLabel", "环境合批");
 
 	}
 
@@ -704,19 +869,19 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			TEXT("OpenMaterialTextureRules"),
 			LOCTEXT("OpenMaterialTextureRulesLabel", "材质合规检查"),
 			LOCTEXT("OpenMaterialTextureRulesTooltip", "检查贴图命名、sRGB、尺寸、VT 建议和材质性能分级接口。"),
-			FSlateIcon(FAppStyle::GetAppStyleSetName(), TEXT("Icons.Search")),
+			GetMaterialTextureRulesIcon(),
 			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenMaterialTextureRulesTab)));
 		ArtAssetSection.AddMenuEntry(
 			TEXT("OpenTextureVTAudit"),
 			LOCTEXT("OpenTextureVTAuditLabel", "贴图 VT 审计"),
 			LOCTEXT("OpenTextureVTAuditTooltip", "检查所有 Texture2D 的 VT 开启状态、尺寸、格式，以及是否可加入 VirtualTextureCollection。支持批量开关 VT。"),
-			FSlateIcon(FAppStyle::GetAppStyleSetName(), TEXT("Icons.Audit")),
+			GetTextureVTAuditIcon(),
 			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenTextureVTAuditTab)));
 		ArtAssetSection.AddMenuEntry(
 			TEXT("OpenVTCManager"),
 			LOCTEXT("OpenVTCManagerLabel", "VTC 管理器"),
 			LOCTEXT("OpenVTCManagerTooltip", "管理项目中所有 VirtualTextureCollection：新建、批量添加成员、合规校验。"),
-			FSlateIcon(FAppStyle::GetAppStyleSetName(), TEXT("Icons.Layers")),
+			GetVTCManagerIcon(),
 			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenVirtualTextureCollectionManagerTab)));
 
 		FToolMenuSection& PerformanceSection = Menu->FindOrAddSection(TEXT("DevKitPerformanceTools"), LOCTEXT("DevKitPerformanceToolsSection", "性能工具"));
@@ -724,19 +889,25 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			TEXT("OpenPerformanceToolsLauncher"),
 			LOCTEXT("OpenPerformanceToolsLauncherLabel", "性能工具快捷入口"),
 			LOCTEXT("OpenPerformanceToolsLauncherTooltip", "打开主菜单运行入口和关卡环境合批标记入口；模型、贴图资产检查在美术资产工具中打开。"),
-			FSlateIcon(FAppStyle::GetAppStyleSetName(), TEXT("Icons.Tools")),
+			GetPerformanceToolsIcon(),
 			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenPerformanceToolsLauncherTab)));
 		PerformanceSection.AddMenuEntry(
 			TEXT("DevKitPlayFromMainMenu"),
 			LOCTEXT("OpenPlayFromMainMenuLabel", "从主菜单运行"),
 			LOCTEXT("OpenPlayFromMainMenuTooltip", "打开入口地图并从游戏主菜单开始 Play。"),
-			FSlateIcon(FAppStyle::GetAppStyleSetName(), TEXT("Icons.Play")),
+			GetPlayFromMainMenuIcon(),
 			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::PlayFromMainMenu)));
+		PerformanceSection.AddMenuEntry(
+			TEXT("OpenRuntimeGMSettings"),
+			LOCTEXT("OpenRuntimeGMSettingsLabel", "运行时 GM 配置"),
+			LOCTEXT("OpenRuntimeGMSettingsTooltip", "配置 F12 Runtime GM 面板使用的武器、敌人、数量、半径和快速打包入口。"),
+			GetPerformanceToolsIcon(),
+			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenRuntimeGMSettingsTab)));
 		PerformanceSection.AddMenuEntry(
 			TEXT("OpenEnvBatchTagger"),
 			LOCTEXT("OpenEnvBatchTaggerLabel", "环境合批标记"),
-			LOCTEXT("OpenEnvBatchTaggerTooltip", "给当前选中的静态环境 Actor 写入 Source、Proxy、Baked 或 Exclude 标记。"),
-			FSlateIcon(FAppStyle::GetAppStyleSetName(), TEXT("Icons.Audit")),
+			LOCTEXT("OpenEnvBatchTaggerTooltip", "给当前选中的关卡 Actor 写入 EnvBatch.Source.<关卡>.<类型>.<方式>.<VTC组>.<流水号>，并可按 tag 反选 Actor。"),
+			GetEnvBatchTaggerIcon(),
 			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenEnvBatchTaggerTab)));
 
 		FToolMenuSection& DebugSection = Menu->FindOrAddSection(TEXT("DevKitDebugTools"), LOCTEXT("DevKitDebugToolsSection", "Debug Tools"));
@@ -764,6 +935,12 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 	FReply HandleOpenEnvBatchTaggerClicked()
 	{
 		OpenEnvBatchTaggerTab();
+		return FReply::Handled();
+	}
+
+	FReply HandleOpenRuntimeGMSettingsClicked()
+	{
+		OpenRuntimeGMSettingsTab();
 		return FReply::Handled();
 	}
 
@@ -942,6 +1119,11 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 		FGlobalTabmanager::Get()->TryInvokeTab(PerformanceToolsLauncherTabName);
 	}
 
+	void OpenRuntimeGMSettingsTab()
+	{
+		FGlobalTabmanager::Get()->TryInvokeTab(RuntimeGMSettingsTabName);
+	}
+
 	void RegisterAssetTypeAction(IAssetTools& AssetTools, TSharedRef<IAssetTypeActions> Action)
 	{
 		AssetTools.RegisterAssetTypeActions(Action);
@@ -951,6 +1133,30 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 private:
 	TArray<TSharedPtr<IAssetTypeActions>> RegisteredAssetTypeActions;
 	TStrongObjectPtr<UCombatLogEditorUtilityWidget> CombatLogWidgetInstance;
+	TSharedPtr<IInputProcessor> RuntimeGMPIEInputProcessor;
+
+	void RegisterRuntimeGMPIEInputProcessor()
+	{
+		if (RuntimeGMPIEInputProcessor.IsValid() || !FSlateApplication::IsInitialized())
+		{
+			return;
+		}
+
+		RuntimeGMPIEInputProcessor = MakeShared<FRuntimeGMPIEInputProcessor>();
+		FSlateApplication::Get().RegisterInputPreProcessor(RuntimeGMPIEInputProcessor);
+	}
+
+	void UnregisterRuntimeGMPIEInputProcessor()
+	{
+		if (!RuntimeGMPIEInputProcessor.IsValid() || !FSlateApplication::IsInitialized())
+		{
+			RuntimeGMPIEInputProcessor.Reset();
+			return;
+		}
+
+		FSlateApplication::Get().UnregisterInputPreProcessor(RuntimeGMPIEInputProcessor);
+		RuntimeGMPIEInputProcessor.Reset();
+	}
 };
 
 

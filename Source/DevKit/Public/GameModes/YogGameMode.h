@@ -161,6 +161,17 @@ public:
 	/** 敌人死亡时注销 */
 	void UnregisterEnemy(AEnemyCharacterBase* Enemy);
 
+	/** Runtime GM 面板使用：在玩家附近 NavMesh 上刷出测试敌人。默认不推进清房计数。 */
+	UFUNCTION(BlueprintCallable, Category = "Runtime GM|Spawn")
+	AEnemyCharacterBase* SpawnGMEnemyNearPlayer(
+		UEnemyData* EnemyData,
+		FVector Origin,
+		float Radius = 1200.f,
+		float MinDistance = 300.f,
+		float ZOffset = 96.f,
+		bool bCountForLevelClear = false,
+		bool bApplyRoomBuffs = false);
+
 	/** 当前是否有存活的敌人（包含已注册但尚未死亡的） */
 	UFUNCTION(BlueprintPure, Category = "Camera|Combat")
 	bool HasAliveEnemies() const;

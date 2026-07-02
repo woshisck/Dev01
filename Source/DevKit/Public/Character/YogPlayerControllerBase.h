@@ -196,10 +196,19 @@ private:
 	void HandleCommonInputMethodChanged(ECommonInputType NewInputType);
 	void SetGameplayCursorUsesMouse(bool bUsesMouse);
 	void InitMouseCursorWidget();
+#if !UE_BUILD_SHIPPING
+	void MaybeScheduleRuntimeGMSmokeTest();
+	void RunRuntimeGMSmokeTest();
+#endif
 
 	bool bBlockGameInput = false;
 	bool bGameplayCursorControlActive = false;
 	bool bGameplayCursorUsesMouse = true;
+#if !UE_BUILD_SHIPPING
+	bool bRuntimeGMSmokeScheduled = false;
+	int32 RuntimeGMSmokeAttempts = 0;
+	FTimerHandle RuntimeGMSmokeTimerHandle;
+#endif
 
 	int32 ActiveMenuCount = 0;
 

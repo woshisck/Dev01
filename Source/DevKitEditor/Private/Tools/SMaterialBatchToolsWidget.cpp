@@ -61,7 +61,7 @@ void SMaterialBatchToolsWidget::Construct(const FArguments& InArgs)
 					SNew(STextBlock)
 					.Text(LOCTEXT(
 						"Description",
-						"使用方式：先用“环境合批标记”给需要合并的关卡对象写入 EnvBatch.Source.<Group>。一个 Group 可以是不连续的一组 Actor；带 StaticMeshComponent 的蓝图可以作为输入边界；已经处理好的 Level Instance 可以按边界打 tag。然后在这里填写 Map、Cluster、Tier、RequireTag，先运行 dry-run 查看候选、拒绝原因、VT Atlas/Proxy/Batch Material 计划。"))
+						"使用方式：先用“环境合批标记”给候选 Actor 写入 EnvBatch.Source.<Level>.<Prop|Building>.<Instance|Batched>.<Serial>。Prop.Batched 是自动合批主入口；Building 默认用于组织和审计。然后在这里填写 Map、Cluster、Tier、RequireTag，先运行 dry-run 查看候选、拒绝原因、VTC/UDIM/Proxy/Batch Material 计划。"))
 					.AutoWrapText(true)
 				]
 				+ SVerticalBox::Slot()

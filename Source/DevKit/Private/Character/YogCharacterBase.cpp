@@ -565,6 +565,12 @@ void AYogCharacterBase::ResetDeathStartedBroadcast()
 	bDeathStartedBroadcast = false;
 }
 
+void AYogCharacterBase::ResetRuntimeGMDeathState()
+{
+	bIsDead = false;
+	ResetDeathStartedBroadcast();
+}
+
 void AYogCharacterBase::Die()
 {
 	UE_LOG(LogTemp, Log, TEXT("DEATH HAPPEN, DEAD CHARACTER: %s"), *UKismetSystemLibrary::GetDisplayName(this));

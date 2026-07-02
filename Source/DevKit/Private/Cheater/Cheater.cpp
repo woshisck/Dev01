@@ -13,6 +13,8 @@
 #include "GameModes/YogGameMode.h"
 #include "GameFramework/PlayerController.h"
 #include "System/YogGameInstanceBase.h"
+#include "System/YogRuntimeGMSubsystem.h"
+#include "Engine/Engine.h"
 #include "EngineUtils.h"
 #include "HAL/IConsoleManager.h"
 
@@ -130,6 +132,79 @@ namespace
 		}
 	}
 
+	APlayerController* FindRuntimeGMPlayerControllerInWorld(UWorld* World)
+	{
+		if (!World)
+		{
+			return nullptr;
+		}
+
+		return World->GetFirstPlayerController();
+	}
+
+	bool IsRuntimeGMPlayableWorld(const UWorld* World)
+	{
+		return World
+			&& (World->WorldType == EWorldType::PIE
+				|| World->WorldType == EWorldType::Game
+				|| World->WorldType == EWorldType::GamePreview);
+	}
+
+	APlayerController* FindRuntimeGMPlayerController(UWorld* PreferredWorld)
+	{
+		if (IsRuntimeGMPlayableWorld(PreferredWorld))
+		{
+			if (APlayerController* PC = FindRuntimeGMPlayerControllerInWorld(PreferredWorld))
+			{
+				return PC;
+			}
+		}
+
+		if (!GEngine)
+		{
+			return nullptr;
+		}
+
+		for (const FWorldContext& WorldContext : GEngine->GetWorldContexts())
+		{
+			UWorld* CandidateWorld = WorldContext.World();
+			if (CandidateWorld == PreferredWorld || !IsRuntimeGMPlayableWorld(CandidateWorld))
+			{
+				continue;
+			}
+
+			if (APlayerController* PC = FindRuntimeGMPlayerControllerInWorld(CandidateWorld))
+			{
+				return PC;
+			}
+		}
+
+		return nullptr;
+	}
+
+	void ToggleRuntimeGMPanelForWorld(UWorld* World)
+	{
+#if !UE_BUILD_SHIPPING
+		APlayerController* PC = FindRuntimeGMPlayerController(World);
+		UGameInstance* GameInstance = PC ? PC->GetGameInstance() : nullptr;
+		UYogRuntimeGMSubsystem* RuntimeGM = GameInstance ? GameInstance->GetSubsystem<UYogRuntimeGMSubsystem>() : nullptr;
+		if (!PC || !RuntimeGM)
+		{
+			UE_LOG(LogTemp, Warning,
+				TEXT("[RuntimeGM] Yog.GM failed: PlayerController or RuntimeGM subsystem not found. CommandWorld=%s WorldType=%d"),
+				*GetNameSafe(World),
+				World ? static_cast<int32>(World->WorldType) : -1);
+			if (GEngine)
+			{
+				GEngine->AddOnScreenDebugMessage(-1, 4.f, FColor::Red, TEXT("[RuntimeGM] Yog.GM failed: no playable world."));
+			}
+			return;
+		}
+
+		RuntimeGM->ToggleGMPanel(PC);
+#endif
+	}
+
 	FAutoConsoleCommandWithWorld GGiveMoonlightLinkCardsCommand(
 		TEXT("Yog_GiveMoonlightLinkCards"),
 		TEXT("Adds Moonlight link test cards directly to the current player's combat deck."),
@@ -149,6 +224,18 @@ namespace
 		TEXT("Yog.SetLevelEnded"),
 		TEXT("Forces the current level into ended / Arrangement phase for card and backpack testing."),
 		FConsoleCommandWithWorldDelegate::CreateStatic(&SetLevelEndedForWorld));
+
+#if !UE_BUILD_SHIPPING
+	FAutoConsoleCommandWithWorld GToggleRuntimeGMPanelCommand(
+		TEXT("Yog.GM"),
+		TEXT("Toggles the Runtime GM panel for the current PIE, Standalone, or Development game world."),
+		FConsoleCommandWithWorldDelegate::CreateStatic(&ToggleRuntimeGMPanelForWorld));
+
+	FAutoConsoleCommandWithWorld GToggleRuntimeGMPanelAliasCommand(
+		TEXT("Yog.GM.Toggle"),
+		TEXT("Alias for Yog.GM. Toggles the Runtime GM panel for the current game world."),
+		FConsoleCommandWithWorldDelegate::CreateStatic(&ToggleRuntimeGMPanelForWorld));
+#endif
 }
 
 APlayerCharacterBase* UYogCheatManager::GetPlayerChar() const

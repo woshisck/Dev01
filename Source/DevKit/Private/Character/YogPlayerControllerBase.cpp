@@ -27,12 +27,16 @@
 #include "Item/Weapon/WeaponSpawner.h"
 #include "SaveGame/YogSaveSubsystem.h"
 #include "System/YogGameInstanceBase.h"
+#include "System/YogRuntimeGMSubsystem.h"
 #include "GameModes/YogGameMode.h"
 #include "UI/YogInputKeyUtils.h"
 #include "Kismet/KismetMathLibrary.h"
+#include "HAL/PlatformMisc.h"
 #include "GameFramework/PlayerInput.h"
 #include "InputKeyEventArgs.h"
 #include "InputCoreTypes.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 #include "GameplayTagContainer.h"
 
 #include "Component/BufferComponent.h"
@@ -193,6 +197,9 @@ void AYogPlayerControllerBase::OnPossess(APawn* InPawn)
 	//	SaveSubsystem->LoadSaveGame(SaveSubsystem->CurrentSaveGame);
 	//}
 
+#if !UE_BUILD_SHIPPING
+	MaybeScheduleRuntimeGMSmokeTest();
+#endif
 }
 
 void AYogPlayerControllerBase::OnUnPossess()
@@ -277,6 +284,10 @@ void AYogPlayerControllerBase::BeginPlay()
 	SetGameplayCursorControlActive(true);
 
 	InitMouseCursorWidget();
+
+#if !UE_BUILD_SHIPPING
+	MaybeScheduleRuntimeGMSmokeTest();
+#endif
 
 	//AYogCharacterBase* TargetCharacter = Cast<AYogCharacterBase>(UGameplayStatics::GetPlayerCharacter(this, 0));
 	
@@ -404,6 +415,19 @@ void AYogPlayerControllerBase::SetupInputComponent()
 
 bool AYogPlayerControllerBase::InputKey(const FInputKeyEventArgs& Params)
 {
+#if !UE_BUILD_SHIPPING
+	if (Params.Event == IE_Pressed && Params.Key == EKeys::F12)
+	{
+		if (UGameInstance* GameInstance = GetGameInstance())
+		{
+			if (UYogRuntimeGMSubsystem* RuntimeGM = GameInstance->GetSubsystem<UYogRuntimeGMSubsystem>())
+			{
+				return RuntimeGM->ToggleGMPanel(this);
+			}
+		}
+	}
+#endif
+
 	if (Params.IsGamepad() || Params.Key.IsGamepadKey())
 	{
 		SetGameplayCursorUsesMouse(false);
@@ -476,6 +500,163 @@ bool AYogPlayerControllerBase::InputKey(const FInputKeyEventArgs& Params)
 
 	return Super::InputKey(Params);
 }
+
+#if !UE_BUILD_SHIPPING
+void AYogPlayerControllerBase::MaybeScheduleRuntimeGMSmokeTest()
+{
+	if (bRuntimeGMSmokeScheduled || !IsLocalController())
+	{
+		return;
+	}
+
+	if (!FParse::Param(FCommandLine::Get(), TEXT("RuntimeGMSmokeTest")))
+	{
+		return;
+	}
+
+	bRuntimeGMSmokeScheduled = true;
+	RuntimeGMSmokeAttempts = 0;
+
+	float Delay = 1.0f;
+	FParse::Value(FCommandLine::Get(), TEXT("RuntimeGMSmokeDelay="), Delay);
+	Delay = FMath::Clamp(Delay, 0.1f, 30.f);
+
+	UE_LOG(LogTemp, Display, TEXT("[RuntimeGM][Smoke] Scheduled. Delay=%.2fs"), Delay);
+	GetWorldTimerManager().SetTimer(RuntimeGMSmokeTimerHandle, this, &AYogPlayerControllerBase::RunRuntimeGMSmokeTest, Delay, false);
+}
+
+void AYogPlayerControllerBase::RunRuntimeGMSmokeTest()
+{
+	++RuntimeGMSmokeAttempts;
+
+	APlayerCharacterBase* PlayerCharacter = Cast<APlayerCharacterBase>(GetPawn());
+	UGameInstance* GameInstance = GetGameInstance();
+	UYogRuntimeGMSubsystem* RuntimeGM = GameInstance ? GameInstance->GetSubsystem<UYogRuntimeGMSubsystem>() : nullptr;
+
+	if (!PlayerCharacter || !RuntimeGM)
+	{
+		if (RuntimeGMSmokeAttempts < 40)
+		{
+			UE_LOG(LogTemp, Display, TEXT("[RuntimeGM][Smoke] Waiting for playable pawn/subsystem. Attempt=%d Pawn=%s RuntimeGM=%s"),
+				RuntimeGMSmokeAttempts,
+				*GetNameSafe(GetPawn()),
+				RuntimeGM ? TEXT("valid") : TEXT("null"));
+			GetWorldTimerManager().SetTimer(RuntimeGMSmokeTimerHandle, this, &AYogPlayerControllerBase::RunRuntimeGMSmokeTest, 0.5f, false);
+			return;
+		}
+
+		UE_LOG(LogTemp, Error, TEXT("[RuntimeGM][Smoke] FAILED: playable pawn or RuntimeGM subsystem not ready. Pawn=%s RuntimeGM=%s"),
+			*GetNameSafe(GetPawn()),
+			RuntimeGM ? TEXT("valid") : TEXT("null"));
+		if (FParse::Param(FCommandLine::Get(), TEXT("RuntimeGMSmokeExit")))
+		{
+			FPlatformMisc::RequestExit(false);
+		}
+		return;
+	}
+
+	int32 SpawnCount = 1;
+	FParse::Value(FCommandLine::Get(), TEXT("RuntimeGMSmokeSpawnCount="), SpawnCount);
+	SpawnCount = FMath::Clamp(SpawnCount, 1, 50);
+
+	float SpawnRadius = 1200.f;
+	FParse::Value(FCommandLine::Get(), TEXT("RuntimeGMSmokeSpawnRadius="), SpawnRadius);
+	SpawnRadius = FMath::Max(100.f, SpawnRadius);
+
+	RuntimeGM->SetRuntimeSpawnCount(SpawnCount);
+	RuntimeGM->SetRuntimeSpawnRadius(SpawnRadius);
+
+	bool bPauseOpenedByEscape = false;
+	bool bPauseOpen = false;
+	bool bPauseClosed = false;
+	if (AYogHUD* HUD = Cast<AYogHUD>(GetHUD()))
+	{
+		bPauseOpenedByEscape = InputKey(FInputKeyEventArgs::CreateSimulated(EKeys::Escape, IE_Pressed, 1.0f));
+		bPauseOpen = HUD->IsPauseMenuOpen();
+		if (bPauseOpen)
+		{
+			HUD->ClosePauseMenu();
+		}
+		bPauseClosed = !HUD->IsPauseMenuOpen();
+	}
+
+	const bool bPanelOpenedByF12 = InputKey(FInputKeyEventArgs::CreateSimulated(EKeys::F12, IE_Pressed, 1.0f));
+	const bool bPanelOpen = RuntimeGM->IsGMPanelOpen();
+	if (bPanelOpen)
+	{
+		RuntimeGM->CloseGMPanel(this);
+	}
+	const bool bPanelClosed = !RuntimeGM->IsGMPanelOpen();
+
+	ConsoleCommand(TEXT("Yog.GM"));
+	const bool bPanelOpenedByConsoleCommand = RuntimeGM->IsGMPanelOpen();
+	if (bPanelOpenedByConsoleCommand)
+	{
+		RuntimeGM->CloseGMPanel(this);
+	}
+	const bool bConsolePanelClosed = !RuntimeGM->IsGMPanelOpen();
+
+	const bool bGaveWeapon = RuntimeGM->GiveConfiguredWeapon(this);
+	const bool bCombatAbilityActivated = bGaveWeapon && TryActivateComboStarterThenFallback(
+		PlayerCharacter,
+		TEXT("Character.State.Skill.Attack.Combo1"),
+		TEXT("Character.State.Skill.Attack"),
+		TEXT("PlayerState.AbilityCast.Attack"));
+	const int32 SpawnedEnemies = RuntimeGM->SpawnConfiguredEnemies(this, SpawnCount);
+	const int32 ResetCharacters = RuntimeGM->ResetPlayerAndEnemies(this);
+	const bool bSuccess = bPauseOpenedByEscape && bPauseOpen && bPauseClosed && bPanelOpenedByF12 && bPanelOpen && bPanelClosed && bPanelOpenedByConsoleCommand && bConsolePanelClosed && bGaveWeapon && bCombatAbilityActivated && SpawnedEnemies > 0 && ResetCharacters > 0;
+
+	if (bSuccess)
+	{
+		UE_LOG(LogTemp, Display,
+			TEXT("[RuntimeGM][Smoke] PASSED PauseOpenedByEscape=%s PauseOpen=%s PauseClosed=%s PanelOpenedByF12=%s PanelOpen=%s PanelClosed=%s PanelOpenedByConsoleCommand=%s ConsolePanelClosed=%s GiveWeapon=%s CombatAbilityActivated=%s SpawnedEnemies=%d RequestedEnemies=%d ResetCharacters=%d SpawnRadius=%.1f Player=%s"),
+			bPauseOpenedByEscape ? TEXT("true") : TEXT("false"),
+			bPauseOpen ? TEXT("true") : TEXT("false"),
+			bPauseClosed ? TEXT("true") : TEXT("false"),
+			bPanelOpenedByF12 ? TEXT("true") : TEXT("false"),
+			bPanelOpen ? TEXT("true") : TEXT("false"),
+			bPanelClosed ? TEXT("true") : TEXT("false"),
+			bPanelOpenedByConsoleCommand ? TEXT("true") : TEXT("false"),
+			bConsolePanelClosed ? TEXT("true") : TEXT("false"),
+			bGaveWeapon ? TEXT("true") : TEXT("false"),
+			bCombatAbilityActivated ? TEXT("true") : TEXT("false"),
+			SpawnedEnemies,
+			SpawnCount,
+			ResetCharacters,
+			SpawnRadius,
+			*GetNameSafe(PlayerCharacter));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error,
+			TEXT("[RuntimeGM][Smoke] FAILED PauseOpenedByEscape=%s PauseOpen=%s PauseClosed=%s PanelOpenedByF12=%s PanelOpen=%s PanelClosed=%s PanelOpenedByConsoleCommand=%s ConsolePanelClosed=%s GiveWeapon=%s CombatAbilityActivated=%s SpawnedEnemies=%d RequestedEnemies=%d ResetCharacters=%d SpawnRadius=%.1f Player=%s"),
+			bPauseOpenedByEscape ? TEXT("true") : TEXT("false"),
+			bPauseOpen ? TEXT("true") : TEXT("false"),
+			bPauseClosed ? TEXT("true") : TEXT("false"),
+			bPanelOpenedByF12 ? TEXT("true") : TEXT("false"),
+			bPanelOpen ? TEXT("true") : TEXT("false"),
+			bPanelClosed ? TEXT("true") : TEXT("false"),
+			bPanelOpenedByConsoleCommand ? TEXT("true") : TEXT("false"),
+			bConsolePanelClosed ? TEXT("true") : TEXT("false"),
+			bGaveWeapon ? TEXT("true") : TEXT("false"),
+			bCombatAbilityActivated ? TEXT("true") : TEXT("false"),
+			SpawnedEnemies,
+			SpawnCount,
+			ResetCharacters,
+			SpawnRadius,
+			*GetNameSafe(PlayerCharacter));
+	}
+
+	if (FParse::Param(FCommandLine::Get(), TEXT("RuntimeGMSmokeExit")))
+	{
+		FTimerHandle ExitTimerHandle;
+		GetWorldTimerManager().SetTimer(ExitTimerHandle, []()
+		{
+			FPlatformMisc::RequestExit(false);
+		}, 1.0f, false);
+	}
+}
+#endif
 
 bool AYogPlayerControllerBase::HandleMenuBackInput(const FKey& Key)
 {
