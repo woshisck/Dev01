@@ -88,6 +88,42 @@ private:
 	FAutomationTestBase* Test = nullptr;
 };
 
+class FExecuteRuntimeGMConsoleFromEditorWorldCommand final : public IAutomationLatentCommand
+{
+public:
+	explicit FExecuteRuntimeGMConsoleFromEditorWorldCommand(FAutomationTestBase* InTest)
+		: Test(InTest)
+	{
+	}
+
+	virtual bool Update() override
+	{
+		APlayerController* PlayerController = GetRuntimeGMPIEPlayerController();
+		UGameInstance* GameInstance = PlayerController ? PlayerController->GetGameInstance() : nullptr;
+		UYogRuntimeGMSubsystem* RuntimeGM = GameInstance ? GameInstance->GetSubsystem<UYogRuntimeGMSubsystem>() : nullptr;
+		UWorld* EditorWorld = GEditor ? GEditor->GetEditorWorldContext().World() : nullptr;
+
+		Test->TestNotNull(TEXT("PIE player controller"), PlayerController);
+		Test->TestNotNull(TEXT("PIE Runtime GM subsystem"), RuntimeGM);
+		Test->TestNotNull(TEXT("Editor world for Output Log command context"), EditorWorld);
+		if (!PlayerController || !RuntimeGM || !EditorWorld)
+		{
+			return true;
+		}
+
+		RuntimeGM->CloseGMPanel(PlayerController);
+		IConsoleManager::Get().ProcessUserConsoleInput(TEXT("Yog.GM"), *GLog, EditorWorld);
+
+		Test->TestTrue(TEXT("Yog.GM opens Runtime GM panel when executed from editor command context"), RuntimeGM->IsGMPanelOpen());
+
+		RuntimeGM->CloseGMPanel(PlayerController);
+		return true;
+	}
+
+private:
+	FAutomationTestBase* Test = nullptr;
+};
+
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRuntimeGMPIEF12OpensPanelTest,
@@ -114,6 +150,22 @@ bool FRuntimeGMConsoleCommandRegisteredTest::RunTest(const FString& Parameters)
 {
 	TestNotNull(TEXT("Yog.GM console command is registered"),
 		IConsoleManager::Get().FindConsoleObject(TEXT("Yog.GM")));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRuntimeGMConsoleCommandFromEditorWorldOpensPanelTest,
+	"DevKitEditor.RuntimeGM.ConsoleCommandFromEditorWorldOpensPanel",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FRuntimeGMConsoleCommandFromEditorWorldOpensPanelTest::RunTest(const FString& Parameters)
+{
+	AddExpectedError(TEXT("Null input trigger detected in mapping to input action 'IA_CardCache'"), EAutomationExpectedErrorFlags::Contains, 1);
+
+	ADD_LATENT_AUTOMATION_COMMAND(FEditorLoadMap(TEXT("/Game/Art/Map/Map_Data/L1_InitialRoom/InitialRoom")));
+	ADD_LATENT_AUTOMATION_COMMAND(FStartPIECommand(false));
+	ADD_LATENT_AUTOMATION_COMMAND(FWaitForRuntimeGMPIEPlayerControllerCommand(this));
+	ADD_LATENT_AUTOMATION_COMMAND(FExecuteRuntimeGMConsoleFromEditorWorldCommand(this));
+	ADD_LATENT_AUTOMATION_COMMAND(FEndPlayMapCommand());
 	return true;
 }
 
