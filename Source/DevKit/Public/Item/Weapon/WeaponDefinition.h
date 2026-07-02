@@ -91,18 +91,18 @@ public:
 	TObjectPtr<UObject> WeaponSkillComboGraph;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Ability Data")
-	TObjectPtr<UAbilityData> AttackAbilityData;
+	TObjectPtr<UWeaponAttackAbilityMontageData> AttackAbilityData;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Ability Data")
-	TObjectPtr<UAbilityData> WeaponSkillAbilityData;
+	TObjectPtr<UWeaponSkillAbilityMontageData> WeaponSkillAbilityData;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Ability Data|Deprecated", meta = (DeprecatedProperty, DeprecationMessage = "Use WeaponSkillAbilityData or active skill data."))
-	TObjectPtr<UAbilityData> SpecialAbilityData;
+	TObjectPtr<USpecialAbilityMontageData> SpecialAbilityData;
 
 	// Optional weapon-specific reaction/passive data. Merged after action data so
 	// hit react/death passive rows can override the character's base fallbacks.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Ability Data")
-	TObjectPtr<UAbilityData> PassiveAbilityData;
+	TObjectPtr<UWeaponPassiveAbilityMontageData> PassiveAbilityData;
 
 	// 武器类型：决定装备时挂在 ASC 上的 Weapon.Type.* LooseTag。
 	// 玩家专属攻击 GA 通过 ActivationRequiredTags 持有该 Tag → 自动隔离近战/远程激活路径。

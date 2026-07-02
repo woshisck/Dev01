@@ -801,8 +801,8 @@ bool FPlayerSwitchWeaponSwapsActiveAndInactiveSlotsTest::RunTest(const FString& 
 
 	UWeaponDefinition* WeaponA = NewObject<UWeaponDefinition>(Player);
 	UWeaponDefinition* WeaponB = NewObject<UWeaponDefinition>(Player);
-	UAbilityData* AbilityDataA = NewObject<UAbilityData>(WeaponA);
-	UAbilityData* AbilityDataB = NewObject<UAbilityData>(WeaponB);
+	UWeaponAttackAbilityMontageData* AbilityDataA = NewObject<UWeaponAttackAbilityMontageData>(WeaponA);
+	UWeaponAttackAbilityMontageData* AbilityDataB = NewObject<UWeaponAttackAbilityMontageData>(WeaponB);
 	WeaponA->AttackAbilityData = AbilityDataA;
 	WeaponB->AttackAbilityData = AbilityDataB;
 	UCharacterData* RuntimeCharacterData = NewObject<UCharacterData>(Player);
@@ -1541,8 +1541,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FWeaponComboHintTextUnlimitedLinesTest,
 bool FWeaponComboHintTextUnlimitedLinesTest::RunTest(const FString& Parameters)
 {
 	UWeaponDefinition* Weapon = NewObject<UWeaponDefinition>();
-	UAbilityData* AttackData = NewObject<UAbilityData>(Weapon);
-	UAbilityData* WeaponSkillData = NewObject<UAbilityData>(Weapon);
+	UWeaponAttackAbilityMontageData* AttackData = NewObject<UWeaponAttackAbilityMontageData>(Weapon);
+	UWeaponSkillAbilityMontageData* WeaponSkillData = NewObject<UWeaponSkillAbilityMontageData>(Weapon);
 	Weapon->AttackAbilityData = AttackData;
 	Weapon->WeaponSkillAbilityData = WeaponSkillData;
 

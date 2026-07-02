@@ -215,20 +215,26 @@ namespace PlayerAbilityMontageDataSetup
 		bool bChanged = false;
 		WeaponDefinition->Modify();
 
-		auto AssignField = [&bChanged, &ReportLines, WeaponDefinition](
-			TObjectPtr<UAbilityData>& Field,
-			const TCHAR* FieldName,
-			UAbilityData* NewValue)
+		auto AssignField = [&bChanged, &ReportLines](auto& Field, const TCHAR* FieldName, UAbilityData* NewValue)
 		{
+			using T = std::remove_pointer_t<decltype(Field.Get())>;
+
 			if (!NewValue)
 			{
 				ReportLines.Add(FString::Printf(TEXT("  - `%s`: skipped, source AbilityData missing."), FieldName));
 				return;
 			}
 
-			if (Field.Get() != NewValue)
+			T* TypedValue = Cast<T>(NewValue);
+			if (!TypedValue)
 			{
-				Field = NewValue;
+				ReportLines.Add(FString::Printf(TEXT("  - `%s`: skipped, type mismatch (%s)."), FieldName, *GetNameSafe(NewValue)));
+				return;
+			}
+
+			if (Field.Get() != TypedValue)
+			{
+				Field = TypedValue;
 				bChanged = true;
 			}
 
