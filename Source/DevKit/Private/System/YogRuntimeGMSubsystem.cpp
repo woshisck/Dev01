@@ -65,13 +65,36 @@ bool UYogRuntimeGMSubsystem::ToggleGMPanel(APlayerController* PlayerController)
 	}
 
 	ActiveWidget->InitializeRuntimeGM(this);
-	ActiveWidget->AddToViewport(20000);
+	ActiveWidget->SetVisibility(ESlateVisibility::Visible);
+	ActiveWidget->SetIsEnabled(true);
+	ActiveWidget->SetRenderOpacity(1.f);
+	ActiveWidget->SetAnchorsInViewport(FAnchors(0.f, 0.f, 0.f, 0.f));
+	ActiveWidget->SetAlignmentInViewport(FVector2D::ZeroVector);
+	ActiveWidget->SetPositionInViewport(FVector2D(24.f, 96.f), false);
+	ActiveWidget->SetDesiredSizeInViewport(FVector2D(560.f, 460.f));
+
+	constexpr int32 RuntimeGMZOrder = 100000;
+	const bool bAddedToPlayerScreen = ActiveWidget->AddToPlayerScreen(RuntimeGMZOrder);
+	if (!bAddedToPlayerScreen)
+	{
+		ActiveWidget->AddToViewport(RuntimeGMZOrder);
+	}
+	ActiveWidget->ForceLayoutPrepass();
 
 	FInputModeGameAndUI InputMode;
 	InputMode.SetHideCursorDuringCapture(false);
 	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
 	PC->SetInputMode(InputMode);
 	PC->bShowMouseCursor = true;
+
+	UE_LOG(LogTemp, Display,
+		TEXT("[RuntimeGM] Panel opened. Widget=%s Class=%s Player=%s World=%s AddedToPlayerScreen=%d InViewport=%d"),
+		*GetNameSafe(ActiveWidget),
+		*GetNameSafe(ActiveWidget->GetClass()),
+		*GetNameSafe(PC),
+		*GetNameSafe(PC->GetWorld()),
+		bAddedToPlayerScreen ? 1 : 0,
+		ActiveWidget->IsInViewport() ? 1 : 0);
 
 	SetStatus(LOCTEXT("PanelOpened", "Runtime GM 面板已打开。"));
 	return true;

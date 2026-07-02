@@ -3,6 +3,8 @@
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
 #include "Components/Button.h"
+#include "Components/CanvasPanel.h"
+#include "Components/CanvasPanelSlot.h"
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/SpinBox.h"
@@ -89,10 +91,20 @@ void UYogRuntimeGMWidget::NativeConstruct()
 
 void UYogRuntimeGMWidget::BuildFallbackWidget()
 {
+	UCanvasPanel* ScreenRoot = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("RuntimeGMScreenRoot"));
+	WidgetTree->RootWidget = ScreenRoot;
+
 	UBorder* Panel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("RuntimeGMPanel"));
 	Panel->SetPadding(FMargin(18.f));
 	Panel->SetBrushColor(FLinearColor(0.02f, 0.02f, 0.025f, 0.92f));
-	WidgetTree->RootWidget = Panel;
+	if (UCanvasPanelSlot* PanelSlot = ScreenRoot->AddChildToCanvas(Panel))
+	{
+		PanelSlot->SetAnchors(FAnchors(0.f, 0.f, 0.f, 0.f));
+		PanelSlot->SetAlignment(FVector2D::ZeroVector);
+		PanelSlot->SetPosition(FVector2D(24.f, 96.f));
+		PanelSlot->SetSize(FVector2D(560.f, 460.f));
+		PanelSlot->SetZOrder(1000);
+	}
 
 	UVerticalBox* Root = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("RuntimeGMRoot"));
 	Panel->AddChild(Root);
