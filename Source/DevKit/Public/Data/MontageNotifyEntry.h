@@ -8,6 +8,7 @@
 #include "MontageNotifyEntry.generated.h"
 
 class UMontageAttackDataAsset;
+class UNiagaraSystem;
 
 USTRUCT(BlueprintType)
 struct DEVKIT_API FTaggedMontageAttackData
@@ -118,6 +119,50 @@ public:
 	/** Tag 移除帧 */
 	UPROPERTY(EditAnywhere, Category = "Config", meta = (ClampMin = "0"))
 	int32 EndFrame = 5;
+
+	/** Optional VFX shown at the owner actor's projected screen position while this tag window is active. */
+	UPROPERTY(EditAnywhere, Category = "Screen Niagara")
+	TObjectPtr<UNiagaraSystem> ScreenNiagaraSystem;
+
+	UPROPERTY(EditAnywhere, Category = "Screen Niagara",
+		meta = (EditCondition = "ScreenNiagaraSystem != nullptr"))
+	FVector ScreenProjectionWorldOffset = FVector(0.f, 0.f, 120.f);
+
+	UPROPERTY(EditAnywhere, Category = "Screen Niagara",
+		meta = (EditCondition = "ScreenNiagaraSystem != nullptr"))
+	FVector2D ScreenOffset = FVector2D::ZeroVector;
+
+	UPROPERTY(EditAnywhere, Category = "Screen Niagara",
+		meta = (EditCondition = "ScreenNiagaraSystem != nullptr", ClampMin = "1.0"))
+	float ScreenNiagaraDistance = 250.f;
+
+	UPROPERTY(EditAnywhere, Category = "Screen Niagara",
+		meta = (EditCondition = "ScreenNiagaraSystem != nullptr"))
+	FVector ScreenNiagaraScale = FVector::OneVector;
+
+	UPROPERTY(EditAnywhere, Category = "Screen Niagara",
+		meta = (EditCondition = "ScreenNiagaraSystem != nullptr"))
+	bool bFollowOwnerScreenPosition = true;
+
+	/** Optional VFX attached to the animated mesh while this tag window is active. */
+	UPROPERTY(EditAnywhere, Category = "Attached Niagara")
+	TObjectPtr<UNiagaraSystem> AttachedNiagaraSystem;
+
+	UPROPERTY(EditAnywhere, Category = "Attached Niagara",
+		meta = (EditCondition = "AttachedNiagaraSystem != nullptr"))
+	FName AttachedNiagaraSocketName = NAME_None;
+
+	UPROPERTY(EditAnywhere, Category = "Attached Niagara",
+		meta = (EditCondition = "AttachedNiagaraSystem != nullptr"))
+	FVector AttachedNiagaraLocationOffset = FVector::ZeroVector;
+
+	UPROPERTY(EditAnywhere, Category = "Attached Niagara",
+		meta = (EditCondition = "AttachedNiagaraSystem != nullptr"))
+	FRotator AttachedNiagaraRotationOffset = FRotator::ZeroRotator;
+
+	UPROPERTY(EditAnywhere, Category = "Attached Niagara",
+		meta = (EditCondition = "AttachedNiagaraSystem != nullptr"))
+	FVector AttachedNiagaraScale = FVector::OneVector;
 };
 
 /**

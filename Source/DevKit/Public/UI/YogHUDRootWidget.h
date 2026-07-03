@@ -108,25 +108,25 @@ private:
 	UFUNCTION()
 	void HandleWeaponSwitched();
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
 	TObjectPtr<UWidget> WeaponLoadoutPanel;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
 	TObjectPtr<UWidget> ActiveWeaponSlot;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
 	TObjectPtr<UWidget> InactiveWeaponSlot;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
 	TObjectPtr<UImage> ActiveWeaponIcon;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
 	TObjectPtr<UImage> InactiveWeaponIcon;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> ActiveWeaponNameText;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> InactiveWeaponNameText;
 
 	TWeakObjectPtr<APlayerCharacterBase> BoundWeaponPanelPlayer;

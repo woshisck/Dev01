@@ -10,7 +10,7 @@ class UAbilitySystemComponent;
 class UNiagaraComponent;
 class UNiagaraSystem;
 
-/** Adds loose gameplay tags and optional screen-position Niagara feedback for this notify state's duration. */
+/** Adds loose gameplay tags and optional Niagara feedback for this notify state's duration. */
 UCLASS(meta = (DisplayName = "Gameplay Tag Window"))
 class DEVKIT_API UAnimNotifyState_AddGameplayTag : public UAnimNotifyState
 {
@@ -49,6 +49,27 @@ public:
 		meta = (EditCondition = "ScreenNiagaraSystem != nullptr"))
 	bool bFollowOwnerScreenPosition = true;
 
+	/** Optional VFX attached to the animated mesh while this window is active. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attached Niagara")
+	TObjectPtr<UNiagaraSystem> AttachedNiagaraSystem;
+
+	/** Mesh socket/bone to attach to. Leave empty to attach to the mesh root. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attached Niagara",
+		meta = (EditCondition = "AttachedNiagaraSystem != nullptr"))
+	FName AttachedNiagaraSocketName = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attached Niagara",
+		meta = (EditCondition = "AttachedNiagaraSystem != nullptr"))
+	FVector AttachedNiagaraLocationOffset = FVector::ZeroVector;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attached Niagara",
+		meta = (EditCondition = "AttachedNiagaraSystem != nullptr"))
+	FRotator AttachedNiagaraRotationOffset = FRotator::ZeroRotator;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attached Niagara",
+		meta = (EditCondition = "AttachedNiagaraSystem != nullptr"))
+	FVector AttachedNiagaraScale = FVector::OneVector;
+
 	virtual void NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation,
 		float TotalDuration, const FAnimNotifyEventReference& EventReference) override;
 
@@ -66,6 +87,9 @@ private:
 	void SpawnScreenNiagara(USkeletalMeshComponent* MeshComp);
 	void UpdateScreenNiagara(USkeletalMeshComponent* MeshComp);
 	void DestroyScreenNiagara(USkeletalMeshComponent* MeshComp);
+	void SpawnAttachedNiagara(USkeletalMeshComponent* MeshComp);
+	void DestroyAttachedNiagara(USkeletalMeshComponent* MeshComp);
 
 	TMap<TObjectKey<USkeletalMeshComponent>, TWeakObjectPtr<UNiagaraComponent>> ActiveScreenNiagaraComponents;
+	TMap<TObjectKey<USkeletalMeshComponent>, TWeakObjectPtr<UNiagaraComponent>> ActiveAttachedNiagaraComponents;
 };

@@ -8,6 +8,30 @@
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
 
+namespace
+{
+	void DestroyNiagaraForMesh(
+		TMap<TObjectKey<USkeletalMeshComponent>, TWeakObjectPtr<UNiagaraComponent>>& ActiveComponents,
+		USkeletalMeshComponent* MeshComp)
+	{
+		if (!MeshComp)
+		{
+			return;
+		}
+
+		const TObjectKey<USkeletalMeshComponent> MeshKey(MeshComp);
+		TWeakObjectPtr<UNiagaraComponent>* Found = ActiveComponents.Find(MeshKey);
+		UNiagaraComponent* NiagaraComp = Found ? Found->Get() : nullptr;
+		if (NiagaraComp)
+		{
+			NiagaraComp->Deactivate();
+			NiagaraComp->DestroyComponent();
+		}
+
+		ActiveComponents.Remove(MeshKey);
+	}
+}
+
 UAbilitySystemComponent* UAnimNotifyState_AddGameplayTag::GetASC(const USkeletalMeshComponent* MeshComp)
 {
 	if (!MeshComp)
@@ -33,12 +57,14 @@ void UAnimNotifyState_AddGameplayTag::NotifyBegin(USkeletalMeshComponent* MeshCo
 	}
 
 	SpawnScreenNiagara(MeshComp);
+	SpawnAttachedNiagara(MeshComp);
 }
 
 void UAnimNotifyState_AddGameplayTag::NotifyEnd(USkeletalMeshComponent* MeshComp,
 	UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference)
 {
 	DestroyScreenNiagara(MeshComp);
+	DestroyAttachedNiagara(MeshComp);
 
 	Super::NotifyEnd(MeshComp, Animation, EventReference);
 
@@ -64,17 +90,27 @@ void UAnimNotifyState_AddGameplayTag::NotifyTick(USkeletalMeshComponent* MeshCom
 
 FString UAnimNotifyState_AddGameplayTag::GetNotifyName_Implementation() const
 {
+	const bool bHasVFX = ScreenNiagaraSystem || AttachedNiagaraSystem;
 	if (Tags.IsEmpty())
 	{
-		return ScreenNiagaraSystem ? TEXT("Tag Window: Screen VFX") : TEXT("Tag Window: (none)");
+		if (ScreenNiagaraSystem && AttachedNiagaraSystem)
+		{
+			return TEXT("Tag Window: Screen+Attach VFX");
+		}
+		if (ScreenNiagaraSystem)
+		{
+			return TEXT("Tag Window: Screen VFX");
+		}
+		return AttachedNiagaraSystem ? TEXT("Tag Window: Attach VFX") : TEXT("Tag Window: (none)");
 	}
 
+	const TCHAR* VFXSuffix = bHasVFX ? TEXT(" + VFX") : TEXT("");
 	if (Tags.Num() == 1)
 	{
-		return FString::Printf(TEXT("Tag Window: %s"), *Tags.First().ToString());
+		return FString::Printf(TEXT("Tag Window: %s%s"), *Tags.First().ToString(), VFXSuffix);
 	}
 
-	return FString::Printf(TEXT("Tag Window: %s +%d"), *Tags.First().ToString(), Tags.Num() - 1);
+	return FString::Printf(TEXT("Tag Window: %s +%d%s"), *Tags.First().ToString(), Tags.Num() - 1, VFXSuffix);
 }
 
 bool UAnimNotifyState_AddGameplayTag::ResolveScreenNiagaraTransform(const USkeletalMeshComponent* MeshComp,
@@ -121,16 +157,7 @@ void UAnimNotifyState_AddGameplayTag::SpawnScreenNiagara(USkeletalMeshComponent*
 		return;
 	}
 
-	const TObjectKey<USkeletalMeshComponent> MeshKey(MeshComp);
-	if (TWeakObjectPtr<UNiagaraComponent>* Existing = ActiveScreenNiagaraComponents.Find(MeshKey))
-	{
-		if (UNiagaraComponent* ExistingComp = Existing->Get())
-		{
-			ExistingComp->Deactivate();
-			ExistingComp->DestroyComponent();
-		}
-		ActiveScreenNiagaraComponents.Remove(MeshKey);
-	}
+	DestroyScreenNiagara(MeshComp);
 
 	FVector SpawnLocation;
 	FRotator SpawnRotation;
@@ -140,7 +167,7 @@ void UAnimNotifyState_AddGameplayTag::SpawnScreenNiagara(USkeletalMeshComponent*
 	}
 
 	UWorld* World = MeshComp->GetWorld();
-	if (!World)
+	if (!World || World->GetNetMode() == NM_DedicatedServer)
 	{
 		return;
 	}
@@ -160,7 +187,7 @@ void UAnimNotifyState_AddGameplayTag::SpawnScreenNiagara(USkeletalMeshComponent*
 
 	NiagaraComp->SetAutoDestroy(false);
 	NiagaraComp->Activate(true);
-	ActiveScreenNiagaraComponents.Add(MeshKey, NiagaraComp);
+	ActiveScreenNiagaraComponents.Add(TObjectKey<USkeletalMeshComponent>(MeshComp), NiagaraComp);
 }
 
 void UAnimNotifyState_AddGameplayTag::UpdateScreenNiagara(USkeletalMeshComponent* MeshComp)
@@ -184,19 +211,45 @@ void UAnimNotifyState_AddGameplayTag::UpdateScreenNiagara(USkeletalMeshComponent
 
 void UAnimNotifyState_AddGameplayTag::DestroyScreenNiagara(USkeletalMeshComponent* MeshComp)
 {
-	if (!MeshComp)
+	DestroyNiagaraForMesh(ActiveScreenNiagaraComponents, MeshComp);
+}
+
+void UAnimNotifyState_AddGameplayTag::SpawnAttachedNiagara(USkeletalMeshComponent* MeshComp)
+{
+	if (!AttachedNiagaraSystem || !MeshComp)
 	{
 		return;
 	}
 
-	const TObjectKey<USkeletalMeshComponent> MeshKey(MeshComp);
-	TWeakObjectPtr<UNiagaraComponent>* Found = ActiveScreenNiagaraComponents.Find(MeshKey);
-	UNiagaraComponent* NiagaraComp = Found ? Found->Get() : nullptr;
-	if (NiagaraComp)
+	UWorld* World = MeshComp->GetWorld();
+	if (!World || World->GetNetMode() == NM_DedicatedServer)
 	{
-		NiagaraComp->Deactivate();
-		NiagaraComp->DestroyComponent();
+		return;
 	}
 
-	ActiveScreenNiagaraComponents.Remove(MeshKey);
+	DestroyAttachedNiagara(MeshComp);
+
+	UNiagaraComponent* NiagaraComp = UNiagaraFunctionLibrary::SpawnSystemAttached(
+		AttachedNiagaraSystem.Get(),
+		MeshComp,
+		AttachedNiagaraSocketName,
+		AttachedNiagaraLocationOffset,
+		AttachedNiagaraRotationOffset,
+		EAttachLocation::KeepRelativeOffset,
+		false,
+		false);
+	if (!NiagaraComp)
+	{
+		return;
+	}
+
+	NiagaraComp->SetRelativeScale3D(AttachedNiagaraScale);
+	NiagaraComp->SetAutoDestroy(false);
+	NiagaraComp->Activate(true);
+	ActiveAttachedNiagaraComponents.Add(TObjectKey<USkeletalMeshComponent>(MeshComp), NiagaraComp);
+}
+
+void UAnimNotifyState_AddGameplayTag::DestroyAttachedNiagara(USkeletalMeshComponent* MeshComp)
+{
+	DestroyNiagaraForMesh(ActiveAttachedNiagaraComponents, MeshComp);
 }
