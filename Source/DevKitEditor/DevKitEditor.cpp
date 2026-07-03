@@ -971,6 +971,12 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			LOCTEXT("OpenEnvBatchTaggerArtTooltip", "给当前选中的关卡 Actor 写入 EnvBatch.Source.*，并可按 tag 反选 Actor。"),
 			GetEnvBatchTaggerIcon(),
 			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenEnvBatchTaggerTab)));
+		ArtAssetSection.AddMenuEntry(
+			TEXT("OpenMapCreator"),
+			LOCTEXT("OpenMapCreatorLabel", "地图创建器"),
+			LOCTEXT("OpenMapCreatorTooltip", "创建命名地图文件夹、Persistent 关卡、子关卡和地图定义数据。"),
+			GetMapCreatorIcon(),
+			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenMapCreatorTab)));
 
 		FToolMenuSection& PerformanceSection = Menu->FindOrAddSection(TEXT("DevKitPerformanceTools"), LOCTEXT("DevKitPerformanceToolsSection", "性能工具"));
 		PerformanceSection.AddMenuEntry(
@@ -997,12 +1003,6 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			LOCTEXT("OpenLevelBatchProcessorTooltip", "扫描主关卡文件夹，启动合批生成、清理源 Actor 显示并记录审查状态。"),
 			GetPerformanceToolsIcon(),
 			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenLevelBatchProcessorTab)));
-		PerformanceSection.AddMenuEntry(
-			TEXT("OpenMapCreator"),
-			LOCTEXT("OpenMapCreatorLabel", "地图创建器"),
-			LOCTEXT("OpenMapCreatorTooltip", "创建命名地图文件夹、Persistent 关卡、子关卡和地图定义数据。"),
-			GetMapCreatorIcon(),
-			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenMapCreatorTab)));
 
 		FToolMenuSection& DebugSection = Menu->FindOrAddSection(TEXT("DevKitDebugTools"), LOCTEXT("DevKitDebugToolsSection", "Debug Tools"));
 		DebugSection.AddMenuEntry(
