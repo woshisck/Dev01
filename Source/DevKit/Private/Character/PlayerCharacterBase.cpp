@@ -12,6 +12,7 @@
 #include "Kismet/KismetSystemLibrary.h"
 #include "AbilitySystem/Abilities/YogGameplayAbility.h"
 #include "AbilitySystem/Abilities/GA_PlayerAttackCombos.h"
+#include "AbilitySystem/Abilities/GA_PlayerRangeAttackCombos.h"
 #include "AbilitySystem/Abilities/GA_SwitchWeapon.h"
 #include "AbilitySystem/Abilities/GA_WeaponSkill.h"
 #include "Character/YogPlayerControllerBase.h"
@@ -1319,6 +1320,10 @@ void APlayerCharacterBase::BeginPlay()
 		GrantIfMissing(UGA_PlayerAttack_Combo2::StaticClass());
 		GrantIfMissing(UGA_PlayerAttack_Combo3::StaticClass());
 		GrantIfMissing(UGA_PlayerAttack_Combo4::StaticClass());
+		GrantIfMissing(UGA_PlayerRangeAttack_Combo1::StaticClass());
+		GrantIfMissing(UGA_PlayerRangeAttack_Combo2::StaticClass());
+		GrantIfMissing(UGA_PlayerRangeAttack_Combo3::StaticClass());
+		GrantIfMissing(UGA_PlayerRangeAttack_Combo4::StaticClass());
 		GrantIfMissing(UGA_WeaponSkill_Combo1::StaticClass());
 		GrantIfMissing(UGA_WeaponSkill_Combo2::StaticClass());
 		GrantIfMissing(UGA_WeaponSkill_Combo3::StaticClass());

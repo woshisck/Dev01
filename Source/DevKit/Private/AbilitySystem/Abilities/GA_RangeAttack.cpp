@@ -13,8 +13,18 @@
 UGA_RangeAttack::UGA_RangeAttack()
 {
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
+	bRetriggerInstancedAbility = true;
 	FireEventTag = FGameplayTag::RequestGameplayTag(FName("GameplayEvent.RangeAttack.Fire"));
 	HitEventTag  = FGameplayTag::RequestGameplayTag(FName("GameplayEvent.RangeAttack.Hit"));
+
+	const FGameplayTag AttackTag          = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Attack"));
+	const FGameplayTag CharacterAttackTag = FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.Attack"));
+	AbilityTags.AddTag(CharacterAttackTag);
+	AbilityTags.AddTag(AttackTag);
+	ActivationOwnedTags.AddTag(CharacterAttackTag);
+	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Dead")));
+	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.HitReact")));
+	ActivationBlockedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Knockback")));
 }
 
 void UGA_RangeAttack::ActivateAbility(
