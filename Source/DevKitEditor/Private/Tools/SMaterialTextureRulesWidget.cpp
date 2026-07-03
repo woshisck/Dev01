@@ -35,7 +35,7 @@ const TCHAR* ArtRootPath = TEXT("/Game/Art");
 
 const TCHAR* GetDefaultTextureNamingConventionPackagePath()
 {
-	return TEXT("/Game/Generated/Performance/DA_MaterialTextureNamingRules_Default");
+	return TEXT("/Game/Docs/Performance/MaterialTextureRules/DA_MaterialTextureNamingRules_Default");
 }
 
 FString BuildObjectPathFromPackagePath(const FString& PackagePath)
@@ -405,7 +405,7 @@ void SMaterialTextureRulesWidget::Construct(const FArguments& InArgs)
 					[
 						SNew(SButton)
 						.Text(LOCTEXT("WriteRules", "写入默认贴图规则"))
-						.ToolTipText(LOCTEXT("WriteRulesTooltip", "创建或重置 /Game/Generated/Performance/DA_MaterialTextureNamingRules_Default。"))
+						.ToolTipText(LOCTEXT("WriteRulesTooltip", "创建或重置 /Game/Docs/Performance/MaterialTextureRules/DA_MaterialTextureNamingRules_Default。"))
 						.OnClicked(this, &SMaterialTextureRulesWidget::WriteDefaultTextureNamingConventionAsset)
 					]
 					+ SHorizontalBox::Slot()
