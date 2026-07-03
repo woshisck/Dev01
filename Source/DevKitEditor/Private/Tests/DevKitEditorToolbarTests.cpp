@@ -50,7 +50,29 @@ bool FDevKitPerformanceQuickEntryToolbarTest::RunTest(const FString& Parameters)
 	const FToolMenuEntry* LauncherEntry = PerformanceSection->FindEntry(TEXT("OpenDevKitPerformanceToolsLauncher"));
 	TestNotNull(TEXT("Performance tools launcher toolbar button is registered"), LauncherEntry);
 
-	return Entry != nullptr && LauncherEntry != nullptr;
+	const FToolMenuEntry* MapCreatorEntry = PerformanceSection->FindEntry(TEXT("OpenDevKitMapCreator"));
+	TestNotNull(TEXT("Map creator toolbar button is registered"), MapCreatorEntry);
+
+	const FToolMenuEntry* LevelBatchProcessorEntry = PerformanceSection->FindEntry(TEXT("OpenDevKitLevelBatchProcessor"));
+	TestNotNull(TEXT("Level batch processor toolbar button is registered"), LevelBatchProcessorEntry);
+
+	const FName MainMenuName(TEXT("LevelEditor.MainMenu"));
+	UToolMenu* MainMenu = ToolMenus->FindMenu(MainMenuName);
+	if (!TestNotNull(TEXT("Level editor main menu is registered"), MainMenu))
+	{
+		return false;
+	}
+
+	const FToolMenuSection* MainMenuSection = MainMenu->FindSection(NAME_None);
+	if (!TestNotNull(TEXT("Level editor main menu contains the top-level menu section"), MainMenuSection))
+	{
+		return false;
+	}
+
+	const FToolMenuEntry* YogToolEntry = MainMenuSection->FindEntry(TEXT("YogToolMenu"));
+	TestNotNull(TEXT("YogTool top-level menu is registered"), YogToolEntry);
+
+	return Entry != nullptr && LauncherEntry != nullptr && MapCreatorEntry != nullptr && LevelBatchProcessorEntry != nullptr && YogToolEntry != nullptr;
 }
 
 #endif

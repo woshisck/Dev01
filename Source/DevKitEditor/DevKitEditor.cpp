@@ -36,6 +36,8 @@
 #include "Tools/SDataEditorWidget.h"
 #include "Tools/SEnvBatchTaggerWidget.h"
 #include "Tools/SLevelDataWorkbenchWidget.h"
+#include "Tools/LevelBatch/SDevKitLevelBatchProcessorWidget.h"
+#include "Tools/MapCreator/SDevKitMapCreatorWidget.h"
 #include "Tools/SMaterialBatchToolsWidget.h"
 #include "Tools/SMaterialTextureRulesWidget.h"
 #include "Tools/SMetaProgressionWorkbenchWidget.h"
@@ -74,10 +76,12 @@ namespace
 	const FName StoryEncounterWorkbenchTabName(TEXT("DevKitStoryEncounterWorkbench"));
 	const FName EnvBatchTaggerTabName(TEXT("DevKitEnvBatchTagger"));
 	const FName MaterialBatchToolsTabName(TEXT("DevKitMaterialBatchTools"));
+	const FName LevelBatchProcessorTabName(TEXT("DevKitLevelBatchProcessor"));
 	const FName ModelAssetComplianceTabName(TEXT("DevKitModelAssetCompliance"));
 	const FName MaterialTextureRulesTabName(TEXT("DevKitMaterialTextureRules"));
 	const FName TextureVTAuditTabName(TEXT("DevKitTextureVTAudit"));
 	const FName VirtualTextureCollectionManagerTabName(TEXT("DevKitVirtualTextureCollectionManager"));
+	const FName MapCreatorTabName(TEXT("DevKitMapCreator"));
 	const FName PerformanceToolsLauncherTabName(TEXT("DevKitPerformanceToolsLauncher"));
 	const FName RuntimeGMSettingsTabName(TEXT("DevKitRuntimeGMSettings"));
 	const FName DevKitEditorStyleSetName(TEXT("DevKitEditorStyle"));
@@ -95,6 +99,8 @@ namespace
 	const FName PlayFromMainMenuIconSmallName(TEXT("DevKitEditor.PlayFromMainMenu.Small"));
 	const FName EnvBatchTaggerIconName(TEXT("DevKitEditor.EnvBatchTagger"));
 	const FName EnvBatchTaggerIconSmallName(TEXT("DevKitEditor.EnvBatchTagger.Small"));
+	const FName MapCreatorIconName(TEXT("DevKitEditor.MapCreator"));
+	const FName MapCreatorIconSmallName(TEXT("DevKitEditor.MapCreator.Small"));
 	const TCHAR* DefaultEntryMenuMapPackagePath = TEXT("/Game/Maps/L_EntryMenu");
 
 	TSharedPtr<FSlateStyleSet> DevKitEditorStyleSet;
@@ -119,7 +125,7 @@ namespace
 	{
 		const FString IconPath = DevKitEditorStyleSet->RootToContentDir(IconBaseName, TEXT(".png"));
 		DevKitEditorStyleSet->Set(IconName, new FSlateImageBrush(IconPath, FVector2D(40.f, 40.f)));
-		DevKitEditorStyleSet->Set(IconSmallName, new FSlateImageBrush(IconPath, FVector2D(16.f, 16.f)));
+		DevKitEditorStyleSet->Set(IconSmallName, new FSlateImageBrush(IconPath, FVector2D(24.f, 24.f)));
 	}
 
 	void RegisterDevKitEditorStyle()
@@ -139,6 +145,7 @@ namespace
 		RegisterToolIcon(PerformanceToolsIconName, PerformanceToolsIconSmallName, TEXT("ToolIcon_PerformanceTools"));
 		RegisterToolIcon(PlayFromMainMenuIconName, PlayFromMainMenuIconSmallName, TEXT("ToolIcon_PlayMainMenu"));
 		RegisterToolIcon(EnvBatchTaggerIconName, EnvBatchTaggerIconSmallName, TEXT("ToolIcon_EnvBatchTagger"));
+		RegisterToolIcon(MapCreatorIconName, MapCreatorIconSmallName, TEXT("ToolIcon_MapCreator"));
 
 		FSlateStyleRegistry::RegisterSlateStyle(*DevKitEditorStyleSet);
 	}
@@ -187,6 +194,11 @@ namespace
 	FSlateIcon GetEnvBatchTaggerIcon()
 	{
 		return FSlateIcon(DevKitEditorStyleSetName, EnvBatchTaggerIconName, EnvBatchTaggerIconSmallName);
+	}
+
+	FSlateIcon GetMapCreatorIcon()
+	{
+		return FSlateIcon(DevKitEditorStyleSetName, MapCreatorIconName, MapCreatorIconSmallName);
 	}
 
 	class FRuntimeGMPIEInputProcessor final : public IInputProcessor
@@ -337,6 +349,13 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			.SetMenuType(ETabSpawnerMenuType::Hidden);
 
 		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
+			LevelBatchProcessorTabName,
+			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnLevelBatchProcessorTab))
+			.SetDisplayName(LOCTEXT("LevelBatchProcessorTabTitle", "关卡合批处理"))
+			.SetTooltipText(LOCTEXT("LevelBatchProcessorTabTooltip", "扫描 Map_Data 关卡文件夹，启动合批生成、清理源 Actor 显示并记录审查状态。"))
+			.SetMenuType(ETabSpawnerMenuType::Hidden);
+
+		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
 			ModelAssetComplianceTabName,
 			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnModelAssetComplianceTab))
 			.SetDisplayName(LOCTEXT("ModelAssetComplianceTabTitle", "模型资产合规检查"))
@@ -362,6 +381,13 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnVirtualTextureCollectionManagerTab))
 			.SetDisplayName(LOCTEXT("VTCManagerTabTitle", "VTC 管理器"))
 			.SetTooltipText(LOCTEXT("VTCManagerTabTooltip", "管理项目中所有 VirtualTextureCollection，支持批量创建、追加成员、合规检查。"))
+			.SetMenuType(ETabSpawnerMenuType::Hidden);
+
+		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
+			MapCreatorTabName,
+			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnMapCreatorTab))
+			.SetDisplayName(LOCTEXT("MapCreatorTabTitle", "地图创建器"))
+			.SetTooltipText(LOCTEXT("MapCreatorTabTooltip", "创建带子关卡和地图数据的 Persistent 地图包。"))
 			.SetMenuType(ETabSpawnerMenuType::Hidden);
 
 		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
@@ -402,10 +428,12 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(StoryEncounterWorkbenchTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(EnvBatchTaggerTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(MaterialBatchToolsTabName);
+		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(LevelBatchProcessorTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(ModelAssetComplianceTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(MaterialTextureRulesTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(TextureVTAuditTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(VirtualTextureCollectionManagerTabName);
+		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(MapCreatorTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(PerformanceToolsLauncherTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(RuntimeGMSettingsTabName);
 		CombatLogWidgetInstance.Reset();
@@ -581,6 +609,16 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			];
 	}
 
+	TSharedRef<SDockTab> SpawnLevelBatchProcessorTab(const FSpawnTabArgs& SpawnTabArgs)
+	{
+		return SNew(SDockTab)
+			.TabRole(ETabRole::NomadTab)
+			.Label(LOCTEXT("LevelBatchProcessorTabLabel", "关卡合批处理"))
+			[
+				SNew(SDevKitLevelBatchProcessorWidget)
+			];
+	}
+
 	TSharedRef<SDockTab> SpawnModelAssetComplianceTab(const FSpawnTabArgs& SpawnTabArgs)
 	{
 		return SNew(SDockTab)
@@ -618,6 +656,16 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			.Label(LOCTEXT("VTCManagerTabLabel", "VTC 管理器"))
 			[
 				SNew(SVirtualTextureCollectionManagerWidget)
+			];
+	}
+
+	TSharedRef<SDockTab> SpawnMapCreatorTab(const FSpawnTabArgs& SpawnTabArgs)
+	{
+		return SNew(SDockTab)
+			.TabRole(ETabRole::NomadTab)
+			.Label(LOCTEXT("MapCreatorTabLabel", "地图创建器"))
+			[
+				SNew(SDevKitMapCreatorWidget)
 			];
 	}
 
@@ -683,6 +731,15 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 							]
 							+ SHorizontalBox::Slot()
 							.AutoWidth()
+							.Padding(0.f, 0.f, 8.f, 0.f)
+							[
+								SNew(SButton)
+								.Text(LOCTEXT("LauncherOpenLevelBatchProcessor", "关卡合批处理"))
+								.ToolTipText(LOCTEXT("LauncherOpenLevelBatchProcessorTooltip", "扫描主关卡文件夹，启动 BatchedAsset 生成、清理源 Actor 显示并记录审查状态。"))
+								.OnClicked(FOnClicked::CreateRaw(this, &FDevKitEditorModule::HandleOpenLevelBatchProcessorClicked))
+							]
+							+ SHorizontalBox::Slot()
+							.AutoWidth()
 							[
 								SNew(SButton)
 								.Text(LOCTEXT("LauncherOpenThisPanel", "刷新快捷入口"))
@@ -738,6 +795,15 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			LOCTEXT("DevKitToolsMenuLabel", "DevKit 工具"),
 			LOCTEXT("DevKitToolsMenuTooltip", "打开 DevKit 编辑器工具。"),
 			FNewToolMenuDelegate::CreateRaw(this, &FDevKitEditorModule::FillDevKitDataMenu));
+
+		UToolMenu* MainMenu = UToolMenus::Get()->ExtendMenu(TEXT("LevelEditor.MainMenu"));
+		FToolMenuSection& MainMenuSection = MainMenu->FindOrAddSection(NAME_None);
+		FToolMenuEntry& YogToolEntry = MainMenuSection.AddSubMenu(
+			TEXT("YogToolMenu"),
+			LOCTEXT("YogToolMenuLabel", "YogTool"),
+			LOCTEXT("YogToolMenuTooltip", "打开 Yog 编辑器工具集合。"),
+			FNewToolMenuDelegate::CreateRaw(this, &FDevKitEditorModule::FillDevKitDataMenu));
+		YogToolEntry.InsertPosition = FToolMenuInsert(TEXT("Help"), EToolMenuInsertType::After);
 
 		UToolMenu* PlayToolbar = UToolMenus::Get()->ExtendMenu(TEXT("LevelEditor.LevelEditorToolBar.PlayToolBar"));
 		FToolMenuSection& PlaySection = PlayToolbar->FindOrAddSection(TEXT("Play"));
@@ -806,6 +872,22 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			LOCTEXT("OpenEnvBatchTaggerToolbarTooltip", "打开环境合批 Actor 标记工具，写入 EnvBatch.Source.* 并按 tag 反选 Actor。"),
 			GetEnvBatchTaggerIcon()));
 		EnvBatchTaggerEntry.ToolBarData.LabelOverride = LOCTEXT("OpenEnvBatchTaggerToolbarShortLabel", "环境合批");
+
+		FToolMenuEntry& LevelBatchProcessorEntry = UserSection.AddEntry(FToolMenuEntry::InitToolBarButton(
+			TEXT("OpenDevKitLevelBatchProcessor"),
+			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenLevelBatchProcessorTab)),
+			LOCTEXT("OpenLevelBatchProcessorToolbarLabel", "关卡合批"),
+			LOCTEXT("OpenLevelBatchProcessorToolbarTooltip", "打开关卡合批处理，生成 BatchedAsset、清理源 Actor 显示并记录审查状态。"),
+			GetPerformanceToolsIcon()));
+		LevelBatchProcessorEntry.ToolBarData.LabelOverride = LOCTEXT("OpenLevelBatchProcessorToolbarShortLabel", "关卡合批");
+
+		FToolMenuEntry& MapCreatorEntry = UserSection.AddEntry(FToolMenuEntry::InitToolBarButton(
+			TEXT("OpenDevKitMapCreator"),
+			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenMapCreatorTab)),
+			LOCTEXT("OpenMapCreatorToolbarLabel", "地图创建器"),
+			LOCTEXT("OpenMapCreatorToolbarTooltip", "创建带 Art/DataBake/Gameplay/Light/PLA 子关卡的地图包。"),
+			GetMapCreatorIcon()));
+		MapCreatorEntry.ToolBarData.LabelOverride = LOCTEXT("OpenMapCreatorToolbarShortLabel", "地图创建器");
 
 	}
 
@@ -883,6 +965,12 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			LOCTEXT("OpenVTCManagerTooltip", "管理项目中所有 VirtualTextureCollection：新建、批量添加成员、合规校验。"),
 			GetVTCManagerIcon(),
 			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenVirtualTextureCollectionManagerTab)));
+		ArtAssetSection.AddMenuEntry(
+			TEXT("OpenEnvBatchTaggerArt"),
+			LOCTEXT("OpenEnvBatchTaggerArtLabel", "环境合批标记"),
+			LOCTEXT("OpenEnvBatchTaggerArtTooltip", "给当前选中的关卡 Actor 写入 EnvBatch.Source.*，并可按 tag 反选 Actor。"),
+			GetEnvBatchTaggerIcon(),
+			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenEnvBatchTaggerTab)));
 
 		FToolMenuSection& PerformanceSection = Menu->FindOrAddSection(TEXT("DevKitPerformanceTools"), LOCTEXT("DevKitPerformanceToolsSection", "性能工具"));
 		PerformanceSection.AddMenuEntry(
@@ -904,11 +992,17 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			GetPerformanceToolsIcon(),
 			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenRuntimeGMSettingsTab)));
 		PerformanceSection.AddMenuEntry(
-			TEXT("OpenEnvBatchTagger"),
-			LOCTEXT("OpenEnvBatchTaggerLabel", "环境合批标记"),
-			LOCTEXT("OpenEnvBatchTaggerTooltip", "给当前选中的关卡 Actor 写入 EnvBatch.Source.<关卡>.<类型>.<方式>.<VTC组>.<流水号>，并可按 tag 反选 Actor。"),
-			GetEnvBatchTaggerIcon(),
-			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenEnvBatchTaggerTab)));
+			TEXT("OpenLevelBatchProcessor"),
+			LOCTEXT("OpenLevelBatchProcessorLabel", "关卡合批处理"),
+			LOCTEXT("OpenLevelBatchProcessorTooltip", "扫描主关卡文件夹，启动合批生成、清理源 Actor 显示并记录审查状态。"),
+			GetPerformanceToolsIcon(),
+			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenLevelBatchProcessorTab)));
+		PerformanceSection.AddMenuEntry(
+			TEXT("OpenMapCreator"),
+			LOCTEXT("OpenMapCreatorLabel", "地图创建器"),
+			LOCTEXT("OpenMapCreatorTooltip", "创建命名地图文件夹、Persistent 关卡、子关卡和地图定义数据。"),
+			GetMapCreatorIcon(),
+			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenMapCreatorTab)));
 
 		FToolMenuSection& DebugSection = Menu->FindOrAddSection(TEXT("DevKitDebugTools"), LOCTEXT("DevKitDebugToolsSection", "Debug Tools"));
 		DebugSection.AddMenuEntry(
@@ -947,6 +1041,12 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 	FReply HandleOpenMaterialBatchToolsClicked()
 	{
 		OpenMaterialBatchToolsTab();
+		return FReply::Handled();
+	}
+
+	FReply HandleOpenLevelBatchProcessorClicked()
+	{
+		OpenLevelBatchProcessorTab();
 		return FReply::Handled();
 	}
 
@@ -1094,6 +1194,11 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 		FGlobalTabmanager::Get()->TryInvokeTab(MaterialBatchToolsTabName);
 	}
 
+	void OpenLevelBatchProcessorTab()
+	{
+		FGlobalTabmanager::Get()->TryInvokeTab(LevelBatchProcessorTabName);
+	}
+
 	void OpenModelAssetComplianceTab()
 	{
 		FGlobalTabmanager::Get()->TryInvokeTab(ModelAssetComplianceTabName);
@@ -1112,6 +1217,11 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 	void OpenVirtualTextureCollectionManagerTab()
 	{
 		FGlobalTabmanager::Get()->TryInvokeTab(VirtualTextureCollectionManagerTabName);
+	}
+
+	void OpenMapCreatorTab()
+	{
+		FGlobalTabmanager::Get()->TryInvokeTab(MapCreatorTabName);
 	}
 
 	void OpenPerformanceToolsLauncherTab()

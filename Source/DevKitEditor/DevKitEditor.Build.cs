@@ -91,6 +91,7 @@ public class DevKitEditor : ModuleRules
 				"AssetRegistry",
 				"AssetTools",
 				"ContentBrowser",
+				"ContentBrowserData",
 				"Blutility",
 				"UMG",
 				"UMGEditor",
