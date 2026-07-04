@@ -33,7 +33,8 @@ enum class EYogUIScreenId : uint8
 	RunePurification,
 	EntryMenu,
 	CombatDeckFloatingDrag,
-	GameOver
+	GameOver,
+	RuntimeGM
 };
 
 /**

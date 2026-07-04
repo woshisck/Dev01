@@ -3,8 +3,6 @@
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
 #include "Components/Button.h"
-#include "Components/CanvasPanel.h"
-#include "Components/CanvasPanelSlot.h"
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/SpinBox.h"
@@ -12,6 +10,7 @@
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
 #include "Data/EnemyData.h"
+#include "Input/CommonUIInputTypes.h"
 #include "Item/Weapon/WeaponDefinition.h"
 #include "System/YogRuntimeGMSubsystem.h"
 
@@ -24,6 +23,7 @@ UTextBlock* MakeGMText(UWidgetTree* WidgetTree, const FName Name, const FText& T
 	FSlateFontInfo FontInfo = TextBlock->GetFont();
 	FontInfo.Size = static_cast<int32>(FontSize);
 	TextBlock->SetFont(FontInfo);
+	TextBlock->SetColorAndOpacity(FSlateColor(FLinearColor::White));
 	TextBlock->SetAutoWrapText(true);
 	return TextBlock;
 }
@@ -55,6 +55,7 @@ void UYogRuntimeGMWidget::InitializeRuntimeGM(UYogRuntimeGMSubsystem* InSubsyste
 void UYogRuntimeGMWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
+	SetIsFocusable(true);
 
 	if (!WidgetTree->RootWidget)
 	{
@@ -63,18 +64,22 @@ void UYogRuntimeGMWidget::NativeConstruct()
 
 	if (GiveWeaponButton)
 	{
+		GiveWeaponButton->IsFocusable = true;
 		GiveWeaponButton->OnClicked.AddUniqueDynamic(this, &UYogRuntimeGMWidget::HandleGiveWeaponClicked);
 	}
 	if (SpawnEnemyButton)
 	{
+		SpawnEnemyButton->IsFocusable = true;
 		SpawnEnemyButton->OnClicked.AddUniqueDynamic(this, &UYogRuntimeGMWidget::HandleSpawnEnemyClicked);
 	}
 	if (ResetButton)
 	{
+		ResetButton->IsFocusable = true;
 		ResetButton->OnClicked.AddUniqueDynamic(this, &UYogRuntimeGMWidget::HandleResetClicked);
 	}
 	if (CloseButton)
 	{
+		CloseButton->IsFocusable = true;
 		CloseButton->OnClicked.AddUniqueDynamic(this, &UYogRuntimeGMWidget::HandleCloseClicked);
 	}
 	if (SpawnCountSpinBox)
@@ -89,22 +94,51 @@ void UYogRuntimeGMWidget::NativeConstruct()
 	RefreshFromSubsystem();
 }
 
+void UYogRuntimeGMWidget::NativeOnActivated()
+{
+	Super::NativeOnActivated();
+	SetVisibility(ESlateVisibility::Visible);
+	SetIsFocusable(true);
+	if (GiveWeaponButton)
+	{
+		GiveWeaponButton->SetKeyboardFocus();
+	}
+}
+
+void UYogRuntimeGMWidget::NativeOnDeactivated()
+{
+	SetVisibility(ESlateVisibility::Collapsed);
+	Super::NativeOnDeactivated();
+}
+
+UWidget* UYogRuntimeGMWidget::NativeGetDesiredFocusTarget() const
+{
+	if (GiveWeaponButton)
+	{
+		return GiveWeaponButton.Get();
+	}
+	if (SpawnEnemyButton)
+	{
+		return SpawnEnemyButton.Get();
+	}
+	if (ResetButton)
+	{
+		return ResetButton.Get();
+	}
+	return CloseButton.Get();
+}
+
+TOptional<FUIInputConfig> UYogRuntimeGMWidget::GetDesiredInputConfig() const
+{
+	return FUIInputConfig(ECommonInputMode::Menu, EMouseCaptureMode::NoCapture);
+}
+
 void UYogRuntimeGMWidget::BuildFallbackWidget()
 {
-	UCanvasPanel* ScreenRoot = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("RuntimeGMScreenRoot"));
-	WidgetTree->RootWidget = ScreenRoot;
-
 	UBorder* Panel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("RuntimeGMPanel"));
-	Panel->SetPadding(FMargin(18.f));
-	Panel->SetBrushColor(FLinearColor(0.02f, 0.02f, 0.025f, 0.92f));
-	if (UCanvasPanelSlot* PanelSlot = ScreenRoot->AddChildToCanvas(Panel))
-	{
-		PanelSlot->SetAnchors(FAnchors(0.f, 0.f, 0.f, 0.f));
-		PanelSlot->SetAlignment(FVector2D::ZeroVector);
-		PanelSlot->SetPosition(FVector2D(24.f, 96.f));
-		PanelSlot->SetSize(FVector2D(560.f, 460.f));
-		PanelSlot->SetZOrder(1000);
-	}
+	WidgetTree->RootWidget = Panel;
+	Panel->SetPadding(FMargin(20.f));
+	Panel->SetBrushColor(FLinearColor(0.03f, 0.10f, 0.24f, 0.98f));
 
 	UVerticalBox* Root = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("RuntimeGMRoot"));
 	Panel->AddChild(Root);

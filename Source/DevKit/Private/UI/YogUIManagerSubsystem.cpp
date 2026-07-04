@@ -41,6 +41,7 @@ bool IsInteractiveManagedScreen(EYogUIScreenId ScreenId)
 	case EYogUIScreenId::RunePurification:
 	case EYogUIScreenId::EntryMenu:
 	case EYogUIScreenId::GameOver:
+	case EYogUIScreenId::RuntimeGM:
 		return true;
 	default:
 		return false;
@@ -309,9 +310,15 @@ UUserWidget* UYogUIManagerSubsystem::EnsureWidget(EYogUIScreenId ScreenId)
 		return nullptr;
 	}
 
-	const int32 ZOrder = ScreenId == EYogUIScreenId::GameOver
-		? FMath::Max(GetZOrder(ScreenId, 10000), 10000)
-		: GetZOrder(ScreenId, 0);
+	int32 ZOrder = GetZOrder(ScreenId, 0);
+	if (ScreenId == EYogUIScreenId::GameOver)
+	{
+		ZOrder = FMath::Max(ZOrder, 10000);
+	}
+	else if (ScreenId == EYogUIScreenId::RuntimeGM)
+	{
+		ZOrder = FMath::Max(ZOrder, 100000);
+	}
 	W->AddToViewport(ZOrder);
 	Instances.Add(ScreenId, W);
 	YogWidgetReflectorDebug::ApplyToWidgetTree(W);

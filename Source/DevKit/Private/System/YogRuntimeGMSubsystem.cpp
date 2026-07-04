@@ -9,6 +9,7 @@
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Data/EnemyData.h"
+#include "Engine/LocalPlayer.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "GameModes/YogGameMode.h"
@@ -16,6 +17,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "System/YogRuntimeGMSettings.h"
 #include "UI/YogRuntimeGMWidget.h"
+#include "UI/YogUIManagerSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "YogRuntimeGMSubsystem"
 
@@ -45,7 +47,7 @@ bool UYogRuntimeGMSubsystem::ToggleGMPanel(APlayerController* PlayerController)
 		return false;
 	}
 
-	if (ActiveWidget && ActiveWidget->IsInViewport())
+	if (IsGMPanelOpen())
 	{
 		CloseGMPanel(PC);
 		return true;
@@ -57,7 +59,30 @@ bool UYogRuntimeGMSubsystem::ToggleGMPanel(APlayerController* PlayerController)
 		WidgetClass = UYogRuntimeGMWidget::StaticClass();
 	}
 
-	ActiveWidget = CreateWidget<UYogRuntimeGMWidget>(PC, WidgetClass);
+	bool bOpenedViaUIManager = false;
+	if (ULocalPlayer* LocalPlayer = PC->GetLocalPlayer())
+	{
+		if (UYogUIManagerSubsystem* UIManager = LocalPlayer->GetSubsystem<UYogUIManagerSubsystem>())
+		{
+			FYogUIScreenInputPolicy Policy;
+			Policy.bShowMouseCursor = true;
+			Policy.bPauseGame = false;
+			Policy.bDisablePawnInput = false;
+			Policy.bAffectsMajorUI = false;
+
+			UIManager->SetWidgetClassOverride(EYogUIScreenId::RuntimeGM, WidgetClass);
+			UIManager->SetInputPolicyOverride(EYogUIScreenId::RuntimeGM, Policy);
+			ActiveWidget = UIManager->PushTypedScreen<UYogRuntimeGMWidget>(EYogUIScreenId::RuntimeGM);
+			bOpenedViaUIManager = ActiveWidget != nullptr;
+			bActiveWidgetManagedByUIManager = bOpenedViaUIManager;
+		}
+	}
+
+	if (!ActiveWidget)
+	{
+		ActiveWidget = CreateWidget<UYogRuntimeGMWidget>(PC, WidgetClass);
+		bActiveWidgetManagedByUIManager = false;
+	}
 	if (!ActiveWidget)
 	{
 		SetStatus(LOCTEXT("WidgetCreateFailed", "Runtime GM 打开失败：Widget 创建失败。"));
@@ -74,27 +99,37 @@ bool UYogRuntimeGMSubsystem::ToggleGMPanel(APlayerController* PlayerController)
 	ActiveWidget->SetDesiredSizeInViewport(FVector2D(560.f, 460.f));
 
 	constexpr int32 RuntimeGMZOrder = 100000;
-	const bool bAddedToPlayerScreen = ActiveWidget->AddToPlayerScreen(RuntimeGMZOrder);
-	if (!bAddedToPlayerScreen)
+	bool bAddedToViewportFallback = false;
+	if (!bOpenedViaUIManager && !ActiveWidget->IsInViewport())
 	{
 		ActiveWidget->AddToViewport(RuntimeGMZOrder);
+		bAddedToViewportFallback = true;
+	}
+	if (!ActiveWidget->IsActivated())
+	{
+		ActiveWidget->ActivateWidget();
 	}
 	ActiveWidget->ForceLayoutPrepass();
 
-	FInputModeGameAndUI InputMode;
-	InputMode.SetHideCursorDuringCapture(false);
-	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-	PC->SetInputMode(InputMode);
-	PC->bShowMouseCursor = true;
+	if (!bOpenedViaUIManager)
+	{
+		FInputModeGameAndUI InputMode;
+		InputMode.SetHideCursorDuringCapture(false);
+		InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+		PC->SetInputMode(InputMode);
+		PC->bShowMouseCursor = true;
+	}
 
 	UE_LOG(LogTemp, Display,
-		TEXT("[RuntimeGM] Panel opened. Widget=%s Class=%s Player=%s World=%s AddedToPlayerScreen=%d InViewport=%d"),
+		TEXT("[RuntimeGM] Panel opened. Widget=%s Class=%s Player=%s World=%s Route=%s AddedToViewportFallback=%d InViewport=%d Activated=%d"),
 		*GetNameSafe(ActiveWidget),
 		*GetNameSafe(ActiveWidget->GetClass()),
 		*GetNameSafe(PC),
 		*GetNameSafe(PC->GetWorld()),
-		bAddedToPlayerScreen ? 1 : 0,
-		ActiveWidget->IsInViewport() ? 1 : 0);
+		bOpenedViaUIManager ? TEXT("UIManager") : TEXT("ViewportFallback"),
+		bAddedToViewportFallback ? 1 : 0,
+		ActiveWidget->IsInViewport() ? 1 : 0,
+		ActiveWidget->IsActivated() ? 1 : 0);
 
 	SetStatus(LOCTEXT("PanelOpened", "Runtime GM 面板已打开。"));
 	return true;
@@ -102,17 +137,43 @@ bool UYogRuntimeGMSubsystem::ToggleGMPanel(APlayerController* PlayerController)
 
 void UYogRuntimeGMSubsystem::CloseGMPanel(APlayerController* PlayerController)
 {
+	const bool bWasManagedByUIManager = bActiveWidgetManagedByUIManager;
 	if (ActiveWidget)
 	{
-		ActiveWidget->RemoveFromParent();
+		bool bClosedByUIManager = false;
+		if (bWasManagedByUIManager)
+		{
+			if (APlayerController* PC = ResolvePlayerController(PlayerController))
+			{
+				if (ULocalPlayer* LocalPlayer = PC->GetLocalPlayer())
+				{
+					if (UYogUIManagerSubsystem* UIManager = LocalPlayer->GetSubsystem<UYogUIManagerSubsystem>())
+					{
+						UIManager->PopScreen(EYogUIScreenId::RuntimeGM);
+						UIManager->ClearInputPolicyOverride(EYogUIScreenId::RuntimeGM);
+						bClosedByUIManager = true;
+					}
+				}
+			}
+		}
+
+		if (!bClosedByUIManager)
+		{
+			ActiveWidget->DeactivateWidget();
+			ActiveWidget->RemoveFromParent();
+		}
 		ActiveWidget = nullptr;
 	}
+	bActiveWidgetManagedByUIManager = false;
 
-	if (APlayerController* PC = ResolvePlayerController(PlayerController))
+	if (!bWasManagedByUIManager)
 	{
-		FInputModeGameOnly InputMode;
-		PC->SetInputMode(InputMode);
-		PC->bShowMouseCursor = false;
+		if (APlayerController* PC = ResolvePlayerController(PlayerController))
+		{
+			FInputModeGameOnly InputMode;
+			PC->SetInputMode(InputMode);
+			PC->bShowMouseCursor = false;
+		}
 	}
 
 	SetStatus(LOCTEXT("PanelClosed", "Runtime GM 面板已关闭。"));
@@ -243,7 +304,7 @@ void UYogRuntimeGMSubsystem::SetRuntimeSpawnRadius(float InSpawnRadius)
 
 bool UYogRuntimeGMSubsystem::IsGMPanelOpen() const
 {
-	return ActiveWidget && ActiveWidget->IsInViewport();
+	return ActiveWidget && ActiveWidget->IsInViewport() && ActiveWidget->IsActivated();
 }
 
 UWeaponDefinition* UYogRuntimeGMSubsystem::LoadConfiguredWeapon() const

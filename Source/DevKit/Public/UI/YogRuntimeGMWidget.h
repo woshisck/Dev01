@@ -1,16 +1,17 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
+#include "CommonActivatableWidget.h"
 #include "YogRuntimeGMWidget.generated.h"
 
 class UButton;
 class USpinBox;
 class UTextBlock;
+class UWidget;
 class UYogRuntimeGMSubsystem;
 
 UCLASS()
-class DEVKIT_API UYogRuntimeGMWidget : public UUserWidget
+class DEVKIT_API UYogRuntimeGMWidget : public UCommonActivatableWidget
 {
 	GENERATED_BODY()
 
@@ -23,6 +24,10 @@ public:
 
 protected:
 	virtual void NativeConstruct() override;
+	virtual void NativeOnActivated() override;
+	virtual void NativeOnDeactivated() override;
+	virtual UWidget* NativeGetDesiredFocusTarget() const override;
+	virtual TOptional<FUIInputConfig> GetDesiredInputConfig() const override;
 
 private:
 	void BuildFallbackWidget();

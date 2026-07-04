@@ -68,6 +68,8 @@ private:
 	UPROPERTY()
 	TObjectPtr<UYogRuntimeGMWidget> ActiveWidget;
 
+	bool bActiveWidgetManagedByUIManager = false;
+
 	int32 RuntimeSpawnCount = 1;
 	float RuntimeSpawnRadius = 1200.f;
 	FText LastStatus;
