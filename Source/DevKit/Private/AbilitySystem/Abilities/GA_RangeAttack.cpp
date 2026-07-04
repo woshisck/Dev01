@@ -3,7 +3,10 @@
 #include "AbilitySystem/Abilities/GA_MeleeAttack.h"
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "Animation/AN_FireProjectile.h"
+#include "Character/PlayerCharacterBase.h"
 #include "Character/YogCharacterBase.h"
+#include "Data/RangedProjectileDefinition.h"
+#include "Item/Weapon/WeaponDefinition.h"
 #include "AbilitySystemComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"
@@ -64,7 +67,7 @@ void UGA_RangeAttack::ActivateAbility(
 
 	FGameplayTagContainer EventFilter;
 	EventFilter.AddTag(FireEventTag);
-	EventFilter.AddTag(HitEventTag);
+	EventFilter.AddTag(ResolveHitEventTag(ResolveProjectileDefinition(ActorInfo)));
 
 	UYogAbilityTask_PlayMontageAndWaitForEvent* MontageTask =
 		UYogAbilityTask_PlayMontageAndWaitForEvent::PlayMontageAndWaitForEvent(
@@ -125,25 +128,88 @@ void UGA_RangeAttack::OnEventReceived(FGameplayTag EventTag, FGameplayEventData 
 	{
 		SpawnProjectile(EventData, GetCurrentActorInfo());
 	}
-	else if (EventTag == HitEventTag)
+	else if (EventTag == ResolveHitEventTag(ResolveProjectileDefinition(GetCurrentActorInfo())))
 	{
 		ApplyHitDamage(EventData);
 	}
 }
 
-float UGA_RangeAttack::ComputeProjectileMagnitude(UAbilitySystemComponent* SourceASC) const
+const URangedProjectileDefinition* UGA_RangeAttack::ResolveProjectileDefinition(
+	const FGameplayAbilityActorInfo* ActorInfo) const
+{
+	if (!ActorInfo)
+	{
+		return nullptr;
+	}
+
+	const APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(ActorInfo->AvatarActor.Get());
+	if (!Player)
+	{
+		Player = Cast<APlayerCharacterBase>(ActorInfo->OwnerActor.Get());
+	}
+
+	const UWeaponDefinition* WeaponDefinition = Player ? Player->EquippedWeaponDef.Get() : nullptr;
+	return WeaponDefinition ? WeaponDefinition->RangedProjectileDefinition.Get() : nullptr;
+}
+
+TSubclassOf<ABuffFlowProjectile> UGA_RangeAttack::ResolveProjectileClass(
+	const URangedProjectileDefinition* ProjectileDefinition) const
+{
+	if (ProjectileDefinition && ProjectileDefinition->ProjectileClass)
+	{
+		return ProjectileDefinition->ProjectileClass;
+	}
+
+	return ProjectileClass;
+}
+
+FBuffFlowProjectileRuntimeConfig UGA_RangeAttack::ResolveProjectileConfig(
+	const URangedProjectileDefinition* ProjectileDefinition) const
+{
+	return ProjectileDefinition ? ProjectileDefinition->ProjectileConfig : ProjectileConfig;
+}
+
+FGameplayTag UGA_RangeAttack::ResolveHitEventTag(const URangedProjectileDefinition* ProjectileDefinition) const
+{
+	if (ProjectileDefinition && ProjectileDefinition->HitEventTag.IsValid())
+	{
+		return ProjectileDefinition->HitEventTag;
+	}
+
+	return HitEventTag;
+}
+
+FGameplayTag UGA_RangeAttack::ResolveHitEffectContainerTag(
+	const URangedProjectileDefinition* ProjectileDefinition) const
+{
+	if (ProjectileDefinition && ProjectileDefinition->HitEffectContainerTag.IsValid())
+	{
+		return ProjectileDefinition->HitEffectContainerTag;
+	}
+
+	return HitEffectContainerTag;
+}
+
+bool UGA_RangeAttack::ShouldUseBulletManager(const URangedProjectileDefinition* ProjectileDefinition) const
+{
+	return ProjectileDefinition ? ProjectileDefinition->bUseBulletManager : bUseBulletManager;
+}
+
+float UGA_RangeAttack::ComputeProjectileMagnitude(
+	UAbilitySystemComponent* SourceASC,
+	const FBuffFlowProjectileRuntimeConfig& RuntimeConfig) const
 {
 	if (!SourceASC)
 	{
-		return ProjectileConfig.BaseEffectMagnitude;
+		return RuntimeConfig.BaseEffectMagnitude;
 	}
 
 	const float Attack      = SourceASC->GetNumericAttribute(UBaseAttributeSet::GetAttackAttribute());
 	const float AttackPower = SourceASC->GetNumericAttribute(UBaseAttributeSet::GetAttackPowerAttribute());
 
-	return ProjectileConfig.BaseEffectMagnitude
-		+ Attack      * ProjectileConfig.CreatorAttackMagnitudeScale
-		+ AttackPower * ProjectileConfig.CreatorAttackPowerMagnitudeScale;
+	return RuntimeConfig.BaseEffectMagnitude
+		+ Attack      * RuntimeConfig.CreatorAttackMagnitudeScale
+		+ AttackPower * RuntimeConfig.CreatorAttackPowerMagnitudeScale;
 }
 
 void UGA_RangeAttack::SpawnProjectile(const FGameplayEventData& FireEventData,
@@ -166,6 +232,12 @@ void UGA_RangeAttack::SpawnProjectile(const FGameplayEventData& FireEventData,
 		return;
 	}
 
+	const URangedProjectileDefinition* ProjectileDefinition = ResolveProjectileDefinition(ActorInfo);
+	const TSubclassOf<ABuffFlowProjectile> ResolvedProjectileClass =
+		ResolveProjectileClass(ProjectileDefinition);
+	const FGameplayTag ResolvedHitEventTag = ResolveHitEventTag(ProjectileDefinition);
+	FBuffFlowProjectileRuntimeConfig RuntimeConfig = ResolveProjectileConfig(ProjectileDefinition);
+
 	FTransform SpawnTransform = AvatarActor->GetActorTransform();
 	if (const UAN_FireProjectile* FireNotify = Cast<UAN_FireProjectile>(FireEventData.OptionalObject))
 	{
@@ -181,7 +253,7 @@ void UGA_RangeAttack::SpawnProjectile(const FGameplayEventData& FireEventData,
 		}
 	}
 
-	if (bUseBulletManager)
+	if (ShouldUseBulletManager(ProjectileDefinition))
 	{
 		UYogBulletManagerSubsystem* BulletMgr = World->GetSubsystem<UYogBulletManagerSubsystem>();
 		if (!BulletMgr)
@@ -194,16 +266,16 @@ void UGA_RangeAttack::SpawnProjectile(const FGameplayEventData& FireEventData,
 		FYogBulletSpawnParams Params;
 		Params.SpawnLocation         = SpawnTransform.GetLocation();
 		Params.Direction             = SpawnTransform.GetRotation().GetForwardVector();
-		Params.Speed                 = ProjectileConfig.Speed;
-		Params.Lifetime              = FMath::Max(0.01f, ProjectileConfig.Lifetime);
+		Params.Speed                 = RuntimeConfig.Speed;
+		Params.Lifetime              = FMath::Max(0.01f, RuntimeConfig.Lifetime);
 		// Use the largest box extent side as the sphere radius.
-		Params.CollisionRadius       = ProjectileConfig.CollisionBoxExtent.GetMax();
-		Params.bPiercing             = !ProjectileConfig.bDestroyOnHitTrigger;
+		Params.CollisionRadius       = RuntimeConfig.CollisionBoxExtent.GetMax();
+		Params.bPiercing             = !RuntimeConfig.bDestroyOnHitTrigger;
 		Params.MaxHits               = 0;
-		Params.HitEventTag           = HitEventTag;
-		Params.ExpireEventTag        = ProjectileConfig.ExpireGameplayEventTag;
-		Params.bSendHitEventToCreator = ProjectileConfig.bSendTriggerEventToCreator;
-		Params.EffectMagnitude       = ComputeProjectileMagnitude(SourceASC);
+		Params.HitEventTag           = ResolvedHitEventTag;
+		Params.ExpireEventTag        = RuntimeConfig.ExpireGameplayEventTag;
+		Params.bSendHitEventToCreator = RuntimeConfig.bSendTriggerEventToCreator;
+		Params.EffectMagnitude       = ComputeProjectileMagnitude(SourceASC, RuntimeConfig);
 		Params.SourceCharacter       = Cast<ACharacter>(AvatarActor);
 		Params.SourceASC             = SourceASC;
 		Params.HitNiagaraSystem      = nullptr;
@@ -213,7 +285,7 @@ void UGA_RangeAttack::SpawnProjectile(const FGameplayEventData& FireEventData,
 		return;
 	}
 
-	if (!ProjectileClass)
+	if (!ResolvedProjectileClass)
 	{
 		return;
 	}
@@ -224,7 +296,7 @@ void UGA_RangeAttack::SpawnProjectile(const FGameplayEventData& FireEventData,
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
 	ABuffFlowProjectile* Projectile = World->SpawnActor<ABuffFlowProjectile>(
-		ProjectileClass, SpawnTransform, SpawnParams);
+		ResolvedProjectileClass, SpawnTransform, SpawnParams);
 
 	if (!Projectile)
 	{
@@ -234,8 +306,7 @@ void UGA_RangeAttack::SpawnProjectile(const FGameplayEventData& FireEventData,
 	// Override the two fields that enable the live-capture pattern:
 	//   - TriggerGameplayEventTag → routes hit notification back to this ability
 	//   - EffectClass = null → GA_RangeAttack creates the damage spec at hit time (live attributes)
-	FBuffFlowProjectileRuntimeConfig RuntimeConfig = ProjectileConfig;
-	RuntimeConfig.TriggerGameplayEventTag    = HitEventTag;
+	RuntimeConfig.TriggerGameplayEventTag    = ResolvedHitEventTag;
 	RuntimeConfig.bSendTriggerEventToCreator = true;
 	RuntimeConfig.EffectClass                = nullptr;
 
@@ -244,7 +315,10 @@ void UGA_RangeAttack::SpawnProjectile(const FGameplayEventData& FireEventData,
 
 void UGA_RangeAttack::ApplyHitDamage(const FGameplayEventData& HitEventData)
 {
-	if (!HitEffectContainerTag.IsValid())
+	const FGameplayTag ResolvedHitEffectContainerTag =
+		ResolveHitEffectContainerTag(ResolveProjectileDefinition(GetCurrentActorInfo()));
+
+	if (!ResolvedHitEffectContainerTag.IsValid())
 	{
 		return;
 	}
@@ -252,7 +326,7 @@ void UGA_RangeAttack::ApplyHitDamage(const FGameplayEventData& HitEventData)
 	// Spec is created NOW — attributes are read live from the ASC at this moment, so any
 	// buffs acquired while the bullet was in flight are included in the damage calculation.
 	const FYogGameplayEffectContainerSpec ContainerSpec =
-		MakeEffectContainerSpec(HitEffectContainerTag, HitEventData);
+		MakeEffectContainerSpec(ResolvedHitEffectContainerTag, HitEventData);
 
 	if (ContainerSpec.HasValidTargets() && ContainerSpec.HasValidEffects())
 	{
