@@ -109,6 +109,10 @@
 			"Enabled": true
 		},
 		{
+			"Name": "YogArt_VFX",
+			"Enabled": true
+		},
+		{
 			"Name": "GameplayGraph",
 			"Enabled": true
 		},
