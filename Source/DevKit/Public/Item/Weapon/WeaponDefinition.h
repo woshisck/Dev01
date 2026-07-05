@@ -21,7 +21,6 @@ class APlayerCharacterBase;
 class UMaterialInterface;
 class UGameplayEffect;
 class URuneDataAsset;
-class URangedProjectileDefinition;
 //class UYogAnimInstance;
 
 
@@ -110,11 +109,6 @@ public:
 	// 默认 Melee 保持向后兼容（旧武器 DA 不需要重新配）。
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Equipment")
 	EWeaponType WeaponType = EWeaponType::Melee;
-
-	// Projectile behavior used by shared ranged attack abilities.
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Range",
-		meta = (EditCondition = "WeaponType == EWeaponType::Ranged", EditConditionHides))
-	TObjectPtr<URangedProjectileDefinition> RangedProjectileDefinition;
 
 	// Actors to spawn on the pawn when this is equipped
 	UPROPERTY(EditDefaultsOnly, Category = "Equipment")

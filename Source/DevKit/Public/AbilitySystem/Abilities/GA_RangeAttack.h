@@ -7,7 +7,6 @@
 #include "GA_RangeAttack.generated.h"
 
 class UAnimMontage;
-class URangedProjectileDefinition;
 
 /**
  * Range-attack GA. Plays a montage and waits for two event types:
@@ -99,13 +98,7 @@ protected:
 	bool bUseBulletManager = false;
 
 private:
-	const URangedProjectileDefinition* ResolveProjectileDefinition(const FGameplayAbilityActorInfo* ActorInfo) const;
-	TSubclassOf<ABuffFlowProjectile> ResolveProjectileClass(const URangedProjectileDefinition* ProjectileDefinition) const;
-	FBuffFlowProjectileRuntimeConfig ResolveProjectileConfig(const URangedProjectileDefinition* ProjectileDefinition) const;
-	FGameplayTag ResolveHitEventTag(const URangedProjectileDefinition* ProjectileDefinition) const;
-	FGameplayTag ResolveHitEffectContainerTag(const URangedProjectileDefinition* ProjectileDefinition) const;
-	bool ShouldUseBulletManager(const URangedProjectileDefinition* ProjectileDefinition) const;
-	float ComputeProjectileMagnitude(UAbilitySystemComponent* SourceASC, const FBuffFlowProjectileRuntimeConfig& RuntimeConfig) const;
+	float ComputeProjectileMagnitude(UAbilitySystemComponent* SourceASC) const;
 	UFUNCTION()
 	void OnMontageCompleted(FGameplayTag EventTag, FGameplayEventData EventData);
 
