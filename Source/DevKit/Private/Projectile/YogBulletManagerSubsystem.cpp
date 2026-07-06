@@ -6,6 +6,7 @@
 #include "Engine/OverlapResult.h"
 #include "Engine/World.h"
 #include "GameFramework/Character.h"
+#include "NiagaraComponent.h"
 #include "NiagaraFunctionLibrary.h"
 
 // ─── SpawnBullet ─────────────────────────────────────────────────────────────
@@ -39,6 +40,17 @@ void UYogBulletManagerSubsystem::SpawnBullet(const FYogBulletSpawnParams& Params
 	{
 		State.Direction = FVector::ForwardVector;
 	}
+
+	if (Params.TravelNiagaraSystem)
+	{
+		if (UWorld* World = GetWorld())
+		{
+			State.TravelNiagaraComp = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+				World, Params.TravelNiagaraSystem,
+				State.Position, State.Direction.Rotation(), Params.TravelNiagaraScale,
+				/*bAutoDestroy*/ false, /*bAutoActivate*/ true, ENCPoolMethod::None);
+		}
+	}
 }
 
 // ─── Tick ─────────────────────────────────────────────────────────────────────
@@ -55,10 +67,16 @@ void UYogBulletManagerSubsystem::Tick(float DeltaTime)
 		Bullet.Position += Bullet.Direction * Bullet.Speed * DeltaTime;
 		Bullet.Elapsed  += DeltaTime;
 
+		if (Bullet.TravelNiagaraComp)
+		{
+			Bullet.TravelNiagaraComp->SetWorldLocation(Bullet.Position);
+		}
+
 		if (Bullet.Elapsed >= Bullet.Lifetime)
 		{
 			SendExpireEvent(Bullet);
 			SpawnBurstNiagara(Bullet.ExpireNiagaraSystem, Bullet.Position, Bullet.ExpireNiagaraScale);
+			DestroyBulletVisual(Bullet);
 			ActiveBullets.RemoveAtSwap(i);
 			continue;
 		}
@@ -70,6 +88,7 @@ void UYogBulletManagerSubsystem::Tick(float DeltaTime)
 		const bool bExhausted = bHit && (!Bullet.bPiercing || Bullet.HitsRemaining == 0);
 		if (bExhausted)
 		{
+			DestroyBulletVisual(Bullet);
 			ActiveBullets.RemoveAtSwap(i);
 		}
 	}
@@ -212,4 +231,25 @@ void UYogBulletManagerSubsystem::SpawnBurstNiagara(
 
 	UNiagaraFunctionLibrary::SpawnSystemAtLocation(
 		World, System, Location, FRotator::ZeroRotator, Scale, true, true);
+}
+
+void UYogBulletManagerSubsystem::DestroyBulletVisual(FYogBulletState& Bullet) const
+{
+	if (UNiagaraComponent* Comp = Bullet.TravelNiagaraComp.Get())
+	{
+		Comp->Deactivate();
+		Comp->DestroyComponent();
+	}
+	Bullet.TravelNiagaraComp = nullptr;
+}
+
+void UYogBulletManagerSubsystem::Deinitialize()
+{
+	for (FYogBulletState& Bullet : ActiveBullets)
+	{
+		DestroyBulletVisual(Bullet);
+	}
+	ActiveBullets.Reset();
+
+	Super::Deinitialize();
 }

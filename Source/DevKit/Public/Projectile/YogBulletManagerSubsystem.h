@@ -9,6 +9,7 @@
 class ACharacter;
 class UAbilitySystemComponent;
 class UNiagaraSystem;
+class UNiagaraComponent;
 
 /**
  * Public spawn parameters. Fill this and pass to UYogBulletManagerSubsystem::SpawnBullet.
@@ -71,6 +72,13 @@ struct DEVKIT_API FYogBulletSpawnParams
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bullet")
 	TWeakObjectPtr<UAbilitySystemComponent> SourceASC;
 
+	/** Persistent Niagara that follows the bullet while in flight. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bullet|VFX")
+	TObjectPtr<UNiagaraSystem> TravelNiagaraSystem;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bullet|VFX")
+	FVector TravelNiagaraScale = FVector(1.f);
+
 	/** Optional Niagara burst spawned at the hit location. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bullet|VFX")
 	TObjectPtr<UNiagaraSystem> HitNiagaraSystem;
@@ -115,6 +123,11 @@ struct FYogBulletState
 	UPROPERTY()
 	TObjectPtr<UNiagaraSystem> ExpireNiagaraSystem;
 
+	// Live per-bullet travel VFX instance. Position is updated each Tick and the
+	// component is destroyed when the bullet is removed.
+	UPROPERTY()
+	TObjectPtr<UNiagaraComponent> TravelNiagaraComp;
+
 	FVector HitNiagaraScale = FVector(1.f);
 	FVector ExpireNiagaraScale = FVector(1.f);
 };
@@ -149,6 +162,7 @@ public:
 	// UTickableWorldSubsystem
 	virtual void Tick(float DeltaTime) override;
 	virtual TStatId GetStatId() const override;
+	virtual void Deinitialize() override;
 
 private:
 	UPROPERTY()
@@ -159,4 +173,5 @@ private:
 	void SendHitEvent(const FYogBulletState& Bullet, AActor* Target) const;
 	void SendExpireEvent(const FYogBulletState& Bullet) const;
 	void SpawnBurstNiagara(UNiagaraSystem* System, const FVector& Location, const FVector& Scale) const;
+	void DestroyBulletVisual(FYogBulletState& Bullet) const;
 };

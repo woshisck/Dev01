@@ -14,6 +14,7 @@
 #include "WeaponDefinition.generated.h"
 
 class ULevelInfoPopupDA;
+class URangedProjectileDefinition;
 
 class UYogAbilitySet;
 class AWeaponInstance;
@@ -109,6 +110,12 @@ public:
 	// 默认 Melee 保持向后兼容（旧武器 DA 不需要重新配）。
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Equipment")
 	EWeaponType WeaponType = EWeaponType::Melee;
+
+	// Projectile data used by AN_FireProjectile to spawn bullets via UYogBulletManagerSubsystem.
+	// Only relevant when WeaponType == Ranged.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Equipment",
+		meta = (EditCondition = "WeaponType == EWeaponType::Ranged", EditConditionHides))
+	TObjectPtr<URangedProjectileDefinition> ProjectileDefinition;
 
 	// Actors to spawn on the pawn when this is equipped
 	UPROPERTY(EditDefaultsOnly, Category = "Equipment")

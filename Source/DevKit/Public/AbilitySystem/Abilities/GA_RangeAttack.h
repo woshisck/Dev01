@@ -2,27 +2,25 @@
 
 #include "CoreMinimal.h"
 #include "AbilitySystem/Abilities/YogGameplayAbility.h"
-#include "Projectile/BuffFlowProjectile.h"
 #include "GameplayTagContainer.h"
 #include "GA_RangeAttack.generated.h"
 
 class UAnimMontage;
 
 /**
- * Range-attack GA. Plays a montage and waits for two event types:
+ * Range-attack GA. Plays a montage and waits for the hit event sent back by the bullet.
  *
- *   Fire event  (AN_FireProjectile notify) — spawns a BuffFlowProjectile on the game thread.
- *   Hit  event  (projectile on impact)    — creates the damage GE spec live from current ASC
- *                                           attributes, so buffs gained during bullet flight
- *                                           are included at the moment of impact.
+ * Bullet spawning is handled by AN_FireProjectile directly via UYogBulletManagerSubsystem,
+ * reading URangedProjectileDefinition from the character's EquippedWeaponDef.
  *
  * Setup:
- *   1. Set AttackMontage, ProjectileClass (BP subclass of ABuffFlowProjectile).
- *   2. Configure ProjectileConfig (Speed, Lifetime, visuals). Leave EffectClass null —
- *      GA_RangeAttack applies damage via live spec creation in OnEventReceived.
+ *   1. Configure the attack montage on the equipped weapon's AttackAbilityData
+ *      (keyed by Character.State.Skill.Attack). AttackMontage below is only a fallback.
+ *   2. Set HitEventTag to match URangedProjectileDefinition.HitEventTag
+ *      (default: GameplayEvent.RangeAttack.Hit).
  *   3. Add an FYogGameplayEffectContainer entry keyed by HitEffectContainerTag.
  *      Use UYogTargetType_UseEventData as the TargetType.
- *   4. Place AN_FireProjectile on the fire frame; set its EventTag == FireEventTag.
+ *   4. Place AN_FireProjectile on the fire frame of the montage.
  */
 UCLASS(BlueprintType, Blueprintable)
 class DEVKIT_API UGA_RangeAttack : public UYogGameplayAbility
@@ -48,35 +46,15 @@ protected:
 
 	// ── Montage ─────────────────────────────────────────────────────────────
 
+	/** Fallback montage used only when the equipped weapon's AttackAbilityData has no matching entry. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Range")
 	TObjectPtr<UAnimMontage> AttackMontage;
-
-	// ── Projectile ─────────────────────────────────────────────────────────
-
-	/** Blueprint subclass of ABuffFlowProjectile to spawn on fire event. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Range")
-	TSubclassOf<ABuffFlowProjectile> ProjectileClass;
-
-	/**
-	 * Base runtime config forwarded to the projectile.
-	 * TriggerGameplayEventTag is overridden to HitEventTag at spawn time,
-	 * and EffectClass is cleared so damage is applied via live attribute capture.
-	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Range")
-	FBuffFlowProjectileRuntimeConfig ProjectileConfig;
 
 	// ── Tags ────────────────────────────────────────────────────────────────
 
 	/**
-	 * Tag sent by AN_FireProjectile. Must match the EventTag on the notify.
-	 * Default: GameplayEvent.RangeAttack.Fire
-	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Range")
-	FGameplayTag FireEventTag;
-
-	/**
-	 * Tag sent back to the creator ASC by the projectile on impact.
-	 * GA_RangeAttack creates the damage spec at this point for live attribute capture.
+	 * Tag sent to this ability's ASC by the bullet on impact.
+	 * Must match URangedProjectileDefinition.HitEventTag.
 	 * Default: GameplayEvent.RangeAttack.Hit
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Range")
@@ -89,16 +67,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Range")
 	FGameplayTag HitEffectContainerTag;
 
-	/**
-	 * When true, route SpawnProjectile through UYogBulletManagerSubsystem instead of
-	 * spawning an ABuffFlowProjectile actor. Shares ProjectileConfig for speed/lifetime/
-	 * collision/visual settings. Recommended for bullet-hell scenarios (up to ~500 bullets).
-	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Range")
-	bool bUseBulletManager = false;
-
 private:
-	float ComputeProjectileMagnitude(UAbilitySystemComponent* SourceASC) const;
+	/** Resolves the attack montage from the equipped weapon's merged AbilityData, falling back to AttackMontage. */
+	UAnimMontage* ResolveAttackMontage(const FGameplayAbilityActorInfo* ActorInfo) const;
+
 	UFUNCTION()
 	void OnMontageCompleted(FGameplayTag EventTag, FGameplayEventData EventData);
 
@@ -114,6 +86,5 @@ private:
 	UFUNCTION()
 	void OnEventReceived(FGameplayTag EventTag, FGameplayEventData EventData);
 
-	void SpawnProjectile(const FGameplayEventData& FireEventData, const FGameplayAbilityActorInfo* ActorInfo);
 	void ApplyHitDamage(const FGameplayEventData& HitEventData);
 };
