@@ -14,7 +14,7 @@ namespace
 	// Optional montage-authored float curve that scales play rate over the
 	// montage timeline. If the montage has no curve with this name, play rate
 	// is left at the requested Rate (default 1.0).
-	const FName YogMontage_PlayRateCurveName(TEXT("PlayRate"));
+	const FName YogAbilityTaskPlayMontageAndWaitForEvent_PlayRateCurveName(TEXT("PlayRate"));
 }
 
 UYogAbilityTask_PlayMontageAndWaitForEvent::UYogAbilityTask_PlayMontageAndWaitForEvent(const FObjectInitializer& ObjectInitializer)
@@ -29,7 +29,7 @@ void UYogAbilityTask_PlayMontageAndWaitForEvent::TickTask(float DeltaTime)
 {
 	Super::TickTask(DeltaTime);
 
-	if (!MontageToPlay || !MontageToPlay->HasCurveData(YogMontage_PlayRateCurveName))
+	if (!MontageToPlay || !MontageToPlay->HasCurveData(YogAbilityTaskPlayMontageAndWaitForEvent_PlayRateCurveName))
 	{
 		return;
 	}
@@ -43,7 +43,7 @@ void UYogAbilityTask_PlayMontageAndWaitForEvent::TickTask(float DeltaTime)
 
 	const float Position = AnimInstance->Montage_GetPosition(MontageToPlay);
 	const float CurveValue = MontageToPlay->EvaluateCurveData(
-		YogMontage_PlayRateCurveName, FAnimExtractContext(static_cast<double>(Position)), false);
+		YogAbilityTaskPlayMontageAndWaitForEvent_PlayRateCurveName, FAnimExtractContext(static_cast<double>(Position)), false);
 	AnimInstance->Montage_SetPlayRate(MontageToPlay, FMath::Max(Rate * CurveValue, 0.01f));
 }
 

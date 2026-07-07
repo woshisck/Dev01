@@ -25,7 +25,7 @@ namespace
 		FGameplayTagContainer ValidTags;
 	};
 
-	bool FacePawnTowardsTarget(APawn& Pawn, const AActor* TargetActor)
+	bool StateTreeFacePawnTowardsTarget(APawn& Pawn, const AActor* TargetActor)
 	{
 		if (!TargetActor)
 		{
@@ -48,7 +48,7 @@ namespace
 		return true;
 	}
 
-	bool TargetHasSmokeAttackBlock(const AActor* TargetActor)
+	bool StateTreeTargetHasSmokeAttackBlock(const AActor* TargetActor)
 	{
 		const IAbilitySystemInterface* ASCInterface = Cast<IAbilitySystemInterface>(TargetActor);
 		const UAbilitySystemComponent* TargetASC = ASCInterface ? ASCInterface->GetAbilitySystemComponent() : nullptr;
@@ -56,7 +56,7 @@ namespace
 		return TargetASC && InSmokeTag.IsValid() && TargetASC->HasMatchingGameplayTag(InSmokeTag);
 	}
 
-	float ResolveHealthPercent(const UAbilitySystemComponent* ASC)
+	float StateTreeResolveHealthPercent(const UAbilitySystemComponent* ASC)
 	{
 		if (!ASC
 			|| !ASC->HasAttributeSetForAttribute(UBaseAttributeSet::GetHealthAttribute())
@@ -107,7 +107,7 @@ EStateTreeRunStatus FStateTreeTask_EnemyAttackByProfile::EnterState(
 		return EStateTreeRunStatus::Failed;
 	}
 
-	if (TargetHasSmokeAttackBlock(TargetActor))
+	if (StateTreeTargetHasSmokeAttackBlock(TargetActor))
 	{
 		return EStateTreeRunStatus::Failed;
 	}
@@ -147,7 +147,7 @@ EStateTreeRunStatus FStateTreeTask_EnemyAttackByProfile::EnterState(
 	}
 	InstanceData.AttackCooldownEndTimes.SetNum(EnemyData->AttackProfile.Attacks.Num());
 
-	const float HealthPercent = ResolveHealthPercent(ASC);
+	const float HealthPercent = StateTreeResolveHealthPercent(ASC);
 	float CloseCombatRange = EnemyData->MovementTuning.AttackRange;
 	for (const FEnemyAIAttackOption& Attack : EnemyData->AttackProfile.Attacks)
 	{
@@ -286,7 +286,7 @@ EStateTreeRunStatus FStateTreeTask_EnemyAttackByProfile::EnterState(
 	}
 	AIC->StopMovement();
 
-	FacePawnTowardsTarget(*Pawn, TargetActor);
+	StateTreeFacePawnTowardsTarget(*Pawn, TargetActor);
 
 	AEnemyCharacterBase* EnemyCharacter = Cast<AEnemyCharacterBase>(Pawn);
 	if (EnemyCharacter)
