@@ -36,6 +36,7 @@ class UBuffFlowComponent;
 class USacrificeRuneComponent;
 class USkillChargeComponent;
 class UMontageVFXBindingComponent;
+class UMotionWarpingComponent;
 class UWeaponDefinition;
 class UYogAbilitySet;
 class USacrificeGraceDA;
@@ -193,6 +194,9 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "VFX")
 	TObjectPtr<UMontageVFXBindingComponent> MontageVFXBindingComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Motion Warping")
+	TObjectPtr<UMotionWarpingComponent> MotionWarpingComponent;
 
 
 

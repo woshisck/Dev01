@@ -56,6 +56,7 @@
 #include "Tutorial/TutorialManager.h"
 #include "Visual/TimeDilationVisualSubsystem.h"
 #include "YogBlueprintFunctionLibrary.h"
+#include "MotionWarpingComponent.h"
 
 namespace
 {
@@ -239,6 +240,7 @@ APlayerCharacterBase::APlayerCharacterBase(const FObjectInitializer& ObjectIniti
 	SacrificeRuneComponent = CreateDefaultSubobject<USacrificeRuneComponent>(TEXT("SacrificeRuneComponent"));
 	SkillChargeComponent = CreateDefaultSubobject<USkillChargeComponent>(TEXT("SkillChargeComponent"));
 	MontageVFXBindingComponent = CreateDefaultSubobject<UMontageVFXBindingComponent>(TEXT("MontageVFXBindingComponent"));
+	MotionWarpingComponent = CreateDefaultSubobject<UMotionWarpingComponent>(TEXT("MotionWarpingComponent"));
 
 	// 近战默认命中框：C++ 实现，无需在每个角色蓝Class Defaults 中单独配
 	DefaultMeleeTargetType = UYogTargetType_Player::StaticClass();

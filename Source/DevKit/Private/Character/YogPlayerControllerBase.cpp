@@ -49,6 +49,7 @@
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "AbilitySystemComponent.h"
 #include "Abilities/GameplayAbility.h"
+#include "MotionWarpingComponent.h"
 
 #if !UE_BUILD_SHIPPING || DEVKIT_ENABLE_SHIPPING_CHEATS
 #include "Cheater/Cheater.h"
@@ -56,6 +57,8 @@
 
 namespace
 {
+	const FName AttackMotionWarpTargetName(TEXT("AttackTarget"));
+
 	bool TryActivateAbilityByExactTag(
 		UAbilitySystemComponent* ASC,
 		const FGameplayTag& ExactTag,
@@ -708,6 +711,52 @@ bool AYogPlayerControllerBase::IsGameplayInputBlocked() const
 	return false;
 }
 
+bool AYogPlayerControllerBase::SetupAttackMotionWarpTarget(APlayerCharacterBase* PlayerCharacter)
+{
+	if (!PlayerCharacter)
+	{
+		return false;
+	}
+
+	FVector MouseWorldLocation = FVector::ZeroVector;
+	FVector MouseWorldDirection = FVector::ZeroVector;
+	if (!DeprojectMousePositionToWorld(MouseWorldLocation, MouseWorldDirection))
+	{
+		return false;
+	}
+
+	const FVector PlayerLocation = PlayerCharacter->GetActorLocation();
+	if (FMath::IsNearlyZero(MouseWorldDirection.Z))
+	{
+		return false;
+	}
+
+	const float PlaneIntersectT = (PlayerLocation.Z - MouseWorldLocation.Z) / MouseWorldDirection.Z;
+	const FVector MousePointOnPlayerPlane = MouseWorldLocation + MouseWorldDirection * PlaneIntersectT;
+
+	FVector FacingDirection = MousePointOnPlayerPlane - PlayerLocation;
+	FacingDirection.Z = 0.f;
+	if (FacingDirection.IsNearlyZero())
+	{
+		return false;
+	}
+
+	FacingDirection.Normalize();
+	const FRotator TargetRotation(0.f, FacingDirection.Rotation().Yaw, 0.f);
+
+	PlayerCharacter->LastInputDirection = FacingDirection;
+
+	if (UMotionWarpingComponent* MotionWarping = PlayerCharacter->MotionWarpingComponent)
+	{
+		MotionWarping->AddOrUpdateWarpTargetFromTransform(
+			AttackMotionWarpTargetName,
+			FTransform(TargetRotation, PlayerLocation));
+		return true;
+	}
+
+	return false;
+}
+
 AYogCharacterBase* AYogPlayerControllerBase::GetControlledCharacter()
 {
 	AYogCharacterBase* MyCharacter = Cast<AYogCharacterBase>(GetPawn());
@@ -841,6 +890,13 @@ void AYogPlayerControllerBase::Attack(const FInputActionValue& Value)
 			return;
 		}
 
+		SetupAttackMotionWarpTarget(player);
+
+		if (UGA_MeleeAttack::TryActivateBroadAttackComboContinuation(PlayerASC))
+		{
+			return;
+		}
+
 		if (PlayerASC && PlayerASC->HasActiveAttackComboAbilityTag())
 		{
 			if (PlayerASC->TryActivateNextAttackComboAbility(true, true))
@@ -849,9 +905,8 @@ void AYogPlayerControllerBase::Attack(const FInputActionValue& Value)
 			}
 		}
 
-		TryActivateComboStarterThenFallback(
-			player,
-			TEXT("Character.State.Skill.Attack.Combo1"),
+		TryActivateAbilitiesByPrimaryThenFallback(
+			player->GetASC(),
 			TEXT("Character.State.Skill.Attack"),
 			TEXT("PlayerState.AbilityCast.Attack"));
 	}

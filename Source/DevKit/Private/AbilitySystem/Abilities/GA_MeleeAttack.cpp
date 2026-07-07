@@ -41,12 +41,37 @@ namespace
 		int32 ActiveCount = 0;
 	};
 
+	struct FBroadAttackComboRuntimeState
+	{
+		int32 LastResolvedComboSlot = 0;
+		bool bPendingContinuation = false;
+	};
+
 	TMap<TObjectKey<UAbilitySystemComponent>, FStatBeforeAttackSharedSnapshot> GStatBeforeAttackSnapshots;
 	TSet<TObjectKey<UAbilitySystemComponent>> GPendingJustComboSpeedBonus;
+	TMap<TObjectKey<UAbilitySystemComponent>, FBroadAttackComboRuntimeState> GBroadAttackComboStates;
+
+	FGameplayTag GetComboWindowTag()
+	{
+		return FGameplayTag::RequestGameplayTag(TEXT("Character.State.Window.CanCombo"), false);
+	}
 
 	FGameplayTag GetJustComboWindowTag()
 	{
 		return FGameplayTag::RequestGameplayTag(TEXT("Character.State.Window.JustCombo"), false);
+	}
+
+	bool IsAttackComboWindowOpen(UAbilitySystemComponent* ASC)
+	{
+		if (!ASC)
+		{
+			return false;
+		}
+
+		const FGameplayTag ComboWindowTag = GetComboWindowTag();
+		const FGameplayTag JustComboWindowTag = GetJustComboWindowTag();
+		return (ComboWindowTag.IsValid() && ASC->GetTagCount(ComboWindowTag) > 0)
+			|| (JustComboWindowTag.IsValid() && ASC->GetTagCount(JustComboWindowTag) > 0);
 	}
 
 	constexpr float AttackSpeedDefaultStat = 100.f;
@@ -95,7 +120,7 @@ namespace
 		return true;
 	}
 
-	bool TryActivateAbilityByTagName(UAbilitySystemComponent* ASC, const TCHAR* TagName)
+	bool TryActivateAbilityByExactTagName(UAbilitySystemComponent* ASC, const TCHAR* TagName)
 	{
 		if (!ASC || !TagName)
 		{
@@ -108,9 +133,211 @@ namespace
 			return false;
 		}
 
-		FGameplayTagContainer TagContainer;
-		TagContainer.AddTag(Tag);
-		return ASC->TryActivateAbilitiesByTag(TagContainer, true);
+		TArray<FGameplayAbilitySpecHandle> MatchingHandles;
+		for (const FGameplayAbilitySpec& Spec : ASC->GetActivatableAbilities())
+		{
+			if (Spec.Ability && Spec.Ability->AbilityTags.HasTagExact(Tag))
+			{
+				MatchingHandles.Add(Spec.Handle);
+			}
+		}
+
+		for (const FGameplayAbilitySpecHandle& MatchingHandle : MatchingHandles)
+		{
+			if (ASC->TryActivateAbility(MatchingHandle, true))
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	bool TryActivateBroadAttackAbility(UAbilitySystemComponent* ASC)
+	{
+		return TryActivateAbilityByExactTagName(ASC, TEXT("Character.State.Skill.Attack"))
+			|| TryActivateAbilityByExactTagName(ASC, TEXT("PlayerState.AbilityCast.Attack"));
+	}
+
+	bool HasComboAbilityTag(const UGameplayAbility* Ability)
+	{
+		if (!Ability)
+		{
+			return false;
+		}
+
+		for (const FGameplayTag& AbilityTag : Ability->AbilityTags)
+		{
+			if (AbilityTag.IsValid() && AbilityTag.ToString().Contains(TEXT(".Combo")))
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	UGA_MeleeAttack* FindActiveBroadAttackInstance(UAbilitySystemComponent* ASC, FGameplayAbilitySpecHandle& OutHandle)
+	{
+		OutHandle = FGameplayAbilitySpecHandle();
+		if (!ASC)
+		{
+			return nullptr;
+		}
+
+		const FGameplayTag CharacterAttackTag =
+			FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.Attack"), false);
+		const FGameplayTag LegacyAttackTag =
+			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Attack"), false);
+
+		for (FGameplayAbilitySpec& Spec : ASC->GetActivatableAbilities())
+		{
+			if (!Spec.IsActive() || !Spec.Ability)
+			{
+				continue;
+			}
+
+			const bool bAttackSpec =
+				(CharacterAttackTag.IsValid() && Spec.Ability->AbilityTags.HasTagExact(CharacterAttackTag))
+				|| (LegacyAttackTag.IsValid() && Spec.Ability->AbilityTags.HasTagExact(LegacyAttackTag));
+			if (!bAttackSpec)
+			{
+				continue;
+			}
+			if (HasComboAbilityTag(Spec.Ability))
+			{
+				continue;
+			}
+
+			for (UGameplayAbility* AbilityInstance : Spec.GetAbilityInstances())
+			{
+				if (UGA_MeleeAttack* MeleeAttack = Cast<UGA_MeleeAttack>(AbilityInstance))
+				{
+					OutHandle = Spec.Handle;
+					return MeleeAttack;
+				}
+			}
+		}
+
+		return nullptr;
+	}
+
+	FGameplayTag GetComboTagForSlot(const TCHAR* Prefix, int32 ComboSlot)
+	{
+		if (!Prefix || ComboSlot < 1 || ComboSlot > 4)
+		{
+			return FGameplayTag();
+		}
+
+		return FGameplayTag::RequestGameplayTag(
+			FName(*FString::Printf(TEXT("%s.Combo%d"), Prefix, ComboSlot)),
+			false);
+	}
+
+	bool IsComboTag(const FGameplayTag& Tag)
+	{
+		return Tag.IsValid() && Tag.ToString().Contains(TEXT(".Combo"));
+	}
+
+	FGameplayTag ResolveBroadAttackAbilityDataTag(
+		const UAbilityData* AbilityData,
+		const FGameplayTagContainer& AbilityTags,
+		int32 StartSlot,
+		int32& OutComboSlot,
+		bool& bOutBroadAttack)
+	{
+		static const FGameplayTag CharacterAttackTag =
+			FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.Attack"), false);
+		static const FGameplayTag LegacyAttackTag =
+			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Attack"), false);
+
+		bOutBroadAttack = false;
+		if ((!CharacterAttackTag.IsValid() || !AbilityTags.HasTagExact(CharacterAttackTag))
+			&& (!LegacyAttackTag.IsValid() || !AbilityTags.HasTagExact(LegacyAttackTag)))
+		{
+			return FGameplayTag();
+		}
+
+		bOutBroadAttack = true;
+		const int32 ClampedStartSlot = FMath::Clamp(StartSlot, 1, 4);
+		const bool bPreferCharacterTag = CharacterAttackTag.IsValid() && AbilityTags.HasTagExact(CharacterAttackTag);
+		const TCHAR* PrimaryPrefix = bPreferCharacterTag
+			? TEXT("Character.State.Skill.Attack")
+			: TEXT("PlayerState.AbilityCast.Attack");
+		const TCHAR* FallbackPrefix = bPreferCharacterTag
+			? TEXT("PlayerState.AbilityCast.Attack")
+			: TEXT("Character.State.Skill.Attack");
+
+		for (int32 Slot = ClampedStartSlot; Slot <= 4; ++Slot)
+		{
+			const FGameplayTag PrimaryComboTag = GetComboTagForSlot(PrimaryPrefix, Slot);
+			if (AbilityData && PrimaryComboTag.IsValid() && AbilityData->HasAbility(PrimaryComboTag))
+			{
+				OutComboSlot = Slot;
+				return PrimaryComboTag;
+			}
+
+			const FGameplayTag FallbackComboTag = GetComboTagForSlot(FallbackPrefix, Slot);
+			if (AbilityData && FallbackComboTag.IsValid() && AbilityData->HasAbility(FallbackComboTag))
+			{
+				OutComboSlot = Slot;
+				return FallbackComboTag;
+			}
+		}
+
+		if (AbilityData && StartSlot > 1)
+		{
+			const FGameplayTag PrimaryCombo1Tag = GetComboTagForSlot(PrimaryPrefix, 1);
+			const FGameplayTag FallbackCombo1Tag = GetComboTagForSlot(FallbackPrefix, 1);
+			bool bOnlyCombo1Configured = false;
+
+			if (PrimaryCombo1Tag.IsValid() && AbilityData->HasAbility(PrimaryCombo1Tag))
+			{
+				bOnlyCombo1Configured = true;
+				for (int32 Slot = 2; Slot <= 4; ++Slot)
+				{
+					const FGameplayTag PrimaryHigherComboTag = GetComboTagForSlot(PrimaryPrefix, Slot);
+					const FGameplayTag FallbackHigherComboTag = GetComboTagForSlot(FallbackPrefix, Slot);
+					if ((PrimaryHigherComboTag.IsValid() && AbilityData->HasAbility(PrimaryHigherComboTag))
+						|| (FallbackHigherComboTag.IsValid() && AbilityData->HasAbility(FallbackHigherComboTag)))
+					{
+						bOnlyCombo1Configured = false;
+						break;
+					}
+				}
+				if (bOnlyCombo1Configured)
+				{
+					OutComboSlot = 1;
+					return PrimaryCombo1Tag;
+				}
+			}
+
+			if (FallbackCombo1Tag.IsValid() && AbilityData->HasAbility(FallbackCombo1Tag))
+			{
+				bOnlyCombo1Configured = true;
+				for (int32 Slot = 2; Slot <= 4; ++Slot)
+				{
+					const FGameplayTag PrimaryHigherComboTag = GetComboTagForSlot(PrimaryPrefix, Slot);
+					const FGameplayTag FallbackHigherComboTag = GetComboTagForSlot(FallbackPrefix, Slot);
+					if ((PrimaryHigherComboTag.IsValid() && AbilityData->HasAbility(PrimaryHigherComboTag))
+						|| (FallbackHigherComboTag.IsValid() && AbilityData->HasAbility(FallbackHigherComboTag)))
+					{
+						bOnlyCombo1Configured = false;
+						break;
+					}
+				}
+				if (bOnlyCombo1Configured)
+				{
+					OutComboSlot = 1;
+					return FallbackCombo1Tag;
+				}
+			}
+		}
+
+		OutComboSlot = 0;
+		return CharacterAttackTag.IsValid() && AbilityTags.HasTagExact(CharacterAttackTag)
+			? CharacterAttackTag
+			: LegacyAttackTag;
 	}
 
 }
@@ -118,10 +345,7 @@ namespace
 UGA_MeleeAttack::UGA_MeleeAttack()
 {
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
-	// Required for buffered re-entry: during the CanCombo cancel window, the
-	// same broad Attack action may be triggered again while the previous
-	// montage instance is still alive. Matches GA_PlayMontage behavior.
-	bRetriggerInstancedAbility = true;
+	bRetriggerInstancedAbility = false;
 
 	// Runtime guards that should not depend on Blueprint class defaults.
 	const FGameplayTag AttackTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Attack"));
@@ -163,6 +387,80 @@ bool UGA_MeleeAttack::TryConsumeJustComboBonus(UAbilitySystemComponent* ASC)
 	GPendingJustComboSpeedBonus.Remove(ASCKey);
 	UE_LOG(LogTemp, Verbose, TEXT("[JustCombo] Consumed pending JustCombo bonus for ASC=%s"), *GetNameSafe(ASC));
 	return true;
+}
+
+bool UGA_MeleeAttack::TryActivateBroadAttackComboContinuation(UAbilitySystemComponent* ASC)
+{
+	if (!ASC || !IsAttackComboWindowOpen(ASC))
+	{
+		return false;
+	}
+
+	const TObjectKey<UAbilitySystemComponent> ASCKey(ASC);
+	FBroadAttackComboRuntimeState* State = GBroadAttackComboStates.Find(ASCKey);
+	if (!State || State->LastResolvedComboSlot <= 0)
+	{
+		return false;
+	}
+
+	FGameplayAbilitySpecHandle ActiveAttackHandle;
+	UGA_MeleeAttack* ActiveAttack = FindActiveBroadAttackInstance(ASC, ActiveAttackHandle);
+	if (!ActiveAttack)
+	{
+		return false;
+	}
+
+	AYogCharacterBase* ActiveOwner = Cast<AYogCharacterBase>(ActiveAttack->GetAvatarActorFromActorInfo());
+	if (!ActiveOwner)
+	{
+		ActiveOwner = Cast<AYogCharacterBase>(ActiveAttack->GetOwningActorFromActorInfo());
+	}
+
+	UCharacterDataComponent* CharacterDataComponent = ActiveOwner ? ActiveOwner->GetCharacterDataComponent() : nullptr;
+	UCharacterData* CharacterData = CharacterDataComponent ? CharacterDataComponent->GetCharacterData() : nullptr;
+	const UAbilityData* ActiveAbilityData = CharacterData ? CharacterData->AbilityData.Get() : nullptr;
+	if (!ActiveAbilityData)
+	{
+		return false;
+	}
+
+	int32 ResolvedComboSlot = 0;
+	bool bBroadAttackAbility = false;
+	const FGameplayTag ContinuationTag = ResolveBroadAttackAbilityDataTag(
+		ActiveAbilityData,
+		ActiveAttack->AbilityTags,
+		State->LastResolvedComboSlot + 1,
+		ResolvedComboSlot,
+		bBroadAttackAbility);
+	if (!bBroadAttackAbility || !ContinuationTag.IsValid() || !IsComboTag(ContinuationTag))
+	{
+		UE_LOG(LogTemp, Verbose,
+			TEXT("[GA_MeleeAttack] Broad Attack combo input handled with no configured continuation after slot %d."),
+			State->LastResolvedComboSlot);
+		return true;
+	}
+
+	State->bPendingContinuation = true;
+
+	ActiveAttack->EndAbility(
+		ActiveAttack->GetCurrentAbilitySpecHandle(),
+		ActiveAttack->GetCurrentActorInfo(),
+		ActiveAttack->GetCurrentActivationInfo(),
+		true,
+		true);
+
+	const bool bActivated = ActiveAttackHandle.IsValid()
+		? ASC->TryActivateAbility(ActiveAttackHandle, true)
+		: TryActivateBroadAttackAbility(ASC);
+	if (!bActivated)
+	{
+		if (FBroadAttackComboRuntimeState* CurrentState = GBroadAttackComboStates.Find(ASCKey))
+		{
+			CurrentState->bPendingContinuation = false;
+		}
+	}
+
+	return bActivated;
 }
 
 
@@ -475,7 +773,11 @@ void UGA_MeleeAttack::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCoun
 		{
 		case EInputCommandType::Attack:
 			bUseFallbackTag = false;
-			bActivated = PlayerYogASC ? PlayerYogASC->TryActivateNextAttackComboAbility(true, true) : false;
+			bActivated = TryActivateBroadAttackComboContinuation(PlayerASC);
+			if (!bActivated)
+			{
+				bActivated = PlayerYogASC ? PlayerYogASC->TryActivateNextAttackComboAbility(true, true) : false;
+			}
 			break;
 		case EInputCommandType::WeaponSkill:
 			bUseFallbackTag = false;
@@ -497,8 +799,8 @@ void UGA_MeleeAttack::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCoun
 
 		if (bUseFallbackTag)
 		{
-			bActivated = TryActivateAbilityByTagName(PlayerASC, CharacterTagName)
-				|| TryActivateAbilityByTagName(PlayerASC, LegacyTagName);
+			bActivated = TryActivateAbilityByExactTagName(PlayerASC, CharacterTagName)
+				|| TryActivateAbilityByExactTagName(PlayerASC, LegacyTagName);
 		}
 	}
 
@@ -648,15 +950,22 @@ void UGA_MeleeAttack::ActivateAbility(
 
 	if (UAbilitySystemComponent* ASC = ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr)
 	{
+		const TObjectKey<UAbilitySystemComponent> ASCKey(ASC);
+		FBroadAttackComboRuntimeState& BroadAttackComboState = GBroadAttackComboStates.FindOrAdd(ASCKey);
+		if (!BroadAttackComboState.bPendingContinuation)
+		{
+			BroadAttackComboState.LastResolvedComboSlot = 0;
+		}
+
 		const FGameplayTag CharacterCanComboTag = FGameplayTag::RequestGameplayTag(TEXT("Character.State.Window.CanCombo"));
-		const FGameplayTag LegacyCanComboTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"));
+		const FGameplayTag CharacterJustComboTag = GetJustComboWindowTag();
 		if (ASC->GetTagCount(CharacterCanComboTag) > 0)
 		{
 			ASC->SetLooseGameplayTagCount(CharacterCanComboTag, 0);
 		}
-		if (ASC->GetTagCount(LegacyCanComboTag) > 0)
+		if (CharacterJustComboTag.IsValid() && ASC->GetTagCount(CharacterJustComboTag) > 0)
 		{
-			ASC->SetLooseGameplayTagCount(LegacyCanComboTag, 0);
+			ASC->SetLooseGameplayTagCount(CharacterJustComboTag, 0);
 		}
 
 		if (CanComboTagHandle.IsValid())
@@ -664,15 +973,18 @@ void UGA_MeleeAttack::ActivateAbility(
 			ASC->UnregisterGameplayTagEvent(CanComboTagHandle, CharacterCanComboTag, EGameplayTagEventType::NewOrRemoved);
 			CanComboTagHandle.Reset();
 		}
-		if (LegacyCanComboTagHandle.IsValid())
+		if (JustComboTagHandle.IsValid() && CharacterJustComboTag.IsValid())
 		{
-			ASC->UnregisterGameplayTagEvent(LegacyCanComboTagHandle, LegacyCanComboTag, EGameplayTagEventType::NewOrRemoved);
-			LegacyCanComboTagHandle.Reset();
+			ASC->UnregisterGameplayTagEvent(JustComboTagHandle, CharacterJustComboTag, EGameplayTagEventType::NewOrRemoved);
+			JustComboTagHandle.Reset();
 		}
 		CanComboTagHandle = ASC->RegisterGameplayTagEvent(CharacterCanComboTag, EGameplayTagEventType::NewOrRemoved)
 			.AddUObject(this, &UGA_MeleeAttack::OnCanComboTagChanged);
-		LegacyCanComboTagHandle = ASC->RegisterGameplayTagEvent(LegacyCanComboTag, EGameplayTagEventType::NewOrRemoved)
-			.AddUObject(this, &UGA_MeleeAttack::OnCanComboTagChanged);
+		if (CharacterJustComboTag.IsValid())
+		{
+			JustComboTagHandle = ASC->RegisterGameplayTagEvent(CharacterJustComboTag, EGameplayTagEventType::NewOrRemoved)
+				.AddUObject(this, &UGA_MeleeAttack::OnCanComboTagChanged);
+		}
 	}
 
 	// 玩家 GA：检查消冷却
@@ -705,8 +1017,45 @@ void UGA_MeleeAttack::ActivateAbility(
 
 	UCharacterDataComponent* CDC = ActivateOwner ? ActivateOwner->GetCharacterDataComponent() : nullptr;
 	UCharacterData* CD = CDC ? CDC->GetCharacterData() : nullptr;
+	const UAbilityData* ActiveAbilityData = CD ? CD->AbilityData.Get() : nullptr;
 
 	FGameplayTag FirstTag;
+	bool bBroadAttackResolvedFromComboSlot = false;
+	bool bBroadAttackAbility = false;
+	int32 BroadAttackComboSlot = 0;
+	if (UAbilitySystemComponent* ASC = ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr)
+	{
+		if (FBroadAttackComboRuntimeState* BroadAttackComboState = GBroadAttackComboStates.Find(TObjectKey<UAbilitySystemComponent>(ASC)))
+		{
+			BroadAttackComboSlot = BroadAttackComboState->bPendingContinuation
+				? BroadAttackComboState->LastResolvedComboSlot + 1
+				: 1;
+			BroadAttackComboState->bPendingContinuation = false;
+		}
+	}
+
+	const FGameplayTag BroadAttackComboTag = ResolveBroadAttackAbilityDataTag(
+		ActiveAbilityData,
+		AbilityTags,
+		BroadAttackComboSlot,
+		BroadAttackComboSlot,
+		bBroadAttackAbility);
+	if (BroadAttackComboTag.IsValid()
+		&& (!bBroadAttackAbility || IsComboTag(BroadAttackComboTag)))
+	{
+		FirstTag = BroadAttackComboTag;
+		ActiveComboIndex = BroadAttackComboSlot;
+		ActiveComboTags.AddTag(BroadAttackComboTag);
+		bBroadAttackResolvedFromComboSlot = bBroadAttackAbility;
+		if (UAbilitySystemComponent* ASC = ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr)
+		{
+			if (FBroadAttackComboRuntimeState* BroadAttackComboState = GBroadAttackComboStates.Find(TObjectKey<UAbilitySystemComponent>(ASC)))
+			{
+				BroadAttackComboState->LastResolvedComboSlot = ActiveComboIndex;
+			}
+		}
+	}
+
 	static const FGameplayTag PreferredAbilityTags[] = {
 		FGameplayTag::RequestGameplayTag(TEXT("Enemy.Melee.LAtk1"), false),
 		FGameplayTag::RequestGameplayTag(TEXT("Enemy.Melee.LAtk2"), false),
@@ -753,30 +1102,33 @@ void UGA_MeleeAttack::ActivateAbility(
 		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Dash.Combo3"), false),
 		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Dash.Combo4"), false),
 	};
-	for (const FGameplayTag& PreferredTag : PreferredAbilityTags)
+	if (!FirstTag.IsValid())
 	{
-		if (PreferredTag.IsValid() && AbilityTags.HasTagExact(PreferredTag))
+		for (const FGameplayTag& PreferredTag : PreferredAbilityTags)
 		{
-			FirstTag = PreferredTag;
-			const FString TagText = PreferredTag.ToString();
-			if (TagText.EndsWith(TEXT(".Combo1")))
+			if (PreferredTag.IsValid() && AbilityTags.HasTagExact(PreferredTag))
 			{
-				ActiveComboIndex = 1;
+				FirstTag = PreferredTag;
+				const FString TagText = PreferredTag.ToString();
+				if (TagText.EndsWith(TEXT(".Combo1")))
+				{
+					ActiveComboIndex = 1;
+				}
+				else if (TagText.EndsWith(TEXT(".Combo2")))
+				{
+					ActiveComboIndex = 2;
+				}
+				else if (TagText.EndsWith(TEXT(".Combo3")))
+				{
+					ActiveComboIndex = 3;
+				}
+				else if (TagText.EndsWith(TEXT(".Combo4")))
+				{
+					ActiveComboIndex = 4;
+				}
+				ActiveComboTags.AddTag(PreferredTag);
+				break;
 			}
-			else if (TagText.EndsWith(TEXT(".Combo2")))
-			{
-				ActiveComboIndex = 2;
-			}
-			else if (TagText.EndsWith(TEXT(".Combo3")))
-			{
-				ActiveComboIndex = 3;
-			}
-			else if (TagText.EndsWith(TEXT(".Combo4")))
-			{
-				ActiveComboIndex = 4;
-			}
-			ActiveComboTags.AddTag(PreferredTag);
-			break;
 		}
 	}
 	if (!FirstTag.IsValid())
@@ -872,7 +1224,6 @@ void UGA_MeleeAttack::ActivateAbility(
 
 	if (!Montage)
 	{
-		const UAbilityData* ActiveAbilityData = CD ? CD->AbilityData.Get() : nullptr;
 		const bool bMontageMapHasKey = ActiveAbilityData && FirstTag.IsValid() && ActiveAbilityData->MontageMap.Contains(FirstTag);
 		const bool bHasConfiguredAbility = ActiveAbilityData && FirstTag.IsValid() && ActiveAbilityData->HasAbility(FirstTag);
 		UE_LOG(LogTemp, Warning,
@@ -913,6 +1264,15 @@ void UGA_MeleeAttack::ActivateAbility(
 			bConsumedJustComboSpeedBonus = true;
 			ApplyJustComboGE(ActorInfo);
 		}
+	}
+
+	if (bBroadAttackResolvedFromComboSlot)
+	{
+		UE_LOG(LogTemp, Verbose,
+			TEXT("[GA_MeleeAttack] Broad Attack resolved AbilityData combo slot %d using %s Montage=%s"),
+			ActiveComboIndex,
+			*FirstTag.ToString(),
+			*GetNameSafe(Montage));
 	}
 	const float AttackSpeedRate = ConvertAttackSpeedStatToMontageRate(AttackSpeedStat);
 	if (bConsumedJustComboSpeedBonus)
@@ -964,17 +1324,23 @@ void UGA_MeleeAttack::EndAbility(
 		ASC->UnregisterGameplayTagEvent(CanComboTagHandle, CharacterCanComboTag, EGameplayTagEventType::NewOrRemoved);
 		CanComboTagHandle.Reset();
 	}
-	if (ASC && LegacyCanComboTagHandle.IsValid())
+	if (ASC && JustComboTagHandle.IsValid())
 	{
-		const FGameplayTag LegacyCanComboTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"));
-		ASC->UnregisterGameplayTagEvent(LegacyCanComboTagHandle, LegacyCanComboTag, EGameplayTagEventType::NewOrRemoved);
-		LegacyCanComboTagHandle.Reset();
+		const FGameplayTag CharacterJustComboTag = GetJustComboWindowTag();
+		if (CharacterJustComboTag.IsValid())
+		{
+			ASC->UnregisterGameplayTagEvent(JustComboTagHandle, CharacterJustComboTag, EGameplayTagEventType::NewOrRemoved);
+		}
+		JustComboTagHandle.Reset();
 	}
-
 	if (ASC)
 	{
 		ASC->SetLooseGameplayTagCount(FGameplayTag::RequestGameplayTag(TEXT("Character.State.Window.CanCombo")), 0);
-		ASC->SetLooseGameplayTagCount(FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo")), 0);
+		const FGameplayTag CharacterJustComboTag = GetJustComboWindowTag();
+		if (CharacterJustComboTag.IsValid())
+		{
+			ASC->SetLooseGameplayTagCount(CharacterJustComboTag, 0);
+		}
 	}
 
 	if (EnemyLungeTask)

@@ -27,6 +27,7 @@ public:
 
 	static bool TryQueueJustComboSpeedBonus(UAbilitySystemComponent* ASC);
 	static bool TryConsumeJustComboBonus(UAbilitySystemComponent* ASC);
+	static bool TryActivateBroadAttackComboContinuation(UAbilitySystemComponent* ASC);
 
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Melee")
@@ -117,7 +118,7 @@ private:
 	float LocalStatBeforeAttackDelta = 0.f;
 	float LocalStatBeforeAttackPowerDelta = 0.f;
 	FDelegateHandle CanComboTagHandle;
-	FDelegateHandle LegacyCanComboTagHandle;
+	FDelegateHandle JustComboTagHandle;
 	float AbilityActivationTime = 0.f;
 
 	UPROPERTY()

@@ -14,11 +14,6 @@ UAnimNotifyState_PostAtkWindow::UAnimNotifyState_PostAtkWindow()
 
 namespace
 {
-    FGameplayTag GetLegacyCanComboTag()
-    {
-        return FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"), false);
-    }
-
     FGameplayTag GetLegacyPostAttackRecoveryTag()
     {
         return FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.PostAttackRecovery"), false);
@@ -97,7 +92,6 @@ void UAnimNotifyState_PostAtkWindow::NotifyTick(USkeletalMeshComponent* MeshComp
         if (ASC)
         {
             SetLooseTagCountIfValid(ASC, TagToClearOnActionInput, 0);
-            SetLooseTagCountIfValid(ASC, GetLegacyCanComboTag(), 0);
         }
         return;
     }

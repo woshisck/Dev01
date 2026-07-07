@@ -97,10 +97,6 @@ FGameplayTag GetEquivalentPlayerActionTag(const FGameplayTag& Tag)
 	{
 		EquivalentTagString = TEXT("Character.State.Equipment.SwitchWeapon");
 	}
-	else if (TagString == TEXT("Character.State.Window.CanCombo"))
-	{
-		EquivalentTagString = TEXT("PlayerState.AbilityCast.CanCombo");
-	}
 	else if (TagString == TEXT("PlayerState.AbilityCast.CanCombo"))
 	{
 		EquivalentTagString = TEXT("Character.State.Window.CanCombo");

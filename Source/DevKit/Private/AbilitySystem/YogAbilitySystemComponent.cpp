@@ -145,11 +145,11 @@ namespace
 
 		static const FGameplayTag CharacterCanComboTag =
 			FGameplayTag::RequestGameplayTag(TEXT("Character.State.Window.CanCombo"), false);
-		static const FGameplayTag LegacyCanComboTag =
-			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"), false);
+		static const FGameplayTag CharacterJustComboTag =
+			FGameplayTag::RequestGameplayTag(TEXT("Character.State.Window.JustCombo"), false);
 
 		return (CharacterCanComboTag.IsValid() && ASC->GetTagCount(CharacterCanComboTag) > 0) ||
-			(LegacyCanComboTag.IsValid() && ASC->GetTagCount(LegacyCanComboTag) > 0);
+			(CharacterJustComboTag.IsValid() && ASC->GetTagCount(CharacterJustComboTag) > 0);
 	}
 
 	bool TryActivateComboAbilityForSlot(
@@ -1166,10 +1166,10 @@ bool UYogAbilitySystemComponent::HasActiveWeaponSkillComboAbilityTag()
 
 bool UYogAbilitySystemComponent::IsPlayerActionMontageLocked() const
 {
-	static const FGameplayTag CanComboTag =
-		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"), false);
 	static const FGameplayTag CharacterCanComboTag =
 		FGameplayTag::RequestGameplayTag(TEXT("Character.State.Window.CanCombo"), false);
+	static const FGameplayTag CharacterJustComboTag =
+		FGameplayTag::RequestGameplayTag(TEXT("Character.State.Window.JustCombo"), false);
 	static const FGameplayTag ActionTags[] = {
 		FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.Attack"), false),
 		FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.WeaponSkill"), false),
@@ -1178,7 +1178,7 @@ bool UYogAbilitySystemComponent::IsPlayerActionMontageLocked() const
 	};
 
 	if ((CharacterCanComboTag.IsValid() && HasMatchingGameplayTag(CharacterCanComboTag)) ||
-		(CanComboTag.IsValid() && HasMatchingGameplayTag(CanComboTag)))
+		(CharacterJustComboTag.IsValid() && HasMatchingGameplayTag(CharacterJustComboTag)))
 	{
 		return false;
 	}

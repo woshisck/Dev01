@@ -17,6 +17,7 @@
 class AYogCameraPawn;
 class AYogCharacterBase;
 class AYogPlayerCameraManager;
+class APlayerCharacterBase;
 struct FInputKeyEventArgs;
 class UInputMappingContext;
 
@@ -193,6 +194,7 @@ private:
 	/** UI 打开期间为 true，屏蔽移动/攻击/冲刺输入 */
 	bool HandleMenuBackInput(const FKey& Key);
 	bool IsGameplayInputBlocked() const;
+	bool SetupAttackMotionWarpTarget(APlayerCharacterBase* PlayerCharacter);
 	void HandleCommonInputMethodChanged(ECommonInputType NewInputType);
 	void SetGameplayCursorUsesMouse(bool bUsesMouse);
 	void InitMouseCursorWidget();

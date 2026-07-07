@@ -641,7 +641,7 @@ bool FCombatDeckDashSaveConsumeResultTest::RunTest(const FString& Parameters)
 
 	TestFalse(TEXT("Consuming without saved action-window tags reports false"), ASC->ConsumeDashSave());
 
-	const FGameplayTag CanComboTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"));
+	const FGameplayTag CanComboTag = FGameplayTag::RequestGameplayTag(TEXT("Character.State.Window.CanCombo"));
 	FGameplayTagContainer SavedTags;
 	SavedTags.AddTag(CanComboTag);
 

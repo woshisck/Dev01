@@ -174,25 +174,14 @@ void UGA_PlayMontage::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 	if (ASC && bListenForComboWindow)
 	{
 		const FGameplayTag CharacterCanComboTag = FGameplayTag::RequestGameplayTag(TEXT("Character.State.Window.CanCombo"));
-		const FGameplayTag LegacyCanComboTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"));
 		ASC->SetLooseGameplayTagCount(CharacterCanComboTag, 0);
-		ASC->SetLooseGameplayTagCount(LegacyCanComboTag, 0);
 
 		if (CanComboTagHandle.IsValid())
 		{
 			ASC->UnregisterGameplayTagEvent(CanComboTagHandle, CharacterCanComboTag, EGameplayTagEventType::NewOrRemoved);
 		}
-		if (LegacyCanComboTagHandle.IsValid())
-		{
-			ASC->UnregisterGameplayTagEvent(LegacyCanComboTagHandle, LegacyCanComboTag, EGameplayTagEventType::NewOrRemoved);
-			LegacyCanComboTagHandle.Reset();
-		}
 		CanComboTagHandle = ASC->RegisterGameplayTagEvent(
 			CharacterCanComboTag,
-			EGameplayTagEventType::NewOrRemoved
-		).AddUObject(this, &UGA_PlayMontage::OnCanComboTagChanged);
-		LegacyCanComboTagHandle = ASC->RegisterGameplayTagEvent(
-			LegacyCanComboTag,
 			EGameplayTagEventType::NewOrRemoved
 		).AddUObject(this, &UGA_PlayMontage::OnCanComboTagChanged);
 	}
@@ -283,21 +272,14 @@ void UGA_PlayMontage::EndAbility(const FGameplayAbilitySpecHandle Handle, const 
 	if (UAbilitySystemComponent* ASCLocal = GetAbilitySystemComponentFromActorInfo())
 	{
 		const FGameplayTag CharacterCanComboTag = FGameplayTag::RequestGameplayTag(TEXT("Character.State.Window.CanCombo"));
-		const FGameplayTag LegacyCanComboTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"));
 		if (CanComboTagHandle.IsValid())
 		{
 			ASCLocal->UnregisterGameplayTagEvent(CanComboTagHandle, CharacterCanComboTag, EGameplayTagEventType::NewOrRemoved);
 			CanComboTagHandle.Reset();
 		}
-		if (LegacyCanComboTagHandle.IsValid())
-		{
-			ASCLocal->UnregisterGameplayTagEvent(LegacyCanComboTagHandle, LegacyCanComboTag, EGameplayTagEventType::NewOrRemoved);
-			LegacyCanComboTagHandle.Reset();
-		}
 		if (bListenForComboWindow)
 		{
 			ASCLocal->SetLooseGameplayTagCount(CharacterCanComboTag, 0);
-			ASCLocal->SetLooseGameplayTagCount(LegacyCanComboTag, 0);
 		}
 	}
 
@@ -800,7 +782,6 @@ void UGA_PlayMontage::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCoun
 
 	UYogAbilitySystemComponent* ASC = Cast<UYogAbilitySystemComponent>(GetAbilitySystemComponentFromActorInfo());
 	const FGameplayTag CharacterCanComboTag = FGameplayTag::RequestGameplayTag(TEXT("Character.State.Window.CanCombo"));
-	const FGameplayTag LegacyCanComboTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"));
 
 	EInputCommandType BufferedActionType = EInputCommandType::Attack;
 	if (Buffer->ConsumeLatestActionInputSince(AbilityActivationTime, BufferedActionType))
@@ -845,7 +826,6 @@ void UGA_PlayMontage::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCoun
 		if (!bActivated && ASC)
 		{
 			ASC->SetLooseGameplayTagCount(CharacterCanComboTag, 0);
-			ASC->SetLooseGameplayTagCount(LegacyCanComboTag, 0);
 		}
 		return;
 	}

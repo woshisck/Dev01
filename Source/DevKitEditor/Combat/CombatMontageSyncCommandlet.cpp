@@ -457,7 +457,6 @@ int32 UCombatMontageSyncCommandlet::Main(const FString& Params)
 	GatherFromGraph(Graph, Requests);
 
 	const FGameplayTag CanComboTag = FGameplayTag::RequestGameplayTag(TEXT("Character.State.Window.CanCombo"));
-	const FGameplayTag LegacyCanComboTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.CanCombo"), false);
 	TArray<UPackage*> PackagesToSave;
 	TArray<FString> ReportLines;
 	ReportLines.Add(TEXT("# Combat Montage Sync Report"));
@@ -564,8 +563,7 @@ int32 UCombatMontageSyncCommandlet::Main(const FString& Params)
 
 			DuplicateMontage->Modify();
 			const int32 RemovedFromDuplicate =
-				RemoveExistingCanComboNotifies(DuplicateMontage, CanComboTag) +
-				RemoveExistingCanComboNotifies(DuplicateMontage, LegacyCanComboTag);
+				RemoveExistingCanComboNotifies(DuplicateMontage, CanComboTag);
 			if (RemovedFromDuplicate > 0)
 			{
 				DuplicateMontage->MarkPackageDirty();
@@ -598,7 +596,7 @@ int32 UCombatMontageSyncCommandlet::Main(const FString& Params)
 		int32 ExistingCanComboCount = 0;
 		for (const FAnimNotifyEvent& Event : Montage->Notifies)
 		{
-			if (NotifyHasCanCombo(Event, CanComboTag) || NotifyHasCanCombo(Event, LegacyCanComboTag))
+			if (NotifyHasCanCombo(Event, CanComboTag))
 			{
 				++ExistingCanComboCount;
 			}
@@ -631,8 +629,7 @@ int32 UCombatMontageSyncCommandlet::Main(const FString& Params)
 		{
 			Montage->Modify();
 			const int32 Removed =
-				RemoveExistingCanComboNotifies(Montage, CanComboTag) +
-				RemoveExistingCanComboNotifies(Montage, LegacyCanComboTag);
+				RemoveExistingCanComboNotifies(Montage, CanComboTag);
 			if (Removed > 0)
 			{
 				bChanged = true;
