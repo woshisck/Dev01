@@ -8,6 +8,7 @@
 | [AttackDamage_ConfigGuide.md](AttackDamage_ConfigGuide.md) | 攻击伤害配置 |
 | [EnemyCombo_ConfigGuide.md](EnemyCombo_ConfigGuide.md) | 敌人连击编辑器配置 |
 | [MeleeCombo_NotifyRune_Guide.md](MeleeCombo_NotifyRune_Guide.md) | 近战 AnimNotify 钩子 + 符文联动 |
+| [MontagePlayRateCurve_Guide.md](MontagePlayRateCurve_Guide.md) | Montage 内嵌 `PlayRate` 曲线动态调播放速率 |
 | [Dash_Design.md](Dash_Design.md) | 闪避系统设计与碰撞通道 |
 | [PoiseSystem_ConfigGuide.md](PoiseSystem_ConfigGuide.md) | 架势（韧性）系统配置 |
 | [SkillCharge_Guide.md](SkillCharge_Guide.md) | 技能蓄力配置 |

@@ -31,9 +31,13 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Bullet", meta = (ClampMin = "0.01"))
 	float Lifetime = 1.25f;
 
-	/** Sphere radius used for overlap detection (cm). */
+	/** Capsule radius used for overlap detection (cm). */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Bullet", meta = (ClampMin = "1.0"))
 	float CollisionRadius = 18.f;
+
+	/** Capsule half-height along the flight direction (cm). Clamped to at least CollisionRadius. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Bullet", meta = (ClampMin = "1.0"))
+	float CollisionHalfHeight = 24.f;
 
 	/** If true the bullet keeps going after a hit until MaxHits or lifetime. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Bullet")
@@ -67,6 +71,12 @@ public:
 	/** true = route the hit event to the creator ASC (live-capture damage pattern). */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Events")
 	bool bSendHitEventToCreator = true;
+
+	// ── Debug ───────────────────────────────────────────────────────────
+
+	/** Draw the collision capsule each frame while the bullet is in flight. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Debug")
+	bool bDrawDebug = false;
 
 	// ── VFX ─────────────────────────────────────────────────────────────
 

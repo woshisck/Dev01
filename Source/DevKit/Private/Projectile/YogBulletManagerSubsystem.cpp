@@ -3,6 +3,7 @@
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
 #include "Abilities/GameplayAbilityTypes.h"
+#include "DrawDebugHelpers.h"
 #include "Engine/OverlapResult.h"
 #include "Engine/World.h"
 #include "GameFramework/Character.h"
@@ -19,9 +20,11 @@ void UYogBulletManagerSubsystem::SpawnBullet(const FYogBulletSpawnParams& Params
 	State.Direction            = Params.Direction.GetSafeNormal();
 	State.Speed                = FMath::Max(1.f, Params.Speed);
 	State.CollisionRadius      = FMath::Max(1.f, Params.CollisionRadius);
+	State.CollisionHalfHeight  = FMath::Max(State.CollisionRadius, Params.CollisionHalfHeight);
 	State.Lifetime             = FMath::Max(0.01f, Params.Lifetime);
 	State.Elapsed              = 0.f;
 	State.bPiercing            = Params.bPiercing;
+	State.bDrawDebug           = Params.bDrawDebug;
 	State.HitsRemaining        = Params.bPiercing
 	                               ? (Params.MaxHits > 0 ? Params.MaxHits : -1)
 	                               : 1;
@@ -115,13 +118,26 @@ bool UYogBulletManagerSubsystem::CheckBulletHits(FYogBulletState& Bullet)
 		QueryParams.AddIgnoredActor(Bullet.SourceCharacter.Get());
 	}
 
+	// The capsule's local axis is +Z; align it to the flight direction so the
+	// long axis runs along travel.
+	const FQuat CapsuleRot = FQuat::FindBetweenNormals(FVector::UpVector, Bullet.Direction);
+	const FCollisionShape Capsule = FCollisionShape::MakeCapsule(Bullet.CollisionRadius, Bullet.CollisionHalfHeight);
+
+#if ENABLE_DRAW_DEBUG
+	if (Bullet.bDrawDebug)
+	{
+		DrawDebugCapsule(World, Bullet.Position, Bullet.CollisionHalfHeight, Bullet.CollisionRadius,
+			CapsuleRot, FColor::Green, /*bPersistentLines*/ false, /*LifeTime*/ -1.f, /*DepthPriority*/ 0, /*Thickness*/ 1.f);
+	}
+#endif
+
 	TArray<FOverlapResult> Overlaps;
 	World->OverlapMultiByChannel(
 		Overlaps,
 		Bullet.Position,
-		FQuat::Identity,
+		CapsuleRot,
 		ECC_Pawn,
-		FCollisionShape::MakeSphere(Bullet.CollisionRadius),
+		Capsule,
 		QueryParams);
 
 	bool bHitAny = false;

@@ -36,9 +36,13 @@ struct DEVKIT_API FYogBulletSpawnParams
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bullet", meta = (ClampMin = "0.01"))
 	float Lifetime = 1.f;
 
-	/** Sphere radius used for overlap detection (cm). */
+	/** Capsule radius used for overlap detection (cm). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bullet", meta = (ClampMin = "1.0"))
 	float CollisionRadius = 16.f;
+
+	/** Capsule half-height along the flight direction (cm). Clamped to at least CollisionRadius. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bullet", meta = (ClampMin = "1.0"))
+	float CollisionHalfHeight = 24.f;
 
 	/** If false the bullet is removed on the first hit. If true it continues until MaxHits or lifetime. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bullet")
@@ -92,6 +96,10 @@ struct DEVKIT_API FYogBulletSpawnParams
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bullet|VFX")
 	FVector ExpireNiagaraScale = FVector(1.f);
+
+	/** Draw the collision capsule each frame while the bullet is in flight. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bullet|Debug")
+	bool bDrawDebug = false;
 };
 
 // ─── Internal state ───────────────────────────────────────────────────────────
@@ -105,9 +113,11 @@ struct FYogBulletState
 	FVector Direction = FVector::ForwardVector;
 	float Speed = 1200.f;
 	float CollisionRadius = 16.f;
+	float CollisionHalfHeight = 24.f;
 	float Lifetime = 1.f;
 	float Elapsed = 0.f;
 	bool bPiercing = false;
+	bool bDrawDebug = false;
 	int32 HitsRemaining = 1;
 
 	TWeakObjectPtr<ACharacter> SourceCharacter;

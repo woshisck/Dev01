@@ -22,6 +22,7 @@ public:
 	UYogTask_PlayMontageAbility(const FObjectInitializer& ObjectInitializer);
 
 	virtual void Activate() override;
+	virtual void TickTask(float DeltaTime) override;
 	virtual void ExternalCancel() override;
 	virtual FString GetDebugString() const override;
 	virtual void OnDestroy(bool AbilityEnded) override;

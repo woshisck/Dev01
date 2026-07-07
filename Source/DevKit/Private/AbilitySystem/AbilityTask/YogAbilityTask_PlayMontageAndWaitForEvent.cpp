@@ -7,12 +7,44 @@
 #include "AbilitySystemGlobals.h"
 #include "AbilitySystemLog.h"
 #include "Animation/AnimInstance.h"
+#include "Animation/AnimMontage.h"
+
+namespace
+{
+	// Optional montage-authored float curve that scales play rate over the
+	// montage timeline. If the montage has no curve with this name, play rate
+	// is left at the requested Rate (default 1.0).
+	const FName YogMontage_PlayRateCurveName(TEXT("PlayRate"));
+}
 
 UYogAbilityTask_PlayMontageAndWaitForEvent::UYogAbilityTask_PlayMontageAndWaitForEvent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	Rate = 1.f;
 	bStopWhenAbilityEnds = true;
+	bTickingTask = true;
+}
+
+void UYogAbilityTask_PlayMontageAndWaitForEvent::TickTask(float DeltaTime)
+{
+	Super::TickTask(DeltaTime);
+
+	if (!MontageToPlay || !MontageToPlay->HasCurveData(YogMontage_PlayRateCurveName))
+	{
+		return;
+	}
+
+	const FGameplayAbilityActorInfo* ActorInfo = Ability ? Ability->GetCurrentActorInfo() : nullptr;
+	UAnimInstance* AnimInstance = ActorInfo ? ActorInfo->GetAnimInstance() : nullptr;
+	if (!AnimInstance || !AnimInstance->Montage_IsPlaying(MontageToPlay))
+	{
+		return;
+	}
+
+	const float Position = AnimInstance->Montage_GetPosition(MontageToPlay);
+	const float CurveValue = MontageToPlay->EvaluateCurveData(
+		YogMontage_PlayRateCurveName, FAnimExtractContext(static_cast<double>(Position)), false);
+	AnimInstance->Montage_SetPlayRate(MontageToPlay, FMath::Max(Rate * CurveValue, 0.01f));
 }
 
 UYogAbilitySystemComponent* UYogAbilityTask_PlayMontageAndWaitForEvent::GetTargetASC()

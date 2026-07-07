@@ -79,10 +79,13 @@ void UAN_FireProjectile::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceB
 
 	FYogBulletSpawnParams Params;
 	Params.SpawnLocation          = SpawnTransform.GetLocation();
-	Params.Direction              = SpawnTransform.GetRotation().GetForwardVector();
+	// Fly along the player's facing direction, regardless of the muzzle socket orientation.
+	Params.Direction              = Player->GetActorForwardVector();
 	Params.Speed                  = ProjDef->Speed;
 	Params.Lifetime               = ProjDef->Lifetime;
 	Params.CollisionRadius        = ProjDef->CollisionRadius;
+	Params.CollisionHalfHeight    = ProjDef->CollisionHalfHeight;
+	Params.bDrawDebug             = ProjDef->bDrawDebug;
 	Params.bPiercing              = ProjDef->bPiercing;
 	Params.MaxHits                = ProjDef->MaxHits;
 	Params.HitEventTag            = ProjDef->HitEventTag;
