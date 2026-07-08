@@ -108,6 +108,8 @@ public class DevKitEditor : ModuleRules
 				"StaticMeshDescription",
 				"AdvancedPreviewScene",
 				"ClassViewer",
+				"Foliage",
+				"VirtualTexturingEditor",
 			}
         );
 

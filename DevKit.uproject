@@ -113,6 +113,10 @@
 			"Enabled": true
 		},
 		{
+			"Name": "YogArt_Material",
+			"Enabled": true
+		},
+		{
 			"Name": "GameplayGraph",
 			"Enabled": true
 		},
