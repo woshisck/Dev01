@@ -1897,6 +1897,7 @@ Content/Plugins/OtherByMarket/ParagonMinions/Characters/AnimBP/ABP_Minion.uasset
 /Plugins/MarketArt
 /Content/add
 /Tools/*
+!/Tools/CleanupLocalIgnoredContent.ps1
 !/Tools/DataEditor/
 !/Tools/DataEditor/**
 !/Tools/ProductionGraph/
@@ -1981,3 +1982,16 @@ Packaged_Check_*/
 GenerateAndBuild.bat
 Tools/ProductionGraph/*.log
 .mcp.json
+
+# Local-only UE content visible in the editor but not synced to GitHub.
+# Keep these on disk for local editing/marketplace dependencies; do not submit them unless explicitly reviewed.
+/Content/Blood_VFX_Pack
+/Content/Collections
+/Content/EssentialGreatSwordAnimationPack
+/Content/External
+/Content/Free_Magic
+/Content/Lava_FX
+/Content/MassiveGreatSwordAnimset
+/Content/PoisonFX
+/Content/SlashTrailElemental
+/Content/_LevelUpSpawn

@@ -36,8 +36,10 @@
 #include "Tools/SDataEditorWidget.h"
 #include "Tools/SEnvBatchTaggerWidget.h"
 #include "Tools/SLevelDataWorkbenchWidget.h"
+#include "Tools/LevelRVT/SDevKitLevelRVTWidget.h"
 #include "Tools/LevelBatch/SDevKitLevelBatchProcessorWidget.h"
 #include "Tools/MapCreator/SDevKitMapCreatorWidget.h"
+#include "Tools/RVTMeshDecal/SDevKitRVTMeshDecalWidget.h"
 #include "Tools/SMaterialBatchToolsWidget.h"
 #include "Tools/SMaterialTextureRulesWidget.h"
 #include "Tools/SMetaProgressionWorkbenchWidget.h"
@@ -82,6 +84,8 @@ namespace
 	const FName TextureVTAuditTabName(TEXT("DevKitTextureVTAudit"));
 	const FName VirtualTextureCollectionManagerTabName(TEXT("DevKitVirtualTextureCollectionManager"));
 	const FName MapCreatorTabName(TEXT("DevKitMapCreator"));
+	const FName LevelRVTTabName(TEXT("DevKitLevelRVT"));
+	const FName RVTMeshDecalTabName(TEXT("DevKitRVTMeshDecal"));
 	const FName PerformanceToolsLauncherTabName(TEXT("DevKitPerformanceToolsLauncher"));
 	const FName RuntimeGMSettingsTabName(TEXT("DevKitRuntimeGMSettings"));
 	const FName DevKitEditorStyleSetName(TEXT("DevKitEditorStyle"));
@@ -391,6 +395,20 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			.SetMenuType(ETabSpawnerMenuType::Hidden);
 
 		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
+			LevelRVTTabName,
+			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnLevelRVTTab))
+			.SetDisplayName(LOCTEXT("LevelRVTTabTitle", "关卡 RVT 工具"))
+			.SetTooltipText(LOCTEXT("LevelRVTTabTooltip", "根据选中地面 Actor 创建并绑定 Runtime Virtual Texture。"))
+			.SetMenuType(ETabSpawnerMenuType::Hidden);
+
+		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
+			RVTMeshDecalTabName,
+			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnRVTMeshDecalTab))
+			.SetDisplayName(LOCTEXT("RVTMeshDecalTabTitle", "RVT 网格贴花刷"))
+			.SetTooltipText(LOCTEXT("RVTMeshDecalTabTooltip", "创建可用植被模式刷出的 RVT 网格贴花 FoliageType。"))
+			.SetMenuType(ETabSpawnerMenuType::Hidden);
+
+		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
 			PerformanceToolsLauncherTabName,
 			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnPerformanceToolsLauncherTab))
 			.SetDisplayName(LOCTEXT("PerformanceToolsLauncherTabTitle", "性能工具快捷入口"))
@@ -434,6 +452,8 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(TextureVTAuditTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(VirtualTextureCollectionManagerTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(MapCreatorTabName);
+		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(LevelRVTTabName);
+		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(RVTMeshDecalTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(PerformanceToolsLauncherTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(RuntimeGMSettingsTabName);
 		CombatLogWidgetInstance.Reset();
@@ -666,6 +686,26 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			.Label(LOCTEXT("MapCreatorTabLabel", "地图创建器"))
 			[
 				SNew(SDevKitMapCreatorWidget)
+			];
+	}
+
+	TSharedRef<SDockTab> SpawnLevelRVTTab(const FSpawnTabArgs& SpawnTabArgs)
+	{
+		return SNew(SDockTab)
+			.TabRole(ETabRole::NomadTab)
+			.Label(LOCTEXT("LevelRVTTabLabel", "关卡 RVT 工具"))
+			[
+				SNew(SDevKitLevelRVTWidget)
+			];
+	}
+
+	TSharedRef<SDockTab> SpawnRVTMeshDecalTab(const FSpawnTabArgs& SpawnTabArgs)
+	{
+		return SNew(SDockTab)
+			.TabRole(ETabRole::NomadTab)
+			.Label(LOCTEXT("RVTMeshDecalTabLabel", "RVT 网格贴花刷"))
+			[
+				SNew(SDevKitRVTMeshDecalWidget)
 			];
 	}
 
@@ -977,6 +1017,19 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			LOCTEXT("OpenMapCreatorTooltip", "创建命名地图文件夹、Persistent 关卡、子关卡和地图定义数据。"),
 			GetMapCreatorIcon(),
 			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenMapCreatorTab)));
+		ArtAssetSection.AddMenuEntry(
+			TEXT("OpenLevelRVT"),
+			LOCTEXT("OpenLevelRVTLabel", "关卡 RVT 工具"),
+			LOCTEXT("OpenLevelRVTTooltip", "根据选中地面 Actor 创建 BakeInfo 下的 RVT 资产、RVT Volume，并绑定组件写入 RVT。"),
+			GetVTCManagerIcon(),
+			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenLevelRVTTab)));
+
+		ArtAssetSection.AddMenuEntry(
+			TEXT("OpenRVTMeshDecal"),
+			LOCTEXT("OpenRVTMeshDecalLabel", "RVT 网格贴花刷"),
+			LOCTEXT("OpenRVTMeshDecalTooltip", "创建可通过植被模式刷出的 RVT 网格贴花 FoliageType，按材质和 Priority 分层。"),
+			GetVTCManagerIcon(),
+			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenRVTMeshDecalTab)));
 
 		FToolMenuSection& PerformanceSection = Menu->FindOrAddSection(TEXT("DevKitPerformanceTools"), LOCTEXT("DevKitPerformanceToolsSection", "性能工具"));
 		PerformanceSection.AddMenuEntry(
@@ -1222,6 +1275,16 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 	void OpenMapCreatorTab()
 	{
 		FGlobalTabmanager::Get()->TryInvokeTab(MapCreatorTabName);
+	}
+
+	void OpenLevelRVTTab()
+	{
+		FGlobalTabmanager::Get()->TryInvokeTab(LevelRVTTabName);
+	}
+
+	void OpenRVTMeshDecalTab()
+	{
+		FGlobalTabmanager::Get()->TryInvokeTab(RVTMeshDecalTabName);
 	}
 
 	void OpenPerformanceToolsLauncherTab()
