@@ -1,0 +1,33 @@
+# Build/generated folders
+Intermediate/
+Saved/
+DerivedDataCache/
+
+
+# Visual Studio / Rider files
+.vs/
+*.sln
+*.suo
+*.user
+*.opensdf
+*.VC.db
+
+# Logs and temp files
+*.log
+*.tmp
+*.cache
+
+
+/Saved/...
+/Intermediate/...
+/DerivedDataCache/...
+/FileOpenOrder/...
+**/Intermediate/**
+**/DerivedDataCache/**
+**/Saved/**
+**.pdb
+/.svn/...
+**/.git/**
+/.github/...
+**.sln
+**/.vs/**
