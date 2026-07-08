@@ -26,9 +26,6 @@ struct FRuneShape;
  *   InfoContainer     Widget                 包裹名称/描述/符文的容器
  *   WeaponNameText    TextBlock              武器名称
  *   WeaponDescText    YogCommonRichTextBlock 武器描述（空时自动隐藏；支持 <input action="X"/> 图标）
- *   WeaponSubDescText YogCommonRichTextBlock 武器子描述（同上）
- *   ZoneGrid1/2/3     CanvasPanel            激活区点阵（建议 60×60）
- *   Zone1Image/2/3    Image                  激活区图像覆盖（提供时替代点阵）
  *   RuneListBox       VerticalBox            初始卡牌列表（C++ 动态填充，优先读取 WeaponDefinition.InitialCombatDeck）
  *   PickupHintText    YogCommonRichTextBlock 按键拾取提示（如 `按 <input action="Interact"/> 拾取武器`）
  */
@@ -74,30 +71,6 @@ protected:
 	TObjectPtr<UYogCommonRichTextBlock> WeaponDescText;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	TObjectPtr<UYogCommonRichTextBlock> WeaponSubDescText;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WeaponFloat", meta = (ClampMin = "20"))
-	float ZoneGridSize = 60.f;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	TObjectPtr<UCanvasPanel> ZoneGrid1;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	TObjectPtr<UCanvasPanel> ZoneGrid2;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	TObjectPtr<UCanvasPanel> ZoneGrid3;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	TObjectPtr<UImage> Zone1Image;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	TObjectPtr<UImage> Zone2Image;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	TObjectPtr<UImage> Zone3Image;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UVerticalBox> RuneListBox;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
@@ -114,10 +87,6 @@ protected:
 	TObjectPtr<UCommonRichTextBlock> ScrollHintText;
 
 private:
-	void BuildZonePanel(UCanvasPanel* GridPanel, UImage* ImgWidget,
-	                    UTexture2D* ZoneTexture, const FRuneShape* Shape,
-	                    int32 GW, int32 GH);
-
 	void BuildCombatCardList(const TArray<TObjectPtr<URuneDataAsset>>& Cards);
 	void EnsureRuntimeCardScrollBox();
 	void RefreshOperationHints();

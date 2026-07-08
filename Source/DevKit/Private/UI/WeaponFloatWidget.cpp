@@ -26,9 +26,6 @@
 
 namespace WeaponZoneColors
 {
-	static const FLinearColor Active  (0.20f, 0.80f, 1.00f, 1.0f);
-	static const FLinearColor Inactive(0.15f, 0.15f, 0.18f, 0.7f);
-
 	FText GetCombatCardDisplayName(const URuneDataAsset* RuneDA)
 	{
 		if (!RuneDA)
@@ -272,101 +269,10 @@ void UWeaponFloatWidget::SetWeaponDefinition(const UWeaponDefinition* Def)
 		}
 	}
 
-	// ── 子描述 ─────────────────────────────────
-	if (WeaponSubDescText)
-	{
-		const bool bHas = Info && !Info->WeaponSubDescription.IsEmpty();
-		WeaponSubDescText->SetVisibility(YogWidgetReflectorDebug::GetInspectableVisibility(
-			bHas ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed));
-		if (bHas)
-		{
-			WeaponSubDescText->SetText(Info->WeaponSubDescription);
-			WeaponSubDescText->SetAutoWrapText(true);
-		}
-	}
-
-	// ── 激活区 ─────────────────────────────────
-	const FActivationZoneConfig& ZoneCfg = Def->BackpackConfig.ActivationZoneConfig;
-	const int32 GW = Def->BackpackConfig.GridWidth;
-	const int32 GH = Def->BackpackConfig.GridHeight;
-
-	auto GetShape   = [&](int32 Idx) -> const FRuneShape*
-	{
-		return ZoneCfg.ZoneShapes.IsValidIndex(Idx) ? &ZoneCfg.ZoneShapes[Idx] : nullptr;
-	};
-	auto GetZoneImg = [&](int32 Idx) -> UTexture2D*
-	{
-		if (!Info) return nullptr;
-		switch (Idx) {
-			case 0: return Info->Zone1Image;
-			case 1: return Info->Zone2Image;
-			case 2: return Info->Zone3Image;
-		}
-		return nullptr;
-	};
-
-	BuildZonePanel(ZoneGrid1, Zone1Image, GetZoneImg(0), GetShape(0), GW, GH);
-	BuildZonePanel(ZoneGrid2, Zone2Image, GetZoneImg(1), GetShape(1), GW, GH);
-	BuildZonePanel(ZoneGrid3, Zone3Image, GetZoneImg(2), GetShape(2), GW, GH);
-
 	// ── 512 初始战斗卡牌列表 ───────────────────
 	const TArray<TObjectPtr<URuneDataAsset>>& SourceCards = Def->InitialCombatDeck;
 	BuildCombatCardList(SourceCards);
 	RefreshOperationHints();
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  激活区：图像覆盖 or 全格点阵
-// ─────────────────────────────────────────────────────────────────────────────
-
-void UWeaponFloatWidget::BuildZonePanel(UCanvasPanel* GridPanel, UImage* ImgWidget,
-                                         UTexture2D* ZoneTexture, const FRuneShape* Shape,
-                                         int32 GW, int32 GH)
-{
-	if (ZoneTexture && ImgWidget)
-	{
-		ImgWidget->SetBrushFromTexture(ZoneTexture, true);
-		ImgWidget->SetVisibility(YogWidgetReflectorDebug::GetInspectableVisibility(ESlateVisibility::SelfHitTestInvisible));
-		if (GridPanel) GridPanel->SetVisibility(ESlateVisibility::Collapsed);
-		return;
-	}
-
-	if (ImgWidget) ImgWidget->SetVisibility(ESlateVisibility::Collapsed);
-	if (!GridPanel) return;
-
-	GridPanel->SetVisibility(YogWidgetReflectorDebug::GetInspectableVisibility(ESlateVisibility::SelfHitTestInvisible));
-	GridPanel->ClearChildren();
-
-	TSet<FIntPoint> ActiveCells;
-	if (Shape) ActiveCells.Append(Shape->Cells);
-
-	const int32 MaxDim  = FMath::Max(FMath::Max(GW, GH), 1);
-	const float Step    = ZoneGridSize / MaxDim;
-	const float DotSize = FMath::Max(Step - 2.f, 1.f);
-	const float OffX    = (ZoneGridSize - (GW * Step - (Step - DotSize))) * 0.5f;
-	const float OffY    = (ZoneGridSize - (GH * Step - (Step - DotSize))) * 0.5f;
-	const float Radius  = FMath::Max(DotSize * 0.25f, 1.f);
-
-	for (int32 Row = 0; Row < GH; Row++)
-	{
-		for (int32 Col = 0; Col < GW; Col++)
-		{
-			const bool bActive = ActiveCells.Contains(FIntPoint(Col, Row));
-
-			UImage* Dot = NewObject<UImage>(this);
-			FSlateBrush Brush;
-			Brush.DrawAs = ESlateBrushDrawType::RoundedBox;
-			Brush.TintColor = FSlateColor(FLinearColor::White);
-			Brush.OutlineSettings.CornerRadii  = FVector4(Radius, Radius, Radius, Radius);
-			Brush.OutlineSettings.RoundingType = ESlateBrushRoundingType::FixedRadius;
-			Dot->SetBrush(Brush);
-			Dot->SetColorAndOpacity(bActive ? WeaponZoneColors::Active : WeaponZoneColors::Inactive);
-
-			UCanvasPanelSlot* DotSlot = GridPanel->AddChildToCanvas(Dot);
-			DotSlot->SetPosition(FVector2D(OffX + Col * Step, OffY + Row * Step));
-			DotSlot->SetSize(FVector2D(DotSize, DotSize));
-		}
-	}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -422,7 +328,7 @@ void UWeaponFloatWidget::BuildCombatCardList(const TArray<TObjectPtr<URuneDataAs
 		WeaponZoneColors::ConfigureTextBlock(NameTB, FSlateColor(FLinearColor(0.96f, 0.96f, 0.98f, 1.f)), 16, true);
 		TextCol->AddChildToVerticalBox(NameTB);
 
-		const FText Summary = WeaponZoneColors::GetCombatCardSummary(RuneDA, 38);
+		const FText Summary = WeaponZoneColors::GetCombatCardSummary(RuneDA, 24);
 		if (!Summary.IsEmpty())
 		{
 			UTextBlock* DescTB = NewObject<UTextBlock>(this);
@@ -583,8 +489,8 @@ void UWeaponFloatWidget::RefreshOperationHints()
 {
 	const FText PickupHint = NSLOCTEXT(
 		"WeaponFloatWidget",
-		"PickupAndBackpackHint",
-		"按 <input action=\"Interact\"/> 拾取武器后按 <input action=\"OpenBackpack\"/> 打开背包");
+		"PickupHint",
+		"按 <input action=\"Interact\"/> 拾取武器");
 	const FText ScrollHint = NSLOCTEXT(
 		"WeaponFloatWidget",
 		"ScrollCardHint",
