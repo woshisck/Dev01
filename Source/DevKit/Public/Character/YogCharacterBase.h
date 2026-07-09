@@ -68,6 +68,7 @@ class UCharacterData;
 class UPropInteractComponnet;
 class UWidgetComponent;
 class UHitImpactVisualComponent;
+class UHitCueData;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCharacterDiedDelegate, AYogCharacterBase*, Character);
 DECLARE_MULTICAST_DELEGATE_OneParam(FCharacterDiedNativeDelegate, AYogCharacterBase*);
@@ -313,6 +314,10 @@ public:
 
 	// AN_MeleeDamage 存入的命中 GameplayCue Tag，GA_MeleeAttack 命中目标时触发后清空
 	FGameplayTag PendingHitImpactCueTag;
+
+	// Per-notify hit cue visual payload; passed to the cue via SourceObject, cleared after firing.
+	// Data assets are always rooted, so a weak ptr is safe across the notify->hit frame gap.
+	TWeakObjectPtr<UHitCueData> PendingHitImpactCueData;
 
 	/**
 	 * 命中目标时触发附加符文效果的入口（由 GA_MeleeAttack::OnEventReceived 调用）。

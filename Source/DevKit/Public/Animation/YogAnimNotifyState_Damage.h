@@ -23,6 +23,7 @@ class UAbilitySystemComponent;
 class UMontageAttackDataAsset;
 class URuneDataAsset;
 class USkeletalMeshComponent;
+class UHitCueData;
 
 UCLASS(meta = (DisplayName = "ANS Melee Damage Window"))
 class DEVKIT_API UYogAnimNotifyState_Damage : public UYogAnimNotifyState
@@ -95,6 +96,14 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects|HitImpact")
 	FGameplayTag HitImpactCueTag;
+
+	/**
+	 * Optional per-notify visual payload for the hit cue. Passed to the cue via
+	 * SourceObject so one cue tag can produce different VFX/SFX/shake per attack.
+	 * Leave null to fall back to the cue class's own defaults.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects|HitImpact")
+	TObjectPtr<UHitCueData> HitImpactCueData;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects")
 	TArray<TObjectPtr<URuneDataAsset>> AdditionalRuneEffects;

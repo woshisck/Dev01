@@ -5,6 +5,7 @@
 #include "AbilitySystem/AbilityTask/YogAbilityTask_PlayMontageAndWaitForEvent.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
+#include "AbilitySystem/GameplayCue/HitCueData.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "Abilities/Tasks/AbilityTask_ApplyRootMotionMoveToForce.h"
 #include "Animation/AN_MeleeDamage.h"
@@ -1355,6 +1356,7 @@ void UGA_MeleeAttack::EndAbility(
 		Owner->PendingAdditionalHitRunes.Empty();
 		Owner->PendingOnHitEventTags.Empty();
 		Owner->PendingHitImpactCueTag = FGameplayTag();
+		Owner->PendingHitImpactCueData = nullptr;
 	}
 
 	// 移除攻击前摇 GE
@@ -1747,6 +1749,7 @@ void UGA_MeleeAttack::ApplyHitReactions(AYogCharacterBase* Owner, const FYogGame
 			FGameplayCueParameters CueParams;
 			CueParams.Instigator = Owner;
 			CueParams.EffectCauser = Owner;
+			CueParams.SourceObject = Owner->PendingHitImpactCueData.Get();
 			if (!HitActors.IsEmpty() && HitActors[0])
 			{
 				CueParams.Location = HitActors[0]->GetActorLocation();
@@ -1759,6 +1762,7 @@ void UGA_MeleeAttack::ApplyHitReactions(AYogCharacterBase* Owner, const FYogGame
 			ASC->ExecuteGameplayCue(Owner->PendingHitImpactCueTag, CueParams);
 		}
 		Owner->PendingHitImpactCueTag = FGameplayTag();
+		Owner->PendingHitImpactCueData = nullptr;
 	}
 
 	Owner->PendingAdditionalHitRunes.Empty();
@@ -1876,6 +1880,7 @@ void UGA_MeleeAttack::OnEventReceived(FGameplayTag EventTag, FGameplayEventData 
 				OwnerCharacter->PendingOnHitEventTags.Empty();
 				OwnerCharacter->PendingHitStopOverride = AYogCharacterBase::FPendingHitStopOverride();
 				OwnerCharacter->PendingHitImpactCueTag = FGameplayTag();
+				OwnerCharacter->PendingHitImpactCueData = nullptr;
 			}
 			return;
 		}

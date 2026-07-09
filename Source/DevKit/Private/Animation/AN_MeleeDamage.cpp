@@ -2,6 +2,7 @@
 
 #include "Animation/AN_MeleeDamage.h"
 #include "Character/YogCharacterBase.h"
+#include "AbilitySystem/GameplayCue/HitCueData.h"
 #include "AbilitySystem/Abilities/GA_MeleeAttack.h"
 #include "AbilitySystem/Abilities/GA_PlayMontage.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
@@ -264,6 +265,7 @@ void UAN_MeleeDamage::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase
 	if (HitImpactCueTag.IsValid())
 	{
 		Character->PendingHitImpactCueTag = HitImpactCueTag;
+		Character->PendingHitImpactCueData = HitImpactCueData;
 	}
 
 	const FActionData EffectiveActionData = EffectiveNodeAttackConfig

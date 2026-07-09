@@ -7,6 +7,7 @@
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "Character/YogCharacterBase.h"
+#include "AbilitySystem/GameplayCue/HitCueData.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Data/MontageAttackDataAsset.h"
 #include "Data/RuneDataAsset.h"
@@ -326,6 +327,7 @@ void UYogAnimNotifyState_Damage::PopulatePendingHitData(AYogCharacterBase* Chara
 	if (HitImpactCueTag.IsValid())
 	{
 		Character->PendingHitImpactCueTag = HitImpactCueTag;
+		Character->PendingHitImpactCueData = HitImpactCueData;
 	}
 }
 

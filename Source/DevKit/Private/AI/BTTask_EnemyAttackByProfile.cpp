@@ -15,6 +15,7 @@
 #include "Controller/YogAIController.h"
 #include "Data/AbilityData.h"
 #include "Data/EnemyData.h"
+#include "Data/EnemyWeaponDefinition.h"
 #include "HAL/IConsoleManager.h"
 #include "Kismet/GameplayStatics.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
@@ -232,8 +233,32 @@ EBTNodeResult::Type UBTTask_EnemyAttackByProfile::ExecuteTask(UBehaviorTreeCompo
 	AYogCharacterBase* Character = Cast<AYogCharacterBase>(Pawn);
 	const UCharacterDataComponent* DataComponent = Character ? Character->GetCharacterDataComponent() : nullptr;
 	const UEnemyData* EnemyData = DataComponent ? Cast<UEnemyData>(DataComponent->GetCharacterData()) : nullptr;
-	const UAbilityData* AbilityData = EnemyData ? EnemyData->AbilityData : nullptr;
-	if (!EnemyData || !AbilityData || EnemyData->AttackProfile.Attacks.IsEmpty())
+
+	// Source the attack profile and ability data from the enemy's weapon definition when one is
+	// assigned; otherwise fall back to the EnemyData's own profile/abilities.
+	const UEnemyWeaponDefinition* WeaponDef = EnemyData ? EnemyData->DefaultWeaponDefinition.Get() : nullptr;
+	const UAbilityData* AbilityData = nullptr;
+	const FEnemyAIAttackProfile* AttackProfile = nullptr;
+	if (WeaponDef)
+	{
+		AbilityData = WeaponDef->AbilityData ? WeaponDef->AbilityData.Get() : (EnemyData ? EnemyData->AbilityData.Get() : nullptr);
+		AttackProfile = WeaponDef->bOverrideAttackProfile
+			? &WeaponDef->AttackProfile
+			: (EnemyData ? &EnemyData->AttackProfile : nullptr);
+	}
+	else
+	{
+		if (CVarEnemyAIAttackDecisionLog.GetValueOnGameThread() > 0)
+		{
+			UE_LOG(LogEnemyAIAttackDecision, Log,
+				TEXT("[EnemyAIAttack] Enemy=%s DefaultWeaponDefinition is null; using EnemyData AttackProfile/AbilityData."),
+				*GetNameSafe(Pawn));
+		}
+		AbilityData = EnemyData ? EnemyData->AbilityData.Get() : nullptr;
+		AttackProfile = EnemyData ? &EnemyData->AttackProfile : nullptr;
+	}
+
+	if (!EnemyData || !AbilityData || !AttackProfile || AttackProfile->Attacks.IsEmpty())
 	{
 		if (CVarEnemyAIAttackDecisionLog.GetValueOnGameThread() > 0)
 		{
@@ -242,7 +267,7 @@ EBTNodeResult::Type UBTTask_EnemyAttackByProfile::ExecuteTask(UBehaviorTreeCompo
 				*GetNameSafe(Pawn),
 				*GetNameSafe(EnemyData),
 				*GetNameSafe(AbilityData),
-				EnemyData ? EnemyData->AttackProfile.Attacks.Num() : 0);
+				AttackProfile ? AttackProfile->Attacks.Num() : 0);
 		}
 		return EBTNodeResult::Failed;
 	}
@@ -254,7 +279,7 @@ EBTNodeResult::Type UBTTask_EnemyAttackByProfile::ExecuteTask(UBehaviorTreeCompo
 	{
 		YogAI->RefreshMovementAttackCooldownReset(DistanceToTarget);
 	}
-	AttackCooldownEndTimes.SetNum(EnemyData->AttackProfile.Attacks.Num());
+	AttackCooldownEndTimes.SetNum(AttackProfile->Attacks.Num());
 
 	TArray<FAttackCandidate> Candidates;
 	float TotalWeight = 0.0f;
@@ -269,7 +294,7 @@ EBTNodeResult::Type UBTTask_EnemyAttackByProfile::ExecuteTask(UBehaviorTreeCompo
 	int32 PenalizedRecentRepeat = 0;
 	const float HealthPercent = ResolveHealthPercent(ASC);
 	float CloseCombatRange = EnemyData->MovementTuning.AttackRange;
-	for (const FEnemyAIAttackOption& Attack : EnemyData->AttackProfile.Attacks)
+	for (const FEnemyAIAttackOption& Attack : AttackProfile->Attacks)
 	{
 		if (Attack.AttackRole == EEnemyAIAttackRole::CloseMelee && Attack.MaxRange > 0.0f)
 		{
@@ -277,9 +302,9 @@ EBTNodeResult::Type UBTTask_EnemyAttackByProfile::ExecuteTask(UBehaviorTreeCompo
 		}
 	}
 
-	for (int32 AttackIndex = 0; AttackIndex < EnemyData->AttackProfile.Attacks.Num(); ++AttackIndex)
+	for (int32 AttackIndex = 0; AttackIndex < AttackProfile->Attacks.Num(); ++AttackIndex)
 	{
-		const FEnemyAIAttackOption& Attack = EnemyData->AttackProfile.Attacks[AttackIndex];
+		const FEnemyAIAttackOption& Attack = AttackProfile->Attacks[AttackIndex];
 		if (Attack.AttackRole != RequiredAttackRole)
 		{
 			++RejectedWrongRole;
@@ -393,17 +418,17 @@ EBTNodeResult::Type UBTTask_EnemyAttackByProfile::ExecuteTask(UBehaviorTreeCompo
 
 	if (YogAI
 		&& Candidates.Num() > 1
-		&& EnemyData->AttackProfile.RecentAttackMemoryDuration > 0.0f
-		&& EnemyData->AttackProfile.RepeatAttackWeightMultiplier < 1.0f)
+		&& AttackProfile->RecentAttackMemoryDuration > 0.0f
+		&& AttackProfile->RepeatAttackWeightMultiplier < 1.0f)
 	{
 		TotalWeight = 0.0f;
 		for (FAttackCandidate& Candidate : Candidates)
 		{
-			const FEnemyAIAttackOption& CandidateAttack = EnemyData->AttackProfile.Attacks[Candidate.AttackIndex];
+			const FEnemyAIAttackOption& CandidateAttack = AttackProfile->Attacks[Candidate.AttackIndex];
 			float RepeatAge = 0.0f;
-			if (YogAI->IsRecentAttackRepeat(CandidateAttack, EnemyData->AttackProfile.RecentAttackMemoryDuration, &RepeatAge))
+			if (YogAI->IsRecentAttackRepeat(CandidateAttack, AttackProfile->RecentAttackMemoryDuration, &RepeatAge))
 			{
-				Candidate.Weight *= FMath::Max(EnemyData->AttackProfile.RepeatAttackWeightMultiplier, 0.0f);
+				Candidate.Weight *= FMath::Max(AttackProfile->RepeatAttackWeightMultiplier, 0.0f);
 				++PenalizedRecentRepeat;
 			}
 			TotalWeight += Candidate.Weight;
@@ -462,7 +487,7 @@ EBTNodeResult::Type UBTTask_EnemyAttackByProfile::ExecuteTask(UBehaviorTreeCompo
 		ChosenCandidate = &Candidates.Last();
 	}
 
-	const FEnemyAIAttackOption& ChosenAttack = EnemyData->AttackProfile.Attacks[ChosenCandidate->AttackIndex];
+	const FEnemyAIAttackOption& ChosenAttack = AttackProfile->Attacks[ChosenCandidate->AttackIndex];
 	AActor* TargetActor = ResolveTargetActor(OwnerComp);
 	if (YogAI)
 	{

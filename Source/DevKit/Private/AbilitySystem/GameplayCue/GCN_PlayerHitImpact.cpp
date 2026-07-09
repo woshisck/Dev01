@@ -6,6 +6,7 @@
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
 #include "Sound/SoundBase.h"
+#include "AbilitySystem/GameplayCue/HitCueData.h"
 
 AGCN_PlayerHitImpact::AGCN_PlayerHitImpact()
 {
@@ -28,6 +29,18 @@ bool AGCN_PlayerHitImpact::OnExecute_Implementation(AActor* Target, const FGamep
 		return false;
 	}
 
+	// Per-hit visual payload (weapon/notify) overrides the class defaults when provided.
+	const UHitCueData* CueData = Cast<UHitCueData>(Parameters.SourceObject.Get());
+
+	UNiagaraSystem* EffectiveVFX = CueData && CueData->ImpactVFX ? CueData->ImpactVFX.Get() : ImpactVFX.Get();
+	const FRotator EffectiveVFXRotationOffset = CueData ? CueData->VFXRotationOffset : VFXRotationOffset;
+	const FVector EffectiveVFXScale = CueData ? CueData->VFXScale : VFXScale;
+	USoundBase* EffectiveSound = CueData && CueData->ImpactSound ? CueData->ImpactSound.Get() : ImpactSound.Get();
+	const float EffectiveSoundVolume = CueData ? CueData->SoundVolumeMultiplier : SoundVolumeMultiplier;
+	const float EffectiveSoundPitch = CueData ? CueData->SoundPitchMultiplier : SoundPitchMultiplier;
+	const TSubclassOf<UCameraShakeBase> EffectiveShakeClass = CueData && CueData->CameraShakeClass ? CueData->CameraShakeClass : CameraShakeClass;
+	const float EffectiveShakeScale = CueData ? CueData->CameraShakeScale : CameraShakeScale;
+
 	const FVector HitLocation = Parameters.Location.IsZero() && Target
 		? Target->GetActorLocation()
 		: FVector(Parameters.Location);
@@ -36,39 +49,39 @@ bool AGCN_PlayerHitImpact::OnExecute_Implementation(AActor* Target, const FGamep
 	FRotator HitRotation = Parameters.Normal.IsZero()
 		? FRotator::ZeroRotator
 		: Parameters.Normal.ToOrientationRotator();
-	HitRotation += VFXRotationOffset;
+	HitRotation += EffectiveVFXRotationOffset;
 
-	if (ImpactVFX)
+	if (EffectiveVFX)
 	{
 		UNiagaraFunctionLibrary::SpawnSystemAtLocation(
 			World,
-			ImpactVFX,
+			EffectiveVFX,
 			HitLocation,
 			HitRotation,
-			VFXScale,
+			EffectiveVFXScale,
 			true,
 			true,
 			ENCPoolMethod::None,
 			false);
 	}
 
-	if (ImpactSound)
+	if (EffectiveSound)
 	{
 		UGameplayStatics::SpawnSoundAtLocation(
 			World,
-			ImpactSound,
+			EffectiveSound,
 			HitLocation,
 			HitRotation,
-			SoundVolumeMultiplier,
-			SoundPitchMultiplier);
+			EffectiveSoundVolume,
+			EffectiveSoundPitch);
 	}
 
-	if (CameraShakeClass)
+	if (EffectiveShakeClass)
 	{
 		APlayerController* PC = UGameplayStatics::GetPlayerController(World, 0);
 		if (PC && PC->PlayerCameraManager)
 		{
-			PC->PlayerCameraManager->StartCameraShake(CameraShakeClass, CameraShakeScale);
+			PC->PlayerCameraManager->StartCameraShake(EffectiveShakeClass, EffectiveShakeScale);
 		}
 	}
 

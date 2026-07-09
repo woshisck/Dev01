@@ -16,6 +16,7 @@ class AYogCharacterBase;
 class UAnimInstance;
 class UAnimMontage;
 class UAN_MeleeDamage;
+class UHitCueData;
 
 UCLASS()
 class DEVKIT_API UAN_MeleeDamageMontageCleanupBinding : public UObject
@@ -171,6 +172,14 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects|HitImpact")
 	FGameplayTag HitImpactCueTag;
+
+	/**
+	 * Optional per-notify visual payload for the hit cue. Passed to the cue via
+	 * SourceObject so one cue tag can produce different VFX/SFX/shake per attack.
+	 * Leave null to fall back to the cue class's own defaults.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects|HitImpact")
+	TObjectPtr<UHitCueData> HitImpactCueData;
 
 	// ── 附加效果 ───────────────────────────────────────────────────────────
 
