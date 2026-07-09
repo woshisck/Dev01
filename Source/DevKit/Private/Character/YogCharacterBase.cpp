@@ -17,6 +17,7 @@
 #include "SaveGame/YogSaveSubsystem.h"
 #include "System/YogGameInstanceBase.h"
 #include "Component/GameEffectComponent.h"
+#include "Component/HitImpactVisualComponent.h"
 #include "Component/CharacterDataComponent.h"
 #include "GameplayEffect.h"
 #include "Component/BufferComponent.h"
@@ -59,6 +60,7 @@ AYogCharacterBase::AYogCharacterBase(const FObjectInitializer& ObjectInitializer
 	PropInteractComponent = CreateDefaultSubobject<UPropInteractComponnet>(TEXT("PropInteractComponent"));
 
 	WidgetComponent = CreateDefaultSubobject<UWidgetComponent>(TEXT("UIWidgetComponent"));
+	HitImpactVisualComponent = CreateDefaultSubobject<UHitImpactVisualComponent>(TEXT("HitImpactVisualComponent"));
 
 	BaseAttributeSet = CreateDefaultSubobject<UBaseAttributeSet>(TEXT("BaseAttributeSet"));
 	DamageAttributeSet = CreateDefaultSubobject<UDamageAttributeSet>(TEXT("DamageAttributeSet"));
@@ -117,6 +119,14 @@ UYogAbilitySystemComponent* AYogCharacterBase::GetASC() const
 	//	return result;
 	//}
 	//return nullptr;
+}
+
+void AYogCharacterBase::PlayCosmeticHitPushFromLocation(const FVector& SourceLocation, float Strength)
+{
+	if (HitImpactVisualComponent)
+	{
+		HitImpactVisualComponent->PlayHitPushFromLocation(SourceLocation, Strength);
+	}
 }
 
 

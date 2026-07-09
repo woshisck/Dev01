@@ -12,6 +12,9 @@ class DEVKIT_API UGA_SwitchWeapon : public UGA_PlayMontage
 public:
 	UGA_SwitchWeapon(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
+	UFUNCTION(BlueprintCallable, Category = "Weapon")
+	bool TryCommitWeaponSwitch();
+
 	virtual bool CanActivateAbility(
 		const FGameplayAbilitySpecHandle Handle,
 		const FGameplayAbilityActorInfo* ActorInfo,

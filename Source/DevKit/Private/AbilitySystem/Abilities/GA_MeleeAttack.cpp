@@ -1681,6 +1681,18 @@ void UGA_MeleeAttack::ApplyHitReactions(AYogCharacterBase* Owner, const FYogGame
 	{
 		ApplyHitStop(Owner, HitActors);
 
+		APlayerCharacterBase* PlayerOwner = Cast<APlayerCharacterBase>(Owner);
+		if (PlayerOwner)
+		{
+			for (AActor* HitActor : HitActors)
+			{
+				if (AEnemyCharacterBase* HitEnemy = Cast<AEnemyCharacterBase>(HitActor))
+				{
+					HitEnemy->PlayCosmeticHitPushFromLocation(Owner->GetActorLocation());
+				}
+			}
+		}
+
 		static const FGameplayTag HitTag = FGameplayTag::RequestGameplayTag(TEXT("Ability.Event.Attack.Hit"));
 		for (AActor* HitActor : HitActors)
 		{
@@ -1690,7 +1702,7 @@ void UGA_MeleeAttack::ApplyHitReactions(AYogCharacterBase* Owner, const FYogGame
 			UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(Owner, HitTag, Payload);
 		}
 
-		if (APlayerCharacterBase* PlayerOwner = Cast<APlayerCharacterBase>(Owner))
+		if (PlayerOwner)
 		{
 			if (PlayerOwner->CombatItemComponent)
 			{

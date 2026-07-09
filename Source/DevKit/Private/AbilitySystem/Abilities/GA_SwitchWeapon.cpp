@@ -99,6 +99,24 @@ void UGA_SwitchWeapon::ActivateAbility(
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 }
 
+bool UGA_SwitchWeapon::TryCommitWeaponSwitch()
+{
+	if (bWeaponSwitchedThisActivation)
+	{
+		return false;
+	}
+
+	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(GetAvatarActorFromActorInfo());
+	if (!Player || !Player->CanSwitchWeapon())
+	{
+		return false;
+	}
+
+	Player->SwitchWeapon(bSwitchStartedInRecoveryWindow);
+	bWeaponSwitchedThisActivation = true;
+	return true;
+}
+
 void UGA_SwitchWeapon::EndAbility(
 	const FGameplayAbilitySpecHandle Handle,
 	const FGameplayAbilityActorInfo* ActorInfo,
@@ -113,17 +131,5 @@ void UGA_SwitchWeapon::EndAbility(
 
 void UGA_SwitchWeapon::HandleMontageEnded(bool bWasCancelled)
 {
-	if (bWasCancelled || bWeaponSwitchedThisActivation)
-	{
-		return;
-	}
-
-	if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(GetAvatarActorFromActorInfo()))
-	{
-		if (Player->CanSwitchWeapon())
-		{
-			Player->SwitchWeapon(bSwitchStartedInRecoveryWindow);
-			bWeaponSwitchedThisActivation = true;
-		}
-	}
+	TryCommitWeaponSwitch();
 }

@@ -67,6 +67,7 @@ class AWeaponInstance;
 class UCharacterData;
 class UPropInteractComponnet;
 class UWidgetComponent;
+class UHitImpactVisualComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCharacterDiedDelegate, AYogCharacterBase*, Character);
 DECLARE_MULTICAST_DELEGATE_OneParam(FCharacterDiedNativeDelegate, AYogCharacterBase*);
@@ -133,6 +134,9 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	TObjectPtr<UWidgetComponent> WidgetComponent;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat|Hit Impact")
+	TObjectPtr<UHitImpactVisualComponent> HitImpactVisualComponent;
+
 
 
 	UAttributeStatComponent* GetAttributeStatsComponent() const;
@@ -145,6 +149,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Character")
 	UYogAbilitySystemComponent* GetASC() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Combat|Hit Impact")
+	void PlayCosmeticHitPushFromLocation(const FVector& SourceLocation, float Strength = 1.0f);
 
 
 	UFUNCTION()
