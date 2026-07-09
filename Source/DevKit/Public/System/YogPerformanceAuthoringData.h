@@ -28,7 +28,7 @@ struct DEVKIT_API FYogMaterialTextureNamingRule
 	bool bRequirePowerOfTwo = true;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Performance|Material")
-	bool bPreferVirtualTextureForBatchedEnvironment = true;
+	bool bPreferVirtualTextureForBatchedEnvironment = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Performance|Material")
 	FString CompressionIntent;
@@ -50,7 +50,7 @@ public:
 	FString Schema = TEXT("DevKit.MaterialTextureNamingConvention.v1");
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Performance|Material")
-	FString RuleUsage = TEXT("MaterialBatch tools classify artist-provided unique textures into these canonical channels before VT atlas or baked texture generation.");
+	FString RuleUsage = TEXT("Material texture tools classify artist-provided textures into canonical channels. Ordinary scene model textures default to NoVT; only dedicated VTC/VT/BakeInfo or special large assets should opt into VT.");
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Performance|Material")
 	TArray<FYogMaterialTextureNamingRule> Rules;

@@ -280,7 +280,7 @@ bool FMaterialBatchBuildPlanEntriesTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Report includes material slot remap section"), ReportLines.Contains(TEXT("## Material Slot Remap")));
 	TestTrue(
 		TEXT("Report includes merge source transform"),
-		ReportLines.Contains(TEXT("| 0 | `Wall_A` | `StaticMeshComponent0` | `/Game/Art/Env/SM_Wall_A.SM_Wall_A` | 100.000,200.000,300.000 | 0.000,90.000,0.000 | 1.000,2.000,1.000 | 0 | 2 |")));
+		ReportLines.Contains(TEXT("| 0 | `Wall_A` | `StaticMeshComponent0` | `/Game/Art/Env/SM_Wall_A.SM_Wall_A` | No | 100.000,200.000,300.000 | 0.000,90.000,0.000 | 1.000,2.000,1.000 | 0 | 2 |")));
 	TestTrue(
 		TEXT("Report includes material slot to batch index remap"),
 		ReportLines.Contains(TEXT("| 0 | 1 | 1 |")));
@@ -301,6 +301,43 @@ bool FMaterialBatchBuildPlanEntriesTest::RunTest(const FString& Parameters)
 	TestTrue(
 		TEXT("Report includes rejected entry reason"),
 		ReportLines.Contains(TEXT("| MapComponent | `Door_A` | `StaticMeshComponent0` | `` | `(no static mesh)` | 0 | 0 |  | Rejected | NotStaticMeshComponent | -1 | 0 |")));
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMaterialBatchBuildPlanGroundSourcesBakeVertexColorsTest,
+	"DevKitEditor.MaterialBatch.BuildPlan.GroundSourcesBakeVertexColors",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FMaterialBatchBuildPlanGroundSourcesBakeVertexColorsTest::RunTest(const FString& Parameters)
+{
+	FMaterialBatchBuildPlanOptions Options;
+	Options.ClusterName = TEXT("Ground_Batch");
+
+	FMaterialBatchBuildPlan Plan = FMaterialBatchBuildPlanBuilder::CreateDryRunPlan(Options);
+
+	FMaterialBatchBuildPlannedEntry GroundEntry;
+	GroundEntry.SourceKind = TEXT("MapComponent");
+	GroundEntry.ActorName = TEXT("Ground_A");
+	GroundEntry.ComponentName = TEXT("StaticMeshComponent0");
+	GroundEntry.AssetPath = TEXT("/Game/Art/Env/SM_Ground_A.SM_Ground_A");
+	GroundEntry.MaterialSlotCount = 1;
+	GroundEntry.MaterialSlotNames = { TEXT("Ground") };
+	GroundEntry.MaterialPaths = { TEXT("/Game/Art/Materials/MI_Ground.MI_Ground") };
+	GroundEntry.EnvBatchTags = { TEXT("EnvBatch.Source.L1_Test.Ground.Batched.Ground.01") };
+	GroundEntry.bCandidate = true;
+
+	FMaterialBatchBuildPlanBuilder::ApplyPlannedEntries(Plan, { GroundEntry });
+
+	const FMaterialBatchBuildProxyMeshPayload Payload =
+		FMaterialBatchBuildPlanBuilder::BuildProxyMeshPayload(Plan);
+	TestEqual(TEXT("Proxy payload has one source"), Payload.Sources.Num(), 1);
+	TestTrue(TEXT("Ground.Batched source bakes component vertex colors"),
+		Payload.Sources.IsValidIndex(0) && Payload.Sources[0].bBakeInstanceVertexColors);
+
+	const TArray<FString> ReportLines = FMaterialBatchBuildPlanBuilder::BuildMarkdownReport(Plan);
+	TestTrue(TEXT("Report marks ground source vertex color bake"),
+		ReportLines.Contains(TEXT("| 0 | `Ground_A` | `StaticMeshComponent0` | `/Game/Art/Env/SM_Ground_A.SM_Ground_A` | Yes | 0.000,0.000,0.000 | 0.000,0.000,0.000 | 1.000,1.000,1.000 | 0 | 1 |")));
 
 	return true;
 }

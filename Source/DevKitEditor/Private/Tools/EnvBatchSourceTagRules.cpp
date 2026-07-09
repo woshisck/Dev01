@@ -7,7 +7,7 @@ constexpr const TCHAR* DefaultVTCGroup = TEXT("VTC-A");
 
 bool IsValidActorKindToken(const FString& Token)
 {
-	return Token == TEXT("Prop") || Token == TEXT("Building");
+	return Token == TEXT("Prop") || Token == TEXT("Building") || Token == TEXT("Ground");
 }
 
 bool IsValidProcessingModeToken(const FString& Token)

@@ -338,6 +338,7 @@ struct FMaterialBatchBuildProxyMeshSourcePayload
 	FString ActorName;
 	FString ComponentName;
 	FString StaticMeshPath;
+	bool bBakeInstanceVertexColors = false;
 	bool bHasWorldTransform = false;
 	FVector WorldLocation = FVector::ZeroVector;
 	FRotator WorldRotation = FRotator::ZeroRotator;

@@ -4,12 +4,15 @@
 #include "Components/PrimitiveComponent.h"
 #include "Components/RuntimeVirtualTextureComponent.h"
 #include "Editor.h"
+#include "Engine/Level.h"
 #include "Engine/Selection.h"
 #include "Engine/World.h"
 #include "FileHelpers.h"
+#include "GameFramework/Actor.h"
 #include "HAL/FileManager.h"
 #include "Misc/PackageName.h"
 #include "ScopedTransaction.h"
+#include "Tools/EnvBatchSourceTagRules.h"
 #include "UObject/UnrealType.h"
 #include "VT/RuntimeVirtualTexture.h"
 #include "VT/RuntimeVirtualTextureEnum.h"
@@ -43,6 +46,101 @@ namespace
 			return true;
 		}
 		return false;
+	}
+
+	FString InferLevelTokenFromBakeInfoFolder(const FString& BakeInfoFolder)
+	{
+		FString Normalized = BakeInfoFolder;
+		Normalized.TrimStartAndEndInline();
+		while (Normalized.EndsWith(TEXT("/")))
+		{
+			Normalized.LeftChopInline(1);
+		}
+
+		const FString ParentFolder = FPackageName::GetLongPackagePath(Normalized);
+		FString LevelToken = FPackageName::GetLongPackageAssetName(ParentFolder);
+		if (LevelToken.IsEmpty())
+		{
+			LevelToken = FPackageName::GetLongPackageAssetName(Normalized);
+		}
+		return SanitizeEnvBatchTagToken(LevelToken, TEXT("Level"));
+	}
+
+	int32 FindNextGroundBatchSerial(UWorld* World, const FEnvBatchSourceTagSpec& BaseSpec)
+	{
+		if (!World)
+		{
+			return 1;
+		}
+
+		const FString Prefix = BuildEnvBatchSourceTagPrefix(BaseSpec);
+		int32 MaxSerial = 0;
+		for (ULevel* Level : World->GetLevels())
+		{
+			if (!Level)
+			{
+				continue;
+			}
+
+			for (AActor* Actor : Level->Actors)
+			{
+				if (!Actor)
+				{
+					continue;
+				}
+
+				for (const FName& Tag : Actor->Tags)
+				{
+					const FString TagString = Tag.ToString();
+					if (!TagString.StartsWith(Prefix))
+					{
+						continue;
+					}
+
+					FEnvBatchSourceTagSpec ParsedSpec;
+					if (ParseEnvBatchSourceTag(TagString, ParsedSpec))
+					{
+						MaxSerial = FMath::Max(MaxSerial, ParsedSpec.SerialNumber);
+					}
+				}
+			}
+		}
+
+		return MaxSerial + 1;
+	}
+
+	FString BuildGroundBatchSourceTag(UWorld* World, const FDevKitLevelRVTPaths& Paths)
+	{
+		FEnvBatchSourceTagSpec Spec;
+		Spec.LevelName = InferLevelTokenFromBakeInfoFolder(Paths.BakeInfoFolder);
+		Spec.ActorKind = TEXT("Ground");
+		Spec.ProcessingMode = TEXT("Batched");
+		Spec.VTCGroup = TEXT("Ground");
+		Spec.bHasExplicitVTCGroup = true;
+		Spec.SerialNumber = FindNextGroundBatchSerial(World, Spec);
+		return BuildEnvBatchSourceTag(Spec);
+	}
+
+	int32 ApplyGroundBatchSourceTag(const TArray<AActor*>& Actors, const FString& SourceTag)
+	{
+		int32 TaggedActorCount = 0;
+		for (AActor* Actor : Actors)
+		{
+			if (!Actor)
+			{
+				continue;
+			}
+
+			Actor->Modify();
+			Actor->Tags.RemoveAll([](const FName& ExistingTag)
+			{
+				return IsEnvBatchSourceTagString(ExistingTag.ToString());
+			});
+			Actor->Tags.AddUnique(FName(*SourceTag));
+			Actor->MarkPackageDirty();
+			++TaggedActorCount;
+		}
+		return TaggedActorCount;
 	}
 
 	template <typename EnumType>
@@ -190,6 +288,8 @@ FDevKitLevelRVTResult FDevKitLevelRVTService::CreateGroundRVTForSelection(UWorld
 	}
 
 	const FScopedTransaction Transaction(LOCTEXT("CreateGroundRVTTransaction", "创建关卡地面 RVT"));
+	const FString GroundBatchSourceTag = BuildGroundBatchSourceTag(World, Paths.GetValue());
+	const int32 TaggedActorCount = ApplyGroundBatchSourceTag(Actors, GroundBatchSourceTag);
 
 	for (UPrimitiveComponent* Component : PrimitiveComponents)
 	{
@@ -230,19 +330,26 @@ FDevKitLevelRVTResult FDevKitLevelRVTService::CreateGroundRVTForSelection(UWorld
 	TArray<UPackage*> PackagesToSave{RuntimeVirtualTexture->GetPackage()};
 	UEditorLoadingAndSavingUtils::SavePackages(PackagesToSave, false);
 
-	return FDevKitLevelRVTResult{
-		true,
-		FText::Format(
-			LOCTEXT("CreateRVTSuccess", "已创建/绑定 {0}，处理 {1} 个 Actor、{2} 个组件。请确认材质包含 RVT Output/Sample，并保存关卡。"),
-			FText::FromString(Paths->RuntimeVirtualTexturePackage),
-			FText::AsNumber(Actors.Num()),
-			FText::AsNumber(PrimitiveComponents.Num())),
-		Paths.GetValue(),
-		Actors.Num(),
-		PrimitiveComponents.Num(),
-		RuntimeVirtualTexture,
-		Volume
-	};
+	FDevKitLevelRVTResult Result;
+	Result.bSuccess = true;
+	Result.Message = FText::Format(
+		LOCTEXT("CreateRVTSuccess", "已创建/绑定 {0}，处理 {1} 个 Actor、{2} 个组件，并写入地面合批 Tag：{3}。请确认材质包含 RVT Output/Sample，并保存关卡。"),
+		FText::FromString(Paths->RuntimeVirtualTexturePackage),
+		FText::AsNumber(Actors.Num()),
+		FText::AsNumber(PrimitiveComponents.Num()),
+		FText::FromString(GroundBatchSourceTag));
+	Result.Paths = Paths.GetValue();
+	Result.ActorCount = Actors.Num();
+	Result.PrimitiveComponentCount = PrimitiveComponents.Num();
+	Result.RuntimeVirtualTexture = RuntimeVirtualTexture;
+	Result.Volume = Volume;
+	Result.GroundBatchSourceTag = GroundBatchSourceTag;
+	ensureMsgf(
+		TaggedActorCount == Actors.Num(),
+		TEXT("Ground RVT tagged %d of %d actors."),
+		TaggedActorCount,
+		Actors.Num());
+	return Result;
 }
 
 bool FDevKitLevelRVTService::IsValidNameToken(const FString& Token)
