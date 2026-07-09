@@ -66,6 +66,24 @@ namespace
 		// 含 mip 链约 1.33x
 		return static_cast<int64>(NumBlocksX * NumBlocksY * BlockBytes) * 4 / 3;
 	}
+
+	bool IsLikelyDedicatedVirtualTexturePath(const FString& PackagePath)
+	{
+		return PackagePath.Contains(TEXT("/VT"), ESearchCase::IgnoreCase) ||
+			PackagePath.Contains(TEXT("/VTC"), ESearchCase::IgnoreCase) ||
+			PackagePath.Contains(TEXT("/VirtualTexture"), ESearchCase::IgnoreCase) ||
+			PackagePath.Contains(TEXT("/BakeInfo"), ESearchCase::IgnoreCase);
+	}
+
+	void RaiseAuditStatus(ETextureVTAuditStatus& Current, ETextureVTAuditStatus Candidate)
+	{
+		if (Candidate == ETextureVTAuditStatus::Blocked ||
+			(Candidate == ETextureVTAuditStatus::Warning && Current == ETextureVTAuditStatus::Pass) ||
+			(Candidate == ETextureVTAuditStatus::Pass && Current == ETextureVTAuditStatus::Info))
+		{
+			Current = Candidate;
+		}
+	}
 }
 
 bool STextureVTAuditWidget::IsPowerOfTwo(int32 V)
@@ -344,6 +362,52 @@ void STextureVTAuditWidget::EvaluateItem(FTextureVTAuditItem& Item) const
 {
 	Item.Recommendations.Reset();
 
+	{
+		const int32 AuditMaxSide = FMath::Max(Item.SizeX, Item.SizeY);
+		const bool bDedicatedVTPath = IsLikelyDedicatedVirtualTexturePath(Item.PackagePath);
+		const bool bTooLargeForVTC = AuditMaxSide > VTCMaxSize;
+
+		if (Item.bVirtualTextureStreaming)
+		{
+			if (!Item.bVTCCompatible)
+			{
+				Item.Status = ETextureVTAuditStatus::Blocked;
+				Item.Recommendations.Add(FText::Format(
+					LOCTEXT("VTBadFormat", "已开启 VT，但格式 {0} 不在当前 VTC/VT 白名单中；请关闭 VT 或调整压缩格式。"),
+					FText::FromString(Item.PixelFormat)));
+				return;
+			}
+
+			Item.Status = bDedicatedVTPath ? ETextureVTAuditStatus::Pass : ETextureVTAuditStatus::Warning;
+			Item.Recommendations.Add(bDedicatedVTPath
+				? LOCTEXT("DedicatedVTOn", "专用 VT/VTC/BakeInfo 路径贴图已开启 VT，可以继续用于专项流程。")
+				: LOCTEXT("RegularVTOn", "普通场景模型贴图默认不建议开启 VT；若不是专用 VTC/VT 资产，请关闭 VT。"));
+		}
+		else
+		{
+			Item.Status = ETextureVTAuditStatus::Pass;
+			Item.Recommendations.Add(LOCTEXT("RegularNoVTPass", "普通场景模型贴图默认保持 NoVT。只有地面 RVT 输出、专用 VTC/VT 或超大特殊资产再单独审查。"));
+		}
+
+		if (bTooLargeForVTC)
+		{
+			RaiseAuditStatus(Item.Status, ETextureVTAuditStatus::Warning);
+			Item.Recommendations.Add(FText::Format(
+				LOCTEXT("LargeTextureNoDefaultVT", "尺寸 {0} 超过 VTC 4K 单成员参考上限；普通贴图可保持 NoVT，但需要确认内存和平台 mip 预算。"),
+				FText::AsNumber(AuditMaxSide)));
+		}
+
+		if (!IsPowerOfTwo(Item.SizeX) || !IsPowerOfTwo(Item.SizeY))
+		{
+			Item.Recommendations.Add(LOCTEXT("NotPOTDefaultNoVT", "非 2 的幂次尺寸；普通 Texture2D 可以使用，但 mip、打包和专项 VT/VTC 流程仍建议 POT。"));
+		}
+		return;
+	}
+
+}
+
+#if 0
+
 	const int32 MaxSide = FMath::Max(Item.SizeX, Item.SizeY);
 	const bool bIsSmall = MaxSide < VTRecommendMinSize;
 	const bool bTooLargeForVTC = MaxSide > VTCMaxSize;
@@ -393,6 +457,8 @@ void STextureVTAuditWidget::EvaluateItem(FTextureVTAuditItem& Item) const
 		Item.Recommendations.Add(LOCTEXT("NotPOT", "非 2 的幂次尺寸，VT 效率最佳仍是 POT。"));
 	}
 }
+
+#endif
 
 void STextureVTAuditWidget::RebuildFilteredItems()
 {

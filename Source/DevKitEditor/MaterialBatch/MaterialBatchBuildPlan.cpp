@@ -134,6 +134,7 @@ struct FMaterialBatchBuildGeometryMergeSourcePlan
 	FString ActorName;
 	FString ComponentName;
 	FString StaticMeshPath;
+	bool bBakeInstanceVertexColors = false;
 	bool bHasWorldTransform = false;
 	FVector WorldLocation = FVector::ZeroVector;
 	FRotator WorldRotation = FRotator::ZeroRotator;
@@ -172,6 +173,29 @@ TArray<FMaterialBatchBuildPropertyTextureColumnPlan> GetPropertyTextureColumnPla
 	};
 }
 
+bool IsGroundBatchedSourceTag(const FString& TagString)
+{
+	TArray<FString> Parts;
+	TagString.ParseIntoArray(Parts, TEXT("."), true);
+	return (Parts.Num() == 6 || Parts.Num() == 7)
+		&& Parts[0] == TEXT("EnvBatch")
+		&& Parts[1] == TEXT("Source")
+		&& Parts[3] == TEXT("Ground")
+		&& Parts[4] == TEXT("Batched");
+}
+
+bool ShouldBakeInstanceVertexColors(const TArray<FString>& EnvBatchTags)
+{
+	for (const FString& EnvBatchTag : EnvBatchTags)
+	{
+		if (IsGroundBatchedSourceTag(EnvBatchTag))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 TArray<FMaterialBatchBuildGeometryMergeSourcePlan> BuildGeometryMergeSourcePlans(
 	const TArray<FMaterialBatchBuildPlannedEntry>& Entries)
 {
@@ -189,6 +213,7 @@ TArray<FMaterialBatchBuildGeometryMergeSourcePlan> BuildGeometryMergeSourcePlans
 		SourcePlan.ActorName = Entry.ActorName;
 		SourcePlan.ComponentName = Entry.ComponentName;
 		SourcePlan.StaticMeshPath = Entry.AssetPath;
+		SourcePlan.bBakeInstanceVertexColors = ShouldBakeInstanceVertexColors(Entry.EnvBatchTags);
 		SourcePlan.bHasWorldTransform = Entry.bHasWorldTransform;
 		SourcePlan.WorldLocation = Entry.WorldLocation;
 		SourcePlan.WorldRotation = Entry.WorldRotation;
@@ -1771,6 +1796,7 @@ FMaterialBatchBuildProxyMeshPayload FMaterialBatchBuildPlanBuilder::BuildProxyMe
 		SourcePayload.ActorName = GeometrySource.ActorName;
 		SourcePayload.ComponentName = GeometrySource.ComponentName;
 		SourcePayload.StaticMeshPath = GeometrySource.StaticMeshPath;
+		SourcePayload.bBakeInstanceVertexColors = GeometrySource.bBakeInstanceVertexColors;
 		SourcePayload.bHasWorldTransform = GeometrySource.bHasWorldTransform;
 		SourcePayload.WorldLocation = GeometrySource.WorldLocation;
 		SourcePayload.WorldRotation = GeometrySource.WorldRotation;
@@ -2409,24 +2435,26 @@ TArray<FString> FMaterialBatchBuildPlanBuilder::BuildMarkdownReport(const FMater
 	Lines.Add(TEXT("- Source coordinate space: `World`"));
 	Lines.Add(TEXT("- Material index channel: `TexCoord7.x`"));
 	Lines.Add(TEXT("- Material index encoding: `batchMaterialIndex` as one float per merged vertex"));
+	Lines.Add(TEXT("- Vertex color bake: `Ground.Batched` sources copy component OverrideVertexColors into the generated proxy mesh before append."));
 	Lines.Add(TEXT("- Merge granularity: `cluster`"));
 	Lines.Add(TEXT(""));
-	Lines.Add(TEXT("| SourceEntryIndex | Actor | Component | StaticMesh | Location | Rotation | Scale | FirstBatchMaterialIndex | BatchMaterialIndexCount |"));
-	Lines.Add(TEXT("| ---: | --- | --- | --- | --- | --- | --- | ---: | ---: |"));
+	Lines.Add(TEXT("| SourceEntryIndex | Actor | Component | StaticMesh | VertexColorBake | Location | Rotation | Scale | FirstBatchMaterialIndex | BatchMaterialIndexCount |"));
+	Lines.Add(TEXT("| ---: | --- | --- | --- | --- | --- | --- | --- | ---: | ---: |"));
 	if (GeometryMergeSources.IsEmpty())
 	{
-		Lines.Add(TEXT("| -1 | `` | `` | `` | 0,0,0 | 0,0,0 | 1,1,1 | -1 | 0 |"));
+		Lines.Add(TEXT("| -1 | `` | `` | `` | No | 0,0,0 | 0,0,0 | 1,1,1 | -1 | 0 |"));
 	}
 	else
 	{
 		for (const FMaterialBatchBuildGeometryMergeSourcePlan& SourcePlan : GeometryMergeSources)
 		{
 			Lines.Add(FString::Printf(
-				TEXT("| %d | `%s` | `%s` | `%s` | %.3f,%.3f,%.3f | %.3f,%.3f,%.3f | %.3f,%.3f,%.3f | %d | %d |"),
+				TEXT("| %d | `%s` | `%s` | `%s` | %s | %.3f,%.3f,%.3f | %.3f,%.3f,%.3f | %.3f,%.3f,%.3f | %d | %d |"),
 				SourcePlan.SourceEntryIndex,
 				SourcePlan.ActorName.IsEmpty() ? TEXT("") : *SourcePlan.ActorName,
 				SourcePlan.ComponentName.IsEmpty() ? TEXT("") : *SourcePlan.ComponentName,
 				SourcePlan.StaticMeshPath.IsEmpty() ? TEXT("") : *SourcePlan.StaticMeshPath,
+				SourcePlan.bBakeInstanceVertexColors ? TEXT("Yes") : TEXT("No"),
 				SourcePlan.WorldLocation.X,
 				SourcePlan.WorldLocation.Y,
 				SourcePlan.WorldLocation.Z,

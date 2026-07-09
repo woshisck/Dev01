@@ -24,7 +24,9 @@
 #include "Misc/PackageName.h"
 #include "Misc/Parse.h"
 #include "Modules/ModuleManager.h"
+#include "Rendering/ColorVertexBuffer.h"
 #include "StaticMeshAttributes.h"
+#include "StaticMeshComponentLODInfo.h"
 #include "StaticMeshOperations.h"
 #include "System/MaterialBatchMappingDataAsset.h"
 
@@ -565,6 +567,103 @@ bool WriteMaterialBatchIndicesToUv7(
 	return true;
 }
 
+UWorld* GetCurrentBatchBuildWorld()
+{
+	if (GEditor)
+	{
+		return GEditor->GetEditorWorldContext().World();
+	}
+	return nullptr;
+}
+
+UStaticMeshComponent* FindSourceStaticMeshComponent(const FMaterialBatchBuildProxyMeshSourcePayload& SourcePayload)
+{
+	UWorld* World = GetCurrentBatchBuildWorld();
+	if (!World)
+	{
+		return nullptr;
+	}
+
+	for (ULevel* Level : World->GetLevels())
+	{
+		if (!Level)
+		{
+			continue;
+		}
+
+		for (AActor* Actor : Level->Actors)
+		{
+			if (!Actor || Actor->GetActorNameOrLabel() != SourcePayload.ActorName)
+			{
+				continue;
+			}
+
+			TArray<UStaticMeshComponent*> Components;
+			Actor->GetComponents<UStaticMeshComponent>(Components);
+			for (UStaticMeshComponent* Component : Components)
+			{
+				if (!Component || Component->GetName() != SourcePayload.ComponentName)
+				{
+					continue;
+				}
+
+				const UStaticMesh* StaticMesh = Component->GetStaticMesh();
+				if (StaticMesh && StaticMesh->GetPathName() == SourcePayload.StaticMeshPath)
+				{
+					return Component;
+				}
+			}
+		}
+	}
+
+	return nullptr;
+}
+
+bool BakeComponentOverrideVertexColorsToMeshDescription(
+	const UStaticMeshComponent* SourceComponent,
+	FMeshDescription& SourceDescription,
+	FString& OutBakeStatus)
+{
+	if (!SourceComponent)
+	{
+		OutBakeStatus = TEXT("Source component not found.");
+		return false;
+	}
+
+	if (!SourceComponent->LODData.IsValidIndex(0) || !SourceComponent->LODData[0].OverrideVertexColors)
+	{
+		OutBakeStatus = TEXT("No component OverrideVertexColors; kept source mesh vertex colors.");
+		return true;
+	}
+
+	const FColorVertexBuffer* OverrideVertexColors = SourceComponent->LODData[0].OverrideVertexColors;
+	const int32 OverrideColorCount = static_cast<int32>(OverrideVertexColors->GetNumVertices());
+	const int32 VertexInstanceCount = SourceDescription.VertexInstances().Num();
+	if (OverrideColorCount != VertexInstanceCount)
+	{
+		OutBakeStatus = FString::Printf(
+			TEXT("OverrideVertexColors count mismatch. Component=%d MeshDescriptionVertexInstances=%d."),
+			OverrideColorCount,
+			VertexInstanceCount);
+		return false;
+	}
+
+	FStaticMeshAttributes Attributes(SourceDescription);
+	Attributes.Register(true);
+	TVertexInstanceAttributesRef<FVector4f> VertexInstanceColors = Attributes.GetVertexInstanceColors();
+
+	int32 ColorIndex = 0;
+	for (const FVertexInstanceID VertexInstanceID : SourceDescription.VertexInstances().GetElementIDs())
+	{
+		const FLinearColor LinearColor = FLinearColor::FromSRGBColor(OverrideVertexColors->VertexColor(ColorIndex));
+		VertexInstanceColors[VertexInstanceID] = FVector4f(LinearColor.R, LinearColor.G, LinearColor.B, LinearColor.A);
+		++ColorIndex;
+	}
+
+	OutBakeStatus = FString::Printf(TEXT("Baked %d component OverrideVertexColors."), OverrideColorCount);
+	return true;
+}
+
 bool SaveProxyMeshAsset(const FMaterialBatchBuildPlan& Plan, FString& OutObjectPath, FString& OutFailureReason)
 {
 	const FMaterialBatchBuildProxyMeshPayload Payload = FMaterialBatchBuildPlanBuilder::BuildProxyMeshPayload(Plan);
@@ -613,6 +712,25 @@ bool SaveProxyMeshAsset(const FMaterialBatchBuildPlan& Plan, FString& OutObjectP
 		{
 			OutFailureReason = FString::Printf(TEXT("could not write UV7.x batch material indices for `%s`"), *SourcePayload.StaticMeshPath);
 			return false;
+		}
+
+		if (SourcePayload.bBakeInstanceVertexColors)
+		{
+			FString VertexColorBakeStatus;
+			const UStaticMeshComponent* SourceComponent = FindSourceStaticMeshComponent(SourcePayload);
+			if (!BakeComponentOverrideVertexColorsToMeshDescription(SourceComponent, SourceDescription, VertexColorBakeStatus))
+			{
+				OutFailureReason = FString::Printf(
+					TEXT("could not bake component vertex colors for `%s` / `%s`: %s"),
+					*SourcePayload.ActorName,
+					*SourcePayload.ComponentName,
+					*VertexColorBakeStatus);
+				return false;
+			}
+			UE_LOG(LogTemp, Display, TEXT("MaterialBatchBuild vertex color bake: %s / %s: %s"),
+				*SourcePayload.ActorName,
+				*SourcePayload.ComponentName,
+				*VertexColorBakeStatus);
 		}
 
 		FStaticMeshOperations::FAppendSettings AppendSettings;

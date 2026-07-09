@@ -203,7 +203,7 @@ FYogMaterialTextureNamingRule MakeTextureNamingRule(
 	Rule.bSRGB = bSRGB;
 	Rule.RecommendedMaxTextureSize = RecommendedMaxTextureSize;
 	Rule.bRequirePowerOfTwo = true;
-	Rule.bPreferVirtualTextureForBatchedEnvironment = true;
+	Rule.bPreferVirtualTextureForBatchedEnvironment = false;
 	Rule.CompressionIntent = CompressionIntent;
 	Rule.Packing = Packing;
 	Rule.Notes = Notes;
@@ -565,7 +565,16 @@ FReply SMaterialTextureRulesWidget::CheckSelectedTextureNaming()
 				AddResultMessage(Result, EMaterialComplianceStatus::Warning, TEXT("尺寸不是 2 的幂；后续打包、mip 和 VT tile 规划建议使用 2 的幂。"));
 			}
 
-			if (Rule->bPreferVirtualTextureForBatchedEnvironment && !Texture->VirtualTextureStreaming)
+			if (Texture->VirtualTextureStreaming)
+			{
+				AddResultMessage(Result, EMaterialComplianceStatus::Warning, TEXT("普通场景模型贴图默认不建议开启 VT；仅专用 VTC/VT/BakeInfo 或特殊大贴图资产单独开启。"));
+			}
+			else
+			{
+				AddInfoMessage(Result, TEXT("普通场景模型贴图保持 NoVT，符合当前材质策略。"));
+			}
+
+			if (Rule->bPreferVirtualTextureForBatchedEnvironment && !Texture->VirtualTextureStreaming && Texture->GetSizeX() < 0)
 			{
 				AddInfoMessage(Result, TEXT("当前 unique 贴图未开启 VT 可以接受；正式打包链会生成合批 VT Atlas。若该贴图直接用于大面积环境材质，建议启用 VT。"));
 			}
@@ -672,9 +681,17 @@ void SMaterialTextureRulesWidget::SetStatus(const FText& InStatus) const
 FText SMaterialTextureRulesWidget::GetUsageText() const
 {
 	return LOCTEXT(
+		"UsageNoVT",
+		"使用方式：普通场景模型贴图默认保持 NoVT，材质检查器只检查命名、sRGB、尺寸、POT、材质参数和误开启 VT 的情况。地面 RVT Writer 使用非 VT 源贴图写入 RVT；专用 VTC/VT/BakeInfo 或特殊大贴图资产需要单独审查后再开启 VT。");
+}
+
+#if 0
+	return LOCTEXT(
 		"Usage",
 		"使用方式：美术继续提交单体 unique 贴图，不手工维护 atlas/UDIM。该窗口先检查贴图命名、sRGB、尺寸、VT 建议，以及材质是否暴露 Source/Baked/VT Atlas 所需参数。正式合批、VT Atlas、bake、替换和写资产仍统一在打包链执行。基础材质接口采用普通 UE 材质节点和材质实例参数完成：PC/Epic/High 可走 Source 主材 A/B/C 多层采样，Mid/Low 可切到 baked/VT Atlas 参数。");
 }
+
+#endif
 
 FText SMaterialTextureRulesWidget::GetResultsRichText() const
 {
@@ -797,7 +814,7 @@ UYogMaterialTextureNamingConvention* SMaterialTextureRulesWidget::LoadOrCreateDe
 	{
 		Convention->Modify();
 		Convention->Schema = TEXT("DevKit.MaterialTextureNamingConvention.v2");
-		Convention->RuleUsage = TEXT("Texture suffix, sRGB, size, and VT guidance for source materials before packaging-time VT atlas or baked texture generation.");
+		Convention->RuleUsage = TEXT("Texture suffix, sRGB, size, and NoVT guidance for scene materials. Ordinary model textures stay NoVT; only dedicated VTC/VT/BakeInfo or special large assets opt into VT.");
 		FillDefaultTextureNamingRules(Convention);
 		Convention->MarkPackageDirty();
 		Package->MarkPackageDirty();
@@ -858,6 +875,15 @@ void SMaterialTextureRulesWidget::EvaluateTextureAsset(
 		{
 			AddResultMessage(Result, EMaterialComplianceStatus::Warning, TEXT("尺寸不是 2 的幂；后续打包、mip 和 VT tile 规划建议使用 2 的幂。"));
 		}
+	}
+
+	if (Texture->VirtualTextureStreaming)
+	{
+		AddResultMessage(Result, EMaterialComplianceStatus::Warning, TEXT("普通场景模型贴图默认不建议开启 VT；仅专用 VTC/VT/BakeInfo 或特殊大贴图资产单独开启。"));
+	}
+	else if (Rule)
+	{
+		AddInfoMessage(Result, TEXT("普通场景模型贴图保持 NoVT，符合当前材质策略。"));
 	}
 
 	if (Result.Status == EMaterialComplianceStatus::Pass)

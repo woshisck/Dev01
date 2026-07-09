@@ -54,6 +54,36 @@ bool FEnvBatchSourceTagParsesNewAndLegacyTagsTest::RunTest(const FString& Parame
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEnvBatchSourceTagBuildsGroundBatchedTagsTest,
+	"DevKitEditor.MaterialBatch.EnvBatchSourceTag.BuildsGroundBatchedTags",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FEnvBatchSourceTagBuildsGroundBatchedTagsTest::RunTest(const FString& Parameters)
+{
+	FEnvBatchSourceTagSpec Spec;
+	Spec.LevelName = TEXT("L1_CommonLevel_Corridor_01a");
+	Spec.ActorKind = TEXT("Ground");
+	Spec.ProcessingMode = TEXT("Batched");
+	Spec.VTCGroup = TEXT("Ground");
+	Spec.bHasExplicitVTCGroup = true;
+	Spec.SerialNumber = 4;
+
+	const FString SourceTag = BuildEnvBatchSourceTag(Spec);
+	TestEqual(TEXT("Ground batched source tag includes the Ground VTC group"),
+		SourceTag,
+		FString(TEXT("EnvBatch.Source.L1_CommonLevel_Corridor_01a.Ground.Batched.Ground.04")));
+
+	FEnvBatchSourceTagSpec ParsedSpec;
+	TestTrue(TEXT("Ground batched source tag parses"), ParseEnvBatchSourceTag(SourceTag, ParsedSpec));
+	TestEqual(TEXT("Parsed actor kind"), ParsedSpec.ActorKind, FString(TEXT("Ground")));
+	TestEqual(TEXT("Parsed processing mode"), ParsedSpec.ProcessingMode, FString(TEXT("Batched")));
+	TestEqual(TEXT("Parsed VTC group"), ParsedSpec.VTCGroup, FString(TEXT("Ground")));
+	TestEqual(TEXT("Parsed serial"), ParsedSpec.SerialNumber, 4);
+	TestTrue(TEXT("Parsed ground tag records explicit VTC group"), ParsedSpec.bHasExplicitVTCGroup);
+
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEnvBatchSourceTagBuildsChannelSplitSharedPropVTCNamesTest,
 	"DevKitEditor.MaterialBatch.EnvBatchSourceTag.BuildsChannelSplitSharedPropVTCNames",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)

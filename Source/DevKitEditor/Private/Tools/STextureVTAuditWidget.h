@@ -85,6 +85,6 @@ private:
 	bool bShowBlocked = true;
 	bool bShowInfo = false;
 
-	int32 VTRecommendMinSize = 1024;
+	int32 VTRecommendMinSize = 8192;
 	int32 VTCMaxSize = 4096;
 };

@@ -42,7 +42,7 @@ void SDevKitLevelRVTWidget::Construct(const FArguments& InArgs)
 				.Padding(0.f, 8.f, 0.f, 12.f)
 				[
 					SNew(STextBlock)
-					.Text(LOCTEXT("Description", "选择地面/地形相关 Actor 后创建 RVT。工具会在 BakeInfo 下创建 Runtime Virtual Texture 资产，生成覆盖所选物体 Bounds 的 RVT Volume，并把选中组件加入 Draw in Virtual Textures。材质仍需项目地面材质支持 RVT Output/Sample。"))
+					.Text(LOCTEXT("Description", "选择地面/地形相关 Actor 后创建 RVT。工具会在 BakeInfo 下创建 Runtime Virtual Texture 资产，生成覆盖所选物体 Bounds 的 RVT Volume，把选中组件加入 Draw in Virtual Textures，并写入 EnvBatch.Source.<Level>.Ground.Batched.Ground.xx，后续关卡合批会尝试保留 Mesh Paint 顶点色。材质仍需项目地面材质支持 RVT Output/Sample。"))
 					.AutoWrapText(true)
 					.ColorAndOpacity(FSlateColor::UseSubduedForeground())
 				]
@@ -98,7 +98,7 @@ void SDevKitLevelRVTWidget::Construct(const FArguments& InArgs)
 					[
 						SNew(SButton)
 						.Text(LOCTEXT("CreateGroundRVT", "创建/绑定地面 RVT"))
-						.ToolTipText(LOCTEXT("CreateGroundRVTTooltip", "创建或复用 BakeInfo 下的 Runtime Virtual Texture，生成 RVT Volume，并给选中组件写入 Draw in Virtual Textures。"))
+						.ToolTipText(LOCTEXT("CreateGroundRVTTooltip", "创建或复用 BakeInfo 下的 Runtime Virtual Texture，生成 RVT Volume，给选中组件写入 Draw in Virtual Textures，并给选中 Actor 写入 Ground.Batched Source Tag。"))
 						.OnClicked(this, &SDevKitLevelRVTWidget::CreateGroundRVT)
 					]
 				]

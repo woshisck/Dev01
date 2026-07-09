@@ -31,6 +31,7 @@ struct FDevKitLevelRVTResult
 	int32 PrimitiveComponentCount = 0;
 	TWeakObjectPtr<URuntimeVirtualTexture> RuntimeVirtualTexture;
 	TWeakObjectPtr<ARuntimeVirtualTextureVolume> Volume;
+	FString GroundBatchSourceTag;
 };
 
 class FDevKitLevelRVTService

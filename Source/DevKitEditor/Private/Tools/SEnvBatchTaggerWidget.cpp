@@ -55,6 +55,20 @@ bool ActorHasTagString(const AActor* Actor, const FString& TagString)
 {
 	return Actor && Actor->Tags.Contains(FName(*TagString));
 }
+
+FString ActorKindToToken(EEnvBatchActorKind InActorKind)
+{
+	switch (InActorKind)
+	{
+	case EEnvBatchActorKind::Building:
+		return TEXT("Building");
+	case EEnvBatchActorKind::Ground:
+		return TEXT("Ground");
+	case EEnvBatchActorKind::Prop:
+	default:
+		return TEXT("Prop");
+	}
+}
 }
 
 void SEnvBatchTaggerWidget::Construct(const FArguments& InArgs)
@@ -177,6 +191,7 @@ void SEnvBatchTaggerWidget::Construct(const FArguments& InArgs)
 					]
 					+ SHorizontalBox::Slot()
 					.AutoWidth()
+					.Padding(0.f, 0.f, 16.f, 0.f)
 					[
 						SNew(SCheckBox)
 						.IsChecked(this, &SEnvBatchTaggerWidget::IsActorKindChecked, EEnvBatchActorKind::Building)
@@ -184,6 +199,17 @@ void SEnvBatchTaggerWidget::Construct(const FArguments& InArgs)
 						[
 							SNew(STextBlock)
 							.Text(LOCTEXT("KindBuilding", "建筑 Building"))
+						]
+					]
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					[
+						SNew(SCheckBox)
+						.IsChecked(this, &SEnvBatchTaggerWidget::IsActorKindChecked, EEnvBatchActorKind::Ground)
+						.OnCheckStateChanged(this, &SEnvBatchTaggerWidget::SetActorKind, EEnvBatchActorKind::Ground)
+						[
+							SNew(STextBlock)
+							.Text(LOCTEXT("KindGround", "地面 Ground"))
 						]
 					]
 				]
@@ -433,7 +459,7 @@ FString SEnvBatchTaggerWidget::BuildSourceTag() const
 {
 	FEnvBatchSourceTagSpec Spec;
 	Spec.LevelName = GetLevelName();
-	Spec.ActorKind = ActorKind == EEnvBatchActorKind::Prop ? TEXT("Prop") : TEXT("Building");
+	Spec.ActorKind = ActorKindToToken(ActorKind);
 	Spec.ProcessingMode = ProcessingMode == EEnvBatchProcessingMode::Instance ? TEXT("Instance") : TEXT("Batched");
 	Spec.VTCGroup = GetVTCGroup();
 	Spec.SerialNumber = GetSerialNumber();
@@ -445,7 +471,7 @@ FString SEnvBatchTaggerWidget::BuildSourceTagPrefix() const
 {
 	FEnvBatchSourceTagSpec Spec;
 	Spec.LevelName = GetLevelName();
-	Spec.ActorKind = ActorKind == EEnvBatchActorKind::Prop ? TEXT("Prop") : TEXT("Building");
+	Spec.ActorKind = ActorKindToToken(ActorKind);
 	Spec.ProcessingMode = ProcessingMode == EEnvBatchProcessingMode::Instance ? TEXT("Instance") : TEXT("Batched");
 	Spec.VTCGroup = GetVTCGroup();
 	Spec.bHasExplicitVTCGroup = true;
@@ -738,6 +764,10 @@ void SEnvBatchTaggerWidget::ApplySourceTagToControls(const FString& SourceTag)
 	{
 		ActorKind = EEnvBatchActorKind::Building;
 	}
+	else if (Spec.ActorKind == TEXT("Ground"))
+	{
+		ActorKind = EEnvBatchActorKind::Ground;
+	}
 
 	if (Spec.ProcessingMode == TEXT("Instance"))
 	{
@@ -854,7 +884,7 @@ FText SEnvBatchTaggerWidget::GetAssetReadinessSummaryText() const
 	const TArray<AActor*> Actors = GetSelectedActors();
 	if (Actors.IsEmpty())
 	{
-		return LOCTEXT("AssetReadinessNoSelection", "使用方式：输入或获取关卡名，选择物件/建筑、实例化/合批和共享 VTC 组，再给选中的 Actor 写入 Source Tag。地形不需要 EnvBatch 标记。");
+		return LOCTEXT("AssetReadinessNoSelection", "使用方式：输入或获取关卡名，选择 Prop/Building/Ground、Instance/Batched 和共享 VTC 组，再给选中的 Actor 写入 Source Tag。地面合批请使用 Ground.Batched，合批时会尝试保留关卡 Mesh Paint 顶点色。");
 	}
 
 	int32 SourceCount = 0;

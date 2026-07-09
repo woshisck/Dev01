@@ -19,7 +19,8 @@ struct FEnvBatchSourceTagListItem
 enum class EEnvBatchActorKind : uint8
 {
 	Prop,
-	Building
+	Building,
+	Ground
 };
 
 enum class EEnvBatchProcessingMode : uint8
