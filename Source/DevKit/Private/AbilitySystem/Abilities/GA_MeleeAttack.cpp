@@ -1749,21 +1749,26 @@ void UGA_MeleeAttack::ApplyHitReactions(AYogCharacterBase* Owner, const FYogGame
 
 	if (Owner->PendingHitImpactCueTag.IsValid())
 	{
-		if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
+		if (UYogAbilitySystemComponent* ASC = Owner->GetASC())
 		{
+			// The strongest hit of this swing drives the shake; RawMagnitude carries
+			// the final HP removed (post armor/shield) for the cue's damage->scale curve.
+			float SwingHealthDamage = 0.f;
+			FVector SwingHitLocation = FVector::ZeroVector;
+			const bool bHadDamage = ASC->ConsumeAccumulatedDealtDamage(SwingHealthDamage, SwingHitLocation);
+
 			FGameplayCueParameters CueParams;
 			CueParams.Instigator = Owner;
 			CueParams.EffectCauser = Owner;
 			CueParams.SourceObject = Owner->PendingHitImpactCueData.Get();
-			if (!HitActors.IsEmpty() && HitActors[0])
-			{
-				CueParams.Location = HitActors[0]->GetActorLocation();
-				CueParams.Normal = (HitActors[0]->GetActorLocation() - Owner->GetActorLocation()).GetSafeNormal();
-			}
-			else
-			{
-				CueParams.Location = Owner->GetActorLocation();
-			}
+			CueParams.RawMagnitude = SwingHealthDamage;
+
+			const FVector ImpactLocation = bHadDamage
+				? SwingHitLocation
+				: (!HitActors.IsEmpty() && HitActors[0] ? HitActors[0]->GetActorLocation() : Owner->GetActorLocation());
+			CueParams.Location = ImpactLocation;
+			CueParams.Normal = (ImpactLocation - Owner->GetActorLocation()).GetSafeNormal();
+
 			ASC->ExecuteGameplayCue(Owner->PendingHitImpactCueTag, CueParams);
 		}
 		Owner->PendingHitImpactCueTag = FGameplayTag();
@@ -1914,6 +1919,13 @@ void UGA_MeleeAttack::OnEventReceived(FGameplayTag EventTag, FGameplayEventData 
 		AttrSnapshot.PreCardAttack,
 		AttrSnapshot.PreCardAttackPower,
 		*GetNameSafe(CombatCardASC));
+
+	// ApplyEffectContainerSpec damages all targets synchronously; accumulate the
+	// strongest per-target HP loss so ApplyHitReactions fires one hit-impact cue per swing.
+	if (UYogAbilitySystemComponent* SourceASC = Cast<UYogAbilitySystemComponent>(GetAbilitySystemComponentFromActorInfo()))
+	{
+		SourceASC->BeginDealtDamageAccumulation();
+	}
 
 	const FYogGameplayEffectContainerSpec ContainerSpec = MakeEffectContainerSpec(EventTag, EventData, -1);
 	const TArray<FActiveGameplayEffectHandle> Handles = ApplyEffectContainerSpec(ContainerSpec);

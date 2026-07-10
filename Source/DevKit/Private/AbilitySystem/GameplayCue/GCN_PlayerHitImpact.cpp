@@ -81,7 +81,17 @@ bool AGCN_PlayerHitImpact::OnExecute_Implementation(AActor* Target, const FGamep
 		APlayerController* PC = UGameplayStatics::GetPlayerController(World, 0);
 		if (PC && PC->PlayerCameraManager)
 		{
-			PC->PlayerCameraManager->StartCameraShake(EffectiveShakeClass, EffectiveShakeScale);
+			// Parameters.RawMagnitude carries the swing's final HP loss (see GA_MeleeAttack).
+			float DamageScale = 1.f;
+			if (CueData)
+			{
+				const FRichCurve* Curve = CueData->DamageToShakeScale.GetRichCurveConst();
+				if (Curve && Curve->GetNumKeys() > 0)
+				{
+					DamageScale = Curve->Eval(Parameters.RawMagnitude);
+				}
+			}
+			PC->PlayerCameraManager->StartCameraShake(EffectiveShakeClass, EffectiveShakeScale * DamageScale);
 		}
 	}
 

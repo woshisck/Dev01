@@ -238,6 +238,11 @@ private:
 	bool bProcessingConflict = false;
 	bool bSuppressNextDamageFeedback = false;
 
+	// Per-swing hit-impact aggregation state (see BeginDealtDamageAccumulation).
+	bool bAccumulatingDealtDamage = false;
+	float AccumulatedMaxHealthDamage = 0.f;
+	FVector AccumulatedHitLocation = FVector::ZeroVector;
+
 	UPROPERTY(Transient)
 	TMap<FGameplayTag, TObjectPtr<UNiagaraComponent>> ActiveStatusNiagaraEffects;
 
@@ -364,6 +369,15 @@ public:
 	virtual void ReceiveDamage(UYogAbilitySystemComponent* SourceASC, float Damage, bool bSuppressHitReact = false, const FGameplayEffectContextHandle& DamageContext = FGameplayEffectContextHandle());
 	void SuppressNextDamageFeedback();
 	bool ConsumeSuppressNextDamageFeedback();
+
+	// ── Per-swing hit-impact aggregation ──────────────────────────────
+	// A single melee swing may damage several enemies synchronously; these let
+	// the source collect the strongest hit and fire one camera-shake cue per swing.
+	void BeginDealtDamageAccumulation();
+	// Reports final HP actually removed (post armor/shield) on one damaged target.
+	void ReportDealtHealthDamage(float HealthDamage, const FVector& HitLocation);
+	// Reads the strongest hit and resets; returns false if no damage was accumulated.
+	bool ConsumeAccumulatedDealtDamage(float& OutMaxHealthDamage, FVector& OutHitLocation);
 
 	/**
 	 * 玩家伤害日志（基础版，向后兼容）

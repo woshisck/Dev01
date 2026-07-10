@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
+#include "Curves/CurveFloat.h"
 #include "HitCueData.generated.h"
 
 class UNiagaraSystem;
@@ -42,6 +43,12 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HitImpact|CameraShake")
 	TSubclassOf<UCameraShakeBase> CameraShakeClass;
 
+	// Flat multiplier applied on top of the damage curve result.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HitImpact|CameraShake", meta = (ClampMin = "0.0"))
 	float CameraShakeScale = 1.f;
+
+	// Maps final HP removed (post armor/shield) to a shake scale. When empty, scale is 1.
+	// X = damage, Y = scale. Lets designers tune the light-hit vs heavy-hit falloff per weapon.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HitImpact|CameraShake")
+	FRuntimeFloatCurve DamageToShakeScale;
 };
