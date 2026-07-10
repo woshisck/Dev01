@@ -1,224 +1,224 @@
 {
-	"FileVersion": 3,
-	"EngineAssociation": "5.8",
-	"Category": "",
-	"Description": "",
-	"Modules": [
-		{
-			"Name": "DevKitShaders",
-			"Type": "Runtime",
-			"LoadingPhase": "PostConfigInit",
-			"AdditionalDependencies": [
-				"RenderCore"
-			]
-		},
-		{
-			"Name": "DevKit",
-			"Type": "Runtime",
-			"LoadingPhase": "Default",
-			"AdditionalDependencies": [
-				"Engine",
-				"GameplayAbilities",
-				"CoreUObject",
-				"ModularGameplayActors",
-				"ModularGameplay",
-				"GameFeatures",
-				"AIModule",
-				"UMG",
-				"DataRegistry"
-			]
-		},
-		{
-			"Name": "DevKitEditor",
-			"Type": "Editor",
-			"LoadingPhase": "Default",
-			"AdditionalDependencies": [
-				"CoreUObject",
-				"Blutility",
-				"AnimationBlueprintLibrary"
-			]
-		}
-	],
-	"Plugins": [
-		{
-			"Name": "ModelingToolsEditorMode",
-			"Enabled": true,
-			"TargetAllowList": [
-				"Editor"
-			]
-		},
-		{
-			"Name": "ModularGameplay",
-			"Enabled": true
-		},
-		{
-			"Name": "StateTree",
-			"Enabled": true
-		},
-		{
-			"Name": "GameplayStateTree",
-			"Enabled": true
-		},
-		{
-			"Name": "GameplayAbilities",
-			"Enabled": true
-		},
-		{
-			"Name": "ElectronicNodes",
-			"Enabled": true,
-			"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/content/5cb2a394d0c04e73891762be4cbd7216"
-		},
-		{
-			"Name": "Empty",
-			"Enabled": false
-		},
-		{
-			"Name": "GameFeatures",
-			"Enabled": true
-		},
-		{
-			"Name": "DataRegistry",
-			"Enabled": true
-		},
-		{
-			"Name": "ReplicationGraph",
-			"Enabled": true
-		},
-		{
-			"Name": "OnlineFramework",
-			"Enabled": true
-		},
-		{
-			"Name": "Gauntlet",
-			"Enabled": true
-		},
-		{
-			"Name": "AbilitySystemGameFeatureActions",
-			"Enabled": true
-		},
-		{
-			"Name": "CountDownTime",
-			"Enabled": true
-		},
-		{
-			"Name": "YogAnimSource",
-			"Enabled": true
-		},
-		{
-			"Name": "YogSFX",
-			"Enabled": true
-		},
-		{
-			"Name": "YogArt_VFX",
-			"Enabled": true
-		},
-		{
-			"Name": "YogArt_Material",
-			"Enabled": true
-		},
-		{
-			"Name": "GameplayGraph",
-			"Enabled": true
-		},
-		{
-			"Name": "GameplayBehaviorSmartObjects",
-			"Enabled": false
-		},
-		{
-			"Name": "MassAI",
-			"Enabled": false
-		},
-		{
-			"Name": "MassGameplay",
-			"Enabled": false
-		},
-		{
-			"Name": "TargetingSystem",
-			"Enabled": true
-		},
-		{
-			"Name": "PerformanceMonitor",
-			"Enabled": true
-		},
-		{
-			"Name": "GeometryScripting",
-			"Enabled": true
-		},
-		{
-			"Name": "AnimationLocomotionLibrary",
-			"Enabled": true
-		},
-		{
-			"Name": "AnimationWarping",
-			"Enabled": true
-		},
-		{
-			"Name": "ActorPalette",
-			"Enabled": true
-		},
-		{
-			"Name": "MotionWarping",
-			"Enabled": true
-		},
-		{
-			"Name": "CommonUI",
-			"Enabled": true
-		},
-		{
-			"Name": "ComboGraph",
-			"Enabled": false
-		},
-		{
-			"Name": "PythonScriptPlugin",
-			"Enabled": true
-		},
-		{
-			"Name": "EditorScriptingUtilities",
-			"Enabled": true
-		},
-		{
-			"Name": "ModelContextProtocol",
-			"Enabled": true,
-			"TargetAllowList": [
-				"Editor"
-			]
-		},
-		{
-			"Name": "AIAssistant",
-			"Enabled": true,
-			"TargetAllowList": [
-				"Editor"
-			]
-		},
-		{
-			"Name": "MCPClientToolset",
-			"Enabled": true,
-			"TargetAllowList": [
-				"Editor"
-			]
-		},
-		{
-			"Name": "WeaveLanguage",
-			"Enabled": true,
-			"TargetAllowList": [
-				"Editor"
-			]
-		},
-		{
-			"Name": "CelesLight",
-			"Enabled": true
-		},
-		{
-			"Name": "YogComboGraph",
-			"Enabled": true
-		},
-		{
-			"Name": "AllToolsets",
-			"Enabled": true
-		},
-		{
-			"Name": "AIModuleToolset",
-			"Enabled": true
-		}
-	]
+    "FileVersion":  3,
+    "EngineAssociation":  "Dev01-UE5.8",
+    "Category":  "",
+    "Description":  "",
+    "Modules":  [
+                    {
+                        "Name":  "DevKitShaders",
+                        "Type":  "Runtime",
+                        "LoadingPhase":  "PostConfigInit",
+                        "AdditionalDependencies":  [
+                                                       "RenderCore"
+                                                   ]
+                    },
+                    {
+                        "Name":  "DevKit",
+                        "Type":  "Runtime",
+                        "LoadingPhase":  "Default",
+                        "AdditionalDependencies":  [
+                                                       "Engine",
+                                                       "GameplayAbilities",
+                                                       "CoreUObject",
+                                                       "ModularGameplayActors",
+                                                       "ModularGameplay",
+                                                       "GameFeatures",
+                                                       "AIModule",
+                                                       "UMG",
+                                                       "DataRegistry"
+                                                   ]
+                    },
+                    {
+                        "Name":  "DevKitEditor",
+                        "Type":  "Editor",
+                        "LoadingPhase":  "Default",
+                        "AdditionalDependencies":  [
+                                                       "CoreUObject",
+                                                       "Blutility",
+                                                       "AnimationBlueprintLibrary"
+                                                   ]
+                    }
+                ],
+    "Plugins":  [
+                    {
+                        "Name":  "ModelingToolsEditorMode",
+                        "Enabled":  true,
+                        "TargetAllowList":  [
+                                                "Editor"
+                                            ]
+                    },
+                    {
+                        "Name":  "ModularGameplay",
+                        "Enabled":  true
+                    },
+                    {
+                        "Name":  "StateTree",
+                        "Enabled":  true
+                    },
+                    {
+                        "Name":  "GameplayStateTree",
+                        "Enabled":  true
+                    },
+                    {
+                        "Name":  "GameplayAbilities",
+                        "Enabled":  true
+                    },
+                    {
+                        "Name":  "ElectronicNodes",
+                        "Enabled":  true,
+                        "MarketplaceURL":  "com.epicgames.launcher://ue/marketplace/content/5cb2a394d0c04e73891762be4cbd7216"
+                    },
+                    {
+                        "Name":  "Empty",
+                        "Enabled":  false
+                    },
+                    {
+                        "Name":  "GameFeatures",
+                        "Enabled":  true
+                    },
+                    {
+                        "Name":  "DataRegistry",
+                        "Enabled":  true
+                    },
+                    {
+                        "Name":  "ReplicationGraph",
+                        "Enabled":  true
+                    },
+                    {
+                        "Name":  "OnlineFramework",
+                        "Enabled":  true
+                    },
+                    {
+                        "Name":  "Gauntlet",
+                        "Enabled":  true
+                    },
+                    {
+                        "Name":  "AbilitySystemGameFeatureActions",
+                        "Enabled":  true
+                    },
+                    {
+                        "Name":  "CountDownTime",
+                        "Enabled":  true
+                    },
+                    {
+                        "Name":  "YogAnimSource",
+                        "Enabled":  true
+                    },
+                    {
+                        "Name":  "YogSFX",
+                        "Enabled":  true
+                    },
+                    {
+                        "Name":  "YogArt_VFX",
+                        "Enabled":  true
+                    },
+                    {
+                        "Name":  "YogArt_Material",
+                        "Enabled":  true
+                    },
+                    {
+                        "Name":  "GameplayGraph",
+                        "Enabled":  true
+                    },
+                    {
+                        "Name":  "GameplayBehaviorSmartObjects",
+                        "Enabled":  false
+                    },
+                    {
+                        "Name":  "MassAI",
+                        "Enabled":  false
+                    },
+                    {
+                        "Name":  "MassGameplay",
+                        "Enabled":  false
+                    },
+                    {
+                        "Name":  "TargetingSystem",
+                        "Enabled":  true
+                    },
+                    {
+                        "Name":  "PerformanceMonitor",
+                        "Enabled":  true
+                    },
+                    {
+                        "Name":  "GeometryScripting",
+                        "Enabled":  true
+                    },
+                    {
+                        "Name":  "AnimationLocomotionLibrary",
+                        "Enabled":  true
+                    },
+                    {
+                        "Name":  "AnimationWarping",
+                        "Enabled":  true
+                    },
+                    {
+                        "Name":  "ActorPalette",
+                        "Enabled":  true
+                    },
+                    {
+                        "Name":  "MotionWarping",
+                        "Enabled":  true
+                    },
+                    {
+                        "Name":  "CommonUI",
+                        "Enabled":  true
+                    },
+                    {
+                        "Name":  "ComboGraph",
+                        "Enabled":  false
+                    },
+                    {
+                        "Name":  "PythonScriptPlugin",
+                        "Enabled":  true
+                    },
+                    {
+                        "Name":  "EditorScriptingUtilities",
+                        "Enabled":  true
+                    },
+                    {
+                        "Name":  "ModelContextProtocol",
+                        "Enabled":  true,
+                        "TargetAllowList":  [
+                                                "Editor"
+                                            ]
+                    },
+                    {
+                        "Name":  "AIAssistant",
+                        "Enabled":  true,
+                        "TargetAllowList":  [
+                                                "Editor"
+                                            ]
+                    },
+                    {
+                        "Name":  "MCPClientToolset",
+                        "Enabled":  true,
+                        "TargetAllowList":  [
+                                                "Editor"
+                                            ]
+                    },
+                    {
+                        "Name":  "WeaveLanguage",
+                        "Enabled":  true,
+                        "TargetAllowList":  [
+                                                "Editor"
+                                            ]
+                    },
+                    {
+                        "Name":  "CelesLight",
+                        "Enabled":  true
+                    },
+                    {
+                        "Name":  "YogComboGraph",
+                        "Enabled":  true
+                    },
+                    {
+                        "Name":  "AllToolsets",
+                        "Enabled":  true
+                    },
+                    {
+                        "Name":  "AIModuleToolset",
+                        "Enabled":  true
+                    }
+                ]
 }
