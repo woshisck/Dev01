@@ -19,6 +19,11 @@ bool FDevKitLevelRVTInfersBakeInfoFolderTest::RunTest(const FString& Parameters)
 		FDevKitLevelRVTService::InferBakeInfoFolderFromWorldPackage(TEXT("/Game/Art/Map/Map_Data/L1_CommonLevel_Corridor_S_Goth/LevelAsset/L1_CommonLevel_Corridor_S_Goth_Art")),
 		FString(TEXT("/Game/Art/Map/Map_Data/L1_CommonLevel_Corridor_S_Goth/BakeInfo")));
 
+	TestEqual(
+		TEXT("Sublevel under LevelAsset resolves to DataBake sublevel"),
+		FDevKitLevelRVTService::InferDataBakeLevelPackageFromWorldPackage(TEXT("/Game/Art/Map/Map_Data/L1_CommonLevel_Corridor_S_Goth/LevelAsset/L1_CommonLevel_Corridor_S_Goth_Art")),
+		FString(TEXT("/Game/Art/Map/Map_Data/L1_CommonLevel_Corridor_S_Goth/LevelAsset/L1_CommonLevel_Corridor_S_Goth_DataBake")));
+
 	return true;
 }
 
@@ -30,7 +35,8 @@ bool FDevKitLevelRVTBuildsGroundAssetPathsTest::RunTest(const FString& Parameter
 {
 	const FDevKitLevelRVTRequest Request{
 		TEXT("/Game/Art/Map/Map_Data/L1_CommonLevel_Corridor_S_Goth/BakeInfo"),
-		TEXT("RVT_L1_CommonLevel_Corridor_S_Goth_Ground")
+		TEXT("RVT_L1_CommonLevel_Corridor_S_Goth_Ground"),
+		TEXT("EnvBatch.Source.L1_CommonLevel_Corridor_S_Goth.Ground.Batched.01")
 	};
 
 	FText Error;
@@ -45,6 +51,7 @@ bool FDevKitLevelRVTBuildsGroundAssetPathsTest::RunTest(const FString& Parameter
 	TestEqual(TEXT("BakeInfo folder"), Paths->BakeInfoFolder, FString(TEXT("/Game/Art/Map/Map_Data/L1_CommonLevel_Corridor_S_Goth/BakeInfo")));
 	TestEqual(TEXT("RVT asset name"), Paths->RuntimeVirtualTextureName, FString(TEXT("RVT_L1_CommonLevel_Corridor_S_Goth_Ground")));
 	TestEqual(TEXT("RVT package"), Paths->RuntimeVirtualTexturePackage, FString(TEXT("/Game/Art/Map/Map_Data/L1_CommonLevel_Corridor_S_Goth/BakeInfo/RVT_L1_CommonLevel_Corridor_S_Goth_Ground")));
+	TestEqual(TEXT("DataBake level package"), Paths->DataBakeLevelPackage, FString(TEXT("/Game/Art/Map/Map_Data/L1_CommonLevel_Corridor_S_Goth/LevelAsset/L1_CommonLevel_Corridor_S_Goth_DataBake")));
 	TestEqual(TEXT("Volume actor name"), Paths->VolumeActorName, FString(TEXT("RVT_L1_CommonLevel_Corridor_S_Goth_Ground_Volume")));
 
 	return true;
@@ -60,6 +67,29 @@ bool FDevKitLevelRVTBuildsDefaultAssetNameTest::RunTest(const FString& Parameter
 		TEXT("Default name uses map folder"),
 		FDevKitLevelRVTService::BuildDefaultGroundRVTNameFromWorldPackage(TEXT("/Game/Art/Map/Map_Data/L2_EliteLevel_Prison_01/LevelAsset/L2_EliteLevel_Prison_01_Art")),
 		FString(TEXT("RVT_L2_EliteLevel_Prison_01_Ground")));
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDevKitLevelRVTBuildsLayoutAssetNamesTest,
+	"DevKitEditor.LevelRVT.BuildsLayoutAssetNames",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FDevKitLevelRVTBuildsLayoutAssetNamesTest::RunTest(const FString& Parameters)
+{
+	const FString BaseName(TEXT("RVT_L1_CommonLevel_Test_Ground"));
+	TestEqual(
+		TEXT("Default layout keeps the base asset name"),
+		FDevKitLevelRVTService::BuildAssetNameForLayout(BaseName, EDevKitLevelRVTLayout::BaseColorNormalRoughness),
+		BaseName);
+	TestEqual(
+		TEXT("Mask4 layout gets a stable suffix"),
+		FDevKitLevelRVTService::BuildAssetNameForLayout(BaseName, EDevKitLevelRVTLayout::Mask4),
+		BaseName + TEXT("_Mask4"));
+	TestEqual(
+		TEXT("World height layout gets a stable suffix"),
+		FDevKitLevelRVTService::BuildAssetNameForLayout(BaseName, EDevKitLevelRVTLayout::WorldHeight),
+		BaseName + TEXT("_WorldHeight"));
 
 	return true;
 }

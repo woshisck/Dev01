@@ -75,6 +75,10 @@ struct FYogGraphicsSettings
 	int32 DynamicOverlayQuality = 3;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Graphics", meta = (ClampMin = "0", ClampMax = "3"))
+	int32 TextureCollectionQuality = 3;
+
+	// Deprecated compatibility field for old saves and Blueprint pins. New texture sharing uses ordinary TextureCollection, not VT atlas.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Graphics", meta = (ClampMin = "0", ClampMax = "3", DeprecatedProperty, DeprecationMessage = "Use TextureCollectionQuality. Ordinary scene textures stay NoVT; only ground RVT uses virtual textures."))
 	int32 VTAtlasQuality = 3;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Graphics", meta = (ClampMin = "0", ClampMax = "3"))

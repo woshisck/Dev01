@@ -22,7 +22,7 @@ bool FYogPerformanceSettingsCustomClampTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("Lumen Lite toggle is applied"), CustomSettings.bUseLumenLite);
 	TestTrue(TEXT("Batch proxy preference toggle is applied"), CustomSettings.bPreferBatchedGeometryProxies);
 	TestEqual(TEXT("Custom settings preserve material quality"), CustomSettings.MaterialQuality, BaseSettings.MaterialQuality);
-	TestEqual(TEXT("Custom settings preserve VT atlas quality"), CustomSettings.VTAtlasQuality, BaseSettings.VTAtlasQuality);
+	TestEqual(TEXT("Custom settings preserve texture collection quality"), CustomSettings.TextureCollectionQuality, BaseSettings.TextureCollectionQuality);
 
 	return true;
 }
@@ -42,7 +42,7 @@ bool FYogPerformanceTargetTierTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("Epic keeps VSM disabled"), Epic.bUseVirtualShadowMaps);
 	TestFalse(TEXT("Epic is source-biased"), Epic.bPreferBatchedGeometryProxies);
 	TestEqual(TEXT("Epic uses the highest material quality"), Epic.MaterialQuality, 3);
-	TestEqual(TEXT("Epic uses the highest VT atlas quality"), Epic.VTAtlasQuality, 3);
+	TestEqual(TEXT("Epic uses the highest texture collection quality"), Epic.TextureCollectionQuality, 3);
 	TestEqual(TEXT("Epic maps to UE material quality Epic"), UYogPerformanceSettingsLibrary::GetNativeMaterialQualityLevelForProjectMaterialQuality(Epic.MaterialQuality), 3);
 
 	const FYogGraphicsSettings High =
@@ -52,7 +52,7 @@ bool FYogPerformanceTargetTierTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("High keeps Lumen enabled"), High.bUseLumenLite);
 	TestFalse(TEXT("High is still source-biased by default"), High.bPreferBatchedGeometryProxies);
 	TestEqual(TEXT("High uses high material quality"), High.MaterialQuality, 2);
-	TestEqual(TEXT("High uses high VT atlas quality"), High.VTAtlasQuality, 2);
+	TestEqual(TEXT("High uses high texture collection quality"), High.TextureCollectionQuality, 2);
 	TestEqual(TEXT("High maps to UE material quality High"), UYogPerformanceSettingsLibrary::GetNativeMaterialQualityLevelForProjectMaterialQuality(High.MaterialQuality), 1);
 
 	const FYogGraphicsSettings Mid =
@@ -64,7 +64,7 @@ bool FYogPerformanceTargetTierTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Mid keeps local exposure available through the High post process tier"), Mid.PostProcessQuality, 2);
 	TestTrue(TEXT("Mid prefers batch proxies"), Mid.bPreferBatchedGeometryProxies);
 	TestEqual(TEXT("Mid uses standard material quality"), Mid.MaterialQuality, 1);
-	TestEqual(TEXT("Mid uses standard VT atlas quality"), Mid.VTAtlasQuality, 1);
+	TestEqual(TEXT("Mid uses standard texture collection quality"), Mid.TextureCollectionQuality, 1);
 	TestEqual(TEXT("Mid maps to UE material quality Medium"), UYogPerformanceSettingsLibrary::GetNativeMaterialQualityLevelForProjectMaterialQuality(Mid.MaterialQuality), 2);
 
 	const FYogGraphicsSettings Low =
@@ -103,7 +103,8 @@ bool FYogMaterialPerformanceInterfaceTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Epic material interface keeps two runtime overlay layers"), Epic.MaxRuntimeOverlayLayers, 2);
 	TestTrue(TEXT("Epic material interface prefers source master material"), Epic.bPreferSourceMasterMaterial);
 	TestFalse(TEXT("Epic material interface does not prefer baked material"), Epic.bPreferBakedMaterial);
-	TestTrue(TEXT("Epic material interface uses VT atlas"), Epic.bUseVTAtlas);
+	TestTrue(TEXT("Epic material interface uses texture collection"), Epic.bUseTextureCollection);
+	TestFalse(TEXT("Epic material interface does not use legacy VT atlas"), Epic.bUseVTAtlas);
 
 	const FYogMaterialPerformanceTierInterface High =
 		UYogPerformanceSettingsLibrary::GetMaterialPerformanceInterfaceForTargetTier(EYogPerformanceTargetTier::High);

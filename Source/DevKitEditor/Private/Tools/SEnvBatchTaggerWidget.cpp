@@ -9,6 +9,7 @@
 #include "ScopedTransaction.h"
 #include "Styling/AppStyle.h"
 #include "Tools/EnvBatchSourceTagRules.h"
+#include "Tools/DevKitArtToolUI.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SEditableTextBox.h"
@@ -87,17 +88,9 @@ void SEnvBatchTaggerWidget::Construct(const FArguments& InArgs)
 				+ SVerticalBox::Slot()
 				.AutoHeight()
 				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("Title", "环境合批 Actor 标记工具"))
-					.Font(FAppStyle::GetFontStyle(TEXT("DetailsView.CategoryFontStyle")))
-				]
-				+ SVerticalBox::Slot()
-				.AutoHeight()
-				.Padding(0.f, 8.f, 0.f, 12.f)
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("Description", "这里只写入普通 Actor Tags，不创建 GameplayTags，不合并模型，也不改材质。每个 Actor 同一时间只保留一个 EnvBatch.Source.* 标记。"))
-					.AutoWrapText(true)
+					DevKitArtToolUI::MakeHeader(
+						LOCTEXT("Title", "环境合批标记"),
+						LOCTEXT("Description", "为场景 Actor 写入统一的 EnvBatch.Source.* 标记。此工具不创建 GameplayTags、不合并模型，也不修改材质。"))
 				]
 				+ SVerticalBox::Slot()
 				.AutoHeight()
@@ -113,6 +106,10 @@ void SEnvBatchTaggerWidget::Construct(const FArguments& InArgs)
 					SNew(STextBlock)
 					.Text(this, &SEnvBatchTaggerWidget::GetAssetReadinessSummaryText)
 					.AutoWrapText(true)
+				]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 0.f, 0.f, 8.f)
+				[
+					DevKitArtToolUI::MakeSectionHeader(1, LOCTEXT("BatchNameSection", "定义关卡与共享组"), LOCTEXT("BatchNameSectionDesc", "关卡名和共享贴图集合组用于归类同一批场景资产。"))
 				]
 				+ SVerticalBox::Slot()
 				.AutoHeight()
@@ -142,20 +139,13 @@ void SEnvBatchTaggerWidget::Construct(const FArguments& InArgs)
 						.Text(LOCTEXT("UseCurrentLevel", "获取当前关卡名"))
 						.OnClicked(this, &SEnvBatchTaggerWidget::UseCurrentLevelName)
 					]
-					+ SHorizontalBox::Slot()
-					.AutoWidth()
-					[
-						SNew(SButton)
-						.Text(LOCTEXT("NextSerial", "下一个流水号"))
-						.OnClicked(this, &SEnvBatchTaggerWidget::UseNextSerialNumber)
-					]
 				]
 				+ SVerticalBox::Slot()
 				.AutoHeight()
 				.Padding(0.f, 0.f, 0.f, 8.f)
 				[
 					SNew(STextBlock)
-					.Text(LOCTEXT("VTCGroupLabel", "共享 VTC 组"))
+					.Text(LOCTEXT("VTCGroupLabel", "共享贴图集合组"))
 				]
 				+ SVerticalBox::Slot()
 				.AutoHeight()
@@ -163,7 +153,11 @@ void SEnvBatchTaggerWidget::Construct(const FArguments& InArgs)
 				[
 					SAssignNew(VTCGroupTextBox, SEditableTextBox)
 					.Text(FText::FromString(GetDefaultEnvBatchVTCGroup()))
-					.HintText(LOCTEXT("VTCGroupHint", "VTC-A、VTC-B... 同一组可跨多个流水号共享 SharedProp VTC"))
+					.HintText(LOCTEXT("VTCGroupHint", "TC-A、TC-B... 同一组可跨多个流水号共享 Texture Collection"))
+				]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 0.f, 0.f, 8.f)
+				[
+					DevKitArtToolUI::MakeSectionHeader(2, LOCTEXT("ClassificationSection", "设置分类、处理方式与流水号"), LOCTEXT("ClassificationSectionDesc", "对象类型、处理方式和手动填写的 01/02 流水号会写入 Tag，作为后续流程的筛选依据。"))
 				]
 				+ SVerticalBox::Slot()
 				.AutoHeight()
@@ -262,7 +256,11 @@ void SEnvBatchTaggerWidget::Construct(const FArguments& InArgs)
 				[
 					SAssignNew(SerialNumberTextBox, SEditableTextBox)
 					.Text(LOCTEXT("DefaultSerial", "01"))
-					.HintText(LOCTEXT("SerialHint", "01、02、03..."))
+					.HintText(LOCTEXT("SerialHint", "手动填写：01、02、03..."))
+				]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 0.f, 0.f, 8.f)
+				[
+					DevKitArtToolUI::MakeSectionHeader(3, LOCTEXT("WriteSection", "预览、写入与管理"), LOCTEXT("WriteSectionDesc", "确认预览 Tag 后写入当前选择；下方列表用于选择已有批次、回填参数或移除标记。"))
 				]
 				+ SVerticalBox::Slot()
 				.AutoHeight()
@@ -649,31 +647,6 @@ FReply SEnvBatchTaggerWidget::UseCurrentLevelName()
 	return FReply::Handled();
 }
 
-FReply SEnvBatchTaggerWidget::UseNextSerialNumber()
-{
-	RefreshSourceTagList();
-
-	const FString Prefix = BuildSourceTagPrefix();
-	int32 MaxSerial = 0;
-	for (const FSourceTagItemPtr& Item : SourceTagItems)
-	{
-		if (!Item.IsValid() || !Item->Tag.StartsWith(Prefix))
-		{
-			continue;
-		}
-
-		const FString SerialPart = Item->Tag.RightChop(Prefix.Len());
-		MaxSerial = FMath::Max(MaxSerial, FCString::Atoi(*SerialPart));
-	}
-
-	if (SerialNumberTextBox.IsValid())
-	{
-		SerialNumberTextBox->SetText(FText::FromString(FString::Printf(TEXT("%02d"), MaxSerial + 1)));
-	}
-
-	return FReply::Handled();
-}
-
 void SEnvBatchTaggerWidget::RefreshSourceTagList()
 {
 	TMap<FString, int32> TagCounts;
@@ -884,7 +857,7 @@ FText SEnvBatchTaggerWidget::GetAssetReadinessSummaryText() const
 	const TArray<AActor*> Actors = GetSelectedActors();
 	if (Actors.IsEmpty())
 	{
-		return LOCTEXT("AssetReadinessNoSelection", "使用方式：输入或获取关卡名，选择 Prop/Building/Ground、Instance/Batched 和共享 VTC 组，再给选中的 Actor 写入 Source Tag。地面合批请使用 Ground.Batched，合批时会尝试保留关卡 Mesh Paint 顶点色。");
+		return LOCTEXT("AssetReadinessNoSelection", "使用方式：输入或获取关卡名，选择 Prop/Building/Ground、Instance/Batched 和共享贴图集合组，再给选中的 Actor 写入 Source Tag。地面合批请使用 Ground.Batched，合批时会尝试保留关卡 Mesh Paint 顶点色。");
 	}
 
 	int32 SourceCount = 0;

@@ -234,7 +234,7 @@ FDevKitLevelBatchCommand FDevKitLevelBatchService::BuildPartialApplyCommand(cons
 
 	const FString SanitizedTierName = TierName.IsEmpty() ? TEXT("Mid") : TierName;
 	Command.Arguments = FString::Printf(
-		TEXT("\"%s\" -run=MaterialBatchBuild -Map=%s -Cluster=%s -Tier=%s -TextureBackend=VTAtlas -RequireTag=%s -OutputRoot=%s -ApplyVTAtlasOnly -ApplyMappingOnly -ApplyPropertyTextureOnly -ApplyProxyMeshOnly -ApplyBatchMaterialOnly -unattended -nopause -NoSound -NullRHI"),
+		TEXT("\"%s\" -run=MaterialBatchBuild -Map=%s -Cluster=%s -Tier=%s -RequireTag=%s -OutputRoot=%s -unattended -nopause -NoSound -NullRHI"),
 		*GetProjectFilePath(),
 		*Paths.PersistentMapPackage,
 		*Paths.LevelName,
@@ -250,6 +250,14 @@ bool FDevKitLevelBatchService::LaunchPartialApplyCommand(const FDevKitLevelBatch
 	IFileManager::Get().MakeDirectory(*PackageFolderToContentPath(Paths.BatchedAssetFolder), true);
 
 	const FDevKitLevelBatchCommand Command = BuildPartialApplyCommand(Paths, TierName);
+	OutMessage = FString::Printf(
+		TEXT("Texture Collection batch generation is not enabled yet for %s. Old VTAtlas partial apply was intentionally blocked. Dry-run command: & \"%s\" %s"),
+		*Paths.LevelName,
+		*Command.EditorCmdPath,
+		*Command.Arguments);
+	return false;
+
+#if 0
 	FProcHandle ProcHandle = FPlatformProcess::CreateProc(
 		*Command.EditorCmdPath,
 		*Command.Arguments,
@@ -270,6 +278,7 @@ bool FDevKitLevelBatchService::LaunchPartialApplyCommand(const FDevKitLevelBatch
 	FPlatformProcess::CloseProc(ProcHandle);
 	OutMessage = FString::Printf(TEXT("Started MaterialBatchBuild for %s. OutputRoot=%s"), *Paths.LevelName, *Paths.BatchedAssetFolder);
 	return true;
+#endif
 }
 
 bool FDevKitLevelBatchService::WriteReviewStatus(const FDevKitLevelBatchPaths& Paths, EDevKitLevelBatchReviewStatus Status, FString& OutError)

@@ -6,23 +6,25 @@
 #include "Editor.h"
 #include "Engine/Texture2D.h"
 #include "IContentBrowserSingleton.h"
-#include "Misc/PackageName.h"
 #include "PixelFormat.h"
-#include "PropertyCustomizationHelpers.h"
 #include "Styling/AppStyle.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "TextureCompiler.h"
+#include "Misc/MessageDialog.h"
+#include "ScopedTransaction.h"
+#include "Tools/DevKitArtToolUI.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Input/SSpinBox.h"
 #include "Widgets/Layout/SBorder.h"
-#include "Widgets/Layout/SScrollBox.h"
-#include "Widgets/Layout/SSeparator.h"
 #include "Widgets/SBoxPanel.h"
+#include "Widgets/SNullWidget.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Widgets/Views/SHeaderRow.h"
+#include "Widgets/Views/STableRow.h"
 
-#define LOCTEXT_NAMESPACE "DevKitTextureVTAudit"
+#define LOCTEXT_NAMESPACE "DevKitTextureNoVTAudit"
 
 namespace
 {
@@ -30,12 +32,12 @@ namespace
 	const FName ColumnName(TEXT("Name"));
 	const FName ColumnSize(TEXT("Size"));
 	const FName ColumnFormat(TEXT("Format"));
-	const FName ColumnVT(TEXT("VT"));
-	const FName ColumnVTC(TEXT("VTC"));
+	const FName ColumnVT(TEXT("VTStreaming"));
+	const FName ColumnTC(TEXT("TextureCollection"));
 	const FName ColumnVRAM(TEXT("VRAM"));
 	const FName ColumnPath(TEXT("Path"));
 
-	bool IsPixelFormatVTCCompatible(EPixelFormat Format)
+	bool IsPixelFormatTextureCollectionCompatible(EPixelFormat Format)
 	{
 		switch (Format)
 		{
@@ -63,23 +65,14 @@ namespace
 		const int32 BlockSizeY = FMath::Max(1, GPixelFormats[Format].BlockSizeY);
 		const int32 NumBlocksX = FMath::DivideAndRoundUp(SizeX, BlockSizeX);
 		const int32 NumBlocksY = FMath::DivideAndRoundUp(SizeY, BlockSizeY);
-		// 含 mip 链约 1.33x
 		return static_cast<int64>(NumBlocksX * NumBlocksY * BlockBytes) * 4 / 3;
 	}
 
-	bool IsLikelyDedicatedVirtualTexturePath(const FString& PackagePath)
+	void RaiseAuditStatus(ETextureNoVTAuditStatus& Current, ETextureNoVTAuditStatus Candidate)
 	{
-		return PackagePath.Contains(TEXT("/VT"), ESearchCase::IgnoreCase) ||
-			PackagePath.Contains(TEXT("/VTC"), ESearchCase::IgnoreCase) ||
-			PackagePath.Contains(TEXT("/VirtualTexture"), ESearchCase::IgnoreCase) ||
-			PackagePath.Contains(TEXT("/BakeInfo"), ESearchCase::IgnoreCase);
-	}
-
-	void RaiseAuditStatus(ETextureVTAuditStatus& Current, ETextureVTAuditStatus Candidate)
-	{
-		if (Candidate == ETextureVTAuditStatus::Blocked ||
-			(Candidate == ETextureVTAuditStatus::Warning && Current == ETextureVTAuditStatus::Pass) ||
-			(Candidate == ETextureVTAuditStatus::Pass && Current == ETextureVTAuditStatus::Info))
+		if (Candidate == ETextureNoVTAuditStatus::Blocked ||
+			(Candidate == ETextureNoVTAuditStatus::Warning && Current != ETextureNoVTAuditStatus::Blocked) ||
+			(Candidate == ETextureNoVTAuditStatus::Pass && Current == ETextureNoVTAuditStatus::Info))
 		{
 			Current = Candidate;
 		}
@@ -96,23 +89,48 @@ void STextureVTAuditWidget::Construct(const FArguments& InArgs)
 	ChildSlot
 	[
 		SNew(SVerticalBox)
+		+ SVerticalBox::Slot().AutoHeight().Padding(12.f, 12.f, 12.f, 8.f)
+		[
+			DevKitArtToolUI::MakeHeader(
+				LOCTEXT("Title", "贴图 NoVT 审计"),
+				LOCTEXT("Description", "扫描 /Game/Art 的 Texture2D，定位误开启 Virtual Texture Streaming、尺寸和格式风险。批量关闭 VT 会修改资产并支持撤销。"))
+		]
+		+ SVerticalBox::Slot().AutoHeight().Padding(12.f, 0.f, 12.f, 6.f)
+		[
+			DevKitArtToolUI::MakeSectionHeader(1, LOCTEXT("AuditSection", "扫描与筛选"), LOCTEXT("AuditSectionDesc", "先刷新资产，再按状态、尺寸或名称缩小结果范围。"))
+		]
 		+ SVerticalBox::Slot()
 		.AutoHeight()
-		.Padding(4.f)
+		.Padding(12.f, 0.f, 12.f, 6.f)
 		[
 			BuildToolbar()
 		]
 		+ SVerticalBox::Slot()
 		.AutoHeight()
-		.Padding(4.f, 0.f)
+		.Padding(12.f, 0.f, 12.f, 8.f)
 		[
 			BuildFilterBar()
 		]
+		+ SVerticalBox::Slot().AutoHeight().Padding(12.f, 0.f, 12.f, 6.f)
+		[
+			DevKitArtToolUI::MakeSectionHeader(2, LOCTEXT("ResultSection", "审计结果"), LOCTEXT("ResultSectionDesc", "可多选结果并批量关闭源贴图 VT；修改后资产会标记为待保存。"))
+		]
 		+ SVerticalBox::Slot()
 		.FillHeight(1.f)
-		.Padding(4.f)
+		.Padding(12.f, 0.f, 12.f, 6.f)
 		[
 			BuildListPanel()
+		]
+		+ SVerticalBox::Slot().AutoHeight().Padding(12.f, 0.f, 12.f, 12.f)
+		[
+			SNew(SBorder)
+			.Padding(8.f)
+			.BorderImage(FAppStyle::GetBrush(TEXT("ToolPanel.GroupBorder")))
+			[
+				SAssignNew(ActionStatusTextBlock, STextBlock)
+				.Text(LOCTEXT("InitialActionStatus", "就绪。选择表格中的贴图后可打开、定位或批量关闭 VT。"))
+				.AutoWrapText(true)
+			]
 		]
 	];
 
@@ -126,33 +144,29 @@ TSharedRef<SWidget> STextureVTAuditWidget::BuildToolbar()
 	[
 		SNew(SButton)
 		.Text(LOCTEXT("Refresh", "重新扫描"))
-		.ToolTipText(LOCTEXT("RefreshTip", "扫描 /Game/Art 下所有 Texture2D。"))
+		.ToolTipText(LOCTEXT("RefreshTip", "扫描 /Game/Art 下所有 Texture2D。普通场景贴图默认必须保持 NoVT。"))
 		.OnClicked(this, &STextureVTAuditWidget::RefreshAssets)
 	]
 	+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 6, 0)
 	[
 		SNew(SButton)
-		.Text(LOCTEXT("EnableVT", "对所选开启 VT"))
-		.ToolTipText(LOCTEXT("EnableVTTip", "对当前列表中被选中的贴图批量勾选 Virtual Texture Streaming。"))
-		.OnClicked(this, &STextureVTAuditWidget::EnableVTOnSelected)
-	]
-	+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 6, 0)
-	[
-		SNew(SButton)
-		.Text(LOCTEXT("DisableVT", "关闭 VT"))
-		.ToolTipText(LOCTEXT("DisableVTTip", "关闭所选贴图的 Virtual Texture Streaming。"))
+		.Text(LOCTEXT("DisableVT", "关闭所选 VT"))
+		.ToolTipText(LOCTEXT("DisableVTTip", "关闭所选贴图的 Virtual Texture Streaming。地面 RVT 使用 RuntimeVirtualTexture 资产，源贴图仍应保持 NoVT。"))
+		.IsEnabled(this, &STextureVTAuditWidget::HasSelectedVirtualTexture)
 		.OnClicked(this, &STextureVTAuditWidget::DisableVTOnSelected)
 	]
 	+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 6, 0)
 	[
 		SNew(SButton)
 		.Text(LOCTEXT("Open", "打开资产"))
+		.IsEnabled(this, &STextureVTAuditWidget::HasSelection)
 		.OnClicked(this, &STextureVTAuditWidget::OpenSelectedInEditor)
 	]
 	+ SHorizontalBox::Slot().AutoWidth()
 	[
 		SNew(SButton)
 		.Text(LOCTEXT("ShowInCB", "定位 Content Browser"))
+		.IsEnabled(this, &STextureVTAuditWidget::HasSelection)
 		.OnClicked(this, &STextureVTAuditWidget::ShowSelectedInContentBrowser)
 	]
 	+ SHorizontalBox::Slot().FillWidth(1.f).HAlign(HAlign_Right).VAlign(VAlign_Center)
@@ -167,7 +181,7 @@ TSharedRef<SWidget> STextureVTAuditWidget::BuildFilterBar()
 	return SNew(SHorizontalBox)
 	+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 8, 0).VAlign(VAlign_Center)
 	[
-		SNew(STextBlock).Text(LOCTEXT("FilterLabel", "筛选:"))
+		SNew(STextBlock).Text(LOCTEXT("FilterLabel", "筛选"))
 	]
 	+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 6, 0)
 	[
@@ -195,20 +209,20 @@ TSharedRef<SWidget> STextureVTAuditWidget::BuildFilterBar()
 		SNew(SCheckBox)
 		.IsChecked_Lambda([this]() { return bShowInfo ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
 		.OnCheckStateChanged_Lambda([this](ECheckBoxState S) { bShowInfo = (S == ECheckBoxState::Checked); RebuildFilteredItems(); })
-		.Content()[SNew(STextBlock).Text(LOCTEXT("FilterInfo", "Info(小贴图)")).ColorAndOpacity(FLinearColor(0.65f, 0.75f, 0.85f))]
+		.Content()[SNew(STextBlock).Text(LOCTEXT("FilterInfo", "Info")).ColorAndOpacity(FLinearColor(0.65f, 0.75f, 0.85f))]
 	]
 	+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 6, 0).VAlign(VAlign_Center)
 	[
-		SNew(STextBlock).Text(LOCTEXT("MinVTLabel", "VT 建议阈值:"))
+		SNew(STextBlock).Text(LOCTEXT("LargeTextureLabel", "大图提醒阈值"))
 	]
 	+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 12, 0)
 	[
 		SNew(SBox).WidthOverride(80.f)
 		[
 			SNew(SSpinBox<int32>)
-			.MinValue(256).MaxValue(8192).Delta(256)
-			.Value_Lambda([this]() { return VTRecommendMinSize; })
-			.OnValueChanged_Lambda([this](int32 V) { VTRecommendMinSize = V; ScanAssets(); })
+			.MinValue(512).MaxValue(16384).Delta(512)
+			.Value_Lambda([this]() { return LargeTextureWarningSize; })
+			.OnValueChanged_Lambda([this](int32 V) { LargeTextureWarningSize = V; ScanAssets(); })
 		]
 	]
 	+ SHorizontalBox::Slot().FillWidth(1.f)
@@ -231,23 +245,23 @@ TSharedRef<SWidget> STextureVTAuditWidget::BuildListPanel()
 		.OnSelectionChanged(this, &STextureVTAuditWidget::OnSelectionChanged)
 		.HeaderRow(
 			SNew(SHeaderRow)
-			+ SHeaderRow::Column(ColumnStatus).DefaultLabel(LOCTEXT("HStatus", "状态")).FixedWidth(70)
+			+ SHeaderRow::Column(ColumnStatus).DefaultLabel(LOCTEXT("HStatus", "状态")).FixedWidth(76)
 			+ SHeaderRow::Column(ColumnName).DefaultLabel(LOCTEXT("HName", "名称")).FillWidth(0.25f)
 			+ SHeaderRow::Column(ColumnSize).DefaultLabel(LOCTEXT("HSize", "尺寸")).FixedWidth(90)
 			+ SHeaderRow::Column(ColumnFormat).DefaultLabel(LOCTEXT("HFormat", "格式")).FixedWidth(110)
-			+ SHeaderRow::Column(ColumnVT).DefaultLabel(LOCTEXT("HVT", "VT")).FixedWidth(40)
-			+ SHeaderRow::Column(ColumnVTC).DefaultLabel(LOCTEXT("HVTC", "VTC")).FixedWidth(40)
-			+ SHeaderRow::Column(ColumnVRAM).DefaultLabel(LOCTEXT("HVRAM", "VRAM")).FixedWidth(70)
+			+ SHeaderRow::Column(ColumnVT).DefaultLabel(LOCTEXT("HVT", "源VT")).FixedWidth(56)
+			+ SHeaderRow::Column(ColumnTC).DefaultLabel(LOCTEXT("HTC", "TC")).FixedWidth(48)
+			+ SHeaderRow::Column(ColumnVRAM).DefaultLabel(LOCTEXT("HVRAM", "VRAM")).FixedWidth(78)
 			+ SHeaderRow::Column(ColumnPath).DefaultLabel(LOCTEXT("HPath", "路径")).FillWidth(0.4f)
 		)
 	];
 }
 
-class STextureVTAuditRow : public SMultiColumnTableRow<TSharedPtr<FTextureVTAuditItem>>
+class STextureNoVTAuditRow : public SMultiColumnTableRow<TSharedPtr<FTextureNoVTAuditItem>>
 {
 public:
-	SLATE_BEGIN_ARGS(STextureVTAuditRow) {}
-		SLATE_ARGUMENT(TSharedPtr<FTextureVTAuditItem>, Item)
+	SLATE_BEGIN_ARGS(STextureNoVTAuditRow) {}
+		SLATE_ARGUMENT(TSharedPtr<FTextureNoVTAuditItem>, Item)
 		SLATE_ARGUMENT(STextureVTAuditWidget*, Owner)
 	SLATE_END_ARGS()
 
@@ -255,7 +269,7 @@ public:
 	{
 		Item = InArgs._Item;
 		Owner = InArgs._Owner;
-		SMultiColumnTableRow<TSharedPtr<FTextureVTAuditItem>>::Construct(FSuperRowType::FArguments(), OwnerTable);
+		SMultiColumnTableRow<TSharedPtr<FTextureNoVTAuditItem>>::Construct(FSuperRowType::FArguments(), OwnerTable);
 	}
 
 	virtual TSharedRef<SWidget> GenerateWidgetForColumn(const FName& Col) override
@@ -269,23 +283,33 @@ public:
 					SNew(STextBlock).Text(Owner->StatusToText(Item->Status))
 				];
 		}
-		if (Col == ColumnName)     { return SNew(STextBlock).Text(FText::FromString(Item->AssetName)); }
-		if (Col == ColumnSize)     { return SNew(STextBlock).Text(FText::FromString(FString::Printf(TEXT("%dx%d"), Item->SizeX, Item->SizeY))); }
-		if (Col == ColumnFormat)   { return SNew(STextBlock).Text(FText::FromString(Item->PixelFormat)); }
-		if (Col == ColumnVT)       { return SNew(STextBlock).Text(FText::FromString(Item->bVirtualTextureStreaming ? TEXT("Yes") : TEXT("--"))).ColorAndOpacity(Item->bVirtualTextureStreaming ? FLinearColor(0.4f, 0.9f, 0.4f) : FLinearColor::White); }
-		if (Col == ColumnVTC)      { return SNew(STextBlock).Text(FText::FromString(Item->bVTCCompatible ? TEXT("OK") : TEXT("--"))).ColorAndOpacity(Item->bVTCCompatible ? FLinearColor(0.4f, 0.9f, 0.4f) : FLinearColor(1.f, 0.3f, 0.3f)); }
-		if (Col == ColumnVRAM)     { return SNew(STextBlock).Text(FText::FromString(FString::Printf(TEXT("%.2f MB"), Item->EstimatedVRAMBytes / 1048576.0f))); }
-		if (Col == ColumnPath)     { return SNew(STextBlock).Text(FText::FromString(Item->PackagePath)); }
+		if (Col == ColumnName)   { return SNew(STextBlock).Text(FText::FromString(Item->AssetName)); }
+		if (Col == ColumnSize)   { return SNew(STextBlock).Text(FText::FromString(FString::Printf(TEXT("%dx%d"), Item->SizeX, Item->SizeY))); }
+		if (Col == ColumnFormat) { return SNew(STextBlock).Text(FText::FromString(Item->PixelFormat)); }
+		if (Col == ColumnVT)
+		{
+			return SNew(STextBlock)
+				.Text(Item->bVirtualTextureStreaming ? LOCTEXT("VTYes", "Yes") : LOCTEXT("VTNo", "No"))
+				.ColorAndOpacity(Item->bVirtualTextureStreaming ? FLinearColor(1.f, 0.25f, 0.25f) : FLinearColor(0.4f, 0.9f, 0.4f));
+		}
+		if (Col == ColumnTC)
+		{
+			return SNew(STextBlock)
+				.Text(Item->bTextureCollectionCompatible ? LOCTEXT("TCOK", "OK") : LOCTEXT("TCNo", "--"))
+				.ColorAndOpacity(Item->bTextureCollectionCompatible ? FLinearColor(0.4f, 0.9f, 0.4f) : FLinearColor(1.f, 0.45f, 0.35f));
+		}
+		if (Col == ColumnVRAM) { return SNew(STextBlock).Text(FText::FromString(FString::Printf(TEXT("%.2f MB"), Item->EstimatedVRAMBytes / 1048576.0f))); }
+		if (Col == ColumnPath) { return SNew(STextBlock).Text(FText::FromString(Item->PackagePath)); }
 		return SNullWidget::NullWidget;
 	}
 
-	TSharedPtr<FTextureVTAuditItem> Item;
+	TSharedPtr<FTextureNoVTAuditItem> Item;
 	STextureVTAuditWidget* Owner = nullptr;
 };
 
 TSharedRef<ITableRow> STextureVTAuditWidget::GenerateRow(FAuditItemPtr Item, const TSharedRef<STableViewBase>& OwnerTable)
 {
-	return SNew(STextureVTAuditRow, OwnerTable).Item(Item).Owner(this);
+	return SNew(STextureNoVTAuditRow, OwnerTable).Item(Item).Owner(this);
 }
 
 void STextureVTAuditWidget::OnSelectionChanged(FAuditItemPtr Item, ESelectInfo::Type)
@@ -325,7 +349,7 @@ void STextureVTAuditWidget::ScanAssets()
 
 	for (const FAssetData& AD : AssetList)
 	{
-		TSharedPtr<FTextureVTAuditItem> Item = MakeShared<FTextureVTAuditItem>();
+		TSharedPtr<FTextureNoVTAuditItem> Item = MakeShared<FTextureNoVTAuditItem>();
 		Item->AssetData = AD;
 		Item->AssetName = AD.AssetName.ToString();
 		Item->PackagePath = AD.PackagePath.ToString();
@@ -341,8 +365,8 @@ void STextureVTAuditWidget::ScanAssets()
 			Item->bVirtualTextureStreaming = Tex->VirtualTextureStreaming;
 			Item->bSRGB = Tex->SRGB;
 			Item->EstimatedVRAMBytes = EstimateVRAMBytes(Item->SizeX, Item->SizeY, PF);
-			Item->bVTCCompatible = IsPixelFormatVTCCompatible(PF)
-				&& Item->SizeX <= VTCMaxSize && Item->SizeY <= VTCMaxSize;
+			Item->bTextureCollectionCompatible = IsPixelFormatTextureCollectionCompatible(PF)
+				&& !Item->bVirtualTextureStreaming;
 		}
 
 		EvaluateItem(*Item);
@@ -358,107 +382,46 @@ void STextureVTAuditWidget::ScanAssets()
 	RebuildFilteredItems();
 }
 
-void STextureVTAuditWidget::EvaluateItem(FTextureVTAuditItem& Item) const
+void STextureVTAuditWidget::EvaluateItem(FTextureNoVTAuditItem& Item) const
 {
 	Item.Recommendations.Reset();
-
-	{
-		const int32 AuditMaxSide = FMath::Max(Item.SizeX, Item.SizeY);
-		const bool bDedicatedVTPath = IsLikelyDedicatedVirtualTexturePath(Item.PackagePath);
-		const bool bTooLargeForVTC = AuditMaxSide > VTCMaxSize;
-
-		if (Item.bVirtualTextureStreaming)
-		{
-			if (!Item.bVTCCompatible)
-			{
-				Item.Status = ETextureVTAuditStatus::Blocked;
-				Item.Recommendations.Add(FText::Format(
-					LOCTEXT("VTBadFormat", "已开启 VT，但格式 {0} 不在当前 VTC/VT 白名单中；请关闭 VT 或调整压缩格式。"),
-					FText::FromString(Item.PixelFormat)));
-				return;
-			}
-
-			Item.Status = bDedicatedVTPath ? ETextureVTAuditStatus::Pass : ETextureVTAuditStatus::Warning;
-			Item.Recommendations.Add(bDedicatedVTPath
-				? LOCTEXT("DedicatedVTOn", "专用 VT/VTC/BakeInfo 路径贴图已开启 VT，可以继续用于专项流程。")
-				: LOCTEXT("RegularVTOn", "普通场景模型贴图默认不建议开启 VT；若不是专用 VTC/VT 资产，请关闭 VT。"));
-		}
-		else
-		{
-			Item.Status = ETextureVTAuditStatus::Pass;
-			Item.Recommendations.Add(LOCTEXT("RegularNoVTPass", "普通场景模型贴图默认保持 NoVT。只有地面 RVT 输出、专用 VTC/VT 或超大特殊资产再单独审查。"));
-		}
-
-		if (bTooLargeForVTC)
-		{
-			RaiseAuditStatus(Item.Status, ETextureVTAuditStatus::Warning);
-			Item.Recommendations.Add(FText::Format(
-				LOCTEXT("LargeTextureNoDefaultVT", "尺寸 {0} 超过 VTC 4K 单成员参考上限；普通贴图可保持 NoVT，但需要确认内存和平台 mip 预算。"),
-				FText::AsNumber(AuditMaxSide)));
-		}
-
-		if (!IsPowerOfTwo(Item.SizeX) || !IsPowerOfTwo(Item.SizeY))
-		{
-			Item.Recommendations.Add(LOCTEXT("NotPOTDefaultNoVT", "非 2 的幂次尺寸；普通 Texture2D 可以使用，但 mip、打包和专项 VT/VTC 流程仍建议 POT。"));
-		}
-		return;
-	}
-
-}
-
-#if 0
+	Item.Status = ETextureNoVTAuditStatus::Pass;
 
 	const int32 MaxSide = FMath::Max(Item.SizeX, Item.SizeY);
-	const bool bIsSmall = MaxSide < VTRecommendMinSize;
-	const bool bTooLargeForVTC = MaxSide > VTCMaxSize;
-
-	if (bTooLargeForVTC)
-	{
-		Item.Status = ETextureVTAuditStatus::Blocked;
-		Item.Recommendations.Add(FText::Format(
-			LOCTEXT("TooLarge", "尺寸 {0} 超过 VTC 4K 上限，需缩小到 ≤4096 才能加入 VTC。"),
-			FText::AsNumber(MaxSide)));
-		return;
-	}
-
-	if (!Item.bVTCCompatible && MaxSide >= VTRecommendMinSize)
-	{
-		Item.Status = ETextureVTAuditStatus::Blocked;
-		Item.Recommendations.Add(FText::Format(
-			LOCTEXT("BadFormat", "格式 {0} 不在 VTC 支持的白名单中（推荐 DXT1/5/BC5/BC7）。"),
-			FText::FromString(Item.PixelFormat)));
-		return;
-	}
-
-	if (bIsSmall)
-	{
-		Item.Status = ETextureVTAuditStatus::Info;
-		if (Item.bVirtualTextureStreaming)
-		{
-			Item.Recommendations.Add(LOCTEXT("SmallVTOn", "尺寸较小 (<1K)，通常不建议开 VT，因为 page 开销不划算。"));
-			Item.Status = ETextureVTAuditStatus::Warning;
-		}
-		return;
-	}
-
 	if (Item.bVirtualTextureStreaming)
 	{
-		Item.Status = ETextureVTAuditStatus::Pass;
-		Item.Recommendations.Add(LOCTEXT("VTOn", "VT 已开启。可直接加入 VirtualTextureCollection。"));
+		Item.Status = ETextureNoVTAuditStatus::Blocked;
+		Item.Recommendations.Add(LOCTEXT("VTOnBlocked",
+			"普通场景模型贴图不再允许开启 VirtualTextureStreaming。只有地面 RuntimeVirtualTexture 资产走 RVT，源 Texture2D 也应保持 NoVT。"));
 	}
 	else
 	{
-		Item.Status = ETextureVTAuditStatus::Warning;
-		Item.Recommendations.Add(LOCTEXT("VTOff", "尺寸达到 VT 建议阈值，未开启 VT。选中后点击“对所选开启 VT”。"));
+		Item.Recommendations.Add(LOCTEXT("NoVTPass",
+			"NoVT OK。该贴图可以按普通 Texture2D 使用，也可以加入普通 Texture Collection。"));
+	}
+
+	if (!Item.bTextureCollectionCompatible)
+	{
+		RaiseAuditStatus(Item.Status, ETextureNoVTAuditStatus::Warning);
+		Item.Recommendations.Add(FText::Format(
+			LOCTEXT("TCFormatWarning", "当前格式 {0} 不在项目 Texture Collection 推荐白名单中；如需加入集合，请确认平台压缩格式。"),
+			FText::FromString(Item.PixelFormat)));
+	}
+
+	if (MaxSide > LargeTextureWarningSize)
+	{
+		RaiseAuditStatus(Item.Status, ETextureNoVTAuditStatus::Warning);
+		Item.Recommendations.Add(FText::Format(
+			LOCTEXT("LargeTextureWarning", "尺寸 {0} 超过当前大图提醒阈值；保持 NoVT，但需要确认平台显存和 mip 预算。"),
+			FText::AsNumber(MaxSide)));
 	}
 
 	if (!IsPowerOfTwo(Item.SizeX) || !IsPowerOfTwo(Item.SizeY))
 	{
-		Item.Recommendations.Add(LOCTEXT("NotPOT", "非 2 的幂次尺寸，VT 效率最佳仍是 POT。"));
+		RaiseAuditStatus(Item.Status, ETextureNoVTAuditStatus::Info);
+		Item.Recommendations.Add(LOCTEXT("NotPOTInfo", "非 2 的幂尺寸。普通 Texture2D 可以使用，但建议确认 mip、压缩和打包预算。"));
 	}
 }
-
-#endif
 
 void STextureVTAuditWidget::RebuildFilteredItems()
 {
@@ -466,10 +429,10 @@ void STextureVTAuditWidget::RebuildFilteredItems()
 	for (const FAuditItemPtr& It : AllItems)
 	{
 		const bool bStatusOK =
-			(It->Status == ETextureVTAuditStatus::Pass    && bShowPass) ||
-			(It->Status == ETextureVTAuditStatus::Warning && bShowWarning) ||
-			(It->Status == ETextureVTAuditStatus::Blocked && bShowBlocked) ||
-			(It->Status == ETextureVTAuditStatus::Info    && bShowInfo);
+			(It->Status == ETextureNoVTAuditStatus::Pass    && bShowPass) ||
+			(It->Status == ETextureNoVTAuditStatus::Warning && bShowWarning) ||
+			(It->Status == ETextureNoVTAuditStatus::Blocked && bShowBlocked) ||
+			(It->Status == ETextureNoVTAuditStatus::Info    && bShowInfo);
 		if (!bStatusOK) continue;
 
 		if (!SearchText.IsEmpty())
@@ -486,34 +449,22 @@ void STextureVTAuditWidget::RebuildFilteredItems()
 	}
 }
 
-FReply STextureVTAuditWidget::EnableVTOnSelected()
-{
-	int32 Changed = 0;
-	for (const FAuditItemPtr& It : SelectedItems)
-	{
-		if (UTexture2D* Tex = It->Texture.Get())
-		{
-			if (!Tex->VirtualTextureStreaming)
-			{
-				Tex->Modify();
-				Tex->VirtualTextureStreaming = true;
-				Tex->UpdateResource();
-				Tex->PostEditChange();
-				Tex->MarkPackageDirty();
-				++Changed;
-			}
-		}
-	}
-	if (Changed > 0)
-	{
-		FTextureCompilingManager::Get().FinishAllCompilation();
-		ScanAssets();
-	}
-	return FReply::Handled();
-}
-
 FReply STextureVTAuditWidget::DisableVTOnSelected()
 {
+	if (SelectedItems.IsEmpty())
+	{
+		return FReply::Handled();
+	}
+
+	const EAppReturnType::Type Confirmation = FMessageDialog::Open(
+		EAppMsgType::YesNo,
+		FText::Format(LOCTEXT("ConfirmDisableVT", "确定关闭所选 {0} 张贴图的 Virtual Texture Streaming 吗？\n\n操作支持撤销，修改后的资产仍需保存。"), FText::AsNumber(SelectedItems.Num())));
+	if (Confirmation != EAppReturnType::Yes)
+	{
+		return FReply::Handled();
+	}
+
+	const FScopedTransaction Transaction(LOCTEXT("DisableVTTransaction", "批量关闭贴图 Virtual Texture Streaming"));
 	int32 Changed = 0;
 	for (const FAuditItemPtr& It : SelectedItems)
 	{
@@ -535,7 +486,30 @@ FReply STextureVTAuditWidget::DisableVTOnSelected()
 		FTextureCompilingManager::Get().FinishAllCompilation();
 		ScanAssets();
 	}
+	if (ActionStatusTextBlock.IsValid())
+	{
+		ActionStatusTextBlock->SetText(FText::Format(
+			LOCTEXT("DisableVTResult", "已关闭 {0} 张贴图的 VT。资产已标记为待保存，可使用 Ctrl+Z 撤销。"),
+			FText::AsNumber(Changed)));
+	}
 	return FReply::Handled();
+}
+
+bool STextureVTAuditWidget::HasSelection() const
+{
+	return !SelectedItems.IsEmpty();
+}
+
+bool STextureVTAuditWidget::HasSelectedVirtualTexture() const
+{
+	for (const FAuditItemPtr& Item : SelectedItems)
+	{
+		if (Item.IsValid() && Item->bVirtualTextureStreaming)
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 FReply STextureVTAuditWidget::OpenSelectedInEditor()
@@ -572,41 +546,41 @@ FText STextureVTAuditWidget::GetSummaryText() const
 	{
 		switch (It->Status)
 		{
-		case ETextureVTAuditStatus::Pass:    ++Pass; break;
-		case ETextureVTAuditStatus::Warning: ++Warn; break;
-		case ETextureVTAuditStatus::Blocked: ++Block; break;
-		case ETextureVTAuditStatus::Info:    ++Info; break;
+		case ETextureNoVTAuditStatus::Pass:    ++Pass; break;
+		case ETextureNoVTAuditStatus::Warning: ++Warn; break;
+		case ETextureNoVTAuditStatus::Blocked: ++Block; break;
+		case ETextureNoVTAuditStatus::Info:    ++Info; break;
 		}
 		TotalVRAM += It->EstimatedVRAMBytes;
 	}
 	return FText::Format(
-		LOCTEXT("Summary", "共 {0} | Pass {1} · Warning {2} · Blocked {3} · Info {4} | VRAM 估算 {5} MB | 显示 {6}"),
+		LOCTEXT("Summary", "共 {0} | Pass {1} · Warning {2} · Blocked {3} · Info {4} | 估算 VRAM {5} MB | 显示 {6} | 规则：普通贴图 NoVT，只有地面 RVT 使用虚拟纹理"),
 		FText::AsNumber(AllItems.Num()),
 		FText::AsNumber(Pass), FText::AsNumber(Warn), FText::AsNumber(Block), FText::AsNumber(Info),
 		FText::AsNumber(TotalVRAM / 1048576),
 		FText::AsNumber(FilteredItems.Num()));
 }
 
-FSlateColor STextureVTAuditWidget::GetStatusColor(ETextureVTAuditStatus Status) const
+FSlateColor STextureVTAuditWidget::GetStatusColor(ETextureNoVTAuditStatus Status) const
 {
 	switch (Status)
 	{
-	case ETextureVTAuditStatus::Pass:    return FSlateColor(FLinearColor(0.15f, 0.35f, 0.15f));
-	case ETextureVTAuditStatus::Warning: return FSlateColor(FLinearColor(0.5f, 0.4f, 0.1f));
-	case ETextureVTAuditStatus::Blocked: return FSlateColor(FLinearColor(0.5f, 0.1f, 0.1f));
-	case ETextureVTAuditStatus::Info:    return FSlateColor(FLinearColor(0.2f, 0.25f, 0.35f));
+	case ETextureNoVTAuditStatus::Pass:    return FSlateColor(FLinearColor(0.15f, 0.35f, 0.15f));
+	case ETextureNoVTAuditStatus::Warning: return FSlateColor(FLinearColor(0.5f, 0.4f, 0.1f));
+	case ETextureNoVTAuditStatus::Blocked: return FSlateColor(FLinearColor(0.5f, 0.1f, 0.1f));
+	case ETextureNoVTAuditStatus::Info:    return FSlateColor(FLinearColor(0.2f, 0.25f, 0.35f));
 	}
 	return FSlateColor(FLinearColor::Gray);
 }
 
-FText STextureVTAuditWidget::StatusToText(ETextureVTAuditStatus Status) const
+FText STextureVTAuditWidget::StatusToText(ETextureNoVTAuditStatus Status) const
 {
 	switch (Status)
 	{
-	case ETextureVTAuditStatus::Pass:    return LOCTEXT("StatusPass", "Pass");
-	case ETextureVTAuditStatus::Warning: return LOCTEXT("StatusWarn", "Warning");
-	case ETextureVTAuditStatus::Blocked: return LOCTEXT("StatusBlock", "Blocked");
-	case ETextureVTAuditStatus::Info:    return LOCTEXT("StatusInfo", "Info");
+	case ETextureNoVTAuditStatus::Pass:    return LOCTEXT("StatusPass", "Pass");
+	case ETextureNoVTAuditStatus::Warning: return LOCTEXT("StatusWarn", "Warning");
+	case ETextureNoVTAuditStatus::Blocked: return LOCTEXT("StatusBlock", "Blocked");
+	case ETextureNoVTAuditStatus::Info:    return LOCTEXT("StatusInfo", "Info");
 	}
 	return FText::GetEmpty();
 }

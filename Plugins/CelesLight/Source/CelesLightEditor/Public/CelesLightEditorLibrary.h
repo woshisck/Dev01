@@ -6,6 +6,7 @@
 
 class ACelesLightCaptureBox;
 class ACelesPointLight;
+class AStylizedEmissiveLight;
 
 UCLASS()
 class CELESLIGHTEDITOR_API UCelesLightEditorLibrary : public UBlueprintFunctionLibrary
@@ -21,4 +22,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Celes Light|Tools")
 	static ACelesPointLight* CreateCelesPointLight(UWorld* World = nullptr);
+
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Celes Light|Tools")
+	static AStylizedEmissiveLight* CreateStylizedEmissiveLight(UWorld* World = nullptr);
 };

@@ -30,6 +30,7 @@ private:
 
 	FReply UseCurrentLevelPaths();
 	FReply CreateOrUpdateFoliageType();
+	bool CanCreateOrUpdate() const;
 
 	TSharedPtr<SEditableTextBox> FoliageTypeFolderTextBox;
 	TSharedPtr<SEditableTextBox> FoliageTypeNameOverrideTextBox;

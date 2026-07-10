@@ -27,6 +27,7 @@ public class CelesLightEditor : ModuleRules
 				"ToolMenus",
 				"Slate",
 				"SlateCore",
+				"Settings",
 			}
 		);
 	}

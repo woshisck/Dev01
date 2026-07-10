@@ -30,7 +30,7 @@ Use `-Force` only when intentionally rebuilding the plugin templates.
 
 - `/YogArt_Material/MasterMaterial/Env/M_Yog_Ground_RVT_Source`: ground authoring material. It blends source layers with vertex color and writes the result to RVT Output. Its `T_Ground_*` source textures must be normal Texture2D assets with `VirtualTextureStreaming=false`.
 - `/YogArt_Material/MasterMaterial/Env/M_Yog_Building_Source`: building/wall authoring material. It keeps UV0/UV1 and vertex-color mesh-paint inputs, and exposes optional RVT contact and MaterialLight static switches. Building source textures default to normal Texture2D, not VT.
-- `/YogArt_Material/MasterMaterial/Env/M_Yog_Prop_Source`: static prop authoring material. It exposes optional RVT contact and MaterialLight static switches, and reserves UV1.x or VertexColor.A as the future batch index source. Prop source textures default to normal Texture2D, not VT/VTC.
+- `/YogArt_Material/MasterMaterial/Env/M_Yog_Prop_Source`: static prop authoring material. It exposes optional RVT contact and MaterialLight static switches, and reserves UV1.x or VertexColor.A as the future batch index source. Prop source textures default to normal Texture2D and may be grouped through ordinary Texture Collection, not VT.
 - `/YogArt_Material/Data/RVT_Default_Ground`: default placeholder RVT for master-material compilation. Level-specific RVT assets should still live in the level `BakeInfo` folder.
 
 Default static switches keep expensive optional paths off:
@@ -43,7 +43,7 @@ Current texture strategy:
 
 - Ground RVT writer source textures stay in the NoVT path. UE does not allow virtual texture samples during Runtime Virtual Texture Output.
 - Ordinary scene model, building, and prop textures default to NoVT Texture2D. Most project textures are 512 or 1K, so enabling VT globally is not useful.
-- Dedicated VTC/VT/BakeInfo or special large textures must be reviewed separately before enabling VT.
+- Do not enable VT on ordinary scene model, building, or prop source textures. If a texture must be shared for batching, put the normal Texture2D into a Texture Collection instead.
 
 ## Recommended RVT Mesh Decal Rule
 

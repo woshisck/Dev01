@@ -668,7 +668,7 @@ void BuildPropMaterial(UMaterial* Material, UTexture* DefaultTexture, UTexture* 
 	UMaterialExpressionTextureCoordinate* UV0 = AddUV(Material, 0, -1700, -420);
 	UMaterialExpressionTextureCoordinate* UV1 = AddUV(Material, 1, -1700, -260);
 	UMaterialExpressionVertexColor* VertexColor = AddExpression<UMaterialExpressionVertexColor>(Material, -1700, -80);
-	AddComment(Material, TEXT("Prop Source：静态小物件默认使用普通贴图；Prop.Batched 后续可由工具用 UV1 或 VertexColor.A 写入 VTC/批处理 index。"), -1740, -760, 800, 150);
+	AddComment(Material, TEXT("Prop Source：静态小物件默认使用普通贴图；Prop.Batched 后续可由工具用 UV1 或 VertexColor.A 写入 TextureCollection/批处理 index。"), -1740, -760, 800, 150);
 
 	UMaterialExpressionTextureSampleParameter2D* Base =
 		AddTextureSample(Material, TEXT("T_Prop_BaseColor"), DefaultTexture, SAMPLERTYPE_Color, UV0, -1380, -640, TEXT("Prop Source"));
@@ -681,7 +681,7 @@ void BuildPropMaterial(UMaterial* Material, UTexture* DefaultTexture, UTexture* 
 	UMaterialExpressionComponentMask* UV1Index = AddMask(Material, UV1, true, false, false, false, -1380, 360);
 	UMaterialExpressionComponentMask* VertexAlphaIndex = AddMask(Material, VertexColor, false, false, false, true, -1380, 500);
 	(void)AddStaticSwitch(Material, TEXT("UseVertexColorAForBatchIndex"), true, VertexAlphaIndex, UV1Index, -1040, 430, TEXT("Batch Index"));
-	(void)AddScalar(Material, TEXT("VTCIndexPreview"), 0.0f, -1040, 620, TEXT("Batch Index"));
+	(void)AddScalar(Material, TEXT("TextureCollectionIndexPreview"), 0.0f, -1040, 620, TEXT("Batch Index"));
 	(void)AddScalar(Material, TEXT("BatchMaterialIndex"), 0.0f, -1040, 760, TEXT("Batch Index"));
 
 	UMaterialExpression* FinalBase = Base;
@@ -802,7 +802,7 @@ int32 UYogArtMaterialMasterSetupCommandlet::Main(const FString& Params)
 	ReportLines.Add(TEXT(""));
 	ReportLines.Add(TEXT("- `M_Yog_Ground_RVT_Source`: ground layer blend using VertexColor.R/G and writes BaseColor/Normal/Roughness to RVT Output. Its `T_Ground_*` source textures must keep `VirtualTextureStreaming=false`."));
 	ReportLines.Add(TEXT("- `M_Yog_Building_Source`: building/wall source material, keeps Mesh Paint and UV1 support, with optional RVT contact and MaterialLight switches."));
-	ReportLines.Add(TEXT("- `M_Yog_Prop_Source`: prop source material, reserves UV1.x or VertexColor.A batch-index inputs for future VTC/batch tools, with optional RVT contact and MaterialLight switches."));
+	ReportLines.Add(TEXT("- `M_Yog_Prop_Source`: prop source material, reserves UV1.x or VertexColor.A batch-index inputs for future Texture Collection/batch tools, with optional RVT contact and MaterialLight switches."));
 
 	FString ReportPath;
 	FString SharedReportPath;

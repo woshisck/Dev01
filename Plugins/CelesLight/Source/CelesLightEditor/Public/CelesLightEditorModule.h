@@ -15,5 +15,7 @@ private:
 	void FillCelesLightMenu(UToolMenu* Menu);
 	void CreateCaptureBox();
 	void CreatePointLight();
+	void CreateStylizedEmissiveLight();
+	void OpenStylizedLightingSettings();
 	void ManualUpdateCelesLights();
 };

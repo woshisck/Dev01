@@ -1,4 +1,5 @@
 #include "Tools/SModelAssetComplianceWidget.h"
+#include "Tools/DevKitArtToolUI.h"
 
 #include "AdvancedPreviewScene.h"
 #include "AssetRegistry/AssetRegistryModule.h"
@@ -300,21 +301,29 @@ void SModelAssetComplianceWidget::Construct(const FArguments& InArgs)
 		.FillHeight(1.f)
 		.Padding(12.f, 0.f, 12.f, 12.f)
 		[
-			SNew(SSplitter)
-			+ SSplitter::Slot()
-			.Value(0.30f)
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 0.f, 0.f, 6.f)
 			[
-				BuildAssetListPanel()
+				DevKitArtToolUI::MakeSectionHeader(1, LOCTEXT("ReviewSection", "筛选并检查模型"), LOCTEXT("ReviewSectionDesc", "左侧选择资产，中间查看预览与问题，右侧核对规则和资产设置。"))
 			]
-			+ SSplitter::Slot()
-			.Value(0.42f)
+			+ SVerticalBox::Slot().FillHeight(1.f)
 			[
-				BuildPreviewPanel()
-			]
-			+ SSplitter::Slot()
-			.Value(0.28f)
-			[
-				BuildSettingsPanel()
+				SNew(SSplitter)
+				+ SSplitter::Slot()
+				.Value(0.30f)
+				[
+					BuildAssetListPanel()
+				]
+				+ SSplitter::Slot()
+				.Value(0.42f)
+				[
+					BuildPreviewPanel()
+				]
+				+ SSplitter::Slot()
+				.Value(0.28f)
+				[
+					BuildSettingsPanel()
+				]
 			]
 		]
 	];
@@ -328,20 +337,13 @@ TSharedRef<SWidget> SModelAssetComplianceWidget::BuildToolbar()
 		+ SVerticalBox::Slot()
 		.AutoHeight()
 		[
-			SNew(STextBlock)
-			.Text(LOCTEXT("Title", "模型资产合规检查"))
-			.Font(FAppStyle::GetFontStyle(TEXT("DetailsView.CategoryFontStyle")))
+			DevKitArtToolUI::MakeHeader(
+				LOCTEXT("Title", "模型资产合规检查"),
+				LOCTEXT("Description", "扫描 /Game/Art 下 StaticMesh，检查 LOD、材质槽、碰撞和环境分类。此工具只做检查，不执行合批、代理、替换或资产写入。"))
 		]
 		+ SVerticalBox::Slot()
 		.AutoHeight()
-		.Padding(0.f, 6.f, 0.f, 8.f)
-		[
-			SNew(STextBlock)
-			.Text(LOCTEXT("Description", "扫描 /Game/Art 下 StaticMesh。当前只检查资产是否满足性能分级制作标准；合批、代理、VT Atlas、替换和写资产等命令统一留到正式打包链执行。"))
-			.AutoWrapText(true)
-		]
-		+ SVerticalBox::Slot()
-		.AutoHeight()
+		.Padding(0.f, 8.f, 0.f, 0.f)
 		[
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
@@ -806,7 +808,7 @@ void SModelAssetComplianceWidget::EvaluateAsset(FModelAssetComplianceItem& Item)
 
 	Item.Infos.Add(LOCTEXT("TriangleDisplayOnly", "三角面数量仅展示，当前不作为警告或阻断标准。"));
 	Item.Infos.Add(LOCTEXT("CategoryFilterOnly", "当前模型分类只用于左侧目录筛选，不参与阻断逻辑，也不会写入资产。"));
-	Item.Infos.Add(LOCTEXT("BatchDeferred", "此窗口只检查资产合规；正式合批、代理、VT Atlas、替换和写资产统一在正式打包链执行。"));
+	Item.Infos.Add(LOCTEXT("BatchDeferred", "此窗口只检查资产合规；正式合批、代理、Texture Collection、替换和写资产统一在后续合批工具链执行。"));
 
 	if (!Item.Blockers.IsEmpty())
 	{

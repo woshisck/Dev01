@@ -3,6 +3,7 @@
 #include "Actors/CelesLightCaptureBox.h"
 #include "CelesLightCaptureBoxDetails.h"
 #include "CelesLightEditorLibrary.h"
+#include "ISettingsModule.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "ToolMenus.h"
@@ -66,6 +67,20 @@ void FCelesLightEditorModule::FillCelesLightMenu(UToolMenu* Menu)
 		FUIAction(FExecuteAction::CreateRaw(this, &FCelesLightEditorModule::CreatePointLight)));
 
 	Section.AddMenuEntry(
+		TEXT("CelesLightCreateStylizedEmissiveLight"),
+		LOCTEXT("CelesLightCreateStylizedEmissiveLightLabel", "Create Stylized Emissive Light"),
+		LOCTEXT("CelesLightCreateStylizedEmissiveLightTooltip", "Create an invisible-in-game light source. It has no visible mesh and is stylized by the global lighting settings."),
+		FSlateIcon(),
+		FUIAction(FExecuteAction::CreateRaw(this, &FCelesLightEditorModule::CreateStylizedEmissiveLight)));
+
+	Section.AddMenuEntry(
+		TEXT("CelesLightOpenStylizedLightingSettings"),
+		LOCTEXT("CelesLightOpenStylizedLightingSettingsLabel", "Stylized Lighting Settings"),
+		LOCTEXT("CelesLightOpenStylizedLightingSettingsTooltip", "Open artist-facing controls for global stylized Lumen lighting."),
+		FSlateIcon(),
+		FUIAction(FExecuteAction::CreateRaw(this, &FCelesLightEditorModule::OpenStylizedLightingSettings)));
+
+	Section.AddMenuEntry(
 		TEXT("CelesLightManualUpdate"),
 		LOCTEXT("CelesLightManualUpdateLabel", "更新全部采集盒体"),
 		LOCTEXT("CelesLightManualUpdateTooltip", "手动更新当前关卡中所有 Celes Light Capture Box 的 Light Info RT。"),
@@ -81,6 +96,16 @@ void FCelesLightEditorModule::CreateCaptureBox()
 void FCelesLightEditorModule::CreatePointLight()
 {
 	UCelesLightEditorLibrary::CreateCelesPointLight(nullptr);
+}
+
+void FCelesLightEditorModule::CreateStylizedEmissiveLight()
+{
+	UCelesLightEditorLibrary::CreateStylizedEmissiveLight(nullptr);
+}
+
+void FCelesLightEditorModule::OpenStylizedLightingSettings()
+{
+	FModuleManager::LoadModuleChecked<ISettingsModule>(TEXT("Settings")).ShowViewer(TEXT("Project"), TEXT("Plugins"), TEXT("Stylized Lighting"));
 }
 
 void FCelesLightEditorModule::ManualUpdateCelesLights()

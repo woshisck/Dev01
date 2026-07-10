@@ -5,31 +5,28 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/SListView.h"
 
-class STextBlock;
 class UTexture;
-class UTexture2D;
 class UTextureCollection;
-class UVirtualTextureCollection;
+class STextBlock;
 
-struct FVTCMemberIssue
+struct FTextureCollectionMemberIssue
 {
 	FString TextureName;
 	FText Message;
 	bool bBlocker = false;
 };
 
-struct FVTCEntry
+struct FTextureCollectionEntry
 {
 	FAssetData AssetData;
-	TWeakObjectPtr<UVirtualTextureCollection> VTC;
+	TWeakObjectPtr<UTextureCollection> Collection;
 	FString AssetName;
 	FString PackagePath;
 	int32 MemberCount = 0;
 	int32 MaxSize = 0;
 	int64 TotalVRAMBytes = 0;
-	TArray<FVTCMemberIssue> Issues;
-	FString RuntimeFormat;
-	bool bSRGB = true;
+	TArray<FTextureCollectionMemberIssue> Issues;
+	FString CollectionType;
 };
 
 class SVirtualTextureCollectionManagerWidget : public SCompoundWidget
@@ -40,47 +37,50 @@ public:
 
 	void Construct(const FArguments& InArgs);
 
-	// Row 类需要调用的检查函数
-	static bool IsTextureCompatibleForVTC(UTexture* Texture, FText& OutReason);
+	static bool IsTextureCompatibleForCollection(UTexture* Texture, FText& OutReason);
 
 private:
-	using FVTCEntryPtr = TSharedPtr<FVTCEntry>;
+	using FCollectionEntryPtr = TSharedPtr<FTextureCollectionEntry>;
 
 	TSharedRef<SWidget> BuildToolbar();
 	TSharedRef<SWidget> BuildSplitPanels();
-	TSharedRef<SWidget> BuildVTCListPanel();
+	TSharedRef<SWidget> BuildCollectionListPanel();
 	TSharedRef<SWidget> BuildDetailPanel();
 
 	FReply RefreshList();
-	FReply CreateNewVTC();
-	FReply CreateVTCFromContentBrowserSelection();
-	FReply AddContentBrowserSelectionToCurrentVTC();
-	FReply RemoveSelectedMembersFromCurrentVTC();
-	FReply OpenCurrentVTC();
+	FReply CreateNewTextureCollection();
+	FReply CreateTextureCollectionFromContentBrowserSelection();
+	FReply AddContentBrowserSelectionToCurrentTextureCollection();
+	FReply RemoveSelectedMembersFromCurrentTextureCollection();
+	FReply OpenCurrentTextureCollection();
 	FReply ValidateAll();
 
-	void ScanVTCs();
-	void ValidateEntry(FVTCEntry& Entry) const;
+	void ScanTextureCollections();
+	void ValidateEntry(FTextureCollectionEntry& Entry) const;
 
-	TSharedRef<ITableRow> GenerateVTCRow(FVTCEntryPtr Entry, const TSharedRef<STableViewBase>& OwnerTable);
+	TSharedRef<ITableRow> GenerateCollectionRow(FCollectionEntryPtr Entry, const TSharedRef<STableViewBase>& OwnerTable);
 	TSharedRef<ITableRow> GenerateMemberRow(TSharedPtr<int32> Index, const TSharedRef<STableViewBase>& OwnerTable);
-	void OnVTCSelectionChanged(FVTCEntryPtr Entry, ESelectInfo::Type SelectInfo);
+	void OnCollectionSelectionChanged(FCollectionEntryPtr Entry, ESelectInfo::Type SelectInfo);
 	void OnMemberSelectionChanged(TSharedPtr<int32> Index, ESelectInfo::Type SelectInfo);
 
 	FText GetSummaryText() const;
 	FText GetDetailHeaderText() const;
 	FText GetDetailIssuesText() const;
+	bool HasCurrentCollection() const;
+	bool HasSelectedMembers() const;
+	void SetActionStatus(const FText& InText);
 
 	static TArray<UTexture*> CollectTexturesFromContentBrowser();
-	static UVirtualTextureCollection* CreateVTCAsset(const FString& PackagePath, const FString& AssetName);
-	static void AddTexturesToVTC(UVirtualTextureCollection* VTC, const TArray<UTexture*>& Textures);
+	static UTextureCollection* CreateTextureCollectionAsset(const FString& PackagePath, const FString& AssetName);
+	static void AddTexturesToCollection(UTextureCollection* Collection, const TArray<UTexture*>& Textures);
 
-	TArray<FVTCEntryPtr> AllEntries;
+	TArray<FCollectionEntryPtr> AllEntries;
 	TArray<TSharedPtr<int32>> CurrentMemberIndices;
 	TArray<TSharedPtr<int32>> SelectedMemberIndices;
 
-	TSharedPtr<SListView<FVTCEntryPtr>> VTCListView;
+	TSharedPtr<SListView<FCollectionEntryPtr>> CollectionListView;
 	TSharedPtr<SListView<TSharedPtr<int32>>> MemberListView;
+	TSharedPtr<STextBlock> ActionStatusTextBlock;
 
-	FVTCEntryPtr CurrentEntry;
+	FCollectionEntryPtr CurrentEntry;
 };

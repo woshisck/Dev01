@@ -8,15 +8,15 @@
 class STextBlock;
 class UTexture2D;
 
-enum class ETextureVTAuditStatus : uint8
+enum class ETextureNoVTAuditStatus : uint8
 {
-	Pass,       // VT 已开启且尺寸合适
-	Warning,    // 尺寸/格式建议开 VT
-	Blocked,    // 超出 VTC 4K 上限或格式不兼容
-	Info        // 小贴图，不建议 VT
+	Pass,
+	Warning,
+	Blocked,
+	Info
 };
 
-struct FTextureVTAuditItem
+struct FTextureNoVTAuditItem
 {
 	FAssetData AssetData;
 	TWeakObjectPtr<UTexture2D> Texture;
@@ -30,9 +30,9 @@ struct FTextureVTAuditItem
 	bool bSRGB = false;
 	int64 EstimatedVRAMBytes = 0;
 
-	ETextureVTAuditStatus Status = ETextureVTAuditStatus::Info;
+	ETextureNoVTAuditStatus Status = ETextureNoVTAuditStatus::Info;
 	TArray<FText> Recommendations;
-	bool bVTCCompatible = false;
+	bool bTextureCollectionCompatible = false;
 };
 
 class STextureVTAuditWidget : public SCompoundWidget
@@ -43,31 +43,31 @@ public:
 
 	void Construct(const FArguments& InArgs);
 
-	// Row 类需要访问格式化辅助函数
-	FSlateColor GetStatusColor(ETextureVTAuditStatus Status) const;
-	FText StatusToText(ETextureVTAuditStatus Status) const;
+	FSlateColor GetStatusColor(ETextureNoVTAuditStatus Status) const;
+	FText StatusToText(ETextureNoVTAuditStatus Status) const;
 
 private:
-	using FAuditItemPtr = TSharedPtr<FTextureVTAuditItem>;
+	using FAuditItemPtr = TSharedPtr<FTextureNoVTAuditItem>;
 
 	TSharedRef<SWidget> BuildToolbar();
 	TSharedRef<SWidget> BuildListPanel();
 	TSharedRef<SWidget> BuildFilterBar();
 
 	FReply RefreshAssets();
-	FReply EnableVTOnSelected();
 	FReply DisableVTOnSelected();
 	FReply OpenSelectedInEditor();
 	FReply ShowSelectedInContentBrowser();
 
 	void ScanAssets();
-	void EvaluateItem(FTextureVTAuditItem& Item) const;
+	void EvaluateItem(FTextureNoVTAuditItem& Item) const;
 	void RebuildFilteredItems();
 
 	TSharedRef<ITableRow> GenerateRow(FAuditItemPtr Item, const TSharedRef<STableViewBase>& OwnerTable);
 	void OnSelectionChanged(FAuditItemPtr Item, ESelectInfo::Type SelectInfo);
 
 	FText GetSummaryText() const;
+	bool HasSelection() const;
+	bool HasSelectedVirtualTexture() const;
 
 	static bool IsPowerOfTwo(int32 V);
 
@@ -77,6 +77,7 @@ private:
 
 	TSharedPtr<SListView<FAuditItemPtr>> ListView;
 	TSharedPtr<STextBlock> SummaryTextBlock;
+	TSharedPtr<STextBlock> ActionStatusTextBlock;
 
 	FString SearchText;
 
@@ -85,6 +86,5 @@ private:
 	bool bShowBlocked = true;
 	bool bShowInfo = false;
 
-	int32 VTRecommendMinSize = 8192;
-	int32 VTCMaxSize = 4096;
+	int32 LargeTextureWarningSize = 4096;
 };
