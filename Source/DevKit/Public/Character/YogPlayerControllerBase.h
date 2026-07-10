@@ -47,6 +47,18 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Setting")
 	TSubclassOf<AYogCameraPawn> CameraPawnClass;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|MotionWarping")
+	bool bEnableAttackMotionWarpRedirect = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|MotionWarping", meta = (ClampMin = "0.0", UIMin = "0.0"))
+	float AttackMotionWarpRedirectDistance = 180.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|MotionWarping", meta = (ClampMin = "0.0", ClampMax = "180.0", UIMin = "0.0", UIMax = "90.0"))
+	float AttackMotionWarpRedirectMaxAngleDegrees = 30.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|MotionWarping", meta = (ClampMin = "0.0", UIMin = "0.0"))
+	float AttackMotionWarpRedirectInputGraceTime = 0.2f;
+
 
 	void Attack(const FInputActionValue& Value);
 	void WeaponSkill(const FInputActionValue& Value);
@@ -190,10 +202,13 @@ public:
 	void OnMenuWidgetActivated();
 	void OnMenuWidgetDeactivated();
 
+	bool TryGetAttackMotionWarpRedirectMoveDirection(FVector& OutDirection, float MaxAge = -1.f) const;
+
 private:
 	/** UI 打开期间为 true，屏蔽移动/攻击/冲刺输入 */
 	bool HandleMenuBackInput(const FKey& Key);
 	bool IsGameplayInputBlocked() const;
+	bool CanUseAttackMotionWarpRedirect(const FVector& AttackDirection) const;
 	bool SetupAttackMotionWarpTarget(APlayerCharacterBase* PlayerCharacter);
 	void HandleCommonInputMethodChanged(ECommonInputType NewInputType);
 	void SetGameplayCursorUsesMouse(bool bUsesMouse);
@@ -213,6 +228,8 @@ private:
 #endif
 
 	int32 ActiveMenuCount = 0;
+	FVector LastAttackRedirectMoveDirection = FVector::ZeroVector;
+	float LastAttackRedirectMoveInputTime = -BIG_NUMBER;
 
 	UPROPERTY()
 	TObjectPtr<UUserWidget> CombatHUDWidget;

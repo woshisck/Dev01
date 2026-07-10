@@ -6,6 +6,7 @@
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "AbilitySystem/GameplayCue/HitCueData.h"
+#include "AbilitySystem/GameplayEffect/GE_MeleeAttackFrame.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "Abilities/Tasks/AbilityTask_ApplyRootMotionMoveToForce.h"
 #include "Animation/AN_MeleeDamage.h"
@@ -1171,7 +1172,10 @@ void UGA_MeleeAttack::ActivateAbility(
 
 			FGameplayEffectContextHandle ContextHandle = ASC->MakeEffectContext();
 			ContextHandle.AddSourceObject(this);
-			FGameplayEffectSpecHandle SpecHandle = ASC->MakeOutgoingSpec(StatBeforeATKEffect, GetAbilityLevel(), ContextHandle);
+			// Keep StatBeforeATKEffect as the asset-side opt-in switch, but use the
+			// native attack-frame GE so notify ActDamage always adds to Attack.
+			FGameplayEffectSpecHandle SpecHandle = ASC->MakeOutgoingSpec(
+				UGE_MeleeAttackFrame::StaticClass(), GetAbilityLevel(), ContextHandle);
 			if (SpecHandle.IsValid())
 			{
 				LocalPreStatBeforeAttack = ASC->GetNumericAttribute(UBaseAttributeSet::GetAttackAttribute());
@@ -1199,8 +1203,9 @@ void UGA_MeleeAttack::ActivateAbility(
 				LocalStatBeforeAttackDelta = FMath::Max(0.f, PostStatBeforeAttack - LocalPreStatBeforeAttack);
 				LocalStatBeforeAttackPowerDelta = FMath::Max(0.f, PostStatBeforeAttackPower - LocalPreStatBeforeAttackPower);
 				UE_LOG(LogTemp, Warning,
-					TEXT("[StatBeforeATKAttrSnapshot] Effect=%s Attack %.2f -> %.2f Delta=%.2f AttackPower %.2f -> %.2f Delta=%.2f Handle=%d"),
+					TEXT("[StatBeforeATKAttrSnapshot] ConfiguredEffect=%s AppliedEffect=%s Attack %.2f -> %.2f Delta=%.2f AttackPower %.2f -> %.2f Delta=%.2f Handle=%d"),
 					*GetNameSafe(StatBeforeATKEffect),
+					*GetNameSafe(UGE_MeleeAttackFrame::StaticClass()),
 					LocalPreStatBeforeAttack,
 					PostStatBeforeAttack,
 					LocalStatBeforeAttackDelta,

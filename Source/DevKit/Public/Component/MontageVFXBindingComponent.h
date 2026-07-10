@@ -132,6 +132,9 @@ struct DEVKIT_API FMontageVFXActiveState
 	UPROPERTY()
 	TArray<TObjectPtr<UStaticMeshComponent>> AnnulusPlaneComponents;
 
+	UPROPERTY()
+	TArray<TObjectPtr<UMaterialInstanceDynamic>> AnnulusPlaneMaterials;
+
 };
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -150,6 +153,7 @@ public:
 
 	void RegisterBinding(FName SlotName, const FMontageVFXBindingConfig& Config);
 	void ActivateSlot(FName SlotName, const FActionData* ActionData = nullptr, float AnnulusPlaneRemainTime = 0.f);
+	void SetAnnulusPlaneProgress(FName SlotName, float Progress);
 	void DeactivateSlot(FName SlotName);
 	void ClearAllBindings();
 

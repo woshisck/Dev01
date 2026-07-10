@@ -163,6 +163,26 @@ void UMontageVFXBindingComponent::DeactivateSlot(FName SlotName)
 	PendingBindings.Remove(SlotName);
 }
 
+void UMontageVFXBindingComponent::SetAnnulusPlaneProgress(FName SlotName, float Progress)
+{
+	FMontageVFXActiveState* State = ActiveStates.Find(SlotName);
+	if (!State)
+	{
+		return;
+	}
+
+	const float ClampedProgress = FMath::Clamp(Progress, 0.f, 1.f);
+	for (UMaterialInstanceDynamic* Material : State->AnnulusPlaneMaterials)
+	{
+		if (Material)
+		{
+			Material->SetScalarParameterValue(TEXT("ChargeProgress"), ClampedProgress);
+			Material->SetScalarParameterValue(TEXT("Progress"), ClampedProgress);
+			Material->SetScalarParameterValue(TEXT("FillPercent"), ClampedProgress);
+		}
+	}
+}
+
 void UMontageVFXBindingComponent::ClearAllBindings()
 {
 	for (auto& Pair : ActiveStates)
@@ -198,6 +218,7 @@ void UMontageVFXBindingComponent::TearDownActiveState(FMontageVFXActiveState& St
 		}
 	}
 	State.AnnulusPlaneComponents.Reset();
+	State.AnnulusPlaneMaterials.Reset();
 }
 
 USceneComponent* UMontageVFXBindingComponent::ResolveAttachTarget(const FMontageVFXBindingConfig& Config, FName& OutSocket) const
@@ -509,8 +530,12 @@ void UMontageVFXBindingComponent::SpawnAnnulusPlanes(const FMontageVFXBindingCon
 			MID->SetScalarParameterValue(TEXT("Opacity"), Config.AnnulusPlaneTint.A);
 			MID->SetScalarParameterValue(TEXT("RemainTime"), SafeRemainTime);
 			MID->SetScalarParameterValue(TEXT("SpawnTime"), World ? World->GetTimeSeconds() : 0.f);
+			MID->SetScalarParameterValue(TEXT("ChargeProgress"), 0.f);
+			MID->SetScalarParameterValue(TEXT("Progress"), 0.f);
+			MID->SetScalarParameterValue(TEXT("FillPercent"), 0.f);
 			MID->SetVectorParameterValue(TEXT("Tint"), Config.AnnulusPlaneTint);
 			ApplyMaterialParams(MID, Config.AnnulusPlaneMaterialParameterOverrides);
+			State.AnnulusPlaneMaterials.Add(MID);
 		}
 
 		if (!bUseRemainTime)

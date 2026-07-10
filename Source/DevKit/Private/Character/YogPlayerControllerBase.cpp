@@ -711,6 +711,67 @@ bool AYogPlayerControllerBase::IsGameplayInputBlocked() const
 	return false;
 }
 
+bool AYogPlayerControllerBase::TryGetAttackMotionWarpRedirectMoveDirection(FVector& OutDirection, const float MaxAge) const
+{
+	OutDirection = FVector::ZeroVector;
+
+	const ACharacter* ControlledCharacter = Cast<ACharacter>(GetPawn());
+	const UCharacterMovementComponent* MovementComponent = ControlledCharacter ? ControlledCharacter->GetCharacterMovement() : nullptr;
+	if (MovementComponent)
+	{
+		FVector AccelerationDirection = MovementComponent->GetCurrentAcceleration();
+		AccelerationDirection.Z = 0.f;
+		if (!AccelerationDirection.IsNearlyZero())
+		{
+			OutDirection = AccelerationDirection.GetSafeNormal();
+			return true;
+		}
+
+		FVector VelocityDirection = MovementComponent->Velocity;
+		VelocityDirection.Z = 0.f;
+		if (!VelocityDirection.IsNearlyZero(10.f))
+		{
+			OutDirection = VelocityDirection.GetSafeNormal();
+			return true;
+		}
+	}
+
+	const UWorld* World = GetWorld();
+	const float EffectiveMaxAge = MaxAge >= 0.f ? MaxAge : AttackMotionWarpRedirectInputGraceTime;
+	if (!World || World->GetTimeSeconds() - LastAttackRedirectMoveInputTime > EffectiveMaxAge)
+	{
+		return false;
+	}
+
+	FVector CachedDirection = LastAttackRedirectMoveDirection;
+	CachedDirection.Z = 0.f;
+	if (CachedDirection.IsNearlyZero())
+	{
+		return false;
+	}
+
+	OutDirection = CachedDirection.GetSafeNormal();
+	return true;
+}
+
+bool AYogPlayerControllerBase::CanUseAttackMotionWarpRedirect(const FVector& AttackDirection) const
+{
+	if (!bEnableAttackMotionWarpRedirect || AttackMotionWarpRedirectDistance <= 0.f)
+	{
+		return false;
+	}
+
+	FVector MoveDirection = FVector::ZeroVector;
+	if (!TryGetAttackMotionWarpRedirectMoveDirection(MoveDirection))
+	{
+		return false;
+	}
+
+	const float DirectionDot = FVector::DotProduct(MoveDirection, AttackDirection.GetSafeNormal2D());
+	const float MinDot = FMath::Cos(FMath::DegreesToRadians(FMath::Clamp(AttackMotionWarpRedirectMaxAngleDegrees, 0.f, 180.f)));
+	return DirectionDot >= MinDot;
+}
+
 bool AYogPlayerControllerBase::SetupAttackMotionWarpTarget(APlayerCharacterBase* PlayerCharacter)
 {
 	if (!PlayerCharacter)
@@ -743,6 +804,12 @@ bool AYogPlayerControllerBase::SetupAttackMotionWarpTarget(APlayerCharacterBase*
 
 	FacingDirection.Normalize();
 	const FRotator TargetRotation(0.f, FacingDirection.Rotation().Yaw, 0.f);
+	FVector TargetLocation = PlayerLocation;
+
+	if (CanUseAttackMotionWarpRedirect(FacingDirection))
+	{
+		TargetLocation += FacingDirection * AttackMotionWarpRedirectDistance;
+	}
 
 	PlayerCharacter->LastInputDirection = FacingDirection;
 
@@ -750,7 +817,7 @@ bool AYogPlayerControllerBase::SetupAttackMotionWarpTarget(APlayerCharacterBase*
 	{
 		MotionWarping->AddOrUpdateWarpTargetFromTransform(
 			AttackMotionWarpTargetName,
-			FTransform(TargetRotation, PlayerLocation));
+			FTransform(TargetRotation, TargetLocation));
 		return true;
 	}
 
@@ -1106,6 +1173,9 @@ void AYogPlayerControllerBase::Move(const FInputActionValue& Value)
 
 	if (!MoveDir.IsNearlyZero())
 	{
+		LastAttackRedirectMoveDirection = MoveDir.GetSafeNormal();
+		LastAttackRedirectMoveInputTime = GetWorld() ? GetWorld()->GetTimeSeconds() : -BIG_NUMBER;
+
 		// Get yaw-only rotation from the vector
 		FRotator DesiredRotation = MoveDir.Rotation();
 
