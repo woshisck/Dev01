@@ -23,6 +23,10 @@ struct DEVKIT_API FYogMaterialPerformanceTierInterface
 	int32 TextureQuality = 3;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Performance|Material", meta = (ClampMin = "0", ClampMax = "3"))
+	int32 TextureCollectionQuality = 3;
+
+	// Deprecated compatibility field for older tools. New batching should use ordinary TextureCollection assets.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Performance|Material", meta = (ClampMin = "0", ClampMax = "3", DeprecatedProperty, DeprecationMessage = "Use TextureCollectionQuality."))
 	int32 VTAtlasQuality = 3;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Performance|Material", meta = (ClampMin = "0", ClampMax = "3"))
@@ -50,6 +54,10 @@ struct DEVKIT_API FYogMaterialPerformanceTierInterface
 	bool bPreferBakedMaterial = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Performance|Material")
+	bool bUseTextureCollection = true;
+
+	// Deprecated compatibility flag. Texture Collection is the new default; VTAtlas is legacy only.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Performance|Material", meta = (DeprecatedProperty, DeprecationMessage = "Use bUseTextureCollection."))
 	bool bUseVTAtlas = true;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Performance|Material")
@@ -65,7 +73,7 @@ struct DEVKIT_API FYogMaterialPerformanceTierInterface
 	FName SourceMasterMaterialContract = TEXT("M_Env_MasterA_Source");
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Performance|Material")
-	FName BakedMaterialContract = TEXT("M_Env_Baked_VTAtlas");
+	FName BakedMaterialContract = TEXT("M_Env_Baked_TextureCollection");
 };
 
 UCLASS()

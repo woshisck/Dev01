@@ -12,6 +12,7 @@ public class CelesLightRuntime : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Engine",
+				"DeveloperSettings",
 			}
 		);
 

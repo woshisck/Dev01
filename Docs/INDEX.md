@@ -40,7 +40,7 @@
 | 查 GameplayTag 规范 | [GameplayTag_MasterGuide](04_开发实现与系统文档/标签/GameplayTag_MasterGuide.md) |
 | 查符文系统完整指南 | [RuneLogic_Complete_Guide](04_开发实现与系统文档/系统/Rune/RuneLogic_Complete_Guide.md) |
 | 查 AI 代码规范 | [AI代码编写规范](06_AI协作与VibeCoding/AI代码编写规范.md) |
-| 查 VT / VTC 开启和编辑器工具使用 | [VT 与 VTC 指南](04_开发实现与系统文档/性能/UE58_VirtualTexture_And_VTC_Guide.md) |
+| 查普通贴图 NoVT / Texture Collection / 地面 RVT 工具使用 | [NoVT / Texture Collection / RVT 指南](04_开发实现与系统文档/性能/UE58_VirtualTexture_And_VTC_Guide.md) |
 
 ## 维护规则
 

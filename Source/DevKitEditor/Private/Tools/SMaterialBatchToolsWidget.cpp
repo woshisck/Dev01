@@ -61,7 +61,7 @@ void SMaterialBatchToolsWidget::Construct(const FArguments& InArgs)
 					SNew(STextBlock)
 					.Text(LOCTEXT(
 						"Description",
-						"使用方式：先用“环境合批标记”给候选 Actor 写入 EnvBatch.Source.<Level>.<Prop|Building>.<Instance|Batched>.<Serial>。Prop.Batched 是自动合批主入口；Building 默认用于组织和审计。然后在这里填写 Map、Cluster、Tier、RequireTag，先运行 dry-run 查看候选、拒绝原因、VTC/UDIM/Proxy/Batch Material 计划。"))
+						"使用方式：先用“环境合批标记”给候选 Actor 写入 EnvBatch.Source.<Level>.<Prop|Building|Ground>.<Instance|Batched>.<Serial>。Prop.Batched 是自动合批主入口；Ground.Batched 只服务地面 RVT 合批。然后在这里填写 Map、Cluster、Tier、RequireTag，先运行 dry-run 查看候选、拒绝原因、Texture Collection、Proxy 和 Batch Material 计划。"))
 					.AutoWrapText(true)
 				]
 				+ SVerticalBox::Slot()
@@ -71,7 +71,7 @@ void SMaterialBatchToolsWidget::Construct(const FArguments& InArgs)
 					SNew(STextBlock)
 					.Text(LOCTEXT(
 						"ApplyWarning",
-						"注意：当前 MaterialBatchBuild 的 -Apply 全量关卡替换仍然被禁用。工具只允许安全启动 dry-run；写入 VT Atlas、Mapping、Proxy Mesh、Batch Material 等生成资产时，请复制 partial apply 命令，由 TA 审核报告后执行。"))
+						"注意：当前 MaterialBatchBuild 的 -Apply 全量关卡替换仍然被禁用。工具只允许安全启动 dry-run；写入 Texture Collection 映射、Mapping、Proxy Mesh、Batch Material 等生成资产时，请复制 partial apply 命令，由 TA 审核报告后执行。旧 VTAtlas partial apply 属于历史后端，不作为新的默认贴图方案。"))
 					.AutoWrapText(true)
 				]
 				+ SVerticalBox::Slot()
@@ -159,7 +159,7 @@ void SMaterialBatchToolsWidget::Construct(const FArguments& InArgs)
 					[
 						SNew(SButton)
 						.Text(LOCTEXT("CopyPartialApply", "复制生成资产命令"))
-						.ToolTipText(LOCTEXT("CopyPartialApplyTooltip", "复制 partial apply 命令，只写 VT Atlas、Mapping、Proxy Mesh、Batch Material 等生成资产，不做整关替换。"))
+						.ToolTipText(LOCTEXT("CopyPartialApplyTooltip", "Texture Collection 生成后端尚未完成；此按钮暂时只复制 dry-run 命令，避免误执行旧 VTAtlas 生成路径。"))
 						.OnClicked(this, &SMaterialBatchToolsWidget::CopyPartialApplyCommand)
 					]
 					+ SHorizontalBox::Slot()
@@ -174,7 +174,7 @@ void SMaterialBatchToolsWidget::Construct(const FArguments& InArgs)
 				.AutoHeight()
 				[
 					SAssignNew(StatusTextBlock, STextBlock)
-					.Text(LOCTEXT("InitialStatus", "就绪。建议先复制或运行 dry-run，查看 MaterialBatchBuildReport.md 后再执行生成资产命令。"))
+					.Text(LOCTEXT("InitialStatus", "就绪。当前只建议运行 dry-run；Texture Collection 生成后端完成前，不再复制旧 VTAtlas partial apply 命令。"))
 					.AutoWrapText(true)
 				]
 			]
@@ -210,9 +210,9 @@ FReply SMaterialBatchToolsWidget::CopyDryRunCommand()
 
 FReply SMaterialBatchToolsWidget::CopyPartialApplyCommand()
 {
-	const FString Command = BuildCommand(true, true);
+	const FString Command = BuildCommand(false, true);
 	FPlatformApplicationMisc::ClipboardCopy(*Command);
-	SetStatus(LOCTEXT("CopiedPartialApply", "已复制生成资产命令到剪贴板。执行前请先审查 dry-run 报告；该命令不会做整关替换。"));
+	SetStatus(LOCTEXT("CopiedPartialApply", "Texture Collection 生成后端尚未完成；已改为复制 DryRun 命令，避免误执行旧 VTAtlas partial apply。"));
 	return FReply::Handled();
 }
 
@@ -236,12 +236,10 @@ FString SMaterialBatchToolsWidget::BuildCommand(bool bPartialApply, bool bForPow
 
 FString SMaterialBatchToolsWidget::BuildCommandletArgs(bool bPartialApply) const
 {
-	const FString ApplySwitches = bPartialApply
-		? TEXT(" -ApplyVTAtlasOnly -ApplyMappingOnly -ApplyPropertyTextureOnly -ApplyProxyMeshOnly -ApplyBatchMaterialOnly")
-		: FString();
+	const FString ApplySwitches = FString();
 
 	return FString::Printf(
-		TEXT("\"%s\" -run=MaterialBatchBuild -Map=%s -Cluster=%s -Tier=%s -TextureBackend=VTAtlas -RequireTag=%s%s -unattended -nopause -NoSound -NullRHI"),
+		TEXT("\"%s\" -run=MaterialBatchBuild -Map=%s -Cluster=%s -Tier=%s -RequireTag=%s%s -unattended -nopause -NoSound -NullRHI"),
 		*GetProjectFilePath(),
 		*GetTextOrDefault(MapTextBox, DefaultMapPath),
 		*GetTextOrDefault(ClusterTextBox, DefaultClusterName),

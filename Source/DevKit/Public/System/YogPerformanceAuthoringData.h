@@ -50,7 +50,7 @@ public:
 	FString Schema = TEXT("DevKit.MaterialTextureNamingConvention.v1");
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Performance|Material")
-	FString RuleUsage = TEXT("Material texture tools classify artist-provided textures into canonical channels. Ordinary scene model textures default to NoVT; only dedicated VTC/VT/BakeInfo or special large assets should opt into VT.");
+	FString RuleUsage = TEXT("Material texture tools classify artist-provided textures into canonical channels. Ordinary scene model, building, and prop textures default to NoVT Texture2D. Only ground Runtime Virtual Texture assets use the VT system; texture grouping should use ordinary TextureCollection.");
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Performance|Material")
 	TArray<FYogMaterialTextureNamingRule> Rules;

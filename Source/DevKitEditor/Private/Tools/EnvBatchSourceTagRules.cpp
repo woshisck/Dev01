@@ -3,7 +3,7 @@
 namespace
 {
 constexpr const TCHAR* EnvBatchSourcePrefix = TEXT("EnvBatch.Source.");
-constexpr const TCHAR* DefaultVTCGroup = TEXT("VTC-A");
+constexpr const TCHAR* DefaultVTCGroup = TEXT("TC-A");
 
 bool IsValidActorKindToken(const FString& Token)
 {
@@ -108,6 +108,17 @@ bool ParseEnvBatchSourceTag(const FString& SourceTag, FEnvBatchSourceTagSpec& Ou
 
 FString BuildEnvBatchSourceTag(const FEnvBatchSourceTagSpec& Spec)
 {
+	if (!Spec.bHasExplicitVTCGroup)
+	{
+		return FString::Printf(
+			TEXT("%s%s.%s.%s.%02d"),
+			EnvBatchSourcePrefix,
+			*SanitizeEnvBatchTagToken(Spec.LevelName, TEXT("Level")),
+			*SanitizeEnvBatchTagToken(Spec.ActorKind, TEXT("Prop")),
+			*SanitizeEnvBatchTagToken(Spec.ProcessingMode, TEXT("Batched")),
+			FMath::Max(1, Spec.SerialNumber));
+	}
+
 	return FString::Printf(
 		TEXT("%s%s.%s.%s.%s.%02d"),
 		EnvBatchSourcePrefix,
@@ -120,6 +131,16 @@ FString BuildEnvBatchSourceTag(const FEnvBatchSourceTagSpec& Spec)
 
 FString BuildEnvBatchSourceTagPrefix(const FEnvBatchSourceTagSpec& Spec)
 {
+	if (!Spec.bHasExplicitVTCGroup)
+	{
+		return FString::Printf(
+			TEXT("%s%s.%s.%s."),
+			EnvBatchSourcePrefix,
+			*SanitizeEnvBatchTagToken(Spec.LevelName, TEXT("Level")),
+			*SanitizeEnvBatchTagToken(Spec.ActorKind, TEXT("Prop")),
+			*SanitizeEnvBatchTagToken(Spec.ProcessingMode, TEXT("Batched")));
+	}
+
 	return FString::Printf(TEXT("%s."), *BuildEnvBatchVTCGroupKey(Spec));
 }
 
@@ -137,7 +158,7 @@ FString BuildEnvBatchVTCGroupKey(const FEnvBatchSourceTagSpec& Spec)
 FString BuildEnvBatchSharedPropVTCCollectionName(const FEnvBatchSourceTagSpec& Spec, EEnvBatchVTCChannel Channel)
 {
 	return FString::Printf(
-		TEXT("VTC_%s_%s_SharedProp_%s"),
+		TEXT("TC_%s_%s_SharedProp_%s"),
 		*SanitizeEnvBatchTagToken(Spec.LevelName, TEXT("Level")),
 		*SanitizeEnvBatchTagToken(Spec.VTCGroup, GetDefaultEnvBatchVTCGroup()),
 		*GetEnvBatchVTCChannelName(Channel));

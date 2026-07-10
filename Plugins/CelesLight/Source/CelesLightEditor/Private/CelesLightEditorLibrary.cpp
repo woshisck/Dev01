@@ -2,6 +2,7 @@
 
 #include "Actors/CelesLightCaptureBox.h"
 #include "Actors/CelesPointLight.h"
+#include "Actors/StylizedEmissiveLight.h"
 #include "Editor.h"
 #include "EditorViewportClient.h"
 #include "EngineUtils.h"
@@ -114,4 +115,16 @@ ACelesPointLight* UCelesLightEditorLibrary::CreateCelesPointLight(UWorld* World)
 
 	const FScopedTransaction Transaction(NSLOCTEXT("CelesLightEditor", "CreatePointLightTransaction", "Create Celes Light"));
 	return SpawnCelesActor<ACelesPointLight>(TargetWorld, TEXT("CelesPointLight"));
+}
+
+AStylizedEmissiveLight* UCelesLightEditorLibrary::CreateStylizedEmissiveLight(UWorld* World)
+{
+	UWorld* TargetWorld = ResolveEditorWorld(World);
+	if (!TargetWorld)
+	{
+		return nullptr;
+	}
+
+	const FScopedTransaction Transaction(NSLOCTEXT("CelesLightEditor", "CreateStylizedEmissiveLightTransaction", "Create Stylized Emissive Light"));
+	return SpawnCelesActor<AStylizedEmissiveLight>(TargetWorld, TEXT("StylizedEmissiveLight"));
 }

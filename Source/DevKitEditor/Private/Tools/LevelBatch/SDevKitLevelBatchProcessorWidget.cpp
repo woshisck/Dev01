@@ -52,7 +52,7 @@ void SDevKitLevelBatchProcessorWidget::Construct(const FArguments& InArgs)
 					SNew(STextBlock)
 					.Text(LOCTEXT(
 						"Description",
-						"扫描 /Game/Art/Map/Map_Data 下的主关卡文件夹。执行合批会把 MaterialBatchBuild 的生成资产输出到该关卡的 BatchedAsset，并把状态写入 EnvBatchStatus.json；清理合批只恢复源 Actor 显示，不删除已生成 Actor、_Batched 子关卡或 BatchedAsset 内容。"))
+						"扫描 /Game/Art/Map/Map_Data 下的主关卡文件夹。当前 Texture Collection 合批生成后端尚未开放，执行合批只会返回 dry-run 信息并阻止旧 VTAtlas partial apply；清理合批只恢复源 Actor 显示，不删除已生成 Actor、_Batched 子关卡或 BatchedAsset 内容。"))
 					.AutoWrapText(true)
 				]
 				+ SVerticalBox::Slot()
@@ -101,7 +101,7 @@ void SDevKitLevelBatchProcessorWidget::Construct(const FArguments& InArgs)
 					[
 						SNew(SButton)
 						.Text(LOCTEXT("BatchCurrent", "合批当前关卡"))
-						.ToolTipText(LOCTEXT("BatchCurrentTooltip", "根据当前打开的关卡定位 Map_Data 文件夹，并启动生成资产命令。"))
+						.ToolTipText(LOCTEXT("BatchCurrentTooltip", "根据当前打开的关卡定位 Map_Data 文件夹；Texture Collection 后端完成前不会启动旧 VTAtlas 生成命令。"))
 						.OnClicked(this, &SDevKitLevelBatchProcessorWidget::BatchCurrentLevel)
 					]
 					+ SHorizontalBox::Slot()

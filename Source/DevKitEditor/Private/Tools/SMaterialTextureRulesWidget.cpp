@@ -1,4 +1,5 @@
 #include "Tools/SMaterialTextureRulesWidget.h"
+#include "Tools/DevKitArtToolUI.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetRegistry/IAssetRegistry.h"
@@ -382,21 +383,15 @@ void SMaterialTextureRulesWidget::Construct(const FArguments& InArgs)
 				+ SVerticalBox::Slot()
 				.AutoHeight()
 				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("Title", "材质合规检查"))
-					.Font(FAppStyle::GetFontStyle(TEXT("DetailsView.CategoryFontStyle")))
+					DevKitArtToolUI::MakeHeader(LOCTEXT("Title", "材质合规检查"), GetUsageText())
 				]
-				+ SVerticalBox::Slot()
-				.AutoHeight()
-				.Padding(0.f, 8.f, 0.f, 12.f)
+				+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 12.f, 0.f, 8.f)
 				[
-					SNew(STextBlock)
-					.Text(this, &SMaterialTextureRulesWidget::GetUsageText)
-					.AutoWrapText(true)
+					DevKitArtToolUI::MakeSectionHeader(1, LOCTEXT("RulesSection", "检查规则"), LOCTEXT("RulesSectionDesc", "创建或打开项目统一的贴图命名与通道规则。"))
 				]
 				+ SVerticalBox::Slot()
 				.AutoHeight()
-				.Padding(0.f, 0.f, 0.f, 12.f)
+				.Padding(8.f, 0.f, 0.f, 12.f)
 				[
 					SNew(SHorizontalBox)
 					+ SHorizontalBox::Slot()
@@ -417,6 +412,14 @@ void SMaterialTextureRulesWidget::Construct(const FArguments& InArgs)
 						.ToolTipText(LOCTEXT("OpenRulesTooltip", "打开当前默认贴图命名规则资产；如果不存在会先创建。"))
 						.OnClicked(this, &SMaterialTextureRulesWidget::OpenDefaultTextureNamingConventionAsset)
 					]
+				]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 0.f, 0.f, 8.f)
+				[
+					DevKitArtToolUI::MakeSectionHeader(2, LOCTEXT("CheckSection", "选择检查范围"), LOCTEXT("CheckSectionDesc", "检查 Content Browser 当前选择，或扫描完整的 /Game/Art。所有操作只读，不会修改材质和贴图。"))
+				]
+				+ SVerticalBox::Slot().AutoHeight().Padding(8.f, 0.f, 0.f, 12.f)
+				[
+					SNew(SHorizontalBox)
 					+ SHorizontalBox::Slot()
 					.AutoWidth()
 					.Padding(0.f, 0.f, 8.f, 0.f)
@@ -444,13 +447,22 @@ void SMaterialTextureRulesWidget::Construct(const FArguments& InArgs)
 						.OnClicked(this, &SMaterialTextureRulesWidget::ScanArtMaterialCompliance)
 					]
 				]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 0.f, 0.f, 8.f)
+				[
+					DevKitArtToolUI::MakeSectionHeader(3, LOCTEXT("ResultSection", "检查结果"), LOCTEXT("ResultSectionDesc", "先处理阻塞项，再处理警告；信息项用于说明当前资产状态。"))
+				]
 				+ SVerticalBox::Slot()
 				.AutoHeight()
 				.Padding(0.f, 0.f, 0.f, 10.f)
 				[
-					SAssignNew(StatusTextBlock, STextBlock)
-					.Text(LOCTEXT("InitialStatus", "就绪。先写入或打开贴图规则表，再选择贴图/材质执行检查。"))
-					.AutoWrapText(true)
+					SNew(SBorder)
+					.Padding(10.f)
+					.BorderImage(FAppStyle::GetBrush(TEXT("ToolPanel.GroupBorder")))
+					[
+						SAssignNew(StatusTextBlock, STextBlock)
+						.Text(LOCTEXT("InitialStatus", "就绪。先确认规则，再选择贴图或材质执行检查。"))
+						.AutoWrapText(true)
+					]
 				]
 				+ SVerticalBox::Slot()
 				.AutoHeight()
@@ -567,17 +579,13 @@ FReply SMaterialTextureRulesWidget::CheckSelectedTextureNaming()
 
 			if (Texture->VirtualTextureStreaming)
 			{
-				AddResultMessage(Result, EMaterialComplianceStatus::Warning, TEXT("普通场景模型贴图默认不建议开启 VT；仅专用 VTC/VT/BakeInfo 或特殊大贴图资产单独开启。"));
+				AddResultMessage(Result, EMaterialComplianceStatus::Warning, TEXT("普通场景模型、建筑、道具贴图不应开启 VT；只有地面 RuntimeVirtualTexture 资产使用虚拟纹理系统。需要集合共享时请使用普通 Texture Collection。"));
 			}
 			else
 			{
 				AddInfoMessage(Result, TEXT("普通场景模型贴图保持 NoVT，符合当前材质策略。"));
 			}
 
-			if (Rule->bPreferVirtualTextureForBatchedEnvironment && !Texture->VirtualTextureStreaming && Texture->GetSizeX() < 0)
-			{
-				AddInfoMessage(Result, TEXT("当前 unique 贴图未开启 VT 可以接受；正式打包链会生成合批 VT Atlas。若该贴图直接用于大面积环境材质，建议启用 VT。"));
-			}
 		}
 
 		if (Result.Status == EMaterialComplianceStatus::Pass)
@@ -682,13 +690,13 @@ FText SMaterialTextureRulesWidget::GetUsageText() const
 {
 	return LOCTEXT(
 		"UsageNoVT",
-		"使用方式：普通场景模型贴图默认保持 NoVT，材质检查器只检查命名、sRGB、尺寸、POT、材质参数和误开启 VT 的情况。地面 RVT Writer 使用非 VT 源贴图写入 RVT；专用 VTC/VT/BakeInfo 或特殊大贴图资产需要单独审查后再开启 VT。");
+		"使用方式：普通场景模型、建筑、道具贴图默认保持 NoVT，材质检查器只检查命名、sRGB、尺寸、POT、材质参数和误开启 VT 的情况。地面 RVT Writer 使用非 VT 源贴图写入 RVT；需要集合共享时请使用普通 Texture Collection，不再要求开启 VirtualTextureStreaming。");
 }
 
 #if 0
 	return LOCTEXT(
 		"Usage",
-		"使用方式：美术继续提交单体 unique 贴图，不手工维护 atlas/UDIM。该窗口先检查贴图命名、sRGB、尺寸、VT 建议，以及材质是否暴露 Source/Baked/VT Atlas 所需参数。正式合批、VT Atlas、bake、替换和写资产仍统一在打包链执行。基础材质接口采用普通 UE 材质节点和材质实例参数完成：PC/Epic/High 可走 Source 主材 A/B/C 多层采样，Mid/Low 可切到 baked/VT Atlas 参数。");
+		"使用方式：美术继续提交单体 unique 贴图，不手工维护 atlas/UDIM。该窗口先检查贴图命名、sRGB、尺寸、NoVT，以及材质是否暴露 Source 或 legacy Baked 所需参数。正式合批、Texture Collection、bake、替换和写资产仍统一在后续工具链执行。基础材质接口采用普通 UE 材质节点和材质实例参数完成。");
 }
 
 #endif
@@ -814,7 +822,7 @@ UYogMaterialTextureNamingConvention* SMaterialTextureRulesWidget::LoadOrCreateDe
 	{
 		Convention->Modify();
 		Convention->Schema = TEXT("DevKit.MaterialTextureNamingConvention.v2");
-		Convention->RuleUsage = TEXT("Texture suffix, sRGB, size, and NoVT guidance for scene materials. Ordinary model textures stay NoVT; only dedicated VTC/VT/BakeInfo or special large assets opt into VT.");
+		Convention->RuleUsage = TEXT("Texture suffix, sRGB, size, and NoVT guidance for scene materials. Ordinary model, building, and prop textures stay NoVT. Ground RuntimeVirtualTexture assets are the only VT path; shared texture grouping uses ordinary TextureCollection.");
 		FillDefaultTextureNamingRules(Convention);
 		Convention->MarkPackageDirty();
 		Package->MarkPackageDirty();
@@ -879,7 +887,7 @@ void SMaterialTextureRulesWidget::EvaluateTextureAsset(
 
 	if (Texture->VirtualTextureStreaming)
 	{
-		AddResultMessage(Result, EMaterialComplianceStatus::Warning, TEXT("普通场景模型贴图默认不建议开启 VT；仅专用 VTC/VT/BakeInfo 或特殊大贴图资产单独开启。"));
+		AddResultMessage(Result, EMaterialComplianceStatus::Warning, TEXT("普通场景模型、建筑、道具贴图不应开启 VT；只有地面 RuntimeVirtualTexture 资产使用虚拟纹理系统。需要集合共享时请使用普通 Texture Collection。"));
 	}
 	else if (Rule)
 	{
@@ -936,7 +944,7 @@ void SMaterialTextureRulesWidget::EvaluateMaterialAsset(
 
 	if (!bHasSourceRequired && !bHasBakedRequired)
 	{
-		AddResultMessage(Result, EMaterialComplianceStatus::Blocked, TEXT("未满足 Source 主材或 Baked/VT Atlas 材质契约：Source 至少需要 T_BaseColor_A、T_Normal_A、T_ORM_A；Baked 至少需要 VT_Atlas、_PropTexture、BatchRowCount、PropertyColumnCount。"));
+		AddResultMessage(Result, EMaterialComplianceStatus::Blocked, TEXT("未满足 Source 主材或 legacy Baked 材质契约：Source 至少需要 T_BaseColor_A、T_Normal_A、T_ORM_A；legacy Baked 至少需要 VT_Atlas、_PropTexture、BatchRowCount、PropertyColumnCount。新的 Texture Collection 合批材质合同尚未落地，不能用 VTAtlas 作为新默认方案。"));
 	}
 	else if (bHasSourceRequired)
 	{
@@ -944,7 +952,7 @@ void SMaterialTextureRulesWidget::EvaluateMaterialAsset(
 	}
 	else if (bHasBakedRequired)
 	{
-		AddInfoMessage(Result, TEXT("Baked/VT Atlas 基础接口存在：VT_Atlas、_PropTexture、BatchRowCount、PropertyColumnCount。"));
+		AddInfoMessage(Result, TEXT("legacy Baked/VT Atlas 基础接口存在：VT_Atlas、_PropTexture、BatchRowCount、PropertyColumnCount。注意：这是历史兼容合同，不是新的 Texture Collection 默认方案。"));
 	}
 
 	const TArray<const TCHAR*> TierScalarParameters = {

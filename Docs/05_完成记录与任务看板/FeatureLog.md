@@ -7,19 +7,19 @@
 
 ## 2026-07-01
 
-### [PERF-VT-001] VirtualTexture 开启 + VTC 编辑器工具
+### [PERF-VT-001] 地面 RVT 保留 + 普通 Texture Collection / NoVT 编辑器工具
 
 **状态**：C++ 完整，已编译（零错误）
 
 | 项目 | 内容 |
 |------|------|
-| 涉及文件 | `Config/DefaultEngine.ini`（开 VT）<br>`Source/DevKitEditor/Private/Tools/STextureVTAuditWidget.{h,cpp}`（贴图 VT 审计）<br>`Source/DevKitEditor/Private/Tools/SVirtualTextureCollectionManagerWidget.{h,cpp}`（VTC 管理器）<br>`Source/DevKitEditor/DevKitEditor.cpp`（Tab 注册 + 菜单入口） |
-| 入口 | Tools → DevKit 工具 → 美术资产工具 → `贴图 VT 审计` / `VTC 管理器` |
-| VT 开启 | `r.VirtualTextures=True`、`r.VT.PoolSizeInMegabyte=128`、`r.VT.AnisotropicFiltering=1` |
-| 审计工具 | 扫 `/Game/Art` 下所有 Texture2D；显示 VT 状态、尺寸、格式、VRAM；批量勾选/关闭 `VirtualTextureStreaming` |
-| VTC 工具 | 扫所有 UVirtualTextureCollection；从 Content Browser 一键新建/追加；成员合规校验（4K 上限 + 格式白名单） |
+| 涉及文件 | `Config/DefaultEngine.ini`（RVT 所需全局 VT）<br>`Source/DevKitEditor/Private/Tools/STextureVTAuditWidget.{h,cpp}`（贴图 NoVT 审计）<br>`Source/DevKitEditor/Private/Tools/SVirtualTextureCollectionManagerWidget.{h,cpp}`（Texture Collection 管理器）<br>`Source/DevKitEditor/DevKitEditor.cpp`（Tab 注册 + 菜单入口） |
+| 入口 | Tools → DevKit 工具 → 美术资产工具 → `贴图 NoVT 审计` / `Texture Collection 管理器` |
+| VT 开启 | `r.VirtualTextures=True` 仅为地面 RVT 保留；普通模型、建筑、道具源贴图默认 `VirtualTextureStreaming=false` |
+| 审计工具 | 扫 `/Game/Art` 下所有 Texture2D；显示源 VT 状态、尺寸、格式、VRAM；只提供批量关闭 `VirtualTextureStreaming` |
+| Texture Collection 工具 | 扫所有普通 `UTextureCollection`；从 Content Browser 一键新建/追加；成员校验要求普通 Texture2D 且 NoVT |
 | 文档 | `Docs/04_开发实现与系统文档/性能/UE58_VirtualTexture_And_VTC_Guide.md` |
-| 已知限制 | VTC 是 Experimental；单张源贴图 ≤ 4K；T2DA 系统保留作 fallback 未删 |
+| 已知限制 | `UTextureCollection` 依赖平台 bindless 支持；旧 VTAtlas/虚拟纹理合批后端仍是历史路径，未作为新默认后端 |
 
 ### [PERF-TIER-004] 性能分级 CVar 启动时不生效修复
 

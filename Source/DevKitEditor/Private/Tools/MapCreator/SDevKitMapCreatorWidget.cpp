@@ -6,6 +6,7 @@
 #include "Misc/PackageName.h"
 #include "Modules/ModuleManager.h"
 #include "Styling/AppStyle.h"
+#include "Tools/DevKitArtToolUI.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboBox.h"
 #include "Widgets/Input/SEditableTextBox.h"
@@ -44,18 +45,13 @@ void SDevKitMapCreatorWidget::Construct(const FArguments& InArgs)
 				+ SVerticalBox::Slot()
 				.AutoHeight()
 				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("Title", "地图创建器"))
-					.Font(FAppStyle::GetFontStyle(TEXT("DetailsView.CategoryFontStyle")))
+					DevKitArtToolUI::MakeHeader(
+						LOCTEXT("Title", "地图创建器"),
+						LOCTEXT("Description", "按项目规范创建命名文件夹、Persistent 关卡、Art/DataBake/Gameplay/Light/PLA 子关卡和 YogMapDefinition 数据资产。"))
 				]
-				+ SVerticalBox::Slot()
-				.AutoHeight()
-				.Padding(0.f, 8.f, 0.f, 14.f)
+				+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 12.f, 0.f, 8.f)
 				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("Description", "在一个命名文件夹中创建 Persistent 关卡、Art/DataBake/Gameplay/Light/PLA 子关卡，以及 YogMapDefinition 数据资产。"))
-					.AutoWrapText(true)
-					.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+					DevKitArtToolUI::MakeSectionHeader(1, LOCTEXT("FolderSection", "选择保存位置"), LOCTEXT("FolderSectionDesc", "目标目录必须位于 /Game；工具会在此目录下创建关卡专属文件夹。"))
 				]
 				+ SVerticalBox::Slot()
 				.AutoHeight()
@@ -85,6 +81,10 @@ void SDevKitMapCreatorWidget::Construct(const FArguments& InArgs)
 						.ToolTipText(LOCTEXT("UseContentBrowserTooltip", "把当前内容浏览器所在的 /Game 内部目录作为保存根目录。"))
 						.OnClicked(this, &SDevKitMapCreatorWidget::UseContentBrowserFolder)
 					]
+				]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 0.f, 0.f, 8.f)
+				[
+					DevKitArtToolUI::MakeSectionHeader(2, LOCTEXT("NamingSection", "设置关卡命名"), LOCTEXT("NamingSectionDesc", "选择 L1/L2/L3 与关卡类型，并填写地图名称后缀。"))
 				]
 				+ SVerticalBox::Slot()
 				.AutoHeight()
@@ -154,6 +154,10 @@ void SDevKitMapCreatorWidget::Construct(const FArguments& InArgs)
 						]
 					]
 				]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 0.f, 0.f, 8.f)
+				[
+					DevKitArtToolUI::MakeSectionHeader(3, LOCTEXT("CreateSection", "确认并创建"), LOCTEXT("CreateSectionDesc", "检查最终路径和模板映射；已有同名资产时工具会阻止覆盖。"))
+				]
 				+ SVerticalBox::Slot()
 				.AutoHeight()
 				.Padding(0.f, 2.f, 0.f, 10.f)
@@ -198,10 +202,9 @@ void SDevKitMapCreatorWidget::Construct(const FArguments& InArgs)
 				+ SVerticalBox::Slot()
 				.AutoHeight()
 				[
-					SNew(STextBlock)
-					.Text(this, &SDevKitMapCreatorWidget::GetStatusText)
-					.ColorAndOpacity(this, &SDevKitMapCreatorWidget::GetStatusColor)
-					.AutoWrapText(true)
+					DevKitArtToolUI::MakeStatus(
+						TAttribute<FText>(this, &SDevKitMapCreatorWidget::GetStatusText),
+						TAttribute<FSlateColor>(this, &SDevKitMapCreatorWidget::GetStatusColor))
 				]
 			]
 		]

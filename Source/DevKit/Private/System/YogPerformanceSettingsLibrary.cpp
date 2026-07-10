@@ -38,10 +38,15 @@ static TAutoConsoleVariable<int32> CVarYogBatchProxyPreference(
 	0,
 	TEXT("Project resource selection preference for generated batch proxies: 0 source-biased, 1 proxy-biased."));
 
-static TAutoConsoleVariable<int32> CVarYogVTAtlasQuality(
+static TAutoConsoleVariable<int32> CVarYogTextureCollectionQuality(
+	TEXT("r.Yog.TextureCollectionQuality"),
+	3,
+	TEXT("Project ordinary TextureCollection batching quality: 0 low, 3 epic."));
+
+static TAutoConsoleVariable<int32> CVarYogVTAtlasQuality_DEPRECATED(
 	TEXT("r.Yog.VTAtlasQuality"),
 	3,
-	TEXT("Project generated VT atlas quality: 0 low, 3 epic."));
+	TEXT("Deprecated alias. Use r.Yog.TextureCollectionQuality; ordinary scene textures stay NoVT and VTAtlas is legacy only."));
 
 int32 ClampQuality(int32 Value)
 {
@@ -246,7 +251,8 @@ FYogGraphicsSettings UYogPerformanceSettingsLibrary::MakeGraphicsSettingsForProf
 		Settings.ShadingQuality = 3;
 		Settings.MaterialQuality = 3;
 		Settings.DynamicOverlayQuality = 3;
-		Settings.VTAtlasQuality = 3;
+		Settings.TextureCollectionQuality = 3;
+		Settings.VTAtlasQuality = Settings.TextureCollectionQuality;
 		Settings.DynamicLightQuality = 3;
 		Settings.MaterialLightQuality = 3;
 		Settings.MaterialLightMaxLightInfoCount = 4;
@@ -268,7 +274,8 @@ FYogGraphicsSettings UYogPerformanceSettingsLibrary::MakeGraphicsSettingsForProf
 		Settings.ShadingQuality = 2;
 		Settings.MaterialQuality = 2;
 		Settings.DynamicOverlayQuality = 2;
-		Settings.VTAtlasQuality = 2;
+		Settings.TextureCollectionQuality = 2;
+		Settings.VTAtlasQuality = Settings.TextureCollectionQuality;
 		Settings.DynamicLightQuality = 2;
 		Settings.MaterialLightQuality = 2;
 		Settings.MaterialLightMaxLightInfoCount = 2;
@@ -290,7 +297,8 @@ FYogGraphicsSettings UYogPerformanceSettingsLibrary::MakeGraphicsSettingsForProf
 		Settings.ShadingQuality = 1;
 		Settings.MaterialQuality = 1;
 		Settings.DynamicOverlayQuality = 1;
-		Settings.VTAtlasQuality = 1;
+		Settings.TextureCollectionQuality = 1;
+		Settings.VTAtlasQuality = Settings.TextureCollectionQuality;
 		Settings.DynamicLightQuality = 1;
 		Settings.MaterialLightQuality = 1;
 		Settings.MaterialLightMaxLightInfoCount = 1;
@@ -312,7 +320,8 @@ FYogGraphicsSettings UYogPerformanceSettingsLibrary::MakeGraphicsSettingsForProf
 		Settings.ShadingQuality = 0;
 		Settings.MaterialQuality = 0;
 		Settings.DynamicOverlayQuality = 0;
-		Settings.VTAtlasQuality = 0;
+		Settings.TextureCollectionQuality = 0;
+		Settings.VTAtlasQuality = Settings.TextureCollectionQuality;
 		Settings.DynamicLightQuality = 0;
 		Settings.MaterialLightQuality = 1;
 		Settings.MaterialLightMaxLightInfoCount = 1;
@@ -411,7 +420,8 @@ bool UYogPerformanceSettingsLibrary::ApplyGraphicsSettings(UObject* WorldContext
 	SetCVarInt(TEXT("r.Yog.MaterialLight.MaxLightInfoCount"),
 		FMath::Clamp(Settings.MaterialLightMaxLightInfoCount, 0, 4));
 	SetCVarInt(TEXT("r.Yog.BatchProxyPreference"), Settings.bPreferBatchedGeometryProxies ? 1 : 0);
-	SetCVarInt(TEXT("r.Yog.VTAtlasQuality"), ClampQuality(Settings.VTAtlasQuality));
+	SetCVarInt(TEXT("r.Yog.TextureCollectionQuality"), ClampQuality(Settings.TextureCollectionQuality));
+	SetCVarInt(TEXT("r.Yog.VTAtlasQuality"), ClampQuality(Settings.TextureCollectionQuality));
 	SetCVarFloat(TEXT("r.ScreenPercentage"), FMath::Clamp(Settings.ResolutionScalePercent, 25.f, 100.f));
 	SetCVarFloat(TEXT("t.MaxFPS"), Settings.FrameRateLimit > 0 ? static_cast<float>(Settings.FrameRateLimit) : 0.f);
 
@@ -591,7 +601,8 @@ FYogMaterialPerformanceTierInterface UYogPerformanceSettingsLibrary::GetMaterial
 	MaterialInterface.MaterialQuality = ClampQuality(Settings.MaterialQuality);
 	MaterialInterface.NativeMaterialQualityLevel = NativeMaterialQualityLevelForProjectQuality(Settings.MaterialQuality);
 	MaterialInterface.TextureQuality = ClampQuality(Settings.TextureQuality);
-	MaterialInterface.VTAtlasQuality = ClampQuality(Settings.VTAtlasQuality);
+	MaterialInterface.TextureCollectionQuality = ClampQuality(Settings.TextureCollectionQuality);
+	MaterialInterface.VTAtlasQuality = MaterialInterface.TextureCollectionQuality;
 	MaterialInterface.DynamicOverlayQuality = ClampQuality(Settings.DynamicOverlayQuality);
 	MaterialInterface.MaterialLightQuality = ClampQuality(Settings.MaterialLightQuality);
 	MaterialInterface.MaterialLightMaxLightInfoCount = FMath::Clamp(Settings.MaterialLightMaxLightInfoCount, 0, 4);
@@ -600,11 +611,12 @@ FYogMaterialPerformanceTierInterface UYogPerformanceSettingsLibrary::GetMaterial
 	MaterialInterface.MaxRuntimeOverlayLayers = MaxOverlayLayersForQuality(Settings.DynamicOverlayQuality);
 	MaterialInterface.bPreferSourceMasterMaterial = !Settings.bPreferBatchedGeometryProxies && MaterialInterface.MaterialQuality >= 2;
 	MaterialInterface.bPreferBakedMaterial = Settings.bPreferBatchedGeometryProxies || MaterialInterface.MaterialQuality <= 1;
-	MaterialInterface.bUseVTAtlas = true;
+	MaterialInterface.bUseTextureCollection = true;
+	MaterialInterface.bUseVTAtlas = false;
 	MaterialInterface.bAllowGroundRuntimeRVTOverlay = MaterialInterface.DynamicOverlayQuality >= 1;
 	MaterialInterface.bAllowWallRuntimeRVTOverlay = false;
 	MaterialInterface.bBakeStaticDecalsIntoSurface = true;
 	MaterialInterface.SourceMasterMaterialContract = TEXT("M_Env_MasterA_Source");
-	MaterialInterface.BakedMaterialContract = TEXT("M_Env_Baked_VTAtlas");
+	MaterialInterface.BakedMaterialContract = TEXT("M_Env_Baked_TextureCollection");
 	return MaterialInterface;
 }

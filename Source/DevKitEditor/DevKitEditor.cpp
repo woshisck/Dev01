@@ -376,15 +376,15 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
 			TextureVTAuditTabName,
 			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnTextureVTAuditTab))
-			.SetDisplayName(LOCTEXT("TextureVTAuditTabTitle", "贴图 VT 审计"))
-			.SetTooltipText(LOCTEXT("TextureVTAuditTabTooltip", "扫描 /Game/Art 下 Texture2D，检查 VT 状态、尺寸警告和 VTC 兼容性。"))
+			.SetDisplayName(LOCTEXT("TextureVTAuditTabTitle", "贴图 NoVT 审计"))
+			.SetTooltipText(LOCTEXT("TextureVTAuditTabTooltip", "扫描 /Game/Art 下 Texture2D，检查普通场景贴图是否误开 VT，并确认 Texture Collection 基础兼容性。"))
 			.SetMenuType(ETabSpawnerMenuType::Hidden);
 
 		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
 			VirtualTextureCollectionManagerTabName,
 			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnVirtualTextureCollectionManagerTab))
-			.SetDisplayName(LOCTEXT("VTCManagerTabTitle", "VTC 管理器"))
-			.SetTooltipText(LOCTEXT("VTCManagerTabTooltip", "管理项目中所有 VirtualTextureCollection，支持批量创建、追加成员、合规检查。"))
+			.SetDisplayName(LOCTEXT("VTCManagerTabTitle", "Texture Collection 管理器"))
+			.SetTooltipText(LOCTEXT("VTCManagerTabTooltip", "管理项目中所有普通 TextureCollection，支持批量创建、追加成员、NoVT 合规检查。"))
 			.SetMenuType(ETabSpawnerMenuType::Hidden);
 
 		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
@@ -398,7 +398,7 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			LevelRVTTabName,
 			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnLevelRVTTab))
 			.SetDisplayName(LOCTEXT("LevelRVTTabTitle", "关卡 RVT 工具"))
-			.SetTooltipText(LOCTEXT("LevelRVTTabTooltip", "根据选中地面 Actor 创建并绑定 Runtime Virtual Texture。"))
+			.SetTooltipText(LOCTEXT("LevelRVTTabTooltip", "按地面批次 Tag 创建 RVT 资产与 Volume，并批量添加或移除模型写入。"))
 			.SetMenuType(ETabSpawnerMenuType::Hidden);
 
 		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
@@ -663,7 +663,7 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 	{
 		return SNew(SDockTab)
 			.TabRole(ETabRole::NomadTab)
-			.Label(LOCTEXT("TextureVTAuditTabLabel", "贴图 VT 审计"))
+			.Label(LOCTEXT("TextureVTAuditTabLabel", "贴图 NoVT 审计"))
 			[
 				SNew(STextureVTAuditWidget)
 			];
@@ -673,7 +673,7 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 	{
 		return SNew(SDockTab)
 			.TabRole(ETabRole::NomadTab)
-			.Label(LOCTEXT("VTCManagerTabLabel", "VTC 管理器"))
+			.Label(LOCTEXT("VTCManagerTabLabel", "Texture Collection 管理器"))
 			[
 				SNew(SVirtualTextureCollectionManagerWidget)
 			];
@@ -734,7 +734,7 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 						.Padding(0.f, 8.f, 0.f, 14.f)
 						[
 							SNew(STextBlock)
-							.Text(LOCTEXT("PerformanceToolsLauncherDescription", "常用性能入口集中在这里：从游戏主菜单运行、配置 PIE/Development 下 F12 Runtime GM、打开环境合批标记、模型/材质/贴图/VTC 检查也已经放到编辑器工具栏和 DevKit 工具菜单中。"))
+							.Text(LOCTEXT("PerformanceToolsLauncherDescription", "常用性能入口集中在这里：从游戏主菜单运行、配置 PIE/Development 下 F12 Runtime GM、打开环境合批标记、模型/材质/贴图 NoVT/Texture Collection 检查也已经放到编辑器工具栏和 DevKit 工具菜单中。"))
 							.AutoWrapText(true)
 						]
 						+ SVerticalBox::Slot()
@@ -766,7 +766,7 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 							[
 								SNew(SButton)
 								.Text(LOCTEXT("LauncherOpenEnvBatchTagger", "环境合批标记"))
-								.ToolTipText(LOCTEXT("LauncherOpenEnvBatchTaggerTooltip", "打开 EnvBatch.Source.<关卡>.<类型>.<方式>.<VTC组>.<流水号> Actor Tag 标记窗口。"))
+								.ToolTipText(LOCTEXT("LauncherOpenEnvBatchTaggerTooltip", "打开 EnvBatch.Source.<关卡>.<类型>.<方式>.<贴图集合组>.<流水号> Actor Tag 标记窗口。"))
 								.OnClicked(FOnClicked::CreateRaw(this, &FDevKitEditorModule::HandleOpenEnvBatchTaggerClicked))
 							]
 							+ SHorizontalBox::Slot()
@@ -792,7 +792,7 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 						.Padding(0.f, 4.f, 0.f, 6.f)
 						[
 							SNew(STextBlock)
-							.Text(LOCTEXT("PerformanceToolsLauncherWorkflow", "推荐顺序：1. 检查模型、材质、贴图 VT 和 VTC；2. 使用环境合批标记给关卡对象写 EnvBatch.Source.* Actor Tag，其中 VTC-A/VTC-B 是共享贴图集合父组，流水号是模型 merge 组；3. 后续正式工具链再执行按通道拆 VTC、几何合并、代理和替换。"))
+							.Text(LOCTEXT("PerformanceToolsLauncherWorkflow", "推荐顺序：1. 检查模型、材质、贴图 NoVT 和 Texture Collection；2. 使用环境合批标记给关卡对象写 EnvBatch.Source.* Actor Tag，其中贴图集合组是共享 Texture Collection 父组，流水号是模型 merge 组；3. 后续正式工具链再执行 Texture Collection 绑定、几何合并、代理和替换。"))
 							.AutoWrapText(true)
 						]
 						+ SVerticalBox::Slot()
@@ -892,18 +892,18 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 		FToolMenuEntry& TextureVTAuditEntry = UserSection.AddEntry(FToolMenuEntry::InitToolBarButton(
 			TEXT("OpenDevKitTextureVTAudit"),
 			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenTextureVTAuditTab)),
-			LOCTEXT("OpenTextureVTAuditToolbarLabel", "贴图 VT"),
-			LOCTEXT("OpenTextureVTAuditToolbarTooltip", "打开贴图 VT 审计，检查 VT 状态、尺寸、格式和 VTC 兼容性。"),
+			LOCTEXT("OpenTextureVTAuditToolbarLabel", "贴图 NoVT"),
+			LOCTEXT("OpenTextureVTAuditToolbarTooltip", "打开贴图 NoVT 审计，检查普通场景贴图是否误开 VT，以及是否适合加入普通 Texture Collection。"),
 			GetTextureVTAuditIcon()));
-		TextureVTAuditEntry.ToolBarData.LabelOverride = LOCTEXT("OpenTextureVTAuditToolbarShortLabel", "贴图 VT");
+		TextureVTAuditEntry.ToolBarData.LabelOverride = LOCTEXT("OpenTextureVTAuditToolbarShortLabel", "贴图 NoVT");
 
 		FToolMenuEntry& VTCManagerEntry = UserSection.AddEntry(FToolMenuEntry::InitToolBarButton(
 			TEXT("OpenDevKitVTCManager"),
 			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenVirtualTextureCollectionManagerTab)),
-			LOCTEXT("OpenVTCManagerToolbarLabel", "VTC"),
-			LOCTEXT("OpenVTCManagerToolbarTooltip", "打开 VTC 管理器，管理 VirtualTextureCollection 的创建、成员和合规检查。"),
+			LOCTEXT("OpenVTCManagerToolbarLabel", "TC"),
+			LOCTEXT("OpenVTCManagerToolbarTooltip", "打开 Texture Collection 管理器，管理普通 TextureCollection 的创建、成员和 NoVT 合规检查。"),
 			GetVTCManagerIcon()));
-		VTCManagerEntry.ToolBarData.LabelOverride = LOCTEXT("OpenVTCManagerToolbarShortLabel", "VTC");
+		VTCManagerEntry.ToolBarData.LabelOverride = LOCTEXT("OpenVTCManagerToolbarShortLabel", "TC");
 
 		FToolMenuEntry& EnvBatchTaggerEntry = UserSection.AddEntry(FToolMenuEntry::InitToolBarButton(
 			TEXT("OpenDevKitEnvBatchTagger"),
@@ -995,14 +995,14 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenMaterialTextureRulesTab)));
 		ArtAssetSection.AddMenuEntry(
 			TEXT("OpenTextureVTAudit"),
-			LOCTEXT("OpenTextureVTAuditLabel", "贴图 VT 审计"),
-			LOCTEXT("OpenTextureVTAuditTooltip", "检查所有 Texture2D 的 VT 开启状态、尺寸、格式，以及是否可加入 VirtualTextureCollection。支持批量开关 VT。"),
+			LOCTEXT("OpenTextureVTAuditLabel", "贴图 NoVT 审计"),
+			LOCTEXT("OpenTextureVTAuditTooltip", "检查所有 Texture2D 是否误开 VT，并确认普通 Texture Collection 基础兼容性。支持批量关闭 VT。"),
 			GetTextureVTAuditIcon(),
 			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenTextureVTAuditTab)));
 		ArtAssetSection.AddMenuEntry(
 			TEXT("OpenVTCManager"),
-			LOCTEXT("OpenVTCManagerLabel", "VTC 管理器"),
-			LOCTEXT("OpenVTCManagerTooltip", "管理项目中所有 VirtualTextureCollection：新建、批量添加成员、合规校验。"),
+			LOCTEXT("OpenVTCManagerLabel", "Texture Collection 管理器"),
+			LOCTEXT("OpenVTCManagerTooltip", "管理项目中所有普通 TextureCollection：新建、批量添加成员、NoVT 合规校验。"),
 			GetVTCManagerIcon(),
 			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenVirtualTextureCollectionManagerTab)));
 		ArtAssetSection.AddMenuEntry(
@@ -1020,7 +1020,7 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 		ArtAssetSection.AddMenuEntry(
 			TEXT("OpenLevelRVT"),
 			LOCTEXT("OpenLevelRVTLabel", "关卡 RVT 工具"),
-			LOCTEXT("OpenLevelRVTTooltip", "根据选中地面 Actor 创建 BakeInfo 下的 RVT 资产、RVT Volume，并绑定组件写入 RVT。"),
+			LOCTEXT("OpenLevelRVTTooltip", "按 Ground.Batched Tag 管理 BakeInfo 中的 RVT、_DataBake Volume 和整批模型的 RVT 写入。"),
 			GetVTCManagerIcon(),
 			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenLevelRVTTab)));
 

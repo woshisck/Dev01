@@ -57,7 +57,6 @@ private:
 	FReply SelectSelectedSourceTagActors();
 	FReply UseSelectedSourceTagAsTemplate();
 	FReply UseCurrentLevelName();
-	FReply UseNextSerialNumber();
 	void RefreshSourceTagList();
 	void SelectActorsWithSourceTag(const FString& SourceTag) const;
 	void ApplySourceTagToControls(const FString& SourceTag);

@@ -13,6 +13,7 @@
 #include "PropertyCustomizationHelpers.h"
 #include "Styling/AppStyle.h"
 #include "Tools/LevelRVT/DevKitLevelRVTService.h"
+#include "Tools/DevKitArtToolUI.h"
 #include "Tools/RVTMeshDecal/DevKitRVTMeshDecalService.h"
 #include "VT/RuntimeVirtualTexture.h"
 #include "Widgets/Input/SButton.h"
@@ -57,18 +58,13 @@ void SDevKitRVTMeshDecalWidget::Construct(const FArguments& InArgs)
 				+ SVerticalBox::Slot()
 				.AutoHeight()
 				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("Title", "RVT 网格贴花刷"))
-					.Font(FAppStyle::GetFontStyle(TEXT("DetailsView.CategoryFontStyle")))
+					DevKitArtToolUI::MakeHeader(
+						LOCTEXT("Title", "RVT 网格贴花刷"),
+						LOCTEXT("Description", "创建以 Plane 为基础的 FoliageType，写入目标 RVT 并按 Priority 分层；创建后可直接在植被模式中刷制实例。"))
 				]
-				+ SVerticalBox::Slot()
-				.AutoHeight()
-				.Padding(0.f, 8.f, 0.f, 12.f)
+				+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 12.f, 0.f, 8.f)
 				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("Description", "创建以 Plane 为基础的 FoliageType：写入目标 RVT、主通道按 From Virtual Texture 隐藏、按 Priority 分层。创建后在 UE 植被模式中使用该 FoliageType 刷实例。"))
-					.AutoWrapText(true)
-					.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+					DevKitArtToolUI::MakeSectionHeader(1, LOCTEXT("SaveSection", "保存位置与名称"), LOCTEXT("SaveSectionDesc", "默认保存到当前关卡 BakeInfo/RVTDecalFoliage；名称留空时按材质和 Priority 自动生成。"))
 				]
 				+ SVerticalBox::Slot()
 				.AutoHeight()
@@ -95,6 +91,10 @@ void SDevKitRVTMeshDecalWidget::Construct(const FArguments& InArgs)
 				[
 					SAssignNew(FoliageTypeNameOverrideTextBox, SEditableTextBox)
 					.HintText(LOCTEXT("NameOverrideHint", "留空则使用 FT_RVTDecal_<材质名>_P<Priority>"))
+				]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 0.f, 0.f, 8.f)
+				[
+					DevKitArtToolUI::MakeSectionHeader(2, LOCTEXT("AssetSection", "指定贴花资源"), LOCTEXT("AssetSectionDesc", "Plane、贴花材质和目标 RVT 均为必填项。"))
 				]
 				+ SVerticalBox::Slot()
 				.AutoHeight()
@@ -141,6 +141,10 @@ void SDevKitRVTMeshDecalWidget::Construct(const FArguments& InArgs)
 					.AllowedClass(URuntimeVirtualTexture::StaticClass())
 					.ObjectPath(this, &SDevKitRVTMeshDecalWidget::GetRuntimeVirtualTextureObjectPath)
 					.OnObjectChanged(this, &SDevKitRVTMeshDecalWidget::OnRuntimeVirtualTextureChanged)
+				]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 0.f, 0.f, 8.f)
+				[
+					DevKitArtToolUI::MakeSectionHeader(3, LOCTEXT("BrushSection", "设置刷制参数并创建"), LOCTEXT("BrushSectionDesc", "Priority 控制半透明排序；尺寸范围必须大于 0，且最小值不能超过最大值。"))
 				]
 				+ SVerticalBox::Slot()
 				.AutoHeight()
@@ -240,22 +244,33 @@ void SDevKitRVTMeshDecalWidget::Construct(const FArguments& InArgs)
 					[
 						SNew(SButton)
 						.Text(LOCTEXT("CreateOrUpdate", "创建/更新 FoliageType"))
+						.IsEnabled(this, &SDevKitRVTMeshDecalWidget::CanCreateOrUpdate)
 						.OnClicked(this, &SDevKitRVTMeshDecalWidget::CreateOrUpdateFoliageType)
 					]
 				]
 				+ SVerticalBox::Slot()
 				.AutoHeight()
 				[
-					SNew(STextBlock)
-					.Text(this, &SDevKitRVTMeshDecalWidget::GetStatusText)
-					.ColorAndOpacity(this, &SDevKitRVTMeshDecalWidget::GetStatusColor)
-					.AutoWrapText(true)
+					DevKitArtToolUI::MakeStatus(
+						TAttribute<FText>(this, &SDevKitRVTMeshDecalWidget::GetStatusText),
+						TAttribute<FSlateColor>(this, &SDevKitRVTMeshDecalWidget::GetStatusColor))
 				]
 			]
 		]
 	];
 
 	RefreshDefaultPaths();
+}
+
+bool SDevKitRVTMeshDecalWidget::CanCreateOrUpdate() const
+{
+	return !PlaneMeshObjectPath.IsEmpty()
+		&& !MaterialObjectPath.IsEmpty()
+		&& !RuntimeVirtualTextureObjectPath.IsEmpty()
+		&& MinScale > 0.f
+		&& MaxScale >= MinScale
+		&& FoliageTypeFolderTextBox.IsValid()
+		&& !FoliageTypeFolderTextBox->GetText().IsEmpty();
 }
 
 FString SDevKitRVTMeshDecalWidget::GetCurrentWorldPackagePath() const
