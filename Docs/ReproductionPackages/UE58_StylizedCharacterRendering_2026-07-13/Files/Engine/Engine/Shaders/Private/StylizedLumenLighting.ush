@@ -1,0 +1,53 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+float StylizedLumenEnabled(float4 Params0)
+{
+	return saturate(Params0.x);
+}
+
+float StylizedLumenGetDirectBlend(float4 Params0, float4 Params1)
+{
+	return StylizedLumenEnabled(Params0) * saturate(Params1.w);
+}
+
+float StylizedLumenGetIndirectBlend(float4 Params0, float4 Params1)
+{
+	return StylizedLumenEnabled(Params0) * saturate(Params1.z);
+}
+
+float StylizedLumenGetNdotL(float NoL, float Roughness, float4 Params0)
+{
+	const float BandCount = max(Params0.y, 1.0f);
+	const float BandSoftness = max(saturate(Params0.z), 0.001f);
+	const float GlossInfluence = saturate(Params0.w);
+	const float Glossiness = saturate(1.0f - Roughness);
+	const float GlossExponent = lerp(1.0f, max(Glossiness, 0.05f), GlossInfluence);
+	const float ShapedNoL = pow(saturate(NoL), GlossExponent);
+	const float BandPosition = ShapedNoL * BandCount;
+	const float BandIndex = floor(BandPosition);
+	const float BandFrac = frac(BandPosition);
+	const float SmoothedBand = smoothstep(1.0f - BandSoftness, 1.0f, BandFrac);
+
+	return saturate((BandIndex + SmoothedBand) / BandCount);
+}
+
+float StylizedLumenGetDiffuseScale(float NoL, float Roughness, float4 Params0, float Blend)
+{
+	const float StylizedNoL = StylizedLumenGetNdotL(NoL, Roughness, Params0);
+	const float StylizedScale = StylizedNoL / max(NoL, 0.001f);
+	return lerp(1.0f, StylizedScale, Blend);
+}
+
+float StylizedLumenGetSpecularScale(float3 N, float3 V, float3 L, float Roughness, float4 Params0, float4 Params1, float Blend)
+{
+	const float SpecularIntensity = max(Params1.x, 0.0f);
+	const float SpecularOffset = Params1.y;
+	const float3 H = normalize(L + V);
+	const float NdotH = saturate(dot(N, H) + SpecularOffset);
+	const float SpecularPower = lerp(96.0f, 12.0f, saturate(Roughness));
+	const float StylizedSpecular = pow(NdotH, SpecularPower) * SpecularIntensity;
+
+	return lerp(1.0f, StylizedSpecular, Blend);
+}

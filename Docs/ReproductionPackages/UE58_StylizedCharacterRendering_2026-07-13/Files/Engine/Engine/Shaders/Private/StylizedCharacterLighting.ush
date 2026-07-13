@@ -1,0 +1,88 @@
+// MSM_StylizedCharacterLit CustomData layout:
+// r: Diffuse Bias [0, 1], remapped to [-1, 1]
+// gb: octahedral smooth vertex normal for indirect lighting
+// a: Lighting Profile [0, 7], normalized to [0, 1]
+
+#ifndef STYLIZED_CHARACTER_LIGHTING_USH_INCLUDED
+#define STYLIZED_CHARACTER_LIGHTING_USH_INCLUDED 1
+
+uint StylizedCharacterGetProfileId(float PackedData)
+{
+	return (uint)round(saturate(PackedData) * 7.0f);
+}
+
+float StylizedCharacterGetDiffuseBias(float PackedData)
+{
+	return saturate(PackedData) * 2.0f - 1.0f;
+}
+
+float3 StylizedCharacterGetGINormal(float2 PackedNormal)
+{
+	return normalize(OctahedronToUnitVector(saturate(PackedNormal) * 2.0f - 1.0f));
+}
+
+uint StylizedCharacterGetProfileDataIndex(float PackedData, float4 ProfileMeta, uint ValueIndex)
+{
+	const uint ProfileCount = max((uint)round(ProfileMeta.x), 1u);
+	const uint ProfileId = min(StylizedCharacterGetProfileId(PackedData), ProfileCount - 1u);
+	return ProfileId * 11u + ValueIndex;
+}
+
+uint StylizedCharacterGetOverrideProfileDataIndex(float4 ProfileMeta, uint ValueIndex)
+{
+	const uint ProfileCount = max((uint)round(ProfileMeta.x), 1u);
+	const uint ProfileId = min((uint)round(max(ProfileMeta.z, 0.0f)), ProfileCount - 1u);
+	return ProfileId * 11u + ValueIndex;
+}
+
+float StylizedCharacterGetProfileOverrideBlend(float4 ProfileMeta)
+{
+	return saturate(ProfileMeta.w);
+}
+
+float3 StylizedCharacterApplyLightingTone(float3 Lighting, float Exposure, float Contrast)
+{
+	const float3 Exposed = max(Lighting * exp2(Exposure), 0.0f);
+	const float SourceLuminance = max(Luminance(Exposed), 1.0e-5f);
+	const float TargetLuminance = pow(SourceLuminance, max(Contrast, 0.0f));
+	return Exposed * (TargetLuminance / SourceLuminance);
+}
+
+float StylizedCharacterSafeDivide(float Numerator, float Denominator)
+{
+	return Numerator / (abs(Denominator) < 1.0e-5f ? (Denominator < 0.0f ? -1.0e-5f : 1.0e-5f) : Denominator);
+}
+
+// Exact seven-region mask construction used by the original character master
+// material. Ramp R/A define the region positions and widths.
+float3 StylizedCharacterEvaluateRampTint(float4 Ramp, float ShadowFadePower, float3 ZoneTints[7])
+{
+	const float Base = 1.5f * (Ramp.r * 2.0f - 1.0f);
+	const float Width = max(Ramp.a, 1.0e-5f) * 1.5f;
+	const float InvWidth = 1.0f - Width;
+
+	const float Edge0 = StylizedCharacterSafeDivide(Base + 1.5f, InvWidth);
+	const float Edge1 = StylizedCharacterSafeDivide(Base + 0.5f, Width) + 0.5f;
+	const float Edge2 = StylizedCharacterSafeDivide(Base, InvWidth) + 0.5f;
+	const float Edge3 = StylizedCharacterSafeDivide(Base - 0.5f, Width) + 0.5f;
+	const float Edge4 = StylizedCharacterSafeDivide(Base - 0.5f, Width) - 0.5f;
+	const float Edge5 = StylizedCharacterSafeDivide(Base - 2.0f, InvWidth) + 1.5f;
+
+	const float ShadowFade = smoothstep(saturate(ShadowFadePower), 1.0f, saturate(Edge0));
+	const float Shadow = saturate(min(1.0f - Edge1, Edge0));
+	const float ShallowFade = saturate(min(1.0f - Edge2, Edge1));
+	const float Shallow = saturate(min(1.0f - Edge3, Edge2));
+	const float SSS = saturate(min(1.0f - Edge4, Edge3));
+	const float Front = saturate(min(1.0f - Edge5, Edge4));
+	const float Forward = saturate(Edge5);
+
+	return ZoneTints[0] * (ShadowFade * Ramp.g)
+		+ ZoneTints[1] * (Shadow * Ramp.g)
+		+ ZoneTints[2] * (ShallowFade * Ramp.b)
+		+ ZoneTints[3] * (Shallow * Ramp.b)
+		+ ZoneTints[4] * SSS
+		+ ZoneTints[5] * Front
+		+ ZoneTints[6] * Forward;
+}
+
+#endif // STYLIZED_CHARACTER_LIGHTING_USH_INCLUDED
