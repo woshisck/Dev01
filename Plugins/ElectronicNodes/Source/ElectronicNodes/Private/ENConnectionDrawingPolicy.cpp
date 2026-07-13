@@ -7,9 +7,6 @@
 #include "SGraphPanel.h"
 #include "Framework/Application/SlateApplication.h"
 #include "MaterialGraph/MaterialGraphSchema.h"
-#include "Policies/ENAnimGraphConnectionDrawingPolicy.h"
-#include "Policies/ENBehaviorTreeConnectionDrawingPolicy.h"
-#include "Policies/ENMaterialGraphConnectionDrawingPolicy.h"
 #include "Popup/ENWardenPopup.h"
 //#include "Policies/ENMetasoundConnectionDrawingPolicy.h"
 
@@ -34,12 +31,12 @@ FConnectionDrawingPolicy* FENConnectionDrawingPolicyFactory::CreateConnectionPol
 	{
 		if (ClassName == "AnimationTransitionSchema")
 		{
-			return new FENAnimGraphConnectionDrawingPolicy(InBackLayerID, InFrontLayerID, ZoomFactor, InClippingRect, InDrawElements, InGraphObj);
+			return new FENConnectionDrawingPolicy(InBackLayerID, InFrontLayerID, ZoomFactor, InClippingRect, InDrawElements, InGraphObj);
 		}
 
 		if (ClassName == "AnimationGraphSchema" || ClassName == "AnimationStateGraphSchema")
 		{
-			return new FENAnimGraphConnectionDrawingPolicy(InBackLayerID, InFrontLayerID, ZoomFactor, InClippingRect, InDrawElements, InGraphObj);
+			return new FENConnectionDrawingPolicy(InBackLayerID, InFrontLayerID, ZoomFactor, InClippingRect, InDrawElements, InGraphObj);
 		}
 	}
 
@@ -55,7 +52,7 @@ FConnectionDrawingPolicy* FENConnectionDrawingPolicyFactory::CreateConnectionPol
 
 	if (ElectronicNodesSettings.ActivateOnBehaviorTree && ClassName == "EdGraphSchema_BehaviorTree")
 	{
-		return new FENBehaviorTreeConnectionDrawingPolicy(InBackLayerID, InFrontLayerID, ZoomFactor, InClippingRect, InDrawElements, InGraphObj);
+		return new FENConnectionDrawingPolicy(InBackLayerID, InFrontLayerID, ZoomFactor, InClippingRect, InDrawElements, InGraphObj, true);
 	}
 
 	if (ElectronicNodesSettings.ActivateOnControlRig && ClassName == "ControlRigGraphSchema")
@@ -80,7 +77,7 @@ FConnectionDrawingPolicy* FENConnectionDrawingPolicyFactory::CreateConnectionPol
 
 	if (ElectronicNodesSettings.ActivateOnMaterial && Schema->IsA(UMaterialGraphSchema::StaticClass()))
 	{
-		return new FENMaterialGraphConnectionDrawingPolicy(InBackLayerID, InFrontLayerID, ZoomFactor, InClippingRect, InDrawElements, InGraphObj);
+		return new FENConnectionDrawingPolicy(InBackLayerID, InFrontLayerID, ZoomFactor, InClippingRect, InDrawElements, InGraphObj);
 	}
 
 	for (const auto& Type : ElectronicNodesSettings.CustomGraphSchemas)
