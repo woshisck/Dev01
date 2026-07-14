@@ -52,6 +52,12 @@ Success - 0 error(s), 4 warning(s)
 
 快照保持源文件原始字节，不会为通过格式检查而改写 UE 上游已有空白。真实 Engine 修改、Project 修改和包内脚本/文档均单独通过 `git diff --check`。
 
+## 2026-07-14 材质排列修正
+
+修正 `ShadingModelsMaterial.ush` 对可选字段 `WorldVertexNormal_Center` 的无条件访问。GI 平滑法线改为使用所有普通 BasePass permutation 都具备的 `TangentToWorld[2]`，并应用 `TwoSidedSign`。该改动不增加插值器，覆盖 Local Vertex Factory 和 GPU Skin Vertex Factory。
+
+使用 `MaterialEditingLibrary.recompile_material` 直接重新编译截图对应资产 `/Game/Developers/g/L1_CommonLevel_Test/Material/NewMaterial2`：返回 0 个材质错误，日志包含 `STYLIZED_MATERIAL_PERMUTATION_VALIDATION_OK`，且 `WorldVertexNormal_Center`、`Shader compiler errors`、`LogMaterial: Error` 均为 0 次。验证日志位于 `Saved/Logs/NewMaterial2-PermutationFix.log`。
+
 ## 尚需美术验收
 
 代码、构建、Shader 和生成资产已验证。最终视觉仍需在代表场景中按完整指南第 16 节检查：暗部颜色保真、三种 Light Mode、金属/粗糙度、场景投影接收、角色只向环境投影、Kuwahara 分级以及隐藏自发光面源噪声。

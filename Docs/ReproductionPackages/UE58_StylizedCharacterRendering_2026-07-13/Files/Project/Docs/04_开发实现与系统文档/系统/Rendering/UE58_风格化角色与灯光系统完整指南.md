@@ -144,6 +144,8 @@ CustomData.gb = 平滑顶点法线的 Octahedral 编码
 CustomData.a  = Lighting Profile 0..7 的归一化编码
 ```
 
+平滑顶点法线直接取材质像素参数中始终存在的 `TangentToWorld[2]`，并乘 `TwoSidedSign` 处理双面朝向。不要使用可选的 `WorldVertexNormal_Center`：该字段只在启用 Normal Curvature to Roughness 的 Shader permutation 中生成，普通角色材质会因字段缺失而编译失败。
+
 Diffuse Bias 的唯一公式：
 
 ```hlsl

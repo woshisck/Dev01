@@ -224,9 +224,11 @@ void SetGBufferForShadingModel(
 			const uint ProfileId = 0u;
 		#endif
 
-		// GI uses the smooth vertex normal by default. Artists do not need to wire
-		// another normal input, and the normal map remains available for direct PBR.
-		GBuffer.CustomData.gb = UnitVectorToOctahedron(normalize(MaterialParameters.WorldVertexNormal_Center)) * 0.5f + 0.5f;
+		// TangentToWorld[2] is the interpolated smooth vertex normal and is available
+		// in every material permutation. WorldVertexNormal_Center is optional and only
+		// exists when curvature-to-roughness requests an additional interpolator.
+		const float3 SmoothVertexNormal = normalize(MaterialParameters.TangentToWorld[2]) * MaterialParameters.TwoSidedSign;
+		GBuffer.CustomData.gb = UnitVectorToOctahedron(SmoothVertexNormal) * 0.5f + 0.5f;
 		GBuffer.CustomData.a = ProfileId * (1.0f / 7.0f);
 	}
 #endif
