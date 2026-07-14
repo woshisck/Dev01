@@ -6,6 +6,8 @@
 #include "ISettingsModule.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
+#include "StylizedLightingSettings.h"
+#include "StylizedLightingSettingsDetails.h"
 #include "ToolMenus.h"
 
 #define LOCTEXT_NAMESPACE "FCelesLightEditorModule"
@@ -18,6 +20,9 @@ void FCelesLightEditorModule::StartupModule()
 	PropertyEditorModule.RegisterCustomClassLayout(
 		ACelesLightCaptureBox::StaticClass()->GetFName(),
 		FOnGetDetailCustomizationInstance::CreateStatic(&FCelesLightCaptureBoxDetails::MakeInstance));
+	PropertyEditorModule.RegisterCustomClassLayout(
+		UStylizedLightingSettings::StaticClass()->GetFName(),
+		FOnGetDetailCustomizationInstance::CreateStatic(&FStylizedLightingSettingsDetails::MakeInstance));
 	PropertyEditorModule.NotifyCustomizationModuleChanged();
 }
 
@@ -30,6 +35,7 @@ void FCelesLightEditorModule::ShutdownModule()
 	{
 		FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>(TEXT("PropertyEditor"));
 		PropertyEditorModule.UnregisterCustomClassLayout(ACelesLightCaptureBox::StaticClass()->GetFName());
+		PropertyEditorModule.UnregisterCustomClassLayout(UStylizedLightingSettings::StaticClass()->GetFName());
 		PropertyEditorModule.NotifyCustomizationModuleChanged();
 	}
 }

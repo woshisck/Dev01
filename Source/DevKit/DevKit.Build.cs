@@ -51,6 +51,7 @@ public class DevKit : ModuleRules
                 "MotionWarping",
                 "StateTreeModule",
                 "GameplayStateTreeModule",
+                "CelesLightRuntime",
 
             });
 

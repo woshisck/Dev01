@@ -1,0 +1,83 @@
+// Fill out your copyright notice in the Description page of Project Settings.
+
+using System.IO;
+using UnrealBuildTool;
+
+public class DevKit : ModuleRules
+{
+	public DevKit(ReadOnlyTargetRules Target) : base(Target)
+	{
+        PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
+        string enginePath = Path.GetFullPath(Target.RelativeEnginePath);
+
+
+        PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
+
+
+        PublicIncludePaths.AddRange(
+        new string[] {
+            //"DevKit",
+            //"DevKitEditor"
+        }
+        );
+
+        PublicDependencyModuleNames.AddRange(
+			new string[] {
+				"Core",
+                "CoreOnline",
+                "CoreUObject", 
+				"Engine", 
+				"InputCore",
+                "Niagara",
+                "ModularGameplay",
+                "ModularGameplayActors",
+                "PhysicsCore",
+                "GameplayTags",
+                "GameplayTasks",
+                "DataRegistry",
+                "DeveloperSettings",
+                "ReplicationGraph",
+                "GameFeatures",
+                "Hotfix",
+                "PropertyPath",
+                "CommonUI",
+                "CommonInput",
+                "NavigationSystem",
+                "AIModule",
+                "AnimGraphRuntime",
+                "GameplayAbilities",
+                "Flow",
+                "GenericGraphRuntime",
+                "MotionWarping",
+                "StateTreeModule",
+                "GameplayStateTreeModule",
+                "CelesLightRuntime",
+
+            });
+
+		PrivateDependencyModuleNames.AddRange(new string[] {
+                "Core",
+                "InputCore",
+                "Engine",
+                "Slate",
+                "SlateCore",
+                "RenderCore",
+                "EnhancedInput",
+                "NetCore",
+                "RHI",
+                "Projects",
+                "Gauntlet",
+                "UMG",
+                "AIModule",
+                "AnimGraphRuntime"
+            });
+
+		// Uncomment if you are using Slate UI
+		// PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "SlateCore" });
+		
+		// Uncomment if you are using online features
+		// PrivateDependencyModuleNames.Add("OnlineSubsystem");
+
+		// To include OnlineSubsystemSteam, add it to the plugins section in your uproject file with the Enabled attribute set to true
+	}
+}

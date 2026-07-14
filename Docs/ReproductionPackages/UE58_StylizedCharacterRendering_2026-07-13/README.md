@@ -6,10 +6,69 @@
 
 - `T_Color.RGB`：美术原始颜色；`T_Color.A` 不使用。
 - `T_Normal.RG`：切线空间法线 XY；`T_Normal.B`：Diffuse Bias `[0,1]`，Shader 映射到 `[-1,1]`。
-- `T_MixMap.R`：Metallic。
+- `T_MixMap.R`：SpecMask（风格化高光遮罩），接入材质 `Specular`；可用材质实例参数 `SpecIntensity` 二次缩放。
 - `T_MixMap.G`：Glossiness，运行时 `Roughness = 1 - G`。
 - `T_MixMap.B`：MatCapMask，仅保留，当前不参与计算。
-- 不提供 Specular 贴图、参数或材质输入；非金属 F0 使用 UE 固定值，金属反射颜色来自 BaseColor。
+- `Metallic` 是独立材质实例参数，默认 `0`，不再占用 MixMap 通道。
+- 高光颜色与整套 Look 的高光强度由所选 `Lighting Profile 0..7` 的 `SpecularTint` 和 `SpecularIntensity` 控制。
+
+## 2026-07-14 Spec 与间接遮蔽更新
+
+- 恢复旧角色材质的 SpecMask 语义：旧实现是风格化 GGX/Toon 高光乘 `T_MixMap.R`、`SpecIntensity` 与 `SpecColorTint`；新实现保留同一遮罩数据，改由延迟多光源着色模型计算。
+- `M_StylizedCharacterMaster` 新增材质实例参数 `SpecIntensity` 与独立 `Metallic`。默认接线为 `Specular = saturate(T_MixMap.R * SpecIntensity)`。
+- 移除 `MSM_StylizedCharacterLit` 对 `GBuffer.Specular=0.5` 的强制覆盖，材质 Specular 输入现在会真实影响逐像素高光。
+- `IndirectOcclusionStrength` 独立控制角色的 SSAO/Lumen 短距离遮蔽。`0` 可去除 Detail Lighting 中凹槽和贴近表面的局部自遮蔽，`1` 保持 UE 原始遮蔽；它不关闭场景物体投到角色上的投影，也不影响角色向环境投影。
+- 当前项目基线：`SpecularIntensity=1.0`、`IndirectOcclusionStrength=0.25`。
+
+## 2026-07-14 启动自动刷新修复
+
+- Runtime 模块在加载时应用 CVar，并在 `OnPostEngineInit` 再次上传角色 Lighting Profile 与 Ramp Atlas，避免首次上传早于纹理 RHI 初始化。
+- 编辑器、PIE、Standalone 和打包游戏均不需要打开 Project Settings 才能刷新效果。
+- 修改 Runtime 插件源码后必须关闭编辑器再构建，否则 Windows 会锁定 `UnrealEditor-CelesLightRuntime.dll`，新代码不会进入当前编辑器进程。
+
+## 2026-07-14 角色底色补光
+
+- Lighting Profile 新增 `Character Base Fill / 角色底色补光`，默认 `0.20`。
+- Shader 在 Lumen 与 AO 合成后直接使用 `GBuffer.BaseColor` 保证最低底色亮度，不受 Metallic 将 `DiffuseColor` 压低的影响，解决场景光照不足时角色接近黑色的问题。
+- 该功能不使用专用三点灯，也不写入 Emissive，因此不产生 Bloom、不参与 Lumen 发光且不会照亮环境。
+- 推荐用 `0 / 0.2 / 0.5` 三档对照；曝光继续调整已有光照，Base Fill 专门恢复接近零的暗部。
+
+## 待做：弱光角色保真与角色专用后处理
+
+- 当前 `CharacterBaseFill` 已实现，但“材质数据审计、最低直接光、弱光分层展平、投影向 ShadowTint 收敛、角色专用最终调色”仍标记为 `TODO`。
+- 后续采用 Shading Model 与可选 Custom Stencil 后处理的两层方案；基础效果不依赖固定三盏角色灯。
+- 后处理计划提供角色最终 Exposure、Contrast、Saturation、Tint、Shadow Lift、Highlight Clamp 和 Blend，并支持 Look Volume 与画质分级关闭。
+- 完整参数、实施顺序和验收标准见 `CompleteGuide.md` 第 18 节。
+
+## 2026-07-14 Profile 与 Attenuation 更新
+
+- `Lighting Profile 0..7` 选择的是一整套角色 Look：Ramp、七区颜色、色彩影响、曝光、对比度和相关材质参数；它不是七区中的单独一区。
+- Toon 灯会针对材质选择的同一个 Profile 执行七区 Ramp。多盏 Toon 灯各自计算光照，再按 UE 延迟光照流程累加。
+- 三个顶层 Character Color Influence 参数是全局 Master；最终值为 `Global Master * Profile Influence`，默认均为 `1.0`。
+- `T_Normal.B` 先从 `[0,1]` 映射到 `[-1,1]`，再严格按 `saturate((dot(N,L) + DiffuseBias + 1) * 0.5)` 生成 Curve Atlas 采样坐标。
+- `ShadowFadePower` 默认恢复为原材质基线 `0.0`。本次更新没有修改角色自投影、场景投影或阴影策略代码。
+
+## 2026-07-14 自阴影默认策略
+
+- 独立的 Half-View HZB 角色自阴影默认关闭，运行时 `r.StylizedCharacter.SelfShadow.Enable=0`。
+- `Stylized Character Shadow Policy` 继续负责原生投影分离：角色接收场景投影、拒绝自身原生投影，同时仍向环境投影。
+- 不要通过关闭 Skeletal Mesh 的 `Cast Shadow` 消除自投影，否则角色对地面和墙体的投影也会消失。
+- 模块化角色的每个 Child Actor 都需要应用 Shadow Policy，避免遗漏的头发、披风或配件继续产生角色自投影。
+
+## 2026-07-14 角色 C++ 基类接入
+
+- `AYogCharacterBase` 构造函数已创建 `StylizedCharacterShadowPolicyComponent` 默认子对象。
+- 玩家和敌人角色蓝图继承该基类后自动获得 Shadow Policy，无需逐个蓝图添加。
+- 继承组件在蓝图中可见，可按角色覆盖参数。
+- 不继承 `AYogCharacterBase` 的独立 Child Actor 仍需自行创建组件或加入父组件的显式目标列表。
+
+## 2026-07-14 动态灯光稳定性与双语界面
+
+- 修复动态创建 Point Light 时 `FDeferredLightUniformStruct.Resources[0]` 为空导致的 RenderCore 断言。
+- Lumen 批量灯光与 Heterogeneous Volumes 占位路径现在统一使用资源完整的默认灯光 Uniform。
+- `Stylized Lighting` 项目设置支持 `Auto / English / 简体中文`，切换后立即刷新界面。
+- 每个场景灯光、角色 Profile、反射和可选自阴影参数都有中英文名称与悬停说明。
+- `Build/Verification/VerifyStylizedPointLight.py` 可在真实 D3D12 编辑器中自动创建点光源并验证崩溃修复。
 
 完整需求、参考、方案、任务方向、架构和技术细节见 [CompleteGuide.md](Docs/CompleteGuide.md)。
 
@@ -70,3 +129,5 @@ $Package = 'D:\Self\GItGame\Dev01\Docs\ReproductionPackages\UE58_StylizedCharact
 - D3D12 日志包含 `Cmd: RecompileShaders Changed` 和 `No Shader changes found`，且不包含 `Shader compiler errors`、`errors compiling global shaders` 或 `Fatal error`。
 - 材质编辑器能选择 `MSM_StylizedCharacterLit`，并能搜索到 `Stylized Character Lighting Output`。
 - 角色蓝图能添加 `Stylized Character Shadow Policy`。
+- `Stylized Lighting` 设置页可切换英文和简体中文，展开 Profile 后每个参数都有说明。
+- 点光源回归日志包含 `STYLIZED_POINT_LIGHT_TEST: passed`，且不包含 `Null resource entry`、`Assertion failed` 或 `Fatal error`。

@@ -57,7 +57,7 @@ Docs/
 | UI | [UI](04_开发实现与系统文档/系统/UI/) | Widget、HUD、CommonUI、背包界面 |
 | VFX | [VFX](04_开发实现与系统文档/系统/VFX/) | 材质、特效、角色闪白 |
 | Rendering | [风格化角色与灯光系统](04_开发实现与系统文档/系统/Rendering/UE58_风格化角色与灯光系统完整指南.md) | UE5.8 角色 Shading Model、灯光、Lumen、阴影与自发光 |
-| Rendering 复现 | [UE5.8 风格化渲染源码复现包](ReproductionPackages/UE58_StylizedCharacterRendering_2026-07-13/README.md) | 跨机器安装、构建、Shader 校验与 70 个源码快照 |
+| Rendering 复现 | [UE5.8 风格化渲染源码复现包](ReproductionPackages/UE58_StylizedCharacterRendering_2026-07-13/README.md) | 跨机器安装、构建、Shader 校验与 83 个源码快照 |
 | 武器 | [Weapon](04_开发实现与系统文档/系统/Weapon/) | 武器系统、远程武器、初始卡组 |
 
 ## 五、配置与制作入口

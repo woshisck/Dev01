@@ -2148,8 +2148,7 @@ void FDeferredShadingSceneRenderer::BeginGatherLumenLights(const FLumenSceneFram
 				{
 					if (!TaskData->DummyLightUniformBuffer)
 					{
-						FDeferredLightUniformStruct DeferredLightUniforms;
-						FMemory::Memset(&DeferredLightUniforms, 0, sizeof(FDeferredLightUniformStruct));
+						FDeferredLightUniformStruct DeferredLightUniforms = GetDummyDeferredLightParameters();
 						TaskData->DummyLightUniformBuffer = CreateUniformBufferImmediate(DeferredLightUniforms, UniformBuffer_SingleFrame);
 					}
 					FPerLightParameters& LightParameters = ViewLightParameters.PerLightTypeParameters[LightTypeIndex].AddZeroed_GetRef();

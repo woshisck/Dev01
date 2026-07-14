@@ -549,6 +549,21 @@ void MainPS(
 	}
 	#endif
 
+	// Character occlusion is intentionally artist-controlled. This covers the
+	// legacy SSAO composition path; the Lumen shading-occlusion path is handled
+	// below after GetShadingOcclusion().
+	if (Material.GBufferData.ShadingModelID == SHADINGMODELID_STYLIZED_CHARACTER_LIT)
+	{
+		const uint ProfileDataBase = StylizedCharacterGetProfileDataIndex(Material.GBufferData.CustomData.a, StylizedCharacterProfileMeta, 0u);
+		const uint OverrideProfileDataBase = StylizedCharacterGetOverrideProfileDataIndex(StylizedCharacterProfileMeta, 0u);
+		const float ProfileOverrideBlend = StylizedCharacterGetProfileOverrideBlend(StylizedCharacterProfileMeta);
+		const float CharacterOcclusionStrength = saturate(lerp(
+			StylizedCharacterProfileData[ProfileDataBase + 10u].w,
+			StylizedCharacterProfileData[OverrideProfileDataBase + 10u].w,
+			ProfileOverrideBlend));
+		FinalAmbientOcclusion = lerp(1.0f, FinalAmbientOcclusion, CharacterOcclusionStrength);
+	}
+
 	const float3 TranslatedWorldPosition = mul(float4(GetScreenPositionForProjectionType(ScreenPosition, Material.SceneDepth), Material.SceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
 
 	const float3 N = Material.WorldNormal;
@@ -627,6 +642,7 @@ void MainPS(
 			{
 			FGBufferData GBuffer = Material.GBufferData;
 			const bool bStylizedCharacter = GBuffer.ShadingModelID == SHADINGMODELID_STYLIZED_CHARACTER_LIT;
+			float CharacterBaseFill = 0.0f;
 
 			float3 DiffuseColor = bVisualizeDiffuseIndirect ? float3(.18f, .18f, .18f) : GBuffer.DiffuseColor;
 			float3 SpecularColor = GBuffer.SpecularColor;
@@ -641,8 +657,13 @@ void MainPS(
 				const float ProfileOverrideBlend = StylizedCharacterGetProfileOverrideBlend(StylizedCharacterProfileMeta);
 				const float4 ProfileColorParams = lerp(StylizedCharacterProfileData[ProfileDataBase + 9u], StylizedCharacterProfileData[OverrideProfileDataBase + 9u], ProfileOverrideBlend);
 				const float4 ProfileToneParams = lerp(StylizedCharacterProfileData[ProfileDataBase + 10u], StylizedCharacterProfileData[OverrideProfileDataBase + 10u], ProfileOverrideBlend);
-				const float IndirectColorInfluence = saturate(ProfileColorParams.y);
-				const float ReflectionColorInfluence = saturate(ProfileColorParams.z);
+				CharacterBaseFill = saturate(lerp(
+					StylizedCharacterProfileData[ProfileDataBase + 6u].w,
+					StylizedCharacterProfileData[OverrideProfileDataBase + 6u].w,
+					ProfileOverrideBlend));
+				// Profile values define the look; project settings provide global master multipliers.
+				const float IndirectColorInfluence = saturate(ProfileColorParams.y * StylizedCharacterLightingParams.y);
+				const float ReflectionColorInfluence = saturate(ProfileColorParams.z * StylizedCharacterLightingParams.z);
 				if (StylizedReflectionKuwaharaParams.x > 0.5f)
 				{
 					const float3 FilteredReflection = StylizedCharacterKuwaharaReflection(SceneBufferUV, SpecularIndirectLighting.rgb);
@@ -671,6 +692,18 @@ void MainPS(
 				IndirectNormal = normalize(lerp(N, StylizedCharacterGetGINormal(GBuffer.CustomData.gb), GINormalBlend));
 			}
 			FShadingOcclusion Occlusion = GetShadingOcclusion(PixelPos, LumenBufferCoord, 0 /*BSDFIndex*/, V, IndirectNormal, GBuffer.Roughness, GBuffer.BaseColor, DynamicAmbientOcclusion, bIsFoliage);
+			if (bStylizedCharacter)
+			{
+				const uint ProfileDataBase = StylizedCharacterGetProfileDataIndex(GBuffer.CustomData.a, StylizedCharacterProfileMeta, 0u);
+				const uint OverrideProfileDataBase = StylizedCharacterGetOverrideProfileDataIndex(StylizedCharacterProfileMeta, 0u);
+				const float ProfileOverrideBlend = StylizedCharacterGetProfileOverrideBlend(StylizedCharacterProfileMeta);
+				const float CharacterOcclusionStrength = saturate(lerp(
+					StylizedCharacterProfileData[ProfileDataBase + 10u].w,
+					StylizedCharacterProfileData[OverrideProfileDataBase + 10u].w,
+					ProfileOverrideBlend));
+				Occlusion.DiffuseOcclusion = lerp(1.0f.xxx, Occlusion.DiffuseOcclusion, CharacterOcclusionStrength);
+				Occlusion.SpecularOcclusion = lerp(1.0f, Occlusion.SpecularOcclusion, CharacterOcclusionStrength);
+			}
 
 			if (GBuffer.ShadingModelID == SHADINGMODELID_HAIR)
 			{
@@ -744,6 +777,16 @@ void MainPS(
 				float3 ShortRangeGI = GetShortRangeGI(PixelPos);
 
 				IndirectLighting.Diffuse = (DiffuseIndirectLighting * DiffuseColor + BackfaceDiffuseIndirectLighting) * Occlusion.DiffuseOcclusion * EnergyPreservationFactor + ShortRangeGI * DiffuseColor;
+				if (bStylizedCharacter)
+				{
+					// Preserve character readability in weakly lit scenes without using
+					// emissive output or adding dedicated character lights.
+					// Use the authored BaseColor rather than DiffuseColor. DiffuseColor is
+					// reduced to zero by metallic materials, while this control is meant
+					// to preserve the character's painted color regardless of PBR setup.
+					const float3 BaseFill = GBuffer.BaseColor * CharacterBaseFill * View.PreExposure;
+					IndirectLighting.Diffuse = max(IndirectLighting.Diffuse, BaseFill);
+				}
 				IndirectLighting.Transmission = 0;
 
 				#if DIM_APPLY_DIFFUSE_INDIRECT == DIM_APPLY_DIFFUSE_INDIRECT_SCREEN_PROBE_GATHER

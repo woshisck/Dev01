@@ -435,7 +435,8 @@ FLightAccumulator AccumulateDynamicLighting(
 				const float4 SpecularTintAndIntensity = lerp(LightData.StylizedCharacterProfileData[ProfileDataBase + 7u], LightData.StylizedCharacterProfileData[OverrideProfileDataBase + 7u], ProfileOverrideBlend);
 				const float4 ColorParams = lerp(LightData.StylizedCharacterProfileData[ProfileDataBase + 9u], LightData.StylizedCharacterProfileData[OverrideProfileDataBase + 9u], ProfileOverrideBlend);
 				const float4 ColorFidelityParams = lerp(LightData.StylizedCharacterProfileData[ProfileDataBase + 10u], LightData.StylizedCharacterProfileData[OverrideProfileDataBase + 10u], ProfileOverrideBlend);
-				const float DirectColorInfluence = saturate(ColorParams.x);
+				// Profile values define the look; project settings provide a global master multiplier.
+				const float DirectColorInfluence = saturate(ColorParams.x * LightData.StylizedCharacterLightingParams.x);
 				const uint LightMode = (uint)round(clamp(LightData.StylizedCharacterLightParams.x, 0.0f, 2.0f));
 				const float ExposureScale = exp2(ColorFidelityParams.x);
 
@@ -460,8 +461,7 @@ FLightAccumulator AccumulateDynamicLighting(
 				}
 				else
 				{
-					const float DiffuseBias = StylizedCharacterGetDiffuseBias(GBuffer.CustomData.r);
-					const float CurveTime = saturate((dot(N, L) + DiffuseBias) * 0.5f + 0.5f);
+					const float CurveTime = StylizedCharacterGetCurveTime(dot(N, L), GBuffer.CustomData.r);
 					float4 Ramp = float4(CurveTime, 1.0f, 1.0f, 0.2f);
 					if (LightData.StylizedCharacterProfileMeta.y > 0.5f)
 					{

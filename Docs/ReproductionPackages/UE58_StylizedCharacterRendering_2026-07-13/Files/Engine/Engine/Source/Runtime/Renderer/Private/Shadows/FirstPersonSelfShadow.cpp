@@ -18,7 +18,7 @@ static TAutoConsoleVariable<int32> CVarFirstPersonSelfShadow(
 
 static TAutoConsoleVariable<int32> CVarStylizedCharacterSelfShadow(
 	TEXT("r.StylizedCharacter.SelfShadow.Enable"),
-	1,
+	0,
 	TEXT("Enables half-view screen-space self shadow for MSM_StylizedCharacterLit."),
 	ECVF_RenderThreadSafe | ECVF_Scalability);
 

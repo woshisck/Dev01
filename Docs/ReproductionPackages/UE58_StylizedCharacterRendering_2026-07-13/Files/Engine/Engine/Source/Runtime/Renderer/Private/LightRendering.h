@@ -43,6 +43,9 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FDeferredLightUniformStruct,)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FLightShaderParameters, LightParameters)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
+/** Returns a resource-complete neutral deferred-light uniform for dummy and disabled-light paths. */
+extern FDeferredLightUniformStruct GetDummyDeferredLightParameters();
+
 extern uint32 GetShadowQuality();
 
 extern FVector4f GetStylizedLumenLightingParams0();

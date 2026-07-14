@@ -25,6 +25,7 @@
 #include "Data/CharacterData.h"
 #include "Data/GasTemplate.h"
 #include "Components/WidgetComponent.h"
+#include "Components/StylizedCharacterShadowPolicyComponent.h"
 #include "GameplayTagsManager.h"
 #include "BuffFlow/BuffFlowComponent.h"
 #include "Data/RuneDataAsset.h"
@@ -61,6 +62,7 @@ AYogCharacterBase::AYogCharacterBase(const FObjectInitializer& ObjectInitializer
 
 	WidgetComponent = CreateDefaultSubobject<UWidgetComponent>(TEXT("UIWidgetComponent"));
 	HitImpactVisualComponent = CreateDefaultSubobject<UHitImpactVisualComponent>(TEXT("HitImpactVisualComponent"));
+	StylizedCharacterShadowPolicyComponent = CreateDefaultSubobject<UStylizedCharacterShadowPolicyComponent>(TEXT("StylizedCharacterShadowPolicyComponent"));
 
 	BaseAttributeSet = CreateDefaultSubobject<UBaseAttributeSet>(TEXT("BaseAttributeSet"));
 	DamageAttributeSet = CreateDefaultSubobject<UDamageAttributeSet>(TEXT("DamageAttributeSet"));

@@ -131,20 +131,20 @@ static TAutoConsoleVariable<float> CVarStylizedLumenLightingDirectBlend(
 
 static TAutoConsoleVariable<float> CVarStylizedCharacterLightingDirectColorInfluence(
 	TEXT("r.StylizedCharacterLighting.DirectColorInfluence"),
-	0.0f,
-	TEXT("How much MSM_StylizedCharacterLit receives the RGB color of direct scene lights. 0 uses scene luminance only."),
+	1.0f,
+	TEXT("Global multiplier for the per-profile direct light color influence. 0 uses scene luminance only."),
 	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<float> CVarStylizedCharacterLightingIndirectColorInfluence(
 	TEXT("r.StylizedCharacterLighting.IndirectColorInfluence"),
-	0.0f,
-	TEXT("How much MSM_StylizedCharacterLit receives the RGB color of diffuse indirect lighting. 0 uses scene luminance only."),
+	1.0f,
+	TEXT("Global multiplier for the per-profile diffuse indirect light color influence. 0 uses scene luminance only."),
 	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<float> CVarStylizedCharacterLightingReflectionColorInfluence(
 	TEXT("r.StylizedCharacterLighting.ReflectionColorInfluence"),
-	0.0f,
-	TEXT("How much MSM_StylizedCharacterLit receives the RGB color of indirect reflections. 0 uses scene luminance only."),
+	1.0f,
+	TEXT("Global multiplier for the per-profile reflection color influence. 0 uses reflection luminance only."),
 	ECVF_RenderThreadSafe);
 
 FVector4f GetStylizedLumenLightingParams0()
@@ -192,9 +192,10 @@ namespace
 				Value = FVector4f(1.0f, 1.0f, 1.0f, 1.0f);
 			}
 
-			GStylizedCharacterProfileData[8] = FVector4f(0.0f, 0.5f, 1.0f, 1.0f);
+			GStylizedCharacterProfileData[8] = FVector4f(0.0f, 0.0f, 1.0f, 1.0f);
 			GStylizedCharacterProfileData[9] = FVector4f(0.25f, 0.10f, 0.05f, 1.0f);
-			GStylizedCharacterProfileData[10] = FVector4f(0.0f, 1.0f, 1.0f, 0.0f);
+			GStylizedCharacterProfileData[10] = FVector4f(0.0f, 1.0f, 1.0f, 1.0f);
+			GStylizedCharacterProfileData[6].W = 0.20f;
 		}
 	};
 
@@ -801,9 +802,18 @@ uint32 GetShadowedBits(const FSceneView& View, const FLightSceneInfo& LightScene
 	return ShadowedBits;
 }
 
-FDeferredLightUniformStruct GetDeferredLightParameters(const FSceneView& View, const FLightSceneInfo& LightSceneInfo, bool bUseLightFunctionAtlas, uint32 LightFlags)
+FDeferredLightUniformStruct GetDummyDeferredLightParameters()
 {
 	FDeferredLightUniformStruct Out;
+	FMemory::Memzero(Out);
+	Out.StylizedCharacterRampAtlas = GSystemTextures.WhiteDummy->GetRHI();
+	Out.StylizedCharacterRampAtlasSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	return Out;
+}
+
+FDeferredLightUniformStruct GetDeferredLightParameters(const FSceneView& View, const FLightSceneInfo& LightSceneInfo, bool bUseLightFunctionAtlas, uint32 LightFlags)
+{
+	FDeferredLightUniformStruct Out = GetDummyDeferredLightParameters();
 
 	FLightRenderParameters LightParameters;
 	LightSceneInfo.Proxy->GetLightShaderParameters(LightParameters, LightFlags);
@@ -902,7 +912,7 @@ FDeferredLightUniformStruct GetSimpleDeferredLightParameters(
 	const FSimpleLightEntry& SimpleLight,
 	const FVector& LightWorldPosition)
 {
-	FDeferredLightUniformStruct Out;
+	FDeferredLightUniformStruct Out = GetDummyDeferredLightParameters();
 	Out.ShadowMapChannelMask = FVector4f(0, 0, 0, 0);
 	Out.DistanceFadeMAD = FVector2f(0, 0);
 	Out.ContactShadowLength = 0.0f;

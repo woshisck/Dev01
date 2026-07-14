@@ -210,9 +210,9 @@ void SetGBufferForShadingModel(
 #if MATERIAL_SHADINGMODEL_STYLIZED_CHARACTER_LIT
 	else if (ShadingModel == SHADINGMODELID_STYLIZED_CHARACTER_LIT)
 	{
-		// Keep the regular PBR material contract. Character materials author
-		// BaseColor, Metallic and Roughness normally; dielectric F0 is fixed at 0.04.
-		GBuffer.Specular = 0.5f;
+		// Preserve the material-authored Specular input. Character assets use it
+		// as a per-pixel highlight mask while the selected lighting profile supplies
+		// the final highlight tint and intensity.
 		GBuffer.Anisotropy = 0.0f;
 		GBuffer.SelectiveOutputMask &= ~HAS_ANISOTROPY_MASK;
 

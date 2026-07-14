@@ -3,6 +3,8 @@
 #include "Curves/CurveLinearColor.h"
 #include "Curves/CurveLinearColorAtlas.h"
 #include "HAL/IConsoleManager.h"
+#include "Internationalization/Culture.h"
+#include "Internationalization/Internationalization.h"
 #include "StylizedCharacterLighting.h"
 
 namespace
@@ -73,7 +75,11 @@ void UStylizedLightingSettings::ApplyToConsoleVariables() const
 		ProfileData.Add(ToVector4f(Profile ? Profile->ShallowTint : White));
 		ProfileData.Add(ToVector4f(Profile ? Profile->SSSTint : White));
 		ProfileData.Add(ToVector4f(Profile ? Profile->FrontTint : White));
-		ProfileData.Add(ToVector4f(Profile ? Profile->ForwardTint : White));
+		ProfileData.Add(FVector4f(
+			Profile ? Profile->ForwardTint.R : 1.0f,
+			Profile ? Profile->ForwardTint.G : 1.0f,
+			Profile ? Profile->ForwardTint.B : 1.0f,
+			Profile ? FMath::Clamp(Profile->CharacterBaseFill, 0.0f, 1.0f) : 0.20f));
 		ProfileData.Add(FVector4f(
 			Profile ? Profile->SpecularTint.R : 1.0f,
 			Profile ? Profile->SpecularTint.G : 1.0f,
@@ -95,7 +101,7 @@ void UStylizedLightingSettings::ApplyToConsoleVariables() const
 
 		ProfileData.Add(FVector4f(
 			RampCurveIndex,
-			Profile ? FMath::Clamp(Profile->ShadowFadePower, 0.0f, 0.99f) : 0.5f,
+			Profile ? FMath::Clamp(Profile->ShadowFadePower, 0.0f, 0.99f) : 0.0f,
 			Profile ? FMath::Max(Profile->DirectDiffuseIntensity, 0.0f) : 1.0f,
 			Profile ? FMath::Clamp(Profile->GINormalBlend, 0.0f, 1.0f) : 1.0f));
 		ProfileData.Add(FVector4f(
@@ -107,13 +113,31 @@ void UStylizedLightingSettings::ApplyToConsoleVariables() const
 			Profile ? Profile->CharacterExposure : 0.0f,
 			Profile ? FMath::Max(Profile->CharacterContrast, 0.0f) : 1.0f,
 			Profile ? FMath::Max(Profile->ReflectionIntensity, 0.0f) : 1.0f,
-			0.0f));
+			Profile ? FMath::Clamp(Profile->IndirectOcclusionStrength, 0.0f, 1.0f) : 1.0f));
 	}
 
 	SetStylizedCharacterLightingProfiles(ProfileData, ProfileCount);
 }
 
 #if WITH_EDITOR
+FText UStylizedLightingSettings::GetSectionText() const
+{
+	const bool bUseChinese = EditorLanguage == EStylizedLightingEditorLanguage::SimplifiedChinese
+		|| (EditorLanguage == EStylizedLightingEditorLanguage::Auto
+			&& FInternationalization::Get().GetCurrentCulture()->GetName().StartsWith(TEXT("zh")));
+	return FText::FromString(bUseChinese ? TEXT("风格化灯光") : TEXT("Stylized Lighting"));
+}
+
+FText UStylizedLightingSettings::GetSectionDescription() const
+{
+	const bool bUseChinese = EditorLanguage == EStylizedLightingEditorLanguage::SimplifiedChinese
+		|| (EditorLanguage == EStylizedLightingEditorLanguage::Auto
+			&& FInternationalization::Get().GetCurrentCulture()->GetName().StartsWith(TEXT("zh")));
+	return FText::FromString(bUseChinese
+		? TEXT("角色分层光照、场景风格化 Lumen、反射滤镜与可选角色自阴影的美术设置。")
+		: TEXT("Artist controls for character banded lighting, stylized scene Lumen, reflection filtering, and optional character self shadow."));
+}
+
 void UStylizedLightingSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);

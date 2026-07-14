@@ -69,6 +69,7 @@ class UPropInteractComponnet;
 class UWidgetComponent;
 class UHitImpactVisualComponent;
 class UHitCueData;
+class UStylizedCharacterShadowPolicyComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCharacterDiedDelegate, AYogCharacterBase*, Character);
 DECLARE_MULTICAST_DELEGATE_OneParam(FCharacterDiedNativeDelegate, AYogCharacterBase*);
@@ -137,6 +138,10 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat|Hit Impact")
 	TObjectPtr<UHitImpactVisualComponent> HitImpactVisualComponent;
+
+	/** Applies the environment-only native shadow policy to every skinned mesh owned by this character. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Rendering|Stylized Character")
+	TObjectPtr<UStylizedCharacterShadowPolicyComponent> StylizedCharacterShadowPolicyComponent;
 
 
 

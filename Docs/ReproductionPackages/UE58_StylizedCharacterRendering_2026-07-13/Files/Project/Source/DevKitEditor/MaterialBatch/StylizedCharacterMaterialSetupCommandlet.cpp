@@ -10,6 +10,7 @@
 #include "Materials/MaterialExpressionMultiply.h"
 #include "Materials/MaterialExpressionOneMinus.h"
 #include "Materials/MaterialExpressionScalarParameter.h"
+#include "Materials/MaterialExpressionSaturate.h"
 #include "Materials/MaterialExpressionStylizedCharacterLightingOutput.h"
 #include "Materials/MaterialExpressionSubtract.h"
 #include "Materials/MaterialExpressionTextureSampleParameter2D.h"
@@ -227,7 +228,7 @@ void BuildMaterialGraph(UMaterial* Material, UTexture* DefaultColor, UTexture* D
 	UMaterialExpressionComponentMask* ColorRGB = AddMask(Material, Color, true, true, true, -820, -600);
 	UMaterialExpressionComponentMask* NormalXY = AddMask(Material, NormalBias, true, true, false, -820, -180);
 	UMaterialExpressionComponentMask* DiffuseBias = AddMask(Material, NormalBias, false, false, true, -820, 20);
-	UMaterialExpressionComponentMask* Metallic = AddMask(Material, MixMap, true, false, false, -820, 340);
+	UMaterialExpressionComponentMask* SpecMask = AddMask(Material, MixMap, true, false, false, -820, 340);
 	UMaterialExpressionComponentMask* Glossiness = AddMask(Material, MixMap, false, true, false, -820, 470);
 	(void)AddMask(Material, MixMap, false, false, true, -820, 600);
 
@@ -242,6 +243,30 @@ void BuildMaterialGraph(UMaterial* Material, UTexture* DefaultColor, UTexture* D
 
 	UMaterialExpressionOneMinus* Roughness = AddExpression<UMaterialExpressionOneMinus>(Material, -520, 470);
 	Roughness->Input.Connect(0, Glossiness);
+
+	UMaterialExpressionScalarParameter* Metallic = AddExpression<UMaterialExpressionScalarParameter>(Material, -520, 340);
+	Metallic->ParameterName = TEXT("Metallic");
+	Metallic->ExpressionGUID = FGuid::NewGuid();
+	Metallic->DefaultValue = 0.0f;
+	Metallic->SliderMin = 0.0f;
+	Metallic->SliderMax = 1.0f;
+	Metallic->Group = TEXT("PBR Surface");
+	Metallic->SortPriority = 0;
+
+	UMaterialExpressionScalarParameter* SpecIntensity = AddExpression<UMaterialExpressionScalarParameter>(Material, -520, 610);
+	SpecIntensity->ParameterName = TEXT("SpecIntensity");
+	SpecIntensity->ExpressionGUID = FGuid::NewGuid();
+	SpecIntensity->DefaultValue = 1.0f;
+	SpecIntensity->SliderMin = 0.0f;
+	SpecIntensity->SliderMax = 2.0f;
+	SpecIntensity->Group = TEXT("Stylized Specular");
+	SpecIntensity->SortPriority = 0;
+
+	UMaterialExpressionMultiply* SpecMaskStrength = AddExpression<UMaterialExpressionMultiply>(Material, -280, 550);
+	SpecMaskStrength->A.Connect(0, SpecMask);
+	SpecMaskStrength->B.Connect(0, SpecIntensity);
+	UMaterialExpressionSaturate* Specular = AddExpression<UMaterialExpressionSaturate>(Material, 0, 550);
+	Specular->Input.Connect(0, SpecMaskStrength);
 
 	UMaterialExpressionScalarParameter* LightingProfile = AddExpression<UMaterialExpressionScalarParameter>(Material, -420, 820);
 	LightingProfile->ParameterName = TEXT("Lighting Profile");
@@ -259,10 +284,12 @@ void BuildMaterialGraph(UMaterial* Material, UTexture* DefaultColor, UTexture* D
 	Data->Metallic.Connect(0, Metallic);
 	Data->Roughness.Connect(0, Roughness);
 	Data->Normal.Connect(0, DerivedNormal);
+	Data->Specular.Connect(0, Specular);
 
 	AddComment(Material, TEXT("T_Color: RGB only. Alpha is intentionally unused."), -1260, -760, 650, 120);
 	AddComment(Material, TEXT("T_Normal: RG = packed tangent normal XY; B = Diffuse Bias [0,1], remapped to [-1,1] in MSM_StylizedCharacterLit. Import as Masks, not Normalmap/BC5."), -1260, -330, 1120, 130);
-	AddComment(Material, TEXT("T_MixMap: R = Metallic; G = Glossiness (Roughness = 1-G); B = MatCapMask reserved and currently inactive. No Specular texture or parameter."), -1260, 210, 1080, 130);
+	AddComment(Material, TEXT("T_MixMap: R = SpecMask; G = Glossiness (Roughness = 1-G); B = MatCapMask reserved and currently inactive. Metallic is a separate scalar and defaults to 0."), -1260, 210, 1080, 130);
+	AddComment(Material, TEXT("Specular = saturate(T_MixMap.R * SpecIntensity). Specular tint and profile-wide intensity are supplied by the selected Stylized Lighting Profile."), -560, 500, 980, 120);
 	AddComment(Material, TEXT("Stylized Character Lighting Output: Diffuse Bias and Lighting Profile only. GI normal is generated automatically from the smooth vertex normal."), -480, 650, 920, 130);
 }
 }

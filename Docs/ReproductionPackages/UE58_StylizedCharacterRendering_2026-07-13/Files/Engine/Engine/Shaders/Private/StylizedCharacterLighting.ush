@@ -16,6 +16,15 @@ float StylizedCharacterGetDiffuseBias(float PackedData)
 	return saturate(PackedData) * 2.0f - 1.0f;
 }
 
+// Matches the original material graph exactly:
+// BaseAttenuation = dot(N, L) + DiffuseBias, followed by
+// ConstantBiasScale(Bias=1, Scale=0.5) before the Curve Atlas lookup.
+float StylizedCharacterGetCurveTime(float NoL, float PackedDiffuseBias)
+{
+	const float BaseAttenuation = NoL + StylizedCharacterGetDiffuseBias(PackedDiffuseBias);
+	return saturate((BaseAttenuation + 1.0f) * 0.5f);
+}
+
 float3 StylizedCharacterGetGINormal(float2 PackedNormal)
 {
 	return normalize(OctahedronToUnitVector(saturate(PackedNormal) * 2.0f - 1.0f));
