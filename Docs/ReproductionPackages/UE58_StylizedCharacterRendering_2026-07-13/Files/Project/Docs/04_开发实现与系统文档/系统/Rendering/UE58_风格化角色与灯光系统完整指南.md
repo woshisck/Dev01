@@ -548,4 +548,8 @@ Docs/ReproductionPackages/UE58_StylizedCharacterRendering_2026-07-13
 
 包内包含按原目录保存的 Engine 与 Project 文件、SHA-256 清单、安装/备份脚本、构建验证脚本、本完整指南副本以及验证报告。另一台编译机可以克隆 Dev01 的目标分支后只向 UE 源码树安装 Engine 文件，也可以把该目录单独下载后同时安装 Engine 与 Project 文件。
 
+复现包根目录的 `.gitattributes` 对 `Files/**` 设置了 `binary`（包含 `-text`）。这些文件是字节级安装载荷，必须禁止 Git 的 CRLF/LF 自动转换，否则 SHA-256 会在 Windows 检出后失效；迁移或拆分该目录时必须一并保留此文件。
+
+Windows 在克隆前执行 `git config --global core.longpaths true`，并优先使用 `D:\Dev01` 这类短项目路径。复现包保留了 UE 原始相对路径，默认 260 字符限制可能导致深层 Engine/Plugin 文件检出失败。
+
 不要把整个本机 Engine 工作区复制过去。本机工作区还存在 Setup/构建工具造成的第三方脚本换行变化和 `uatobj/uatbin` 产物，它们与本系统无关，复现包已明确排除。

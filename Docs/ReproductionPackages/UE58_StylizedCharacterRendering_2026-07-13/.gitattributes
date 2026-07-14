@@ -1,0 +1,2 @@
+# Source snapshots are byte-for-byte payloads. EOL conversion invalidates SHA-256.
+Files/** binary

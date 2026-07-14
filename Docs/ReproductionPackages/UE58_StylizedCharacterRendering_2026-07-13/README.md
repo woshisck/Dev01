@@ -21,16 +21,18 @@ Files/Project/     Dev01 项目覆盖文件
 Docs/              完整指南与验证报告
 Scripts/           安装、校验、构建和 Shader 验证脚本
 FILE_MANIFEST.csv  文件来源、相对路径、大小和 SHA-256
+.gitattributes     禁止 Files/** 自动换行转换，保证哈希稳定
 ```
 
 ## 推荐复现流程
 
 1. 取得 EpicGames/UnrealEngine 访问权限。
-2. 把 UE 5.8 源码放到目标目录，并切到基线 `6673776aad735f49a5ce3bbed474ffcc701e7a8e`。
-3. 克隆 Dev01 的 `agent/stylized-character-rendering-system` 分支。
-4. 以管理员权限非必需的普通 PowerShell 运行安装脚本。
-5. 运行构建验证脚本；第一次公共头全量重编可能很久。
-6. 启动编辑器，按完整指南第 15、16 节完成角色材质实例与场景画质验收。
+2. Windows 执行 `git config --global core.longpaths true`，并把项目克隆到较短路径，例如 `D:\Dev01`。
+3. 把 UE 5.8 源码放到目标目录，并切到基线 `6673776aad735f49a5ce3bbed474ffcc701e7a8e`。
+4. 克隆 Dev01 的 `main` 分支；`agent/stylized-character-rendering-system` 保留为开发历史分支。
+5. 以管理员权限非必需的普通 PowerShell 运行安装脚本。
+6. 运行构建验证脚本；第一次公共头全量重编可能很久。
+7. 启动编辑器，按完整指南第 15、16 节完成角色材质实例与场景画质验收。
 
 示例：
 
@@ -56,6 +58,8 @@ $Package = 'D:\Self\GItGame\Dev01\Docs\ReproductionPackages\UE58_StylizedCharact
 - 安装脚本默认要求 Engine `HEAD` 等于冻结基线；需要自行承担合并风险时才使用 `-AllowDifferentEngineCommit`。
 - 覆盖前会备份所有已存在的目标文件到 `Saved/StylizedCharacterRenderingBackups/<timestamp>`。
 - 脚本只触碰 `FILE_MANIFEST.csv` 中列出的文件，不删除任何项目或引擎文件。
+- 必须保留包根目录的 `.gitattributes`；`Files/**` 被标记为 `binary` 字节快照，Git 的 CRLF/LF 自动转换会使 SHA-256 失效。
+- Windows 必须启用 Git 长路径并尽量使用短克隆目录，否则深层 Engine/Plugin 快照可能报 `Filename too long`。
 - 不复制 `Binaries`、`Intermediate`、`DerivedDataCache`、开发者测试资产或本机 Engine 第三方脚本换行变化。
 - `Content/Art` 下的主材质和默认工具贴图由 Commandlet 生成，不依赖提交二进制 `.uasset`。
 

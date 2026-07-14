@@ -58,6 +58,10 @@ Success - 0 error(s), 4 warning(s)
 
 使用 `MaterialEditingLibrary.recompile_material` 直接重新编译截图对应资产 `/Game/Developers/g/L1_CommonLevel_Test/Material/NewMaterial2`：返回 0 个材质错误，日志包含 `STYLIZED_MATERIAL_PERMUTATION_VALIDATION_OK`，且 `WorldVertexNormal_Center`、`Shader compiler errors`、`LogMaterial: Error` 均为 0 次。验证日志位于 `Saved/Logs/NewMaterial2-PermutationFix.log`。
 
+同日修正复现包在 Windows `core.autocrlf=true` 检出后的哈希漂移：包内 `.gitattributes` 将 `Files/**` 标记为 `binary`（包含 `-text`），70 个源码快照重新按源文件字节冻结并生成清单。该属性只作用于复现包快照，不改变 Dev01 或 UE 源码文件的换行策略。
+
+Windows 干净检出还需要 `core.longpaths=true` 或足够短的仓库目录。未启用时，深层 Material/Plugin 快照会被 Git 拒绝创建；复现 README 已把长路径配置放到克隆前步骤。
+
 ## 尚需美术验收
 
 代码、构建、Shader 和生成资产已验证。最终视觉仍需在代表场景中按完整指南第 16 节检查：暗部颜色保真、三种 Light Mode、金属/粗糙度、场景投影接收、角色只向环境投影、Kuwahara 分级以及隐藏自发光面源噪声。
