@@ -252,6 +252,7 @@ void AWeaponSpawner::OnConstruction(const FTransform& Transform)
 	{
 		WeaponMesh->SetStaticMesh(WeaponDefinition->DisplayMesh);
 		WeaponMesh->SetRelativeLocation(WeaponDefinition->WeaponMeshOffset);
+		WeaponMesh->SetRelativeRotation(WeaponDefinition->WeaponRotation);
 		WeaponMesh->SetRelativeScale3D(WeaponDefinition->WeaponMeshScale);
 		BaseMeshOffset = WeaponDefinition->WeaponMeshOffset;
 	}
@@ -436,6 +437,7 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 		}
 
 		Player->InactiveWeaponDef          = WeaponDefinition;
+		Player->InactiveWeaponSkill        = WeaponDefinition->ResolveDefaultWeaponSkill();
 		Player->InactiveWeaponInstance     = NewInactiveWeapon;
 		Player->InactiveWeaponFromSpawner  = this;
 		Player->PendingWeaponSpawner       = nullptr;
@@ -543,7 +545,9 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 	}
 
 	// ── 5. 记录状──────────────────────────────────────────────────
+	Player->ClearEquippedWeaponSkillAbilityGrant();
 	Player->EquippedWeaponDef    = WeaponDefinition;
+	Player->InitializeEquippedWeaponSkillFromDefinition();
 	Player->EquippedFromSpawner  = this;
 	Player->PendingWeaponSpawner = nullptr;
 
@@ -557,6 +561,7 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 	}
 
 	Player->ApplyAbilityDataFromWeapon(WeaponDefinition);
+	Player->RefreshEquippedWeaponSkillAbilityGrant();
 
 	// ── 5.5 武器类型 Tag 守卫：挂当前 WeaponType LooseTag ─────────────
 	// 让玩家专属攻GA ActivationRequiredTags 能匹配通过

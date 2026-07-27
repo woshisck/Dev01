@@ -38,6 +38,7 @@ class USkillChargeComponent;
 class UMontageVFXBindingComponent;
 class UMotionWarpingComponent;
 class UWeaponDefinition;
+class UWeaponSkillDataAsset;
 class UYogAbilitySet;
 class USacrificeGraceDA;
 class UYogAbilitySystemComponent;
@@ -65,6 +66,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FMaxHeatUpdateDelegate, const float,
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FHeatPhaseDelegate, int32, Phase);
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FWeaponSwitchedDelegate);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FWeaponSkillChangedDelegate, UWeaponSkillDataAsset*, WeaponSkill);
 
 USTRUCT(BlueprintType)
 struct DEVKIT_API FWeaponCombatDeckRuntimeState
@@ -353,8 +355,14 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Weapon")
 	TObjectPtr<UWeaponDefinition> EquippedWeaponDef;
 
+	UPROPERTY(BlueprintReadOnly, Category = "Weapon Skill")
+	TObjectPtr<UWeaponSkillDataAsset> EquippedWeaponSkill;
+
 	UPROPERTY(BlueprintReadOnly, Category = "Weapon")
 	TObjectPtr<UWeaponDefinition> InactiveWeaponDef;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Weapon Skill")
+	TObjectPtr<UWeaponSkillDataAsset> InactiveWeaponSkill;
 
 	UPROPERTY()
 	FWeaponCombatDeckRuntimeState EquippedWeaponDeckState;
@@ -371,6 +379,9 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Weapon")
 	FWeaponSwitchedDelegate OnWeaponSwitched;
 
+	UPROPERTY(BlueprintAssignable, Category = "Weapon Skill")
+	FWeaponSkillChangedDelegate OnWeaponSkillChanged;
+
 	UFUNCTION(BlueprintPure, Category = "Weapon")
 	bool CanSwitchWeapon() const;
 
@@ -380,6 +391,25 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
 	void SwitchWeapon(bool bForceRecoveryCancel = false);
 
+	UFUNCTION(BlueprintCallable, Category = "Weapon Skill")
+	bool EquipWeaponSkill(UWeaponSkillDataAsset* WeaponSkill);
+
+	UFUNCTION(BlueprintPure, Category = "Weapon Skill")
+	UWeaponSkillDataAsset* GetEquippedWeaponSkill() const { return EquippedWeaponSkill; }
+
+	UFUNCTION(BlueprintPure, Category = "Weapon Skill")
+	TArray<UWeaponSkillDataAsset*> GetAvailableWeaponSkills() const;
+
+	UFUNCTION(BlueprintPure, Category = "Weapon Skill")
+	bool HasEquippedWeaponSkill() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Weapon Skill")
+	bool TryActivateEquippedWeaponSkill();
+
+	void InitializeEquippedWeaponSkillFromDefinition();
+	void ClearEquippedWeaponSkillAbilityGrant();
+	void RefreshEquippedWeaponSkillAbilityGrant();
+
 	void CaptureEquippedWeaponDeckState();
 	void InitializeEquippedWeaponDeckStateFromDefinition();
 	void InitializeInactiveWeaponDeckStateFromDefinition();
@@ -387,6 +417,8 @@ public:
 	void LoadCombatDeckFromWeaponDeckState(FWeaponCombatDeckRuntimeState& DeckState, const UWeaponDefinition* WeaponDefinition);
 	void CaptureCombatLoadoutForRunState(FRunState& OutState);
 	void RestoreInactiveWeaponFromDefinition(UWeaponDefinition* WeaponDefinition);
+
+	FGameplayAbilitySpecHandle EquippedWeaponSkillAbilityHandle;
 
 	// ─── 献祭恩赐（全局 Run Buff）────────────────────────────────────
 
@@ -433,6 +465,7 @@ protected:
 	TObjectPtr<AYogCameraPawn> CameraPawnActor;
 
 private:
+	UWeaponDefinition* GetEffectiveEquippedWeaponDefinition() const;
 
 	void SetupHeatPhaseTagListeners();
 	void OnHeatPhaseTagChanged(const FGameplayTag Tag, int32 NewCount);

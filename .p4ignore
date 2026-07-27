@@ -1,4 +1,5 @@
 # Build/generated folders
+Binaries/
 Intermediate/
 Saved/
 DerivedDataCache/
@@ -19,9 +20,11 @@ DerivedDataCache/
 
 
 /Saved/...
+/Binaries/...
 /Intermediate/...
 /DerivedDataCache/...
 /FileOpenOrder/...
+**/Binaries/**
 **/Intermediate/**
 **/DerivedDataCache/**
 **/Saved/**

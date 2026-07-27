@@ -63,6 +63,7 @@ TArray<FUE58RuntimeProfilingScenario> FUE58RuntimeProfilingPlanBuilder::BuildDef
 				TEXT("r.ScreenPercentage 70"),
 				TEXT("r.Lumen.DiffuseIndirect.Allow 1"),
 				TEXT("r.Lumen.FinalGatherMethod 0"),
+				TEXT("r.Lumen.ScreenProbeGather.ScreenTraces 0"),
 				TEXT("r.Lumen.IrradianceFieldGather.InterpolateDownsampleFactor 2"),
 				TEXT("r.LumenScene.SurfaceCache.AtlasSize 2048"),
 				TEXT("r.LumenScene.DirectLighting.UpdateFactor 128"),
@@ -98,6 +99,7 @@ TArray<FUE58RuntimeProfilingScenario> FUE58RuntimeProfilingPlanBuilder::BuildDef
 				TEXT("r.ScreenPercentage 70"),
 				TEXT("r.Lumen.DiffuseIndirect.Allow 1"),
 				TEXT("r.Lumen.FinalGatherMethod 0"),
+				TEXT("r.Lumen.ScreenProbeGather.ScreenTraces 0"),
 				TEXT("r.Lumen.IrradianceFieldGather.InterpolateDownsampleFactor 2"),
 				TEXT("r.LumenScene.SurfaceCache.AtlasSize 2048"),
 				TEXT("r.LumenScene.DirectLighting.UpdateFactor 128"),
@@ -124,6 +126,7 @@ TArray<FUE58RuntimeProfilingScenario> FUE58RuntimeProfilingPlanBuilder::BuildDef
 				TEXT("r.DynamicGlobalIlluminationMethod 1"),
 				TEXT("r.Lumen.DiffuseIndirect.Allow 1"),
 				TEXT("r.Lumen.FinalGatherMethod 0"),
+				TEXT("r.Lumen.ScreenProbeGather.ScreenTraces 1"),
 				TEXT("r.Lumen.IrradianceFieldGather.InterpolateDownsampleFactor 2"),
 				TEXT("r.LumenScene.SurfaceCache.AtlasSize 2048"),
 				TEXT("r.LumenScene.DirectLighting.UpdateFactor 128"),
@@ -150,6 +153,14 @@ TArray<FUE58RuntimeProfilingScenario> FUE58RuntimeProfilingPlanBuilder::BuildDef
 				TEXT("sg.FoliageQuality 3"),
 				TEXT("r.ScreenPercentage 100"),
 				TEXT("r.Lumen.DiffuseIndirect.Allow 1"),
+				TEXT("r.Lumen.ScreenProbeGather.ScreenTraces 0"),
+				TEXT("r.Lumen.ScreenProbeGather.Temporal 1"),
+				TEXT("r.Lumen.ScreenProbeGather.Temporal.MaxFramesAccumulated 6"),
+				TEXT("r.Lumen.ScreenProbeGather.Temporal.MaxRayDirections 4"),
+				TEXT("r.Lumen.ScreenProbeGather.Temporal.RejectBasedOnNormal 1"),
+				TEXT("r.Lumen.ScreenProbeGather.Temporal.FastUpdateModeUseNeighborhoodClamp 1"),
+				TEXT("r.Lumen.ScreenProbeGather.Temporal.DistanceThreshold 0.005"),
+				TEXT("r.Lumen.ScreenProbeGather.Temporal.NormalThreshold 30"),
 				TEXT("t.MaxFPS 0")
 			})
 	};

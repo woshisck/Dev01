@@ -996,6 +996,15 @@ void AYogPlayerControllerBase::WeaponSkill(const FInputActionValue& Value)
 				return;
 			}
 
+			// New weapon-skill architecture: activate the exact GA granted by the
+			// equipped skill DA. A failed activation is still handled here and must
+			// not fall through to legacy generic WeaponSkill abilities.
+			if (player->HasEquippedWeaponSkill())
+			{
+				player->TryActivateEquippedWeaponSkill();
+				return;
+			}
+
 			if (PlayerASC->HasActiveWeaponSkillComboAbilityTag())
 			{
 				if (PlayerASC->TryActivateNextWeaponSkillComboAbility(true, true))

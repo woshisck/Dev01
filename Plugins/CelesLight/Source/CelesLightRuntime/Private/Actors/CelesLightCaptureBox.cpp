@@ -217,7 +217,7 @@ void ACelesLightCaptureBox::CollectLightsInBox(TArray<FCelesLightSourceData>& Ou
 		{
 			FCelesLightSourceData Data;
 			ICelesLightSourceInterface::Execute_GetCelesLightData(Actor, Data);
-			if (IsLocationInsideCaptureBox(Data.WorldPosition))
+			if (Data.Intensity > 0.0f && Data.Radius > 0.0f && IsLocationInsideCaptureBox(Data.WorldPosition))
 			{
 				OutLights.Add(Data);
 			}

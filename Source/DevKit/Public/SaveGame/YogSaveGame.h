@@ -20,6 +20,7 @@ class AYogCharacterBase;
 class UYogGameInstanceBase;
 class UYogGameplayEffect;
 class UActiveSkillDataAsset;
+class UWeaponSkillDataAsset;
 
 class AYogCharacterBase;
 
@@ -365,6 +366,8 @@ struct DEVKIT_API FRunCheckpointData
 	// ── 软引用（明确控制加载时机）──────────────────────────────
 	UPROPERTY() TSoftObjectPtr<UWeaponDefinition> EquippedWeaponDef;
 	UPROPERTY() TSoftObjectPtr<UWeaponDefinition> InactiveWeaponDef;
+	UPROPERTY() TSoftObjectPtr<UWeaponSkillDataAsset> EquippedWeaponSkill;
+	UPROPERTY() TSoftObjectPtr<UWeaponSkillDataAsset> InactiveWeaponSkill;
 	UPROPERTY() TSoftObjectPtr<USacrificeGraceDA> ActiveSacrificeGrace;
 
 	// 战斗卡组顺序（软引用列表，切关时保存玩家改动）

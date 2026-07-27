@@ -10,6 +10,8 @@
 #include "PropertyEditorModule.h"
 #include "DevKitEditor/Util/YogEntryCustomization.h"
 #include "Customization/RuneDataAssetDetails.h"
+#include "CelesLightEditorLibrary.h"
+#include "SStylizedEmissiveLibraryWidget.h"
 #include "Data/RuneDataAsset.h"
 #include "Editor.h"
 #include "Editor/EditorEngine.h"
@@ -47,7 +49,9 @@
 #include "Tools/SRuntimeGMSettingsWidget.h"
 #include "Tools/STextureVTAuditWidget.h"
 #include "Tools/SVirtualTextureCollectionManagerWidget.h"
+#include "Tools/EnemyManager/SEnemyManagerWidget.h"
 #include "Tools/StoryEncounter/SStoryEncounterWorkbenchWidget.h"
+#include "Tools/WeaponManager/SWeaponManagerWidget.h"
 #include "Customization/GameplayAbilityComboGraphNodeDetails.h"
 #include "Data/GameplayAbilityComboGraph.h"
 #include "System/YogRuntimeGMSubsystem.h"
@@ -70,6 +74,8 @@ namespace
 	const FName RuneEditorTabName(TEXT("DevKitRuneEditor"));
 	const FName CharacterBalanceTabName(TEXT("DevKitCharacterBalance"));
 	const FName ComboManagerTabName(TEXT("DevKitComboManager"));
+	const FName WeaponManagerTabName(TEXT("DevKitWeaponManager"));
+	const FName EnemyManagerTabName(TEXT("DevKitEnemyManager"));
 	const FName LevelDataWorkbenchTabName(TEXT("DevKitLevelDataWorkbench"));
 	const FName ActionBalanceTabName(TEXT("DevKitActionBalance"));
 	const FName CombatLogTabName(TEXT("DevKitCombatLog"));
@@ -86,6 +92,7 @@ namespace
 	const FName MapCreatorTabName(TEXT("DevKitMapCreator"));
 	const FName LevelRVTTabName(TEXT("DevKitLevelRVT"));
 	const FName RVTMeshDecalTabName(TEXT("DevKitRVTMeshDecal"));
+	const FName StylizedEmissiveLibraryTabName(TEXT("DevKitStylizedEmissiveLibrary"));
 	const FName PerformanceToolsLauncherTabName(TEXT("DevKitPerformanceToolsLauncher"));
 	const FName RuntimeGMSettingsTabName(TEXT("DevKitRuntimeGMSettings"));
 	const FName DevKitEditorStyleSetName(TEXT("DevKitEditorStyle"));
@@ -105,6 +112,8 @@ namespace
 	const FName EnvBatchTaggerIconSmallName(TEXT("DevKitEditor.EnvBatchTagger.Small"));
 	const FName MapCreatorIconName(TEXT("DevKitEditor.MapCreator"));
 	const FName MapCreatorIconSmallName(TEXT("DevKitEditor.MapCreator.Small"));
+	const FName StylizedEmissiveLibraryIconName(TEXT("DevKitEditor.StylizedEmissiveLibrary"));
+	const FName StylizedEmissiveLibraryIconSmallName(TEXT("DevKitEditor.StylizedEmissiveLibrary.Small"));
 	const TCHAR* DefaultEntryMenuMapPackagePath = TEXT("/Game/Maps/L_EntryMenu");
 
 	TSharedPtr<FSlateStyleSet> DevKitEditorStyleSet;
@@ -150,6 +159,7 @@ namespace
 		RegisterToolIcon(PlayFromMainMenuIconName, PlayFromMainMenuIconSmallName, TEXT("ToolIcon_PlayMainMenu"));
 		RegisterToolIcon(EnvBatchTaggerIconName, EnvBatchTaggerIconSmallName, TEXT("ToolIcon_EnvBatchTagger"));
 		RegisterToolIcon(MapCreatorIconName, MapCreatorIconSmallName, TEXT("ToolIcon_MapCreator"));
+		RegisterToolIcon(StylizedEmissiveLibraryIconName, StylizedEmissiveLibraryIconSmallName, TEXT("ToolIcon_StylizedEmissiveLibrary"));
 
 		FSlateStyleRegistry::RegisterSlateStyle(*DevKitEditorStyleSet);
 	}
@@ -203,6 +213,11 @@ namespace
 	FSlateIcon GetMapCreatorIcon()
 	{
 		return FSlateIcon(DevKitEditorStyleSetName, MapCreatorIconName, MapCreatorIconSmallName);
+	}
+
+	FSlateIcon GetStylizedEmissiveLibraryIcon()
+	{
+		return FSlateIcon(DevKitEditorStyleSetName, StylizedEmissiveLibraryIconName, StylizedEmissiveLibraryIconSmallName);
 	}
 
 	class FRuntimeGMPIEInputProcessor final : public IInputProcessor
@@ -294,6 +309,20 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnComboManagerTab))
 			.SetDisplayName(LOCTEXT("ComboManagerTabTitle", "Combo Manager"))
 			.SetTooltipText(LOCTEXT("ComboManagerTabTooltip", "Open the weapon and independent enemy combo graph manager."))
+			.SetMenuType(ETabSpawnerMenuType::Hidden);
+
+		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
+			WeaponManagerTabName,
+			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnWeaponManagerTab))
+			.SetDisplayName(LOCTEXT("WeaponManagerTabTitle", "武器编辑器"))
+			.SetTooltipText(LOCTEXT("WeaponManagerTabTooltip", "集中管理武器动作、被动反应、战技和通用武器数据。"))
+			.SetMenuType(ETabSpawnerMenuType::Hidden);
+
+		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
+			EnemyManagerTabName,
+			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnEnemyManagerTab))
+			.SetDisplayName(LOCTEXT("EnemyManagerTabTitle", "敌人编辑器"))
+			.SetTooltipText(LOCTEXT("EnemyManagerTabTooltip", "独立管理正式、占位、待迁移和测试敌人资产。"))
 			.SetMenuType(ETabSpawnerMenuType::Hidden);
 
 		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
@@ -409,6 +438,14 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			.SetMenuType(ETabSpawnerMenuType::Hidden);
 
 		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
+			StylizedEmissiveLibraryTabName,
+			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnStylizedEmissiveLibraryTab))
+			.SetDisplayName(LOCTEXT("StylizedEmissiveLibraryTabTitle", "风格化自发光库"))
+			.SetTooltipText(LOCTEXT("StylizedEmissiveLibraryTabTooltip", "配置模型、发光材质和光照参数，并将完整预设直接拖入场景。"))
+			.SetIcon(GetStylizedEmissiveLibraryIcon())
+			.SetMenuType(ETabSpawnerMenuType::Hidden);
+
+		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
 			PerformanceToolsLauncherTabName,
 			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnPerformanceToolsLauncherTab))
 			.SetDisplayName(LOCTEXT("PerformanceToolsLauncherTabTitle", "性能工具快捷入口"))
@@ -438,6 +475,8 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(RuneEditorTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(CharacterBalanceTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(ComboManagerTabName);
+		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(WeaponManagerTabName);
+		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(EnemyManagerTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(LevelDataWorkbenchTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(ActionBalanceTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(CombatLogTabName);
@@ -454,6 +493,7 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(MapCreatorTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(LevelRVTTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(RVTMeshDecalTabName);
+		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(StylizedEmissiveLibraryTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(PerformanceToolsLauncherTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(RuntimeGMSettingsTabName);
 		CombatLogWidgetInstance.Reset();
@@ -709,6 +749,36 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			];
 	}
 
+	TSharedRef<SDockTab> SpawnWeaponManagerTab(const FSpawnTabArgs& SpawnTabArgs)
+	{
+		return SNew(SDockTab)
+			.TabRole(ETabRole::NomadTab)
+			.Label(LOCTEXT("WeaponManagerTabLabel", "武器编辑器"))
+			[
+				SNew(SWeaponManagerWidget)
+			];
+	}
+
+	TSharedRef<SDockTab> SpawnEnemyManagerTab(const FSpawnTabArgs& SpawnTabArgs)
+	{
+		return SNew(SDockTab)
+			.TabRole(ETabRole::NomadTab)
+			.Label(LOCTEXT("EnemyManagerTabLabel", "敌人编辑器"))
+			[
+				SNew(SEnemyManagerWidget)
+			];
+	}
+
+	TSharedRef<SDockTab> SpawnStylizedEmissiveLibraryTab(const FSpawnTabArgs& SpawnTabArgs)
+	{
+		return SNew(SDockTab)
+			.TabRole(ETabRole::NomadTab)
+			.Label(LOCTEXT("StylizedEmissiveLibraryTabLabel", "风格化自发光库"))
+			[
+				SNew(SStylizedEmissiveLibraryWidget)
+			];
+	}
+
 	TSharedRef<SDockTab> SpawnPerformanceToolsLauncherTab(const FSpawnTabArgs& SpawnTabArgs)
 	{
 		return SNew(SDockTab)
@@ -845,6 +915,13 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			FNewToolMenuDelegate::CreateRaw(this, &FDevKitEditorModule::FillDevKitDataMenu));
 		YogToolEntry.InsertPosition = FToolMenuInsert(TEXT("Help"), EToolMenuInsertType::After);
 
+		FToolMenuEntry& DesignerEntry = MainMenuSection.AddSubMenu(
+			TEXT("YogDesignerMenu"),
+			LOCTEXT("YogDesignerMenuLabel", "Designer"),
+			LOCTEXT("YogDesignerMenuTooltip", "打开相互独立的武器、敌人和后续设计编辑器。"),
+			FNewToolMenuDelegate::CreateRaw(this, &FDevKitEditorModule::FillDesignerMenu));
+		DesignerEntry.InsertPosition = FToolMenuInsert(TEXT("YogToolMenu"), EToolMenuInsertType::After);
+
 		UToolMenu* PlayToolbar = UToolMenus::Get()->ExtendMenu(TEXT("LevelEditor.LevelEditorToolBar.PlayToolBar"));
 		FToolMenuSection& PlaySection = PlayToolbar->FindOrAddSection(TEXT("Play"));
 		FToolMenuEntry& QuickPlayEntry = PlaySection.AddEntry(FToolMenuEntry::InitToolBarButton(
@@ -929,6 +1006,25 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			GetMapCreatorIcon()));
 		MapCreatorEntry.ToolBarData.LabelOverride = LOCTEXT("OpenMapCreatorToolbarShortLabel", "地图创建器");
 
+	}
+
+	void FillDesignerMenu(UToolMenu* Menu)
+	{
+		FToolMenuSection& Section = Menu->FindOrAddSection(
+			TEXT("YogDesignerEditors"),
+			LOCTEXT("YogDesignerEditorsSection", "设计编辑器"));
+		Section.AddMenuEntry(
+			TEXT("OpenStandaloneWeaponEditor"),
+			LOCTEXT("OpenStandaloneWeaponEditorLabel", "武器编辑器"),
+			LOCTEXT("OpenStandaloneWeaponEditorTooltip", "打开独立的武器编辑器窗口，管理武器、动作与战技配置。"),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenWeaponManagerTab)));
+		Section.AddMenuEntry(
+			TEXT("OpenStandaloneEnemyEditor"),
+			LOCTEXT("OpenStandaloneEnemyEditorLabel", "敌人编辑器"),
+			LOCTEXT("OpenStandaloneEnemyEditorTooltip", "打开独立的敌人编辑器窗口，管理正式、占位、待迁移和测试敌人。"),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenEnemyManagerTab)));
 	}
 
 	void FillDevKitDataMenu(UToolMenu* Menu)
@@ -1030,6 +1126,12 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			LOCTEXT("OpenRVTMeshDecalTooltip", "创建可通过植被模式刷出的 RVT 网格贴花 FoliageType，按材质和 Priority 分层。"),
 			GetVTCManagerIcon(),
 			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenRVTMeshDecalTab)));
+		ArtAssetSection.AddMenuEntry(
+			TEXT("OpenStylizedEmissiveModelLibrary"),
+			LOCTEXT("OpenStylizedEmissiveModelLibraryLabel", "风格化自发光模型库"),
+			LOCTEXT("OpenStylizedEmissiveModelLibraryTooltip", "创建或打开风格化自发光源使用的模型库；可选择预设模型，也可让 Actor 使用无 Mesh 数据模式。"),
+			GetStylizedEmissiveLibraryIcon(),
+			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenStylizedEmissiveModelLibrary)));
 
 		FToolMenuSection& PerformanceSection = Menu->FindOrAddSection(TEXT("DevKitPerformanceTools"), LOCTEXT("DevKitPerformanceToolsSection", "性能工具"));
 		PerformanceSection.AddMenuEntry(
@@ -1207,6 +1309,16 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 		FGlobalTabmanager::Get()->TryInvokeTab(ComboManagerTabName);
 	}
 
+	void OpenEnemyManagerTab()
+	{
+		FGlobalTabmanager::Get()->TryInvokeTab(EnemyManagerTabName);
+	}
+
+	void OpenWeaponManagerTab()
+	{
+		FGlobalTabmanager::Get()->TryInvokeTab(WeaponManagerTabName);
+	}
+
 	void OpenLevelDataWorkbenchTab()
 	{
 		FGlobalTabmanager::Get()->TryInvokeTab(LevelDataWorkbenchTabName);
@@ -1285,6 +1397,11 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 	void OpenRVTMeshDecalTab()
 	{
 		FGlobalTabmanager::Get()->TryInvokeTab(RVTMeshDecalTabName);
+	}
+
+	void OpenStylizedEmissiveModelLibrary()
+	{
+		FGlobalTabmanager::Get()->TryInvokeTab(StylizedEmissiveLibraryTabName);
 	}
 
 	void OpenPerformanceToolsLauncherTab()

@@ -4,9 +4,6 @@
 #include "Engine/DeveloperSettings.h"
 #include "StylizedLightingSettings.generated.h"
 
-class UCurveLinearColor;
-class UCurveLinearColorAtlas;
-
 UENUM(BlueprintType)
 enum class EStylizedReflectionKuwaharaMode : uint8
 {
@@ -32,45 +29,13 @@ struct CELESLIGHTRUNTIME_API FStylizedCharacterLightingProfile
 	UPROPERTY(EditAnywhere, Category = "Profile")
 	FName ProfileName = TEXT("Default");
 
-	/** Tint for the transition between the deepest shadow and shadow region. */
-	UPROPERTY(EditAnywhere, Category = "Base Light")
-	FLinearColor ShadowFadeTint = FLinearColor::White;
-
-	/** Tint for the deepest shadow region. */
-	UPROPERTY(EditAnywhere, Category = "Base Light")
-	FLinearColor ShadowTint = FLinearColor::White;
-
-	/** Tint for the transition between shadow and shallow-shadow regions. */
-	UPROPERTY(EditAnywhere, Category = "Base Light")
-	FLinearColor ShallowFadeTint = FLinearColor::White;
-
-	/** Tint for the shallow-shadow region. */
-	UPROPERTY(EditAnywhere, Category = "Base Light")
-	FLinearColor ShallowTint = FLinearColor::White;
-
-	/** Tint for the soft subsurface-style transition region. */
-	UPROPERTY(EditAnywhere, Category = "Base Light")
-	FLinearColor SSSTint = FLinearColor::White;
-
-	/** Tint for the front-lit region. */
-	UPROPERTY(EditAnywhere, Category = "Base Light")
-	FLinearColor FrontTint = FLinearColor::White;
-
-	/** Tint for the strongest forward-facing light region. */
-	UPROPERTY(EditAnywhere, Category = "Base Light")
-	FLinearColor ForwardTint = FLinearColor::White;
-
-	/** Curve row used by the original seven-region character attenuation ramp. */
-	UPROPERTY(EditAnywhere, Category = "Base Light")
-	TSoftObjectPtr<UCurveLinearColor> BaseAttenuationRamp;
-
-	/** Original material parameter used by the seven-region ramp. Zero matches M_MasterCharacterMAT. */
-	UPROPERTY(EditAnywhere, Category = "Base Light", meta = (ClampMin = "0.0", ClampMax = "0.99", UIMin = "0.0", UIMax = "0.99"))
-	float ShadowFadePower = 0.0f;
-
-	/** Multiplier for direct diffuse lighting after the attenuation ramp is evaluated. */
+	/** Multiplier for direct diffuse lighting after the two-tone half-Lambert partition is evaluated. */
 	UPROPERTY(EditAnywhere, Category = "Base Light", meta = (ClampMin = "0.0", UIMax = "4.0"))
 	float DirectDiffuseIntensity = 1.0f;
+
+	/** How much physical direct-light intensity affects the character. Zero normalizes intensity while retaining hue and attenuation. */
+	UPROPERTY(EditAnywhere, Category = "Base Light", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	float DirectLightIntensityInfluence = 0.25f;
 
 	/** Color tint applied to the character specular highlight. */
 	UPROPERTY(EditAnywhere, Category = "Specular")
@@ -108,9 +73,17 @@ struct CELESLIGHTRUNTIME_API FStylizedCharacterLightingProfile
 	UPROPERTY(EditAnywhere, Category = "Environment", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
 	float IndirectOcclusionStrength = 1.0f;
 
-	/** Minimum unlit-style BaseColor contribution used when scene direct and indirect lighting are too weak. */
+	/** Minimum final diffuse-lighting level, expressed as a multiplier of the material BaseColor. */
 	UPROPERTY(EditAnywhere, Category = "Environment", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
 	float CharacterBaseFill = 0.20f;
+
+	/** Soft transition width around the minimum-brightness threshold. */
+	UPROPERTY(EditAnywhere, Category = "Environment", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	float CharacterBaseFillSoftness = 0.10f;
+
+	/** How strongly SSAO/Lumen occlusion is allowed to darken the minimum-brightness floor. */
+	UPROPERTY(EditAnywhere, Category = "Environment", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	float CharacterBaseFillOcclusionInfluence = 0.25f;
 
 	/** Exposure in stops for this profile. +1 doubles character lighting; -1 halves it. */
 	UPROPERTY(EditAnywhere, Category = "Color Fidelity", meta = (UIMin = "-4.0", UIMax = "4.0"))
@@ -133,9 +106,73 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "Interface")
 	EStylizedLightingEditorLanguage EditorLanguage = EStylizedLightingEditorLanguage::Auto;
 
-	/** Shared atlas containing all character attenuation ramp curves. */
-	UPROPERTY(Config, EditAnywhere, Category = "Character Lighting")
-	TSoftObjectPtr<UCurveLinearColorAtlas> CharacterRampAtlas;
+	/** Master switch for the custom direct-light response of MSM_StylizedCharacterLit. */
+	UPROPERTY(Config, EditAnywhere, Category = "Character Features|01 Basic Half Lambert")
+	bool bEnableCharacterDirectLighting = true;
+
+	/** Uses the authored half-Lambert mapping (N dot L plus Diffuse Bias) as the direct-light coordinate. */
+	UPROPERTY(Config, EditAnywhere, Category = "Character Features|01 Basic Half Lambert")
+	bool bEnableHalfLambertPartition = true;
+
+	/** Keeps final character diffuse lighting above a configurable BaseColor-derived minimum. */
+	UPROPERTY(Config, EditAnywhere, Category = "Character Features|01 Basic Half Lambert")
+	bool bEnableDarkColorFloor = true;
+
+	/** Lets shadows cast by the scene move the character into the dark side of the two-tone partition. */
+	UPROPERTY(Config, EditAnywhere, Category = "Character Features|02 Scene Projection")
+	bool bEnableSceneShadowPartition = true;
+
+	/** Enables point, spot and rect lights in addition to directional lights for character direct lighting. */
+	UPROPERTY(Config, EditAnywhere, Category = "Character Features|03 Multiple Lights")
+	bool bEnableLocalMultiLights = true;
+
+	/** Enables lights whose Stylized Character Light Mode is Wash. */
+	UPROPERTY(Config, EditAnywhere, Category = "Character Features|03 Multiple Lights")
+	bool bEnableWashLights = true;
+
+	/** Enables scene-light RGB influence on the character. */
+	UPROPERTY(Config, EditAnywhere, Category = "Character Features|03 Multiple Lights")
+	bool bEnableDirectLightColor = true;
+
+	/** Enables physical scene-light intensity influence on the character. */
+	UPROPERTY(Config, EditAnywhere, Category = "Character Features|03 Multiple Lights")
+	bool bEnableDirectLightIntensity = true;
+
+	/** Enables the native energy-conserving GGX direct specular lobe. */
+	UPROPERTY(Config, EditAnywhere, Category = "Character Features|04 Specular")
+	bool bEnableGGXSpecular = true;
+
+	/** Enables MixMap.R signed highlight suppression/advance around the neutral value 0.5. */
+	UPROPERTY(Config, EditAnywhere, Category = "Character Features|04 Specular")
+	bool bEnableMixMapSpecularControl = true;
+
+	/** Restricts direct specular to the lit side of the two-tone partition. */
+	UPROPERTY(Config, EditAnywhere, Category = "Character Features|04 Specular")
+	bool bEnableSpecularLitSideMask = true;
+
+	/** Enables diffuse global illumination on stylized characters. */
+	UPROPERTY(Config, EditAnywhere, Category = "Character Features|05 Global Illumination Lumen")
+	bool bEnableLumenDiffuseIndirect = true;
+
+	/** Enables environment color in diffuse global illumination; disabled keeps luminance only. */
+	UPROPERTY(Config, EditAnywhere, Category = "Character Features|05 Global Illumination Lumen")
+	bool bEnableLumenIndirectColor = true;
+
+	/** Enables the smooth vertex-normal override used for GI response and occlusion. */
+	UPROPERTY(Config, EditAnywhere, Category = "Character Features|05 Global Illumination Lumen")
+	bool bEnableGINormal = true;
+
+	/** Enables Lumen/SSR environment reflections on stylized characters. */
+	UPROPERTY(Config, EditAnywhere, Category = "Character Features|05 Global Illumination Lumen")
+	bool bEnableEnvironmentReflections = true;
+
+	/** Enables SSAO and Lumen short-range occlusion on stylized characters. */
+	UPROPERTY(Config, EditAnywhere, Category = "Character Features|05 Global Illumination Lumen")
+	bool bEnableIndirectOcclusion = true;
+
+	/** Enables character-only exposure and contrast processing. */
+	UPROPERTY(Config, EditAnywhere, Category = "Character Features|06 Color Fidelity")
+	bool bEnableCharacterTone = true;
 
 	/** Enables banded stylization for scene direct and Lumen indirect lighting. */
 	UPROPERTY(Config, EditAnywhere, Category = "Scene Lighting")
@@ -170,39 +207,39 @@ public:
 	float SpecularOffset = 0.0f;
 
 	/** Controls whether reflection-only Kuwahara filtering is disabled, forced, or quality-tier driven. */
-	UPROPERTY(Config, EditAnywhere, Category = "Character Reflection")
-	EStylizedReflectionKuwaharaMode ReflectionKuwaharaMode = EStylizedReflectionKuwaharaMode::Auto;
+	UPROPERTY(Config)
+	EStylizedReflectionKuwaharaMode ReflectionKuwaharaMode = EStylizedReflectionKuwaharaMode::Disabled;
 
 	/** Blend strength of the reflection-only Kuwahara filter. */
-	UPROPERTY(Config, EditAnywhere, Category = "Character Reflection", meta = (ClampMin = "0.0", ClampMax = "1.0"))
-	float ReflectionKuwaharaStrength = 1.0f;
+	UPROPERTY(Config)
+	float ReflectionKuwaharaStrength = 0.0f;
 
 	/** Optional screen-space self shadow for stylized characters. Keep disabled when native character self projection must be removed. */
-	UPROPERTY(Config, EditAnywhere, Category = "Character Self Shadow", meta = (DisplayName = "Enable Character Half-View Self Shadow"))
+	UPROPERTY(Config, EditAnywhere, Category = "Character Features|02 Scene Projection", meta = (DisplayName = "Enable Character Half-View Self Shadow"))
 	bool bEnableCharacterHalfViewSelfShadow = false;
 
 	/** Blends the shadow direction from the light direction toward the camera half-view direction. */
-	UPROPERTY(Config, EditAnywhere, Category = "Character Self Shadow", meta = (ClampMin = "0.0", ClampMax = "1.0", EditCondition = "bEnableCharacterHalfViewSelfShadow", EditConditionHides))
+	UPROPERTY(Config, EditAnywhere, Category = "Character Features|02 Scene Projection", meta = (ClampMin = "0.0", ClampMax = "1.0", EditCondition = "bEnableCharacterHalfViewSelfShadow", EditConditionHides))
 	float CharacterHalfViewShadowBlend = 0.5f;
 
 	/** Opacity of the optional screen-space character self shadow. */
-	UPROPERTY(Config, EditAnywhere, Category = "Character Self Shadow", meta = (ClampMin = "0.0", ClampMax = "1.0", EditCondition = "bEnableCharacterHalfViewSelfShadow", EditConditionHides))
+	UPROPERTY(Config, EditAnywhere, Category = "Character Features|02 Scene Projection", meta = (ClampMin = "0.0", ClampMax = "1.0", EditCondition = "bEnableCharacterHalfViewSelfShadow", EditConditionHides))
 	float CharacterSelfShadowStrength = 1.0f;
 
 	/** Maximum screen-space trace distance in world units for optional character self shadow. */
-	UPROPERTY(Config, EditAnywhere, Category = "Character Self Shadow", meta = (ClampMin = "1.0", UIMax = "1000.0", EditCondition = "bEnableCharacterHalfViewSelfShadow", EditConditionHides))
+	UPROPERTY(Config, EditAnywhere, Category = "Character Features|02 Scene Projection", meta = (ClampMin = "1.0", UIMax = "1000.0", EditCondition = "bEnableCharacterHalfViewSelfShadow", EditConditionHides))
 	float CharacterSelfShadowMaxTraceDistance = 200.0f;
 
 	/** Global master multiplier. The final value is this setting multiplied by the selected profile value. */
-	UPROPERTY(Config, EditAnywhere, Category = "Character Lighting|Global Multipliers", meta = (DisplayName = "Direct Light Color Influence Master", ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	UPROPERTY(Config, EditAnywhere, Category = "Character Features|03 Multiple Lights", meta = (DisplayName = "Direct Light Color Influence Master", ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
 	float CharacterDirectLightColorInfluence = 1.0f;
 
 	/** Global master multiplier. The final value is this setting multiplied by the selected profile value. */
-	UPROPERTY(Config, EditAnywhere, Category = "Character Lighting|Global Multipliers", meta = (DisplayName = "Indirect Light Color Influence Master", ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	UPROPERTY(Config, EditAnywhere, Category = "Character Features|05 Global Illumination Lumen", meta = (DisplayName = "Indirect Light Color Influence Master", ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
 	float CharacterIndirectLightColorInfluence = 1.0f;
 
 	/** Global master multiplier. The final value is this setting multiplied by the selected profile value. */
-	UPROPERTY(Config, EditAnywhere, Category = "Character Lighting|Global Multipliers", meta = (DisplayName = "Reflection Color Influence Master", ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	UPROPERTY(Config, EditAnywhere, Category = "Character Features|05 Global Illumination Lumen", meta = (DisplayName = "Reflection Color Influence Master", ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
 	float CharacterReflectionColorInfluence = 1.0f;
 
 	/** Up to eight reusable lighting looks. Material instances select one through Lighting Profile. */

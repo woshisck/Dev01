@@ -257,6 +257,7 @@ FYogGraphicsSettings UYogPerformanceSettingsLibrary::MakeGraphicsSettingsForProf
 		Settings.MaterialLightQuality = 3;
 		Settings.MaterialLightMaxLightInfoCount = 4;
 		Settings.bUseLumenLite = true;
+		Settings.bUseLumenScreenTraces = false;
 		Settings.bPreferBatchedGeometryProxies = false;
 		break;
 
@@ -280,6 +281,7 @@ FYogGraphicsSettings UYogPerformanceSettingsLibrary::MakeGraphicsSettingsForProf
 		Settings.MaterialLightQuality = 2;
 		Settings.MaterialLightMaxLightInfoCount = 2;
 		Settings.bUseLumenLite = true;
+		Settings.bUseLumenScreenTraces = false;
 		Settings.bPreferBatchedGeometryProxies = false;
 		break;
 
@@ -303,6 +305,7 @@ FYogGraphicsSettings UYogPerformanceSettingsLibrary::MakeGraphicsSettingsForProf
 		Settings.MaterialLightQuality = 1;
 		Settings.MaterialLightMaxLightInfoCount = 1;
 		Settings.bUseLumenLite = true;
+		Settings.bUseLumenScreenTraces = false;
 		Settings.bPreferBatchedGeometryProxies = true;
 		break;
 
@@ -326,6 +329,7 @@ FYogGraphicsSettings UYogPerformanceSettingsLibrary::MakeGraphicsSettingsForProf
 		Settings.MaterialLightQuality = 1;
 		Settings.MaterialLightMaxLightInfoCount = 1;
 		Settings.bUseLumenLite = true;
+		Settings.bUseLumenScreenTraces = true;
 		Settings.bPreferBatchedGeometryProxies = true;
 		break;
 
@@ -407,6 +411,7 @@ bool UYogPerformanceSettingsLibrary::ApplyGraphicsSettings(UObject* WorldContext
 
 	SetCVarInt(TEXT("r.DynamicGlobalIlluminationMethod"), bUseLumenGI ? 1 : 0);
 	SetCVarInt(TEXT("r.Lumen.DiffuseIndirect.Allow"), bUseLumenGI ? 1 : 0);
+	SetCVarInt(TEXT("r.Lumen.ScreenProbeGather.ScreenTraces"), Settings.bUseLumenScreenTraces ? 1 : 0);
 	SetCVarInt(TEXT("r.ReflectionMethod"), bUseLumenReflections ? 1 : 2);
 	SetCVarInt(TEXT("r.Lumen.Reflections.Allow"), bUseLumenReflections ? 1 : 0);
 	SetCVarInt(TEXT("r.VolumetricFog"), 0);

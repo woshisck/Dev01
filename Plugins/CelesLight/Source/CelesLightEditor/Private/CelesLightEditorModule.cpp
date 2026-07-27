@@ -74,8 +74,8 @@ void FCelesLightEditorModule::FillCelesLightMenu(UToolMenu* Menu)
 
 	Section.AddMenuEntry(
 		TEXT("CelesLightCreateStylizedEmissiveLight"),
-		LOCTEXT("CelesLightCreateStylizedEmissiveLightLabel", "Create Stylized Emissive Light"),
-		LOCTEXT("CelesLightCreateStylizedEmissiveLightTooltip", "Create an invisible-in-game light source. It has no visible mesh and is stylized by the global lighting settings."),
+		LOCTEXT("CelesLightCreateStylizedEmissiveLightLabel", "Create Stylized Emissive Source"),
+		LOCTEXT("CelesLightCreateStylizedEmissiveLightTooltip", "Create a data-only, library-model, or custom-mesh emissive source without an analytic LightComponent."),
 		FSlateIcon(),
 		FUIAction(FExecuteAction::CreateRaw(this, &FCelesLightEditorModule::CreateStylizedEmissiveLight)));
 

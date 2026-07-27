@@ -15,6 +15,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Component/PlayerActiveSkillComponent.h"
 #include "Data/ActiveSkillDataAsset.h"
+#include "Data/WeaponSkillDataAsset.h"
 #include "Kismet/GameplayStatics.h"
 
 static const int32 GNumSaveSlots    = 3;
@@ -476,6 +477,8 @@ void UYogSaveSubsystem::PopulateCheckpointFromRunState(FRunCheckpointData& Out, 
 	// TObjectPtr → TSoftObjectPtr（仅存路径，不强制加载）
 	Out.EquippedWeaponDef  = RS.EquippedWeaponDef.Get();
 	Out.InactiveWeaponDef = RS.InactiveWeaponDef.Get();
+	Out.EquippedWeaponSkill = RS.EquippedWeaponSkill.Get();
+	Out.InactiveWeaponSkill = RS.InactiveWeaponSkill.Get();
 	Out.ActiveSacrificeGrace = RS.ActiveSacrificeGrace.Get();
 
 	Out.CombatDeckCards.Reset(RS.CombatDeckCards.Num());
@@ -537,6 +540,8 @@ void UYogSaveSubsystem::RestoreRunStateFromCheckpoint(const FRunCheckpointData& 
 	// TSoftObjectPtr → 同步加载（这里只恢复指针；调用方可在之后 AsyncLoad）
 	RS.EquippedWeaponDef  = In.EquippedWeaponDef.LoadSynchronous();
 	RS.InactiveWeaponDef = In.InactiveWeaponDef.LoadSynchronous();
+	RS.EquippedWeaponSkill = In.EquippedWeaponSkill.LoadSynchronous();
+	RS.InactiveWeaponSkill = In.InactiveWeaponSkill.LoadSynchronous();
 	RS.ActiveSacrificeGrace = In.ActiveSacrificeGrace.LoadSynchronous();
 
 	RS.CombatDeckCards.Reset(In.CombatDeckCards.Num());

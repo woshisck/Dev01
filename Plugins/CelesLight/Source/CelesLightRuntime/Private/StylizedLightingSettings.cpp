@@ -1,7 +1,5 @@
 #include "StylizedLightingSettings.h"
 
-#include "Curves/CurveLinearColor.h"
-#include "Curves/CurveLinearColorAtlas.h"
 #include "HAL/IConsoleManager.h"
 #include "Internationalization/Culture.h"
 #include "Internationalization/Internationalization.h"
@@ -9,6 +7,58 @@
 
 namespace
 {
+	enum EStylizedCharacterFeatureBits : uint32
+	{
+		CharacterDirectLighting = 1u << 0,
+		HalfLambertPartition = 1u << 1,
+		DarkColorFloor = 1u << 3,
+		SceneShadowPartition = 1u << 4,
+		LocalMultiLights = 1u << 5,
+		WashLights = 1u << 6,
+		DirectLightColor = 1u << 7,
+		DirectLightIntensity = 1u << 8,
+		GGXSpecular = 1u << 9,
+		MixMapSpecularControl = 1u << 10,
+		SpecularLitSideMask = 1u << 11,
+		LumenDiffuseIndirect = 1u << 12,
+		LumenIndirectColor = 1u << 13,
+		GINormal = 1u << 14,
+		EnvironmentReflections = 1u << 15,
+		IndirectOcclusion = 1u << 16,
+		CharacterTone = 1u << 17,
+	};
+
+	uint32 BuildCharacterFeatureMask(const UStylizedLightingSettings& Settings)
+	{
+		uint32 Mask = 0u;
+		auto SetBit = [&Mask](const bool bEnabled, const uint32 Bit)
+		{
+			if (bEnabled)
+			{
+				Mask |= Bit;
+			}
+		};
+
+		SetBit(Settings.bEnableCharacterDirectLighting, CharacterDirectLighting);
+		SetBit(Settings.bEnableHalfLambertPartition, HalfLambertPartition);
+		SetBit(Settings.bEnableDarkColorFloor, DarkColorFloor);
+		SetBit(Settings.bEnableSceneShadowPartition, SceneShadowPartition);
+		SetBit(Settings.bEnableLocalMultiLights, LocalMultiLights);
+		SetBit(Settings.bEnableWashLights, WashLights);
+		SetBit(Settings.bEnableDirectLightColor, DirectLightColor);
+		SetBit(Settings.bEnableDirectLightIntensity, DirectLightIntensity);
+		SetBit(Settings.bEnableGGXSpecular, GGXSpecular);
+		SetBit(Settings.bEnableMixMapSpecularControl, MixMapSpecularControl);
+		SetBit(Settings.bEnableSpecularLitSideMask, SpecularLitSideMask);
+		SetBit(Settings.bEnableLumenDiffuseIndirect, LumenDiffuseIndirect);
+		SetBit(Settings.bEnableLumenIndirectColor, LumenIndirectColor);
+		SetBit(Settings.bEnableGINormal, GINormal);
+		SetBit(Settings.bEnableEnvironmentReflections, EnvironmentReflections);
+		SetBit(Settings.bEnableIndirectOcclusion, IndirectOcclusion);
+		SetBit(Settings.bEnableCharacterTone, CharacterTone);
+		return Mask;
+	}
+
 	void SetConsoleVariable(const TCHAR* Name, const int32 Value)
 	{
 		if (IConsoleVariable* ConsoleVariable = IConsoleManager::Get().FindConsoleVariable(Name))
@@ -29,8 +79,6 @@ namespace
 UStylizedLightingSettings::UStylizedLightingSettings()
 {
 	CharacterLightingProfiles.AddDefaulted();
-	CharacterRampAtlas = TSoftObjectPtr<UCurveLinearColorAtlas>(FSoftObjectPath(TEXT("/Game/Art/Material/CharacterMaterial/ProxCurve/Ramp/CA_Ramp.CA_Ramp")));
-	CharacterLightingProfiles[0].BaseAttenuationRamp = TSoftObjectPtr<UCurveLinearColor>(FSoftObjectPath(TEXT("/Game/Art/Material/CharacterMaterial/ProxCurve/Ramp/CC_Ramp_01.CC_Ramp_01")));
 }
 
 void UStylizedLightingSettings::ApplyToConsoleVariables() const
@@ -43,11 +91,10 @@ void UStylizedLightingSettings::ApplyToConsoleVariables() const
 	SetConsoleVariable(TEXT("r.StylizedLumenLighting.IndirectBlend"), IndirectBlend);
 	SetConsoleVariable(TEXT("r.StylizedLumenLighting.SpecularIntensity"), SpecularIntensity);
 	SetConsoleVariable(TEXT("r.StylizedLumenLighting.SpecularOffset"), SpecularOffset);
-	const int32 KuwaharaMode = ReflectionKuwaharaMode == EStylizedReflectionKuwaharaMode::Auto
-		? -1
-		: (ReflectionKuwaharaMode == EStylizedReflectionKuwaharaMode::Enabled ? 1 : 0);
-	SetConsoleVariable(TEXT("r.StylizedReflection.Kuwahara.Enable"), KuwaharaMode);
-	SetConsoleVariable(TEXT("r.StylizedReflection.Kuwahara.Strength"), ReflectionKuwaharaStrength);
+	// Kuwahara is intentionally disabled for character rendering. Keep the
+	// serialized settings for compatibility with existing projects only.
+	SetConsoleVariable(TEXT("r.StylizedReflection.Kuwahara.Enable"), 0);
+	SetConsoleVariable(TEXT("r.StylizedReflection.Kuwahara.Strength"), 0.0f);
 	SetConsoleVariable(TEXT("r.StylizedCharacter.SelfShadow.Enable"), bEnableCharacterHalfViewSelfShadow ? 1 : 0);
 	SetConsoleVariable(TEXT("r.StylizedCharacter.SelfShadow.HalfViewBlend"), CharacterHalfViewShadowBlend);
 	SetConsoleVariable(TEXT("r.StylizedCharacter.SelfShadow.Strength"), CharacterSelfShadowStrength);
@@ -56,10 +103,8 @@ void UStylizedLightingSettings::ApplyToConsoleVariables() const
 	SetConsoleVariable(TEXT("r.StylizedCharacterLighting.IndirectColorInfluence"), CharacterIndirectLightColorInfluence);
 	SetConsoleVariable(TEXT("r.StylizedCharacterLighting.ReflectionColorInfluence"), CharacterReflectionColorInfluence);
 
-	UCurveLinearColorAtlas* RampAtlas = CharacterRampAtlas.LoadSynchronous();
-	SetStylizedCharacterRampAtlas(RampAtlas && RampAtlas->GetResource() ? RampAtlas->GetResource()->TextureRHI : FTextureRHIRef());
-
 	const int32 ProfileCount = FMath::Clamp(CharacterLightingProfiles.Num(), 1, (int32)StylizedCharacterLighting::MaxProfiles);
+	const uint32 CharacterFeatureMask = BuildCharacterFeatureMask(*this);
 	TArray<FVector4f> ProfileData;
 	ProfileData.Reserve(ProfileCount * StylizedCharacterLighting::Float4sPerProfile);
 
@@ -69,16 +114,16 @@ void UStylizedLightingSettings::ApplyToConsoleVariables() const
 		const FLinearColor White = FLinearColor::White;
 		auto ToVector4f = [](const FLinearColor& Color) { return FVector4f(Color.R, Color.G, Color.B, Color.A); };
 
-		ProfileData.Add(ToVector4f(Profile ? Profile->ShadowFadeTint : White));
-		ProfileData.Add(ToVector4f(Profile ? Profile->ShadowTint : White));
-		ProfileData.Add(ToVector4f(Profile ? Profile->ShallowFadeTint : White));
-		ProfileData.Add(ToVector4f(Profile ? Profile->ShallowTint : White));
-		ProfileData.Add(ToVector4f(Profile ? Profile->SSSTint : White));
-		ProfileData.Add(ToVector4f(Profile ? Profile->FrontTint : White));
+		// Slots 0-5 remain neutral to preserve the existing renderer table ABI
+		// while the removed seven-zone Ramp path is no longer sampled.
+		for (int32 NeutralSlot = 0; NeutralSlot < 6; ++NeutralSlot)
+		{
+			ProfileData.Add(ToVector4f(White));
+		}
 		ProfileData.Add(FVector4f(
-			Profile ? Profile->ForwardTint.R : 1.0f,
-			Profile ? Profile->ForwardTint.G : 1.0f,
-			Profile ? Profile->ForwardTint.B : 1.0f,
+			Profile ? FMath::Clamp(Profile->CharacterBaseFillSoftness, 0.0f, 1.0f) : 0.10f,
+			Profile ? FMath::Clamp(Profile->CharacterBaseFillOcclusionInfluence, 0.0f, 1.0f) : 0.25f,
+			0.0f,
 			Profile ? FMath::Clamp(Profile->CharacterBaseFill, 0.0f, 1.0f) : 0.20f));
 		ProfileData.Add(FVector4f(
 			Profile ? Profile->SpecularTint.R : 1.0f,
@@ -86,22 +131,9 @@ void UStylizedLightingSettings::ApplyToConsoleVariables() const
 			Profile ? Profile->SpecularTint.B : 1.0f,
 			Profile ? FMath::Max(Profile->SpecularIntensity, 0.0f) : 1.0f));
 
-		float RampCurveIndex = 0.0f;
-		if (RampAtlas && Profile)
-		{
-			if (UCurveLinearColor* RampCurve = Profile->BaseAttenuationRamp.LoadSynchronous())
-			{
-				int32 CurveIndex = INDEX_NONE;
-				if (RampAtlas->GetCurveIndex(RampCurve, CurveIndex))
-				{
-					RampCurveIndex = (float)CurveIndex;
-				}
-			}
-		}
-
 		ProfileData.Add(FVector4f(
-			RampCurveIndex,
-			Profile ? FMath::Clamp(Profile->ShadowFadePower, 0.0f, 0.99f) : 0.0f,
+			0.0f,
+			0.0f,
 			Profile ? FMath::Max(Profile->DirectDiffuseIntensity, 0.0f) : 1.0f,
 			Profile ? FMath::Clamp(Profile->GINormalBlend, 0.0f, 1.0f) : 1.0f));
 		ProfileData.Add(FVector4f(
@@ -114,6 +146,11 @@ void UStylizedLightingSettings::ApplyToConsoleVariables() const
 			Profile ? FMath::Max(Profile->CharacterContrast, 0.0f) : 1.0f,
 			Profile ? FMath::Max(Profile->ReflectionIntensity, 0.0f) : 1.0f,
 			Profile ? FMath::Clamp(Profile->IndirectOcclusionStrength, 0.0f, 1.0f) : 1.0f));
+		ProfileData.Add(FVector4f(
+			Profile ? FMath::Clamp(Profile->DirectLightIntensityInfluence, 0.0f, 1.0f) : 0.25f,
+			0.0f,
+			static_cast<float>(CharacterFeatureMask),
+			0.0f));
 	}
 
 	SetStylizedCharacterLightingProfiles(ProfileData, ProfileCount);

@@ -94,6 +94,9 @@ struct FYogGraphicsSettings
 	bool bUseLumenLite = true;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Graphics")
+	bool bUseLumenScreenTraces = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Graphics")
 	bool bUseNanite = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Graphics")

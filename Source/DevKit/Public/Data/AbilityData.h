@@ -258,10 +258,10 @@ public:
 	FPassiveActionData() {}
 
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "被动反应", meta = (DisplayName = "反应蒙太奇"))
 	TObjectPtr<UAnimMontage> Montage;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "被动反应", meta = (DisplayName = "附加效果"))
 	TArray<FYogApplyEffect> UniqueEffects;
 
 	/**
@@ -270,7 +270,7 @@ public:
 	 * 在对应的 GameplayCue BP 里配置 Niagara/材质消解/音效等效果
 	 * ⚠️ GC 内的粒子需要在世界坐标生成（非附加模式），否则 Actor 销毁后粒子也会消失
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dissolve")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "被动反应|消散", meta = (Categories = "GameplayCue", DisplayName = "消散 GameplayCue 标签"))
 	FGameplayTag DissolveGameplayCueTag;
 
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
@@ -329,18 +329,18 @@ struct DEVKIT_API FTaggedMontageConfig
 	GENERATED_BODY()
 
 	/** Tags that must be present on the ASC/current combo context. Empty means always allowed. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Montage Config")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "高级蒙太奇条件", meta = (DisplayName = "必需标签"))
 	FGameplayTagContainer RequiredTags;
 
 	/** Tags that reject this candidate when present. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Montage Config")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "高级蒙太奇条件", meta = (DisplayName = "阻止标签"))
 	FGameplayTagContainer BlockedTags;
 
 	/** Larger priority wins when more than one candidate matches. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Montage Config")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "高级蒙太奇条件", meta = (DisplayName = "优先级"))
 	int32 Priority = 0;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Montage Config")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "高级蒙太奇条件", meta = (DisplayName = "蒙太奇配置"))
 	TObjectPtr<UMontageConfigDA> MontageConfig;
 
 	bool Matches(const FGameplayTagContainer& ContextTags) const
@@ -356,7 +356,7 @@ struct DEVKIT_API FAbilityMontageConfigList
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Montage Config")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "高级蒙太奇条件", meta = (DisplayName = "候选配置"))
 	TArray<FTaggedMontageConfig> Configs;
 };
 
@@ -385,7 +385,7 @@ public:
 	 * 攻击参数（伤害、范围、命中框等）已迁移至蒙太奇内的 AN_MeleeDamage Notify 上配置。
 	 * ForceInlineRow：每条记录 Key/Value 平铺在同一行，不展开。
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Montage", meta = (ForceInlineRow))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "动作|蒙太奇", meta = (ForceInlineRow, DisplayName = "动作蒙太奇表"))
 	TMap<FGameplayTag, TObjectPtr<UAnimMontage>> MontageMap;
 
 	/**
@@ -395,28 +395,28 @@ public:
 	 * montage but hold different Entries / AttackData lists, selected by tags.
 	 * MontageMap remains as a fallback for existing content.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Montage Config")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "动作|高级条件", meta = (DisplayName = "高级蒙太奇条件表"))
 	TMap<FGameplayTag, FAbilityMontageConfigList> MontageConfigMap;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ForceInlineRow), Category = "Passive")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ForceInlineRow, DisplayName = "被动反应表"), Category = "被动反应")
 	TMap<FGameplayTag, FPassiveActionData> PassiveMap;
 
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Abilities")
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "动作数据", meta = (DisplayName = "获取动作蒙太奇"))
 	UAnimMontage* GetMontage(const FGameplayTag& Key) const;
 
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Abilities")
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "动作数据", meta = (DisplayName = "获取高级蒙太奇配置"))
 	UMontageConfigDA* GetMontageConfig(const FGameplayTag& Key, const FGameplayTagContainer& ContextTags) const;
 
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Abilities")
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "动作数据", meta = (DisplayName = "是否包含动作"))
 	bool HasAbility(const FGameplayTag& Key) const;
 
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Abilities")
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "动作数据", meta = (DisplayName = "获取被动反应"))
 	FPassiveActionData GetPassiveAbility(const FGameplayTag& Key) const
 	{
 		return PassiveMap.FindRef(Key);
 	}
 
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Abilities")
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "动作数据", meta = (DisplayName = "是否包含被动反应"))
 	bool HasPassiveAbility(const FGameplayTag& Key) const
 	{
 		return PassiveMap.Contains(Key);
@@ -427,7 +427,7 @@ public:
 // ---------------------------------------------------------------
 // 敌人技能数据 — 在内容浏览器创建时自动填入标准 Enemy Tag
 // ---------------------------------------------------------------
-UCLASS(BlueprintType, Blueprintable, DisplayName = "Enemy Ability Montage Data")
+UCLASS(BlueprintType, Blueprintable, DisplayName = "敌人动作蒙太奇数据")
 class DEVKIT_API UEnemyAbilityMontageData : public UAbilityData
 {
 	GENERATED_BODY()
@@ -438,7 +438,7 @@ class DEVKIT_API UEnemyAbilityMontageData : public UAbilityData
 // ---------------------------------------------------------------
 // 玩家技能数据 — 在内容浏览器创建时自动填入标准 Player Tag
 // ---------------------------------------------------------------
-UCLASS(BlueprintType, Blueprintable, DisplayName = "Player Ability Montage Data")
+UCLASS(BlueprintType, Blueprintable, DisplayName = "玩家动作蒙太奇数据")
 class DEVKIT_API UPlayerAbilityMontageData : public UAbilityData
 {
 	GENERATED_BODY()
@@ -446,7 +446,7 @@ class DEVKIT_API UPlayerAbilityMontageData : public UAbilityData
 	virtual void PostInitProperties() override;
 };
 
-UCLASS(BlueprintType, Blueprintable, DisplayName = "Weapon Attack Ability Montage Data", HideCategories = ("Passive"))
+UCLASS(BlueprintType, Blueprintable, DisplayName = "武器普通攻击动作数据", HideCategories = ("被动反应"))
 class DEVKIT_API UWeaponAttackAbilityMontageData : public UAbilityData
 {
 	GENERATED_BODY()
@@ -455,7 +455,7 @@ class DEVKIT_API UWeaponAttackAbilityMontageData : public UAbilityData
 	virtual void PostLoad() override;
 };
 
-UCLASS(BlueprintType, Blueprintable, DisplayName = "Weapon Skill Ability Montage Data", HideCategories = ("Passive"))
+UCLASS(BlueprintType, Blueprintable, DisplayName = "武器战技动作数据", HideCategories = ("被动反应"))
 class DEVKIT_API UWeaponSkillAbilityMontageData : public UAbilityData
 {
 	GENERATED_BODY()
@@ -465,7 +465,7 @@ class DEVKIT_API UWeaponSkillAbilityMontageData : public UAbilityData
 
 // Deprecated asset-load compatibility for old DA_Special assets. Active skills
 // and WeaponSkillAbilityData now own the runtime player skill/action rows.
-UCLASS(BlueprintType, Blueprintable, DisplayName = "Deprecated Special Ability Montage Data", HideCategories = ("Passive"))
+UCLASS(BlueprintType, Blueprintable, DisplayName = "旧特殊技能动作数据（已弃用）", HideCategories = ("被动反应"))
 class DEVKIT_API USpecialAbilityMontageData : public UAbilityData
 {
 	GENERATED_BODY()
@@ -473,7 +473,7 @@ class DEVKIT_API USpecialAbilityMontageData : public UAbilityData
 	virtual void PostInitProperties() override;
 };
 
-UCLASS(BlueprintType, Blueprintable, DisplayName = "Weapon Passive Ability Montage Data", HideCategories = ("Action|Montage", "Action|Montage Config"))
+UCLASS(BlueprintType, Blueprintable, DisplayName = "武器被动反应动作数据", HideCategories = ("动作|蒙太奇", "动作|高级条件"))
 class DEVKIT_API UWeaponPassiveAbilityMontageData : public UAbilityData
 {
 	GENERATED_BODY()

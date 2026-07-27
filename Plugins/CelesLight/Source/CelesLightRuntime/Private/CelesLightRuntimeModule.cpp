@@ -7,7 +7,7 @@
 
 void FCelesLightRuntimeModule::StartupModule()
 {
-	// Apply scalar settings immediately, then upload the profile and Ramp Atlas
+	// Apply scalar settings immediately, then upload the compact profile table
 	// again after renderer resources have been initialized.
 	GetMutableDefault<UStylizedLightingSettings>()->ApplyToConsoleVariables();
 	PostEngineInitHandle = FCoreDelegates::GetOnPostEngineInit().AddRaw(this, &FCelesLightRuntimeModule::ApplySettingsAfterEngineInit);

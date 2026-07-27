@@ -1,4 +1,4 @@
-﻿// Fill out your copyright notice in the Description page of Project Settings.
+// Fill out your copyright notice in the Description page of Project Settings.
 
 
 #include "Character/PlayerCharacterBase.h"
@@ -15,6 +15,7 @@
 #include "AbilitySystem/Abilities/GA_PlayerRangeAttackCombos.h"
 #include "AbilitySystem/Abilities/GA_SwitchWeapon.h"
 #include "AbilitySystem/Abilities/GA_WeaponSkill.h"
+#include "Data/WeaponSkillDataAsset.h"
 #include "Character/YogPlayerControllerBase.h"
 #include "Camera/YogCameraPawn.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
@@ -391,7 +392,15 @@ void APlayerCharacterBase::ApplyAbilityDataFromWeapon(UWeaponDefinition* WeaponD
 		};
 
 		AddWeaponAbilityDataSource(WeaponDefinition->AttackAbilityData);
-		AddWeaponAbilityDataSource(WeaponDefinition->WeaponSkillAbilityData);
+		if (EquippedWeaponSkill && WeaponDefinition->CanEquipWeaponSkill(EquippedWeaponSkill))
+		{
+			AddWeaponAbilityDataSource(EquippedWeaponSkill->AbilityData);
+		}
+		else
+		{
+			// Compatibility for weapon assets not yet migrated to the skill container.
+			AddWeaponAbilityDataSource(WeaponDefinition->WeaponSkillAbilityData);
+		}
 		AddWeaponAbilityDataSource(WeaponDefinition->PassiveAbilityData);
 	}
 
@@ -434,14 +443,145 @@ void APlayerCharacterBase::ApplyAbilityDataFromWeapon(UWeaponDefinition* WeaponD
 
 void APlayerCharacterBase::ApplyCurrentEquipmentAbilityData()
 {
-	if (EquippedWeaponDef)
+	ApplyAbilityDataFromWeapon(GetEffectiveEquippedWeaponDefinition());
+}
+
+UWeaponDefinition* APlayerCharacterBase::GetEffectiveEquippedWeaponDefinition() const
+{
+	return EquippedWeaponDef ? EquippedWeaponDef.Get() : DefaultUnarmedWeaponDef.Get();
+}
+
+void APlayerCharacterBase::InitializeEquippedWeaponSkillFromDefinition()
+{
+	const UWeaponDefinition* WeaponDefinition = GetEffectiveEquippedWeaponDefinition();
+	EquippedWeaponSkill = WeaponDefinition ? WeaponDefinition->ResolveDefaultWeaponSkill() : nullptr;
+}
+
+TArray<UWeaponSkillDataAsset*> APlayerCharacterBase::GetAvailableWeaponSkills() const
+{
+	TArray<UWeaponSkillDataAsset*> Result;
+	const UWeaponDefinition* WeaponDefinition = GetEffectiveEquippedWeaponDefinition();
+	if (!WeaponDefinition)
 	{
-		ApplyAbilityDataFromWeapon(EquippedWeaponDef);
+		return Result;
 	}
-	else
+
+	Result.Reserve(WeaponDefinition->AvailableWeaponSkills.Num());
+	for (UWeaponSkillDataAsset* WeaponSkill : WeaponDefinition->AvailableWeaponSkills)
 	{
-		ApplyAbilityDataFromWeapon(nullptr);
+		if (WeaponDefinition->CanEquipWeaponSkill(WeaponSkill))
+		{
+			Result.Add(WeaponSkill);
+		}
 	}
+	return Result;
+}
+
+bool APlayerCharacterBase::HasEquippedWeaponSkill() const
+{
+	const UWeaponDefinition* WeaponDefinition = GetEffectiveEquippedWeaponDefinition();
+	return EquippedWeaponSkill
+		&& WeaponDefinition
+		&& WeaponDefinition->CanEquipWeaponSkill(EquippedWeaponSkill)
+		&& EquippedWeaponSkill->AbilityClass;
+}
+
+bool APlayerCharacterBase::EquipWeaponSkill(UWeaponSkillDataAsset* WeaponSkill)
+{
+	UWeaponDefinition* WeaponDefinition = GetEffectiveEquippedWeaponDefinition();
+	if (!WeaponDefinition || !WeaponDefinition->CanEquipWeaponSkill(WeaponSkill))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[WeaponSkill] Reject equip Skill=%s Weapon=%s"),
+			*GetNameSafe(WeaponSkill), *GetNameSafe(WeaponDefinition));
+		return false;
+	}
+
+	if (EquippedWeaponSkill == WeaponSkill)
+	{
+		return true;
+	}
+
+	ClearEquippedWeaponSkillAbilityGrant();
+	EquippedWeaponSkill = WeaponSkill;
+	ApplyAbilityDataFromWeapon(WeaponDefinition);
+	RefreshEquippedWeaponSkillAbilityGrant();
+	OnWeaponSkillChanged.Broadcast(EquippedWeaponSkill);
+	return true;
+}
+
+void APlayerCharacterBase::ClearEquippedWeaponSkillAbilityGrant()
+{
+	UYogAbilitySystemComponent* ASC = GetASC();
+	if (!ASC)
+	{
+		EquippedWeaponSkillAbilityHandle = FGameplayAbilitySpecHandle();
+		return;
+	}
+
+	if (EquippedWeaponSkillAbilityHandle.IsValid())
+	{
+		ASC->CancelAbilityHandle(EquippedWeaponSkillAbilityHandle);
+		ASC->ClearAbility(EquippedWeaponSkillAbilityHandle);
+		EquippedWeaponSkillAbilityHandle = FGameplayAbilitySpecHandle();
+	}
+}
+
+void APlayerCharacterBase::RefreshEquippedWeaponSkillAbilityGrant()
+{
+	ClearEquippedWeaponSkillAbilityGrant();
+
+	if (!HasEquippedWeaponSkill())
+	{
+		return;
+	}
+
+	UYogAbilitySystemComponent* ASC = GetASC();
+	if (!ASC)
+	{
+		return;
+	}
+
+	UWeaponDefinition* WeaponDefinition = GetEffectiveEquippedWeaponDefinition();
+	const FGameplayAbilitySpec AbilitySpec(EquippedWeaponSkill->AbilityClass, 1, INDEX_NONE, EquippedWeaponSkill);
+	EquippedWeaponSkillAbilityHandle = ASC->GiveAbility(AbilitySpec);
+	UE_LOG(LogTemp, Log, TEXT("[WeaponSkill] Granted Skill=%s Ability=%s Weapon=%s"),
+		*GetNameSafe(EquippedWeaponSkill),
+		*GetNameSafe(EquippedWeaponSkill->AbilityClass),
+		*GetNameSafe(WeaponDefinition));
+}
+
+bool APlayerCharacterBase::TryActivateEquippedWeaponSkill()
+{
+	UYogAbilitySystemComponent* ASC = GetASC();
+	if (!ASC || !HasEquippedWeaponSkill())
+	{
+		return false;
+	}
+
+	const FGameplayAbilitySpec* CurrentSpec = EquippedWeaponSkillAbilityHandle.IsValid()
+		? ASC->FindAbilitySpecFromHandle(EquippedWeaponSkillAbilityHandle)
+		: nullptr;
+	if (!CurrentSpec || CurrentSpec->SourceObject.Get() != EquippedWeaponSkill)
+	{
+		RefreshEquippedWeaponSkillAbilityGrant();
+		CurrentSpec = EquippedWeaponSkillAbilityHandle.IsValid()
+			? ASC->FindAbilitySpecFromHandle(EquippedWeaponSkillAbilityHandle)
+			: nullptr;
+	}
+
+	if (CurrentSpec)
+	{
+		if (UGA_WeaponSkill* SkillAbility = Cast<UGA_WeaponSkill>(CurrentSpec->GetPrimaryInstance()))
+		{
+			if (!SkillAbility->PrepareForInputActivation())
+			{
+				return false;
+			}
+		}
+	}
+
+	return EquippedWeaponSkillAbilityHandle.IsValid()
+		&& ASC->TryActivateAbility(EquippedWeaponSkillAbilityHandle, true);
 }
 
 void APlayerCharacterBase::CaptureEquippedWeaponDeckState()
@@ -571,6 +711,8 @@ void APlayerCharacterBase::CaptureCombatLoadoutForRunState(FRunState& OutState)
 
 	OutState.EquippedWeaponDef = EquippedWeaponDef;
 	OutState.InactiveWeaponDef = InactiveWeaponDef;
+	OutState.EquippedWeaponSkill = EquippedWeaponSkill;
+	OutState.InactiveWeaponSkill = InactiveWeaponSkill;
 	CopyDeckRuntimeStateToRunStateFields(
 		EquippedWeaponDeckState,
 		OutState.CombatDeckCards,
@@ -595,6 +737,7 @@ void APlayerCharacterBase::RestoreInactiveWeaponFromDefinition(UWeaponDefinition
 	}
 
 	InactiveWeaponDef = WeaponDefinition;
+	InactiveWeaponSkill = WeaponDefinition ? WeaponDefinition->ResolveDefaultWeaponSkill() : nullptr;
 	InactiveWeaponFromSpawner = nullptr;
 	InactiveWeaponDeckState.Reset();
 	if (!WeaponDefinition || !GetWorld())
@@ -623,6 +766,8 @@ void APlayerCharacterBase::RestoreInactiveWeaponFromDefinition(UWeaponDefinition
 
 void APlayerCharacterBase::ResetToDefaultUnarmedCombatState()
 {
+	ClearEquippedWeaponSkillAbilityGrant();
+
 	if (EquippedWeaponInstance)
 	{
 		OnHeatPhaseChanged.RemoveDynamic(EquippedWeaponInstance, &AWeaponInstance::OnHeatPhaseChanged);
@@ -638,8 +783,10 @@ void APlayerCharacterBase::ResetToDefaultUnarmedCombatState()
 	}
 
 	EquippedWeaponDef = nullptr;
+	EquippedWeaponSkill = nullptr;
 	EquippedFromSpawner = nullptr;
 	InactiveWeaponDef = nullptr;
+	InactiveWeaponSkill = nullptr;
 	InactiveWeaponFromSpawner = nullptr;
 	EquippedWeaponDeckState.Reset();
 	InactiveWeaponDeckState.Reset();
@@ -654,6 +801,7 @@ void APlayerCharacterBase::ResetToDefaultUnarmedCombatState()
 		DefaultUnarmedWeaponDef->SetupWeaponToCharacter(GetMesh(), this);
 		// SetupWeaponToCharacter sets EquippedWeaponDef = this, but unarmed state must keep
 		// EquippedWeaponDef null so TryPickupWeapon equips the next real weapon as primary.
+		// GetEffectiveEquippedWeaponDefinition keeps the selected unarmed skill active.
 		EquippedWeaponDef = nullptr;
 	}
 	else
@@ -700,6 +848,10 @@ void APlayerCharacterBase::SwitchWeapon(bool bForceRecoveryCancel)
 		ApplyRecoveryCancelWeaponSwitchBonus();
 	}
 
+	// Cancel the outgoing skill while its weapon and DA are still current so
+	// skill-specific cleanup never observes the incoming slot's configuration.
+	ClearEquippedWeaponSkillAbilityGrant();
+
 	if (EquippedWeaponInstance)
 	{
 		OnHeatPhaseChanged.RemoveDynamic(EquippedWeaponInstance, &AWeaponInstance::OnHeatPhaseChanged);
@@ -714,6 +866,7 @@ void APlayerCharacterBase::SwitchWeapon(bool bForceRecoveryCancel)
 	}
 
 	Swap(EquippedWeaponDef, InactiveWeaponDef);
+	Swap(EquippedWeaponSkill, InactiveWeaponSkill);
 	Swap(EquippedWeaponInstance, InactiveWeaponInstance);
 	Swap(EquippedFromSpawner, InactiveWeaponFromSpawner);
 	Swap(EquippedWeaponDeckState, InactiveWeaponDeckState);
@@ -728,6 +881,7 @@ void APlayerCharacterBase::SwitchWeapon(bool bForceRecoveryCancel)
 	}
 
 	ApplyAbilityDataFromWeapon(EquippedWeaponDef);
+	RefreshEquippedWeaponSkillAbilityGrant();
 
 	LoadCombatDeckFromWeaponDeckState(EquippedWeaponDeckState, EquippedWeaponDef);
 
@@ -739,6 +893,7 @@ void APlayerCharacterBase::SwitchWeapon(bool bForceRecoveryCancel)
 
 	RelinkWeaponAnimLayer();
 	OnWeaponSwitched.Broadcast();
+	OnWeaponSkillChanged.Broadcast(EquippedWeaponSkill);
 }
 
 void APlayerCharacterBase::ApplyRecoveryCancelWeaponSwitchBonus()
@@ -888,11 +1043,19 @@ void APlayerCharacterBase::RestoreRunState(const FRunState& State)
 	if (State.EquippedWeaponDef)
 	{
 		State.EquippedWeaponDef->SetupWeaponToCharacter(GetMesh(), this);
+		if (State.EquippedWeaponSkill)
+		{
+			EquipWeaponSkill(State.EquippedWeaponSkill);
+		}
 		UE_LOG(LogTemp, Warning, TEXT("[RunState] RESTORE Weapon - %s"), *State.EquippedWeaponDef->GetName());
 	}
 	else
 	{
 		ResetToDefaultUnarmedCombatState();
+		if (State.EquippedWeaponSkill)
+		{
+			EquipWeaponSkill(State.EquippedWeaponSkill);
+		}
 	}
 
 	if (CombatDeckComponent && !State.CombatDeckCards.IsEmpty())
@@ -921,6 +1084,10 @@ void APlayerCharacterBase::RestoreRunState(const FRunState& State)
 	}
 
 	RestoreInactiveWeaponFromDefinition(State.InactiveWeaponDef);
+	if (State.InactiveWeaponDef && State.InactiveWeaponDef->CanEquipWeaponSkill(State.InactiveWeaponSkill))
+	{
+		InactiveWeaponSkill = State.InactiveWeaponSkill;
+	}
 	if (State.InactiveWeaponDef)
 	{
 		if (!State.InactiveCombatDeckCards.IsEmpty())
@@ -1326,13 +1493,14 @@ void APlayerCharacterBase::BeginPlay()
 		GrantIfMissing(UGA_PlayerRangeAttack_Combo2::StaticClass());
 		GrantIfMissing(UGA_PlayerRangeAttack_Combo3::StaticClass());
 		GrantIfMissing(UGA_PlayerRangeAttack_Combo4::StaticClass());
-		GrantIfMissing(UGA_WeaponSkill_Combo1::StaticClass());
-		GrantIfMissing(UGA_WeaponSkill_Combo2::StaticClass());
-		GrantIfMissing(UGA_WeaponSkill_Combo3::StaticClass());
-		GrantIfMissing(UGA_WeaponSkill_Combo4::StaticClass());
 		GrantIfMissing(UGA_SwitchWeapon::StaticClass());
 	}
 
+	if (UWeaponDefinition* WeaponDefinition = GetEffectiveEquippedWeaponDefinition();
+		WeaponDefinition && !WeaponDefinition->CanEquipWeaponSkill(EquippedWeaponSkill))
+	{
+		InitializeEquippedWeaponSkillFromDefinition();
+	}
 	ApplyCurrentEquipmentAbilityData();
 	RelinkWeaponAnimLayer();
 
@@ -1341,8 +1509,6 @@ void APlayerCharacterBase::BeginPlay()
 	// to route the first real weapon to the inactive slot instead of equipping it.
 	if (!EquippedWeaponDef && DefaultUnarmedWeaponDef)
 	{
-		ApplyAbilityDataFromWeapon(DefaultUnarmedWeaponDef);
-
 		if (UCombatDeckComponent* CombatDeck = CombatDeckComponent.Get())
 		{
 			CombatDeck->LoadDeckFromWeapon(DefaultUnarmedWeaponDef);
@@ -1352,6 +1518,7 @@ void APlayerCharacterBase::BeginPlay()
 			YogASC->ApplyWeaponTypeTag(DefaultUnarmedWeaponDef->WeaponType);
 		}
 	}
+	RefreshEquippedWeaponSkillAbilityGrant();
 
 	//GetASC()->InitAbilityActorInfo(this, this);
 	//if (GasTemplate != nullptr)
