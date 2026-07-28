@@ -1999,3 +1999,4 @@ Tools/ProductionGraph/*.log
 .vsconfig
 /.ugs
 .vsconfig
+/UGS
