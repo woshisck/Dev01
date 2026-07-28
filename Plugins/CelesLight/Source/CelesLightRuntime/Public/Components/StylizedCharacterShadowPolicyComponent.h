@@ -8,8 +8,8 @@ class UPrimitiveComponent;
 
 /**
  * Applies the stylized character shadow split to an actor's skinned meshes.
- * Native projected shadows remain visible on the environment while the character's own
- * visible pixels are reserved for the stylized half-view self-shadow pass.
+ * Character-to-scene and scene-to-character projected shadows remain enabled, while
+ * each character mesh is masked out of its own native projected shadow.
  */
 UCLASS(ClassGroup = (Rendering), meta = (BlueprintSpawnableComponent, DisplayName = "Stylized Character Shadow Policy"))
 class CELESLIGHTRUNTIME_API UStylizedCharacterShadowPolicyComponent : public UActorComponent

@@ -41,8 +41,6 @@
 | 查符文系统完整指南 | [RuneLogic_Complete_Guide](04_开发实现与系统文档/系统/Rune/RuneLogic_Complete_Guide.md) |
 | 查 AI 代码规范 | [AI代码编写规范](06_AI协作与VibeCoding/AI代码编写规范.md) |
 | 查普通贴图 NoVT / Texture Collection / 地面 RVT 工具使用 | [NoVT / Texture Collection / RVT 指南](04_开发实现与系统文档/性能/UE58_VirtualTexture_And_VTC_Guide.md) |
-| 查 UE5.8 风格化角色、灯光、Lumen 与隐藏自发光系统 | [风格化角色与灯光系统完整指南](04_开发实现与系统文档/系统/Rendering/UE58_风格化角色与灯光系统完整指南.md) |
-| 在其他编译机复现 UE5.8 风格化渲染修改 | [源码复现包](ReproductionPackages/UE58_StylizedCharacterRendering_2026-07-13/README.md) |
 
 ## 维护规则
 

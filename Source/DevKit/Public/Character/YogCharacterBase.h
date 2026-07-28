@@ -139,7 +139,7 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat|Hit Impact")
 	TObjectPtr<UHitImpactVisualComponent> HitImpactVisualComponent;
 
-	/** Applies the environment-only native shadow policy to every skinned mesh owned by this character. */
+	/** Keeps character-to-scene and scene-to-character shadows while removing character self-projection. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Rendering|Stylized Character")
 	TObjectPtr<UStylizedCharacterShadowPolicyComponent> StylizedCharacterShadowPolicyComponent;
 

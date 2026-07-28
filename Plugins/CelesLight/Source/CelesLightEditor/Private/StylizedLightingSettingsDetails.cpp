@@ -65,7 +65,23 @@ namespace
 	const FLocalizedPropertyText SettingsProperties[] =
 	{
 		{ GET_MEMBER_NAME_CHECKED(UStylizedLightingSettings, EditorLanguage), TEXT("Interface Language"), TEXT("界面语言"), TEXT("Controls only the language of this settings panel. Auto follows the Unreal Editor culture."), TEXT("只控制当前设置界面的显示语言，不影响渲染。自动模式跟随虚幻编辑器语言。") },
-		{ GET_MEMBER_NAME_CHECKED(UStylizedLightingSettings, CharacterRampAtlas), TEXT("Character Ramp Atlas"), TEXT("角色 Ramp 图集"), TEXT("Shared Curve Linear Color Atlas containing every attenuation ramp selected by the character lighting profiles."), TEXT("保存所有角色明暗 Ramp 的 Curve Linear Color Atlas。各光照配置选择的曲线必须包含在此图集中。") },
+		{ GET_MEMBER_NAME_CHECKED(UStylizedLightingSettings, bEnableCharacterDirectLighting), TEXT("Enable Character Direct Lighting"), TEXT("启用角色直接光"), TEXT("Master switch for the custom direct-light path of the stylized character shading model."), TEXT("风格化角色直接光渲染路径的总开关。") },
+		{ GET_MEMBER_NAME_CHECKED(UStylizedLightingSettings, bEnableHalfLambertPartition), TEXT("Enable Half-Lambert Partition"), TEXT("启用半兰伯特分区"), TEXT("Uses N dot L plus material Diffuse Bias to form the half-Lambert lighting coordinate."), TEXT("使用 NdotL 与材质 Diffuse Bias 形成半兰伯特明暗坐标。") },
+		{ GET_MEMBER_NAME_CHECKED(UStylizedLightingSettings, bEnableDarkColorFloor), TEXT("Enable Character Minimum Brightness"), TEXT("启用角色最低明度"), TEXT("Keeps final character diffuse lighting above a configurable BaseColor-derived minimum, including areas without direct light."), TEXT("将角色最终漫反射光照限制在可调的 BaseColor 最低明度以上，在没有直接光的位置也会生效。") },
+		{ GET_MEMBER_NAME_CHECKED(UStylizedLightingSettings, bEnableSceneShadowPartition), TEXT("Enable Scene Shadow Partition"), TEXT("启用场景投影分区"), TEXT("Lets shadows cast by scene geometry move the character into the dark side of the two-tone partition."), TEXT("允许场景物体投到角色上的阴影推动角色进入二分光照的暗面。") },
+		{ GET_MEMBER_NAME_CHECKED(UStylizedLightingSettings, bEnableLocalMultiLights), TEXT("Enable Local / Multiple Lights"), TEXT("启用局部/多光源"), TEXT("Enables point, spot and rect lights in addition to directional lights."), TEXT("除定向光外，启用点光、聚光和矩形光对角色的累加。") },
+		{ GET_MEMBER_NAME_CHECKED(UStylizedLightingSettings, bEnableWashLights), TEXT("Enable Wash Lights"), TEXT("启用 Wash 灯光"), TEXT("Enables lights configured with the Wash character-light mode."), TEXT("启用 Character Light Mode 为 Wash 的灯光。") },
+		{ GET_MEMBER_NAME_CHECKED(UStylizedLightingSettings, bEnableDirectLightColor), TEXT("Enable Direct Light Color"), TEXT("启用直接光颜色"), TEXT("Enables scene-light RGB influence on character direct lighting."), TEXT("启用场景灯光 RGB 对角色直接光的影响。") },
+		{ GET_MEMBER_NAME_CHECKED(UStylizedLightingSettings, bEnableDirectLightIntensity), TEXT("Enable Direct Light Intensity"), TEXT("启用直接光强度"), TEXT("Enables physical scene-light intensity influence on the character."), TEXT("启用场景灯光物理强度对角色的影响。") },
+		{ GET_MEMBER_NAME_CHECKED(UStylizedLightingSettings, bEnableGGXSpecular), TEXT("Enable GGX Specular"), TEXT("启用 GGX 高光"), TEXT("Enables the native energy-conserving GGX highlight."), TEXT("启用原生能量守恒 GGX 高光。") },
+		{ GET_MEMBER_NAME_CHECKED(UStylizedLightingSettings, bEnableMixMapSpecularControl), TEXT("Enable MixMap.R Specular Control"), TEXT("启用 MixMap.R 高光控制"), TEXT("Enables signed suppression/advance around the neutral MixMap.R value 0.5."), TEXT("启用以 MixMap.R=0.5 为中性值的高光抑制/提前控制。") },
+		{ GET_MEMBER_NAME_CHECKED(UStylizedLightingSettings, bEnableSpecularLitSideMask), TEXT("Enable Lit-Side Specular Mask"), TEXT("高光仅保留在亮面"), TEXT("Restricts direct specular to the lit side of the two-tone partition."), TEXT("限制直接高光只出现在二分光照的亮面。") },
+		{ GET_MEMBER_NAME_CHECKED(UStylizedLightingSettings, bEnableLumenDiffuseIndirect), TEXT("Enable Lumen Diffuse Indirect"), TEXT("启用 Lumen 漫反射间接光"), TEXT("Enables diffuse global illumination on stylized characters."), TEXT("启用风格化角色的漫反射全局照明。") },
+		{ GET_MEMBER_NAME_CHECKED(UStylizedLightingSettings, bEnableLumenIndirectColor), TEXT("Enable Lumen Indirect Color"), TEXT("启用 Lumen 间接光颜色"), TEXT("Enables environment RGB in diffuse GI; disabled keeps luminance only."), TEXT("启用环境 RGB 对漫反射 GI 的影响；关闭后只保留亮度。") },
+		{ GET_MEMBER_NAME_CHECKED(UStylizedLightingSettings, bEnableGINormal), TEXT("Enable GI Smooth Normal"), TEXT("启用 GI 平滑法线"), TEXT("Enables the smooth vertex-normal override for GI response and occlusion."), TEXT("启用平滑顶点法线参与 GI 响应与遮蔽。") },
+		{ GET_MEMBER_NAME_CHECKED(UStylizedLightingSettings, bEnableEnvironmentReflections), TEXT("Enable Environment Reflections"), TEXT("启用环境反射"), TEXT("Enables Lumen/SSR environment reflections on stylized characters."), TEXT("启用风格化角色的 Lumen/SSR 环境反射。") },
+		{ GET_MEMBER_NAME_CHECKED(UStylizedLightingSettings, bEnableIndirectOcclusion), TEXT("Enable Indirect Occlusion"), TEXT("启用间接光遮蔽"), TEXT("Enables SSAO and Lumen short-range occlusion on stylized characters."), TEXT("启用风格化角色的 SSAO 与 Lumen 短距离遮蔽。") },
+		{ GET_MEMBER_NAME_CHECKED(UStylizedLightingSettings, bEnableCharacterTone), TEXT("Enable Character Exposure / Contrast"), TEXT("启用角色曝光/对比度"), TEXT("Enables character-only exposure and contrast processing."), TEXT("启用只作用于角色的曝光和对比度处理。") },
 		{ GET_MEMBER_NAME_CHECKED(UStylizedLightingSettings, bEnableStylizedLumenLighting), TEXT("Enable Stylized Lumen Lighting"), TEXT("启用风格化 Lumen 光照"), TEXT("Enables banded stylization for scene direct lighting and Lumen indirect lighting."), TEXT("为场景直接光和 Lumen 间接光启用分层风格化处理。") },
 		{ GET_MEMBER_NAME_CHECKED(UStylizedLightingSettings, BandCount), TEXT("Band Count"), TEXT("光照层数"), TEXT("Number of discrete lighting bands. Higher values retain more continuous shading."), TEXT("光照离散分层的数量。数值越高越接近连续光照，数值越低色块感越强。") },
 		{ GET_MEMBER_NAME_CHECKED(UStylizedLightingSettings, BandSoftness), TEXT("Band Softness"), TEXT("分层柔和度"), TEXT("Width of transitions between bands. Zero gives hard steps; higher values soften boundaries."), TEXT("相邻光照层之间的过渡宽度。0 为硬切，数值越高边界越柔和。") },
@@ -89,16 +105,8 @@ namespace
 	const FLocalizedPropertyText ProfileProperties[] =
 	{
 		{ GET_MEMBER_NAME_CHECKED(FStylizedCharacterLightingProfile, ProfileName), TEXT("Profile Name"), TEXT("配置名称"), TEXT("Artist-facing name for this reusable character lighting profile."), TEXT("用于识别这套可复用角色光照外观的名称。") },
-		{ GET_MEMBER_NAME_CHECKED(FStylizedCharacterLightingProfile, ShadowFadeTint), TEXT("Shadow Fade Tint"), TEXT("阴影过渡色"), TEXT("Tint for the transition between the deepest shadow and shadow region."), TEXT("最深阴影与阴影区之间的过渡颜色。") },
-		{ GET_MEMBER_NAME_CHECKED(FStylizedCharacterLightingProfile, ShadowTint), TEXT("Shadow Tint"), TEXT("阴影色"), TEXT("Tint for the deepest shadow region."), TEXT("七区 Ramp 中最深阴影区域的颜色。") },
-		{ GET_MEMBER_NAME_CHECKED(FStylizedCharacterLightingProfile, ShallowFadeTint), TEXT("Shallow Fade Tint"), TEXT("浅阴影过渡色"), TEXT("Tint for the transition between shadow and shallow-shadow regions."), TEXT("阴影区与浅阴影区之间的过渡颜色。") },
-		{ GET_MEMBER_NAME_CHECKED(FStylizedCharacterLightingProfile, ShallowTint), TEXT("Shallow Tint"), TEXT("浅阴影色"), TEXT("Tint for the shallow-shadow region."), TEXT("七区 Ramp 中浅阴影区域的颜色。") },
-		{ GET_MEMBER_NAME_CHECKED(FStylizedCharacterLightingProfile, SSSTint), TEXT("SSS Tint"), TEXT("次表面过渡色"), TEXT("Tint for the soft subsurface-style transition region."), TEXT("模拟次表面散射的柔和过渡区域颜色。") },
-		{ GET_MEMBER_NAME_CHECKED(FStylizedCharacterLightingProfile, FrontTint), TEXT("Front Tint"), TEXT("正面光色"), TEXT("Tint for the front-lit region."), TEXT("朝向灯光的正面受光区域颜色。") },
-		{ GET_MEMBER_NAME_CHECKED(FStylizedCharacterLightingProfile, ForwardTint), TEXT("Forward Tint"), TEXT("最亮区颜色"), TEXT("Tint for the strongest forward-facing light region; also used by rim-only lights."), TEXT("最强正向受光区域的颜色，同时作为仅边缘光模式的边缘光颜色。") },
-		{ GET_MEMBER_NAME_CHECKED(FStylizedCharacterLightingProfile, BaseAttenuationRamp), TEXT("Base Attenuation Ramp"), TEXT("基础明暗 Ramp"), TEXT("Curve row used by the original seven-region attenuation. The curve must be included in Character Ramp Atlas."), TEXT("复刻原材质七区 Attenuation 使用的曲线。该曲线必须包含在角色 Ramp 图集中。") },
-		{ GET_MEMBER_NAME_CHECKED(FStylizedCharacterLightingProfile, ShadowFadePower), TEXT("Shadow Fade Power"), TEXT("阴影过渡强度"), TEXT("Controls the original seven-region ramp's shadow transition shaping. Zero matches the original master material default."), TEXT("控制原七区 Ramp 的阴影过渡塑形。0 与原角色主材质默认值一致。") },
-		{ GET_MEMBER_NAME_CHECKED(FStylizedCharacterLightingProfile, DirectDiffuseIntensity), TEXT("Direct Diffuse Intensity"), TEXT("直接漫反射强度"), TEXT("Multiplier for character direct diffuse lighting after the attenuation ramp."), TEXT("角色直接漫反射经过 Attenuation Ramp 后的强度倍率。") },
+		{ GET_MEMBER_NAME_CHECKED(FStylizedCharacterLightingProfile, DirectDiffuseIntensity), TEXT("Direct Diffuse Intensity"), TEXT("直接漫反射强度"), TEXT("Multiplier for character direct diffuse lighting after the two-tone half-Lambert partition."), TEXT("角色直接漫反射经过二分半兰伯特处理后的强度倍率。") },
+		{ GET_MEMBER_NAME_CHECKED(FStylizedCharacterLightingProfile, DirectLightIntensityInfluence), TEXT("Direct Light Intensity Influence"), TEXT("直接光强影响"), TEXT("How strongly physical light intensity affects the character. Zero normalizes intensity while retaining light hue and attenuation; one uses native intensity."), TEXT("物理光源强度影响角色的程度。0 会归一化光强但保留光色与距离衰减，1 使用原生光强。") },
 		{ GET_MEMBER_NAME_CHECKED(FStylizedCharacterLightingProfile, SpecularTint), TEXT("Specular Tint"), TEXT("高光颜色"), TEXT("Color tint applied to character specular highlights."), TEXT("角色高光使用的颜色。") },
 		{ GET_MEMBER_NAME_CHECKED(FStylizedCharacterLightingProfile, SpecularIntensity), TEXT("Specular Intensity"), TEXT("高光强度"), TEXT("Per-profile multiplier for character direct specular highlights."), TEXT("当前角色配置的直接光高光强度倍率。") },
 		{ GET_MEMBER_NAME_CHECKED(FStylizedCharacterLightingProfile, DirectLightColorInfluence), TEXT("Direct Light Color Influence"), TEXT("直接光色影响"), TEXT("How much direct-light RGB affects the character. Zero keeps luminance only; one uses full light color."), TEXT("直接灯光颜色影响角色的程度。0 只接受亮度，1 完整接受灯光颜色。") },
@@ -108,7 +116,9 @@ namespace
 		{ GET_MEMBER_NAME_CHECKED(FStylizedCharacterLightingProfile, IndirectLightingIntensity), TEXT("Indirect Lighting Intensity"), TEXT("间接光强度"), TEXT("Multiplier for Lumen diffuse indirect lighting on the character."), TEXT("角色接受 Lumen 漫反射间接光的强度倍率。") },
 		{ GET_MEMBER_NAME_CHECKED(FStylizedCharacterLightingProfile, ReflectionIntensity), TEXT("Reflection Intensity"), TEXT("反射强度"), TEXT("Multiplier for environment reflections on the character."), TEXT("角色环境反射结果的强度倍率。") },
 		{ GET_MEMBER_NAME_CHECKED(FStylizedCharacterLightingProfile, IndirectOcclusionStrength), TEXT("Indirect Occlusion Strength"), TEXT("间接光遮蔽强度"), TEXT("Strength of SSAO and Lumen short-range occlusion on the character. Zero removes local self-occlusion darkening but keeps projected scene shadows."), TEXT("角色接受 SSAO 与 Lumen 短距离遮蔽的强度。设为 0 可去除局部自遮蔽压暗，但不会关闭场景物体投到角色上的投影，也不会关闭角色投向环境的阴影。") },
-		{ GET_MEMBER_NAME_CHECKED(FStylizedCharacterLightingProfile, CharacterBaseFill), TEXT("Character Base Fill"), TEXT("角色底色补光"), TEXT("Minimum BaseColor contribution when scene lighting is weak. This does not emit light, create bloom, or illuminate the environment."), TEXT("场景光照不足时保留的最低 BaseColor 亮度。它不是自发光，不产生 Bloom，也不会照亮周围环境。") },
+		{ GET_MEMBER_NAME_CHECKED(FStylizedCharacterLightingProfile, CharacterBaseFill), TEXT("Minimum Base Color Multiplier"), TEXT("最低基础色倍率"), TEXT("Minimum final diffuse-lighting level as a multiplier of the material BaseColor. It does not replace light direction or create a new lighting partition."), TEXT("角色最终漫反射光照允许达到的最低值，以材质 BaseColor 的倍率表示。它不会替代灯光方向，也不会创建新的明暗分层。") },
+		{ GET_MEMBER_NAME_CHECKED(FStylizedCharacterLightingProfile, CharacterBaseFillSoftness), TEXT("Minimum Brightness Softness"), TEXT("最低明度过渡柔度"), TEXT("Softens the transition where current character lighting approaches the minimum brightness."), TEXT("柔化角色当前光照接近最低明度时的过渡边界。") },
+		{ GET_MEMBER_NAME_CHECKED(FStylizedCharacterLightingProfile, CharacterBaseFillOcclusionInfluence), TEXT("Minimum Brightness AO Influence"), TEXT("最低明度受环境遮蔽影响"), TEXT("How strongly SSAO and Lumen occlusion may darken the minimum. Zero preserves the full floor; one applies full occlusion."), TEXT("SSAO 与 Lumen 遮蔽压暗最低明度的程度。0 完整保留下限，1 接受完整遮蔽。") },
 		{ GET_MEMBER_NAME_CHECKED(FStylizedCharacterLightingProfile, CharacterExposure), TEXT("Character Exposure"), TEXT("角色曝光"), TEXT("Exposure in stops applied only to this character lighting profile. Plus one doubles lighting; minus one halves it."), TEXT("只作用于当前角色光照配置的曝光档位。+1 使光照翻倍，-1 使光照减半。") },
 		{ GET_MEMBER_NAME_CHECKED(FStylizedCharacterLightingProfile, CharacterContrast), TEXT("Character Contrast"), TEXT("角色光照对比度"), TEXT("Luminance contrast applied only to stylized character lighting. One is neutral; lower values lift dark lighting."), TEXT("只作用于风格化角色光照的亮度对比度。1 为不修改，小于 1 会抬高暗部光照。") },
 	};
@@ -129,12 +139,13 @@ void FStylizedLightingSettingsDetails::CustomizeDetails(IDetailLayoutBuilder& De
 	SetReflectionModeNames(bChinese);
 
 	DetailBuilder.EditCategory(TEXT("Interface"), SelectText(bChinese, TEXT("Interface"), TEXT("界面")), ECategoryPriority::Important);
-	DetailBuilder.EditCategory(TEXT("Character Lighting"), SelectText(bChinese, TEXT("Character Lighting"), TEXT("角色光照")), ECategoryPriority::Important);
-	DetailBuilder.EditCategory(TEXT("Character Lighting|Global Multipliers"), SelectText(bChinese, TEXT("Global Multipliers"), TEXT("全局倍率")), ECategoryPriority::Important);
-	DetailBuilder.EditCategory(TEXT("Character Lighting Profiles"), SelectText(bChinese, TEXT("Character Lighting Profiles"), TEXT("角色光照配置")), ECategoryPriority::Important);
+	IDetailCategoryBuilder& BasicCategory = DetailBuilder.EditCategory(TEXT("Character Features|01 Basic Half Lambert"), SelectText(bChinese, TEXT("01 Basic Two-Tone / Half-Lambert"), TEXT("01 基础二分 / 半兰伯特")), ECategoryPriority::Important);
+	DetailBuilder.EditCategory(TEXT("Character Features|02 Scene Projection"), SelectText(bChinese, TEXT("02 Projection (Scene)"), TEXT("02 投影（场景）")), ECategoryPriority::Important);
+	IDetailCategoryBuilder& MultiLightCategory = DetailBuilder.EditCategory(TEXT("Character Features|03 Multiple Lights"), SelectText(bChinese, TEXT("03 Multiple Lights"), TEXT("03 多光源处理")), ECategoryPriority::Important);
+	IDetailCategoryBuilder& SpecularCategory = DetailBuilder.EditCategory(TEXT("Character Features|04 Specular"), SelectText(bChinese, TEXT("04 Specular"), TEXT("04 高光部分")), ECategoryPriority::Important);
+	IDetailCategoryBuilder& GICategory = DetailBuilder.EditCategory(TEXT("Character Features|05 Global Illumination Lumen"), SelectText(bChinese, TEXT("05 Global Illumination / Lumen"), TEXT("05 全局照明 / Lumen")), ECategoryPriority::Important);
+	IDetailCategoryBuilder& ColorCategory = DetailBuilder.EditCategory(TEXT("Character Features|06 Color Fidelity"), SelectText(bChinese, TEXT("06 Color Fidelity"), TEXT("06 颜色与明度")), ECategoryPriority::Important);
 	DetailBuilder.EditCategory(TEXT("Scene Lighting"), SelectText(bChinese, TEXT("Scene Lighting"), TEXT("场景光照")), ECategoryPriority::Default);
-	DetailBuilder.EditCategory(TEXT("Character Reflection"), SelectText(bChinese, TEXT("Character Reflection"), TEXT("角色反射")), ECategoryPriority::Default);
-	DetailBuilder.EditCategory(TEXT("Character Self Shadow"), SelectText(bChinese, TEXT("Character Self Shadow"), TEXT("角色自阴影")), ECategoryPriority::Default);
 
 	for (const FLocalizedPropertyText& PropertyText : SettingsProperties)
 	{
@@ -168,5 +179,37 @@ void FStylizedLightingSettingsDetails::CustomizeDetails(IDetailLayoutBuilder& De
 				ApplyText(ProfileHandle->GetChildHandle(PropertyText.PropertyName), PropertyText, bChinese);
 			}
 		}
+		// Keep the profile array as a backward-compatible storage format, but
+		// expose profile zero as one classified global tuning surface.
+		if (NumProfiles > 0)
+		{
+			const TSharedRef<IPropertyHandle> GlobalTuning = ProfilesArray->GetElement(0);
+			auto Add = [&GlobalTuning](IDetailCategoryBuilder& Category, const FName PropertyName)
+			{
+				if (const TSharedPtr<IPropertyHandle> Handle = GlobalTuning->GetChildHandle(PropertyName))
+				{
+					Category.AddProperty(Handle.ToSharedRef());
+				}
+			};
+
+			Add(BasicCategory, GET_MEMBER_NAME_CHECKED(FStylizedCharacterLightingProfile, DirectDiffuseIntensity));
+			Add(BasicCategory, GET_MEMBER_NAME_CHECKED(FStylizedCharacterLightingProfile, CharacterBaseFill));
+			Add(BasicCategory, GET_MEMBER_NAME_CHECKED(FStylizedCharacterLightingProfile, CharacterBaseFillSoftness));
+			Add(BasicCategory, GET_MEMBER_NAME_CHECKED(FStylizedCharacterLightingProfile, CharacterBaseFillOcclusionInfluence));
+
+			Add(MultiLightCategory, GET_MEMBER_NAME_CHECKED(FStylizedCharacterLightingProfile, DirectLightIntensityInfluence));
+			Add(MultiLightCategory, GET_MEMBER_NAME_CHECKED(FStylizedCharacterLightingProfile, DirectLightColorInfluence));
+			Add(SpecularCategory, GET_MEMBER_NAME_CHECKED(FStylizedCharacterLightingProfile, SpecularTint));
+			Add(SpecularCategory, GET_MEMBER_NAME_CHECKED(FStylizedCharacterLightingProfile, SpecularIntensity));
+			Add(GICategory, GET_MEMBER_NAME_CHECKED(FStylizedCharacterLightingProfile, IndirectLightColorInfluence));
+			Add(GICategory, GET_MEMBER_NAME_CHECKED(FStylizedCharacterLightingProfile, GINormalBlend));
+			Add(GICategory, GET_MEMBER_NAME_CHECKED(FStylizedCharacterLightingProfile, IndirectLightingIntensity));
+			Add(GICategory, GET_MEMBER_NAME_CHECKED(FStylizedCharacterLightingProfile, ReflectionColorInfluence));
+			Add(GICategory, GET_MEMBER_NAME_CHECKED(FStylizedCharacterLightingProfile, ReflectionIntensity));
+			Add(GICategory, GET_MEMBER_NAME_CHECKED(FStylizedCharacterLightingProfile, IndirectOcclusionStrength));
+			Add(ColorCategory, GET_MEMBER_NAME_CHECKED(FStylizedCharacterLightingProfile, CharacterExposure));
+			Add(ColorCategory, GET_MEMBER_NAME_CHECKED(FStylizedCharacterLightingProfile, CharacterContrast));
+		}
 	}
+	DetailBuilder.HideProperty(ProfilesHandle);
 }

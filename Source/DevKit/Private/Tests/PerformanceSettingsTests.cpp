@@ -1,8 +1,44 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Misc/AutomationTest.h"
+#include "Misc/ConfigCacheIni.h"
 #include "UI/YogGraphicsSettingsWidgetBase.h"
 #include "System/YogPerformanceSettingsLibrary.h"
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FYogLumenTemporalPolicyTest,
+	"DevKit.Performance.Settings.LumenTemporalPolicy",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FYogLumenTemporalPolicyTest::RunTest(const FString& Parameters)
+{
+	const TCHAR* Section = TEXT("GlobalIlluminationQuality@3");
+	int32 IntValue = 0;
+	float FloatValue = 0.0f;
+
+	TestTrue(TEXT("Epic enables Lumen temporal accumulation"),
+		GConfig->GetInt(Section, TEXT("r.Lumen.ScreenProbeGather.Temporal"), IntValue, GScalabilityIni));
+	TestEqual(TEXT("Epic temporal accumulation is enabled"), IntValue, 1);
+	TestTrue(TEXT("Epic configures six accumulated frames"),
+		GConfig->GetInt(Section, TEXT("r.Lumen.ScreenProbeGather.Temporal.MaxFramesAccumulated"), IntValue, GScalabilityIni));
+	TestEqual(TEXT("Epic accumulated frame limit"), IntValue, 6);
+	TestTrue(TEXT("Epic configures four ray directions"),
+		GConfig->GetInt(Section, TEXT("r.Lumen.ScreenProbeGather.Temporal.MaxRayDirections"), IntValue, GScalabilityIni));
+	TestEqual(TEXT("Epic ray-direction cycle"), IntValue, 4);
+	TestTrue(TEXT("Epic enables normal-based history rejection"),
+		GConfig->GetInt(Section, TEXT("r.Lumen.ScreenProbeGather.Temporal.RejectBasedOnNormal"), IntValue, GScalabilityIni));
+	TestEqual(TEXT("Epic normal-based history rejection"), IntValue, 1);
+	TestTrue(TEXT("Epic enables fast-update neighborhood clamping"),
+		GConfig->GetInt(Section, TEXT("r.Lumen.ScreenProbeGather.Temporal.FastUpdateModeUseNeighborhoodClamp"), IntValue, GScalabilityIni));
+	TestEqual(TEXT("Epic neighborhood clamp"), IntValue, 1);
+	TestTrue(TEXT("Epic configures strict distance rejection"),
+		GConfig->GetFloat(Section, TEXT("r.Lumen.ScreenProbeGather.Temporal.DistanceThreshold"), FloatValue, GScalabilityIni));
+	TestEqual(TEXT("Epic history distance threshold"), FloatValue, 0.005f);
+	TestTrue(TEXT("Epic configures a thirty-degree normal threshold"),
+		GConfig->GetFloat(Section, TEXT("r.Lumen.ScreenProbeGather.Temporal.NormalThreshold"), FloatValue, GScalabilityIni));
+	TestEqual(TEXT("Epic history normal threshold"), FloatValue, 30.0f);
+
+	return true;
+}
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FYogPerformanceSettingsCustomClampTest,
 	"DevKit.Performance.Settings.MakesClampedCustomSettings",
@@ -20,6 +56,7 @@ bool FYogPerformanceSettingsCustomClampTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Resolution scale is clamped to the runtime max"), CustomSettings.ResolutionScalePercent, 100.f);
 	TestEqual(TEXT("Frame limit is clamped to the save max"), CustomSettings.FrameRateLimit, 240);
 	TestFalse(TEXT("Lumen Lite toggle is applied"), CustomSettings.bUseLumenLite);
+	TestFalse(TEXT("Custom settings preserve Epic screen-trace policy"), CustomSettings.bUseLumenScreenTraces);
 	TestTrue(TEXT("Batch proxy preference toggle is applied"), CustomSettings.bPreferBatchedGeometryProxies);
 	TestEqual(TEXT("Custom settings preserve material quality"), CustomSettings.MaterialQuality, BaseSettings.MaterialQuality);
 	TestEqual(TEXT("Custom settings preserve texture collection quality"), CustomSettings.TextureCollectionQuality, BaseSettings.TextureCollectionQuality);
@@ -38,6 +75,7 @@ bool FYogPerformanceTargetTierTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Epic records the selected target tier"), Epic.SelectedTargetTier, EYogPerformanceTargetTier::Epic);
 	TestEqual(TEXT("Epic uses the Epic base profile"), Epic.PerformanceProfile, EYogPerformanceProfile::Epic);
 	TestTrue(TEXT("Epic keeps Lumen enabled"), Epic.bUseLumenLite);
+	TestFalse(TEXT("Epic disables view-dependent Lumen screen traces"), Epic.bUseLumenScreenTraces);
 	TestFalse(TEXT("Epic keeps Nanite disabled"), Epic.bUseNanite);
 	TestFalse(TEXT("Epic keeps VSM disabled"), Epic.bUseVirtualShadowMaps);
 	TestFalse(TEXT("Epic is source-biased"), Epic.bPreferBatchedGeometryProxies);
@@ -50,6 +88,7 @@ bool FYogPerformanceTargetTierTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("High records the selected target tier"), High.SelectedTargetTier, EYogPerformanceTargetTier::High);
 	TestEqual(TEXT("High uses the High base profile"), High.PerformanceProfile, EYogPerformanceProfile::High);
 	TestTrue(TEXT("High keeps Lumen enabled"), High.bUseLumenLite);
+	TestFalse(TEXT("High disables view-dependent Lumen screen traces"), High.bUseLumenScreenTraces);
 	TestFalse(TEXT("High is still source-biased by default"), High.bPreferBatchedGeometryProxies);
 	TestEqual(TEXT("High uses high material quality"), High.MaterialQuality, 2);
 	TestEqual(TEXT("High uses high texture collection quality"), High.TextureCollectionQuality, 2);
@@ -60,6 +99,7 @@ bool FYogPerformanceTargetTierTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Mid records the selected target tier"), Mid.SelectedTargetTier, EYogPerformanceTargetTier::Mid);
 	TestEqual(TEXT("Mid uses the Mid base profile"), Mid.PerformanceProfile, EYogPerformanceProfile::Mid);
 	TestTrue(TEXT("Mid enables Lumen Lite for validation"), Mid.bUseLumenLite);
+	TestFalse(TEXT("Mid disables view-dependent Lumen screen traces"), Mid.bUseLumenScreenTraces);
 	TestEqual(TEXT("Mid uses the standard UE5.8 Lumen Lite GI tier"), Mid.GlobalIlluminationQuality, 1);
 	TestEqual(TEXT("Mid keeps local exposure available through the High post process tier"), Mid.PostProcessQuality, 2);
 	TestTrue(TEXT("Mid prefers batch proxies"), Mid.bPreferBatchedGeometryProxies);
@@ -72,6 +112,7 @@ bool FYogPerformanceTargetTierTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Low records the selected target tier"), Low.SelectedTargetTier, EYogPerformanceTargetTier::Low);
 	TestEqual(TEXT("Low uses the Low base profile"), Low.PerformanceProfile, EYogPerformanceProfile::Low);
 	TestTrue(TEXT("Low uses the Lumen Lite floor by default"), Low.bUseLumenLite);
+	TestTrue(TEXT("Low keeps the cheaper Lumen screen-trace path available"), Low.bUseLumenScreenTraces);
 	TestEqual(TEXT("Low uses the standard UE5.8 Lumen Lite GI tier"), Low.GlobalIlluminationQuality, 1);
 	TestEqual(TEXT("Low keeps local exposure available through the Low post process tier"), Low.PostProcessQuality, 1);
 	TestTrue(TEXT("Low prefers batch proxies"), Low.bPreferBatchedGeometryProxies);

@@ -20,8 +20,11 @@ public class CelesLightEditor : ModuleRules
 			new string[]
 			{
 				"UnrealEd",
+				"AssetTools",
 				"AssetRegistry",
 				"ContentBrowser",
+				"AdvancedPreviewScene",
+				"InputCore",
 				"LevelEditor",
 				"PropertyEditor",
 				"ToolMenus",

@@ -1,5 +1,6 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
+#include "Framework/Docking/TabManager.h"
 #include "Misc/AutomationTest.h"
 #include "ToolMenu.h"
 #include "ToolMenuEntry.h"
@@ -72,7 +73,30 @@ bool FDevKitPerformanceQuickEntryToolbarTest::RunTest(const FString& Parameters)
 	const FToolMenuEntry* YogToolEntry = MainMenuSection->FindEntry(TEXT("YogToolMenu"));
 	TestNotNull(TEXT("YogTool top-level menu is registered"), YogToolEntry);
 
-	return Entry != nullptr && LauncherEntry != nullptr && MapCreatorEntry != nullptr && LevelBatchProcessorEntry != nullptr && YogToolEntry != nullptr;
+	const FToolMenuEntry* DesignerEntry = MainMenuSection->FindEntry(TEXT("YogDesignerMenu"));
+	TestNotNull(TEXT("Designer top-level menu groups the standalone design editors"), DesignerEntry);
+	TestNull(
+		TEXT("Weapon editor is no longer scattered as its own top-level menu"),
+		MainMenuSection->FindEntry(TEXT("WeaponEditorMenu")));
+	TestNull(
+		TEXT("Enemy editor is no longer scattered as its own top-level menu"),
+		MainMenuSection->FindEntry(TEXT("EnemyEditorMenu")));
+
+	TestTrue(
+		TEXT("Standalone weapon editor tab spawner is registered"),
+		FGlobalTabmanager::Get()->HasTabSpawner(FName(TEXT("DevKitWeaponManager"))));
+	TestTrue(
+		TEXT("Standalone enemy editor tab spawner is registered"),
+		FGlobalTabmanager::Get()->HasTabSpawner(FName(TEXT("DevKitEnemyManager"))));
+
+	return Entry != nullptr
+		&& LauncherEntry != nullptr
+		&& MapCreatorEntry != nullptr
+		&& LevelBatchProcessorEntry != nullptr
+		&& YogToolEntry != nullptr
+		&& DesignerEntry != nullptr
+		&& FGlobalTabmanager::Get()->HasTabSpawner(FName(TEXT("DevKitWeaponManager")))
+		&& FGlobalTabmanager::Get()->HasTabSpawner(FName(TEXT("DevKitEnemyManager")));
 }
 
 #endif

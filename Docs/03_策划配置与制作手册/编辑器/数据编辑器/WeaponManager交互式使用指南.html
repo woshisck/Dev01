@@ -1,0 +1,1005 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Dev01 Weapon Manager 面向美术、动画、策划与测试人员的交互式使用指南">
+  <title>Weapon Manager 交互式使用指南</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #09111c;
+      --surface: #111d2a;
+      --surface-2: #172638;
+      --surface-3: #203249;
+      --line: #31465f;
+      --text: #f3f7fb;
+      --muted: #a7b7c9;
+      --cyan: #5eead4;
+      --blue: #70a5ff;
+      --amber: #f4c76b;
+      --red: #ff7b7b;
+      --green: #79e29d;
+      --shadow: 0 18px 48px rgba(0, 0, 0, .28);
+      --radius: 18px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 10% -10%, rgba(94, 234, 212, .13), transparent 30rem),
+        radial-gradient(circle at 100% 15%, rgba(112, 165, 255, .12), transparent 28rem),
+        var(--bg);
+      font-family: "Microsoft YaHei UI", "PingFang SC", system-ui, sans-serif;
+      line-height: 1.65;
+    }
+
+    button, input { font: inherit; }
+    button { color: inherit; }
+    a { color: var(--cyan); }
+    code {
+      padding: .15rem .38rem;
+      color: #d9f9f4;
+      background: rgba(94, 234, 212, .09);
+      border: 1px solid rgba(94, 234, 212, .18);
+      border-radius: 6px;
+      font-family: Consolas, monospace;
+      overflow-wrap: anywhere;
+    }
+
+    .skip-link {
+      position: fixed;
+      top: -4rem;
+      left: 1rem;
+      z-index: 100;
+      padding: .7rem 1rem;
+      color: var(--bg);
+      background: var(--cyan);
+      border-radius: 8px;
+    }
+    .skip-link:focus { top: 1rem; }
+
+    .hero {
+      padding: 4.5rem max(1.25rem, calc((100vw - 1180px) / 2)) 3rem;
+      border-bottom: 1px solid var(--line);
+    }
+    .hero-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.4fr) minmax(280px, .6fr);
+      gap: 2rem;
+      align-items: end;
+    }
+    .hero-grid > *, .grid > *, section { min-width: 0; }
+    .eyebrow {
+      display: inline-flex;
+      gap: .55rem;
+      align-items: center;
+      margin-bottom: 1rem;
+      padding: .38rem .7rem;
+      color: var(--cyan);
+      background: rgba(94, 234, 212, .08);
+      border: 1px solid rgba(94, 234, 212, .24);
+      border-radius: 999px;
+      font-size: .86rem;
+      font-weight: 700;
+      letter-spacing: .05em;
+    }
+    h1, h2, h3, p { margin-top: 0; }
+    h1, h2, h3, .lead { overflow-wrap: anywhere; }
+    h1 {
+      max-width: 850px;
+      margin-bottom: 1rem;
+      font-size: clamp(2.25rem, 6vw, 4.8rem);
+      line-height: 1.06;
+      letter-spacing: -.045em;
+    }
+    .lead {
+      max-width: 800px;
+      color: var(--muted);
+      font-size: clamp(1rem, 2vw, 1.2rem);
+    }
+    .hero-actions, .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .75rem;
+      align-items: center;
+    }
+    .button {
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+      gap: .45rem;
+      min-height: 44px;
+      padding: .65rem 1rem;
+      color: var(--text);
+      text-decoration: none;
+      background: var(--surface-3);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      cursor: pointer;
+    }
+    .button:hover, .button:focus-visible {
+      border-color: var(--cyan);
+      box-shadow: 0 0 0 3px rgba(94, 234, 212, .12);
+      outline: none;
+    }
+    .button.primary {
+      color: #06211d;
+      background: var(--cyan);
+      border-color: var(--cyan);
+      font-weight: 800;
+    }
+    .hero-note {
+      padding: 1.2rem;
+      background: linear-gradient(145deg, rgba(23, 38, 56, .96), rgba(17, 29, 42, .9));
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+    .hero-note strong { color: var(--amber); }
+    .hero-note p:last-child { margin-bottom: 0; }
+
+    .sticky-nav {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      overflow-x: auto;
+      background: rgba(9, 17, 28, .88);
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(14px);
+    }
+    .sticky-nav .inner {
+      display: flex;
+      gap: .25rem;
+      width: max-content;
+      min-width: 100%;
+      max-width: 1180px;
+      margin: auto;
+      padding: .7rem 1.25rem;
+    }
+    .sticky-nav a {
+      padding: .55rem .8rem;
+      color: var(--muted);
+      text-decoration: none;
+      border-radius: 8px;
+      white-space: nowrap;
+    }
+    .sticky-nav a:hover, .sticky-nav a:focus-visible {
+      color: var(--text);
+      background: var(--surface-2);
+      outline: none;
+    }
+
+    main { width: min(1180px, calc(100% - 2.5rem)); margin: 0 auto; }
+    section {
+      padding: 4rem 0;
+      border-bottom: 1px solid rgba(49, 70, 95, .7);
+      scroll-margin-top: 4.5rem;
+    }
+    section > header { max-width: 800px; margin-bottom: 1.7rem; }
+    section h2 {
+      margin-bottom: .55rem;
+      font-size: clamp(1.65rem, 4vw, 2.6rem);
+      line-height: 1.2;
+      letter-spacing: -.025em;
+    }
+    section header p { color: var(--muted); }
+    .kicker { color: var(--cyan); font-weight: 800; font-size: .86rem; letter-spacing: .08em; }
+    .grid { display: grid; gap: 1rem; }
+    .grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .card {
+      padding: 1.25rem;
+      background: linear-gradient(150deg, rgba(23, 38, 56, .92), rgba(17, 29, 42, .92));
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, .12);
+    }
+    .card h3 { margin-bottom: .35rem; }
+    .card p:last-child, .card ul:last-child { margin-bottom: 0; }
+    .muted { color: var(--muted); }
+    .label {
+      display: inline-block;
+      margin-bottom: .8rem;
+      padding: .22rem .55rem;
+      color: var(--cyan);
+      background: rgba(94, 234, 212, .09);
+      border-radius: 999px;
+      font-size: .78rem;
+      font-weight: 800;
+    }
+    .label.amber { color: var(--amber); background: rgba(244, 199, 107, .1); }
+    .label.red { color: var(--red); background: rgba(255, 123, 123, .1); }
+    .label.blue { color: var(--blue); background: rgba(112, 165, 255, .1); }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(110px, 1fr));
+      gap: .65rem;
+      align-items: stretch;
+    }
+    .flow-step {
+      position: relative;
+      min-height: 110px;
+      padding: 1rem;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+    }
+    .flow-step:not(:last-child)::after {
+      content: "›";
+      position: absolute;
+      top: 50%;
+      right: -.52rem;
+      z-index: 2;
+      color: var(--cyan);
+      font-size: 1.5rem;
+      transform: translateY(-50%);
+    }
+    .flow-step b { display: block; color: var(--cyan); font-size: .82rem; }
+
+    .simulator {
+      overflow: hidden;
+      background: #0c131d;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+    .sim-titlebar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      padding: .72rem 1rem;
+      color: var(--muted);
+      background: #070c12;
+      border-bottom: 1px solid #283649;
+      font-size: .9rem;
+    }
+    .sim-layout {
+      display: grid;
+      grid-template-columns: 270px minmax(360px, 1fr) 300px;
+      min-height: 550px;
+    }
+    .sim-pane { min-width: 0; padding: 1rem; border-right: 1px solid #283649; }
+    .sim-pane:last-child { border-right: 0; }
+    .sim-pane h3 { margin-bottom: .75rem; font-size: 1rem; }
+    .toolbar { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: .75rem; }
+    .tool-button, .filter-button, .tab-button, .weapon-item, .skill-button, .choice-button {
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .tool-button, .filter-button, .tab-button, .skill-button, .choice-button { padding: .5rem .68rem; }
+    .tool-button:hover, .filter-button:hover, .tab-button:hover,
+    .weapon-item:hover, .skill-button:hover, .choice-button:hover,
+    .tool-button:focus-visible, .filter-button:focus-visible, .tab-button:focus-visible,
+    .weapon-item:focus-visible, .skill-button:focus-visible, .choice-button:focus-visible {
+      border-color: var(--cyan);
+      outline: none;
+    }
+    .filter-button[aria-pressed="true"], .tab-button[aria-selected="true"],
+    .weapon-item[aria-selected="true"], .skill-button[aria-selected="true"],
+    .choice-button[aria-pressed="true"] {
+      color: #06211d;
+      background: var(--cyan);
+      border-color: var(--cyan);
+      font-weight: 800;
+    }
+    .search {
+      width: 100%;
+      margin-bottom: .7rem;
+      padding: .62rem .7rem;
+      color: var(--text);
+      background: #0b1520;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+    .search:focus { border-color: var(--cyan); outline: 3px solid rgba(94, 234, 212, .12); }
+    .weapon-list { display: grid; gap: .5rem; }
+    .weapon-item {
+      width: 100%;
+      padding: .7rem;
+      color: var(--text);
+      text-align: left;
+    }
+    .weapon-item small { display: block; color: var(--muted); }
+    .weapon-item[aria-selected="true"] small { color: #15463f; }
+    .warning { color: var(--amber); }
+    .sim-tabs { display: flex; gap: .4rem; margin-bottom: 1rem; }
+    .sim-panel { display: none; }
+    .sim-panel.active { display: block; }
+    .action-row, .field-row, .skill-detail {
+      margin-bottom: .7rem;
+      padding: .8rem;
+      background: var(--surface);
+      border: 1px solid #273b52;
+      border-radius: 10px;
+    }
+    .action-row { display: flex; justify-content: space-between; gap: 1rem; }
+    .action-row span:last-child { color: var(--green); }
+    .skill-list { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: .8rem; }
+    .slot {
+      display: grid;
+      grid-template-columns: minmax(120px, .55fr) 1fr;
+      gap: .7rem;
+      margin-top: .55rem;
+      padding: .58rem;
+      background: #0b1520;
+      border-radius: 7px;
+    }
+    .slot span:last-child { color: var(--blue); }
+    .inspector-empty { color: var(--muted); }
+    .statusbar {
+      padding: .65rem 1rem;
+      color: var(--muted);
+      background: #070c12;
+      border-top: 1px solid #283649;
+    }
+
+    .checklist { display: grid; gap: .55rem; }
+    .check-item {
+      display: flex;
+      gap: .75rem;
+      align-items: flex-start;
+      padding: .85rem;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+    }
+    .check-item input { width: 1.15rem; height: 1.15rem; margin-top: .18rem; accent-color: var(--cyan); }
+    .progress-track {
+      height: 10px;
+      margin: 1rem 0 .5rem;
+      overflow: hidden;
+      background: #07101a;
+      border-radius: 99px;
+    }
+    .progress-bar {
+      width: 0;
+      height: 100%;
+      background: linear-gradient(90deg, var(--cyan), var(--blue));
+      transition: width .2s ease;
+    }
+
+    .decision-grid { display: flex; flex-wrap: wrap; gap: .55rem; }
+    .decision-output {
+      min-height: 220px;
+      margin-top: 1rem;
+      padding: 1.2rem;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+    }
+    .decision-output ol { padding-left: 1.25rem; }
+    .owner {
+      display: inline-flex;
+      margin-top: .5rem;
+      padding: .28rem .6rem;
+      color: var(--blue);
+      background: rgba(112, 165, 255, .1);
+      border-radius: 999px;
+      font-weight: 800;
+    }
+    .do-not { border-left: 4px solid var(--red); }
+    .good { border-left: 4px solid var(--green); }
+
+    .accordion details {
+      margin-bottom: .65rem;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+    }
+    .accordion summary {
+      padding: .85rem 1rem;
+      cursor: pointer;
+      font-weight: 800;
+    }
+    .accordion details > div { padding: 0 1rem 1rem; color: var(--muted); }
+
+    footer {
+      width: min(1180px, calc(100% - 2.5rem));
+      margin: 0 auto;
+      padding: 2.5rem 0 4rem;
+      color: var(--muted);
+    }
+
+    @media (max-width: 980px) {
+      .hero-grid, .grid.three, .grid.two { grid-template-columns: 1fr; }
+      .flow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .flow-step::after { display: none; }
+      .sim-layout { grid-template-columns: 230px 1fr; }
+      .sim-pane.inspector { grid-column: 1 / -1; border-top: 1px solid #283649; }
+    }
+    @media (max-width: 680px) {
+      body { overflow-x: hidden; }
+      .hero { width: 100%; padding: 3rem 20px; overflow: hidden; }
+      .hero-grid, .hero-note { width: 100%; max-width: 100%; }
+      h1 { font-size: 2rem; }
+      main, footer { width: calc(100% - 40px); max-width: none; }
+      section { padding: 3rem 0; }
+      .flow, .sim-layout { grid-template-columns: 1fr; }
+      .sim-pane { border-right: 0; border-bottom: 1px solid #283649; }
+      .slot { grid-template-columns: 1fr; }
+      .hero-actions .button { flex: 1 1 150px; max-width: 100%; white-space: normal; }
+      .sticky-nav { max-width: 100vw; }
+    }
+    @media print {
+      :root { color-scheme: light; --bg: #fff; --surface: #fff; --surface-2: #f4f6f8; --surface-3: #eef2f6; --line: #cbd5df; --text: #111827; --muted: #475569; }
+      body { background: #fff; }
+      .sticky-nav, .hero-actions, .decision-grid, .toolbar { display: none !important; }
+      .hero, section { padding: 1.4rem 0; }
+      .card, .simulator { box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main">跳到正文</a>
+
+  <header class="hero">
+    <div class="hero-grid">
+      <div>
+        <div class="eyebrow">DEV01 · 美术与配置人员指南</div>
+        <h1>把一把武器配置清楚，安全地交给游戏。</h1>
+        <p class="lead">用一个 WeaponDefinition 管理武器，用独立 GA 和 DA 管理每种战技，再通过共享 BP 拖入场景预览。本页是可操作演示，不会连接或修改 Unreal 项目。</p>
+        <div class="hero-actions">
+          <a class="button primary" href="#quick">开始快速上手</a>
+          <a class="button" href="#simulator">体验界面演示</a>
+          <button class="button" type="button" id="printButton">打印 / 导出 PDF</button>
+        </div>
+      </div>
+      <aside class="hero-note" aria-label="重要说明">
+        <span class="label amber">演示环境</span>
+        <p><strong>本页面所有按钮都是教学模拟。</strong></p>
+        <p>它不会签出 P4、不会创建资产、不会保存关卡，也不会修改角色材质或渲染功能。</p>
+      </aside>
+    </div>
+  </header>
+
+  <nav class="sticky-nav" aria-label="页面导航">
+    <div class="inner">
+      <a href="#quick">快速上手</a>
+      <a href="#concepts">DA / GA / BP</a>
+      <a href="#simulator">界面模拟</a>
+      <a href="#create">新建武器</a>
+      <a href="#skills">配置战技</a>
+      <a href="#placement">拖入场景</a>
+      <a href="#check">检查与保存</a>
+      <a href="#decision">我该怎么做</a>
+      <a href="#troubleshooting">故障排查</a>
+    </div>
+  </nav>
+
+  <main id="main">
+    <section id="quick">
+      <header>
+        <div class="kicker">01 · 快速上手</div>
+        <h2>一把正式武器的完整路径</h2>
+        <p>按顺序完成七步。任何一步出现红色错误，都先解决再进入下一步。</p>
+      </header>
+      <div class="flow" aria-label="武器配置流程">
+        <div class="flow-step"><b>01</b>在正式目录新建武器</div>
+        <div class="flow-step"><b>02</b>填写名称、缩略图和类型</div>
+        <div class="flow-step"><b>03</b>配置 Display Mesh 与偏移</div>
+        <div class="flow-step"><b>04</b>配置攻击和被动动作</div>
+        <div class="flow-step"><b>05</b>添加战技并设为默认</div>
+        <div class="flow-step"><b>06</b>拖入场景检查显示</div>
+        <div class="flow-step"><b>07</b>签出、保存、检查 P4</div>
+      </div>
+    </section>
+
+    <section id="concepts">
+      <header>
+        <div class="kicker">02 · 概念</div>
+        <h2>DA 保存数据，GA 执行战技，BP 负责场景展示</h2>
+        <p>三者不是互相替代，而是各自负责一层。</p>
+      </header>
+      <div class="grid three">
+        <article class="card">
+          <span class="label">DA · 数据</span>
+          <h3>WeaponDefinition 与战技配置</h3>
+          <p class="muted">模型、图标、蒙太奇、候选战技和默认战技都保存在 DA。美术与策划主要修改这一层。</p>
+        </article>
+        <article class="card">
+          <span class="label blue">GA · 行为</span>
+          <h3>格挡、突刺、连段各用一个类</h3>
+          <p class="muted">行为不同就用不同 C++ GA。它决定持续方式、结算、冷却、消耗和需要几个蒙太奇槽。</p>
+        </article>
+        <article class="card">
+          <span class="label amber">BP · 场景载体</span>
+          <h3>共享 BP_WeaponSpawner</h3>
+          <p class="muted">从列表拖拽时自动创建。不要为每把武器复制一份 BP；每把武器的差异写回 DA。</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="simulator">
+      <header>
+        <div class="kicker">03 · 可交互界面演示</div>
+        <h2>先在这里练习，再进入 Unreal</h2>
+        <p>试着切换正式/测试、选择武器、查看页签、选择战技。演示状态只保存在当前页面内。</p>
+      </header>
+
+      <div class="simulator" aria-label="Weapon Manager 教学模拟器">
+        <div class="sim-titlebar">
+          <span>Weapon Manager · 教学模拟</span>
+          <span class="label amber">不会修改项目</span>
+        </div>
+        <div class="sim-layout">
+          <aside class="sim-pane" aria-label="武器库">
+            <h3>武器库</h3>
+            <div class="toolbar">
+              <button class="filter-button" type="button" data-filter="official" aria-pressed="true">正式</button>
+              <button class="filter-button" type="button" data-filter="test" aria-pressed="false">测试</button>
+            </div>
+            <input class="search" id="weaponSearch" type="search" placeholder="搜索名称、路径或类型" aria-label="搜索武器">
+            <div class="weapon-list" id="weaponList"></div>
+          </aside>
+
+          <div class="sim-pane">
+            <div class="toolbar">
+              <button class="tool-button" type="button" data-demo-action="新建武器">新建武器</button>
+              <button class="tool-button" type="button" data-demo-action="刷新">刷新</button>
+              <button class="tool-button" type="button" data-demo-action="签出 / 保存">签出 / 保存</button>
+            </div>
+            <div class="sim-tabs" role="tablist" aria-label="配置页签">
+              <button class="tab-button" id="tab-action" type="button" role="tab" aria-selected="true" aria-controls="panel-action" data-tab="action">动作配置</button>
+              <button class="tab-button" id="tab-skill" type="button" role="tab" aria-selected="false" aria-controls="panel-skill" data-tab="skill">武器战技</button>
+              <button class="tab-button" id="tab-detail" type="button" role="tab" aria-selected="false" aria-controls="panel-detail" data-tab="detail">武器详情</button>
+            </div>
+
+            <div class="sim-panel active" id="panel-action" role="tabpanel" aria-labelledby="tab-action">
+              <h3>基础玩家动作</h3>
+              <div class="action-row"><span>攻击连段 1</span><span>已配置</span></div>
+              <div class="action-row"><span>攻击连段 2</span><span>已配置</span></div>
+              <div class="action-row"><span>冲刺</span><span>已配置</span></div>
+              <div class="action-row"><span>换弹</span><span class="warning">此武器不使用</span></div>
+            </div>
+
+            <div class="sim-panel" id="panel-skill" role="tabpanel" aria-labelledby="tab-skill">
+              <h3>候选战技 · 运行时只装配一个</h3>
+              <div class="skill-list" id="skillList"></div>
+              <div class="skill-detail" id="skillDetail"></div>
+            </div>
+
+            <div class="sim-panel" id="panel-detail" role="tabpanel" aria-labelledby="tab-detail">
+              <h3>武器详情</h3>
+              <div class="field-row"><strong>正式路径</strong><br><code id="detailPath">/Game/Code/Weapon/THSword</code></div>
+              <div class="field-row"><strong>Display Mesh</strong><br><span id="detailMesh">SM_THSword</span></div>
+              <div class="field-row"><strong>Weapon Info</strong><br><span id="detailInfo">双手剑 / 已配置缩略图</span></div>
+              <div class="field-row"><strong>场景预览</strong><br>共享 BP_WeaponSpawner</div>
+            </div>
+          </div>
+
+          <aside class="sim-pane inspector" aria-label="数据检查器">
+            <h3>数据检查器</h3>
+            <div id="inspectorContent" class="inspector-empty">当前显示主动攻击动作 DA。切换页签或战技，观察这里如何变化。</div>
+          </aside>
+        </div>
+        <div class="statusbar" id="demoStatus" aria-live="polite">已选择：DA_WPN_THSword · 1 个演示警告</div>
+      </div>
+    </section>
+
+    <section id="create">
+      <header>
+        <div class="kicker">04 · 新建武器</div>
+        <h2>正式目录与命名一次做对</h2>
+        <p>正式武器只放在 <code>/Game/Code/Weapon</code>。每把武器使用独立文件夹。</p>
+      </header>
+      <div class="grid two">
+        <article class="card good">
+          <span class="label">推荐</span>
+          <h3>/Game/Code/Weapon/Spear</h3>
+          <p><code>DA_WPN_Spear</code><br><code>DA_Attack_Spear</code><br><code>DA_Passive_Spear</code><br><code>DA_WPN_Info_Spear</code></p>
+        </article>
+        <article class="card do-not">
+          <span class="label red">不要</span>
+          <h3>/Game/Test/MyWeapon/New</h3>
+          <p class="muted">根目录外会被归类为测试资产。不要把临时目录中的武器直接当正式资产交付。</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="skills">
+      <header>
+        <div class="kicker">05 · 配置战技</div>
+        <h2>候选可以多个，装配始终一个</h2>
+        <p>“添加战技”会创建该武器专属的战技 DA 与蒙太奇数据。行为类型由程序提供，表现内容由美术、动画与策划配置。</p>
+      </header>
+      <div class="grid three">
+        <article class="card">
+          <span class="label blue">双手剑连段</span>
+          <h3>4 个动作槽</h3>
+          <p class="muted">连段 1–4。缺少下一段时安全停止，不应错误扣除冷却或成本。</p>
+        </article>
+        <article class="card">
+          <span class="label blue">格挡</span>
+          <h3>1 个动作槽</h3>
+          <p class="muted">按住持续，松开结束。专属数值应放在格挡 DA 子类中。</p>
+        </article>
+        <article class="card">
+          <span class="label blue">突刺</span>
+          <h3>1 个动作槽</h3>
+          <p class="muted">单次突刺。与格挡即使都播放一个蒙太奇，也必须使用不同 GA。</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="placement">
+      <header>
+        <div class="kicker">06 · 拖入场景</div>
+        <h2>拖的是武器配置，落地的是共享预览 BP</h2>
+        <p>先确保 <code>DisplayMesh</code> 有效。拖放工厂会生成共享 Spawner、写入 WeaponDefinition，再应用模型偏移、旋转和缩放。</p>
+      </header>
+      <div class="grid two">
+        <article class="card">
+          <span class="label">场景预览</span>
+          <h3>Display Mesh → BP_WeaponSpawner</h3>
+          <p class="muted">用于关卡内查看、摆放和构图。所有武器共享同一个 BP 逻辑。</p>
+        </article>
+        <article class="card">
+          <span class="label amber">战斗装备</span>
+          <h3>Actors To Spawn → 角色装备 Actor</h3>
+          <p class="muted">用于角色真正持有武器。它不是场景预览 BP，也不能用 Display Mesh 代替。</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="check">
+      <header>
+        <div class="kicker">07 · 检查与保存</div>
+        <h2>用这份清单完成自检</h2>
+        <p>勾选只保存在当前浏览器内。刷新页面后会重置。</p>
+      </header>
+      <div class="grid two">
+        <div>
+          <div class="checklist" id="checklist">
+            <label class="check-item"><input type="checkbox"><span><strong>正式路径</strong><br><span class="muted">位于 /Game/Code/Weapon/&lt;WeaponName&gt;</span></span></label>
+            <label class="check-item"><input type="checkbox"><span><strong>展示信息</strong><br><span class="muted">中文名、缩略图和武器类型正确</span></span></label>
+            <label class="check-item"><input type="checkbox"><span><strong>场景显示</strong><br><span class="muted">Display Mesh、偏移、旋转与缩放正确</span></span></label>
+            <label class="check-item"><input type="checkbox"><span><strong>动作数据</strong><br><span class="muted">需要的攻击与被动反应蒙太奇完整</span></span></label>
+            <label class="check-item"><input type="checkbox"><span><strong>战技数据</strong><br><span class="muted">候选战技完整，默认战技属于候选列表</span></span></label>
+            <label class="check-item"><input type="checkbox"><span><strong>场景验收</strong><br><span class="muted">能拖入关卡，Ctrl+B 能定位资产</span></span></label>
+            <label class="check-item"><input type="checkbox"><span><strong>P4 范围</strong><br><span class="muted">opened 中没有角色渲染、材质或关卡等无关文件</span></span></label>
+          </div>
+        </div>
+        <aside class="card">
+          <h3>完成度</h3>
+          <div class="progress-track" aria-hidden="true"><div class="progress-bar" id="progressBar"></div></div>
+          <p id="progressText" aria-live="polite">0 / 7 项完成</p>
+          <p class="muted">完成后仍要点击 Weapon Manager 的“签出 / 保存”，再到 P4 客户端核对实际 opened 文件。</p>
+        </aside>
+      </div>
+    </section>
+
+    <section id="decision">
+      <header>
+        <div class="kicker">08 · 决策助手</div>
+        <h2>你现在要做什么？</h2>
+        <p>选择一个目标，查看推荐步骤与主要负责人。</p>
+      </header>
+      <div class="decision-grid" id="decisionButtons"></div>
+      <div class="decision-output" id="decisionOutput" aria-live="polite"></div>
+    </section>
+
+    <section id="troubleshooting">
+      <header>
+        <div class="kicker">09 · 故障排查</div>
+        <h2>先检查数据契约，再找程序</h2>
+        <p>展开与你遇到的现象最接近的一项。</p>
+      </header>
+      <div class="accordion">
+        <details>
+          <summary>武器没有出现在正式列表</summary>
+          <div>检查资产是否位于 <code>/Game/Code/Weapon</code>，清空搜索框后点击刷新。根目录外的资产只会出现在“测试”筛选。</div>
+        </details>
+        <details>
+          <summary>武器无法拖入场景</summary>
+          <div>优先检查 WeaponDefinition 的 <code>DisplayMesh</code>。如果已配置仍失败，再确认共享 <code>/Game/Code/Weapon/BP_WeaponSpawner</code> 存在且父类正确。</div>
+        </details>
+        <details>
+          <summary>战技不能设为默认或运行时不能装备</summary>
+          <div>该战技必须属于 Available Weapon Skills，并同时拥有有效的 AbilityClass 与 AbilityData。</div>
+        </details>
+        <details>
+          <summary>战技只有一个蒙太奇槽，但我想填更多</summary>
+          <div>槽数来自 GA 的正式契约。不要在 DA 中绕过限制；如果行为确实需要更多槽，请程序修改该战技类型并补测试。</div>
+        </details>
+        <details>
+          <summary>移除战技后，Content Browser 里的 DA 还在</summary>
+          <div>这是安全设计。工具只移除武器引用，不永久删除资产。先使用引用查看器审计，再由任务负责人安排独立 P4 删除。</div>
+        </details>
+        <details>
+          <summary>UGS 打开提示 Missing Modules</summary>
+          <div>不要点击“是”在同事端自行编译。该问题通常需要构建维护人员检查 Engine 与 PCB 的 BuildId、CodeCL 和发布包。</div>
+        </details>
+      </div>
+    </section>
+
+    <section id="rules">
+      <header>
+        <div class="kicker">10 · 安全边界</div>
+        <h2>四条必须遵守的规则</h2>
+      </header>
+      <div class="grid two">
+        <article class="card do-not"><h3>不要复制预览 BP</h3><p class="muted">每把武器的模型和偏移写在 DA，通用显示逻辑留在共享 Spawner。</p></article>
+        <article class="card do-not"><h3>不要混入其他效果</h3><p class="muted">武器任务不修改角色材质、描边、场景或通用渲染功能。</p></article>
+        <article class="card do-not"><h3>不要跳过 P4 检查</h3><p class="muted">创建或提交 CL 前先检查 opened、pending 与 resolve 状态。</p></article>
+        <article class="card do-not"><h3>不要把本地编译当正式 PCB</h3><p class="muted">项目 C++ 变更要经过云端编译、BuildId 校验和 UGS PCB 发布。</p></article>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p><strong>进一步阅读：</strong>
+      <a href="WeaponManager使用说明.md">完整使用指南</a> ·
+      <a href="WeaponManager设计与维护文档.md">程序设计与维护文档</a>
+    </p>
+    <p>适用项目：<code>X:\Project\YogProject\Dev01</code>。本 HTML 无外部依赖，可离线打开。</p>
+  </footer>
+
+  <script>
+    const weapons = [
+      {
+        id: "th",
+        name: "DA_WPN_THSword",
+        display: "双手剑",
+        kind: "official",
+        type: "近战",
+        path: "/Game/Code/Weapon/THSword",
+        mesh: "SM_THSword",
+        info: "双手剑 / 已配置缩略图",
+        warnings: 1,
+        skills: ["combo", "block", "thrust"]
+      },
+      {
+        id: "pistol",
+        name: "DA_WPN_Pistol",
+        display: "火绳枪",
+        kind: "official",
+        type: "远程",
+        path: "/Game/Code/Weapon/Pistol",
+        mesh: "SM_Pistol",
+        info: "火绳枪 / 已配置缩略图",
+        warnings: 2,
+        skills: ["thrust"]
+      },
+      {
+        id: "test",
+        name: "DA_WPN_TestBlade",
+        display: "测试刀",
+        kind: "test",
+        type: "测试",
+        path: "/Game/Developers/Test/Weapon",
+        mesh: "未配置",
+        info: "测试资产 / 无缩略图",
+        warnings: 3,
+        skills: ["block"]
+      }
+    ];
+
+    const skills = {
+      combo: {
+        name: "双手剑连段",
+        tag: "Weapon.Skill.THSwordCombo",
+        description: "在连段窗口内依次播放 1–4 段动作。",
+        slots: ["连段动作 1", "连段动作 2", "连段动作 3", "连段动作 4"]
+      },
+      block: {
+        name: "格挡",
+        tag: "Weapon.Skill.Block",
+        description: "按住进入格挡，松开后结束。",
+        slots: ["格挡动作"]
+      },
+      thrust: {
+        name: "突刺",
+        tag: "Weapon.Skill.Thrust",
+        description: "播放一次突刺动作并执行专属结算。",
+        slots: ["突刺动作"]
+      }
+    };
+
+    let activeFilter = "official";
+    let selectedWeaponId = "th";
+    let selectedSkillId = "combo";
+
+    const weaponList = document.getElementById("weaponList");
+    const weaponSearch = document.getElementById("weaponSearch");
+    const demoStatus = document.getElementById("demoStatus");
+    const inspectorContent = document.getElementById("inspectorContent");
+    const skillList = document.getElementById("skillList");
+    const skillDetail = document.getElementById("skillDetail");
+
+    function selectedWeapon() {
+      return weapons.find((weapon) => weapon.id === selectedWeaponId) || weapons[0];
+    }
+
+    function renderWeapons() {
+      const query = weaponSearch.value.trim().toLowerCase();
+      const visible = weapons.filter((weapon) => {
+        const matchesFilter = weapon.kind === activeFilter;
+        const haystack = `${weapon.name} ${weapon.display} ${weapon.path} ${weapon.type}`.toLowerCase();
+        return matchesFilter && haystack.includes(query);
+      });
+
+      weaponList.innerHTML = "";
+      visible.forEach((weapon) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "weapon-item";
+        button.dataset.weapon = weapon.id;
+        button.setAttribute("aria-selected", String(weapon.id === selectedWeaponId));
+        button.innerHTML = `<strong>${weapon.display}</strong><small>${weapon.name} · ${weapon.type}</small><small class="warning">${weapon.warnings} 个演示警告</small>`;
+        button.addEventListener("click", () => {
+          selectedWeaponId = weapon.id;
+          selectedSkillId = weapon.skills[0];
+          renderAll();
+        });
+        weaponList.appendChild(button);
+      });
+
+      if (!visible.length) {
+        weaponList.innerHTML = '<p class="muted">当前筛选没有匹配武器。</p>';
+      }
+    }
+
+    function renderSkills() {
+      const weapon = selectedWeapon();
+      skillList.innerHTML = "";
+      weapon.skills.forEach((skillId, index) => {
+        const skill = skills[skillId];
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "skill-button";
+        button.setAttribute("aria-selected", String(skillId === selectedSkillId));
+        button.textContent = `${skill.name}${index === 0 ? " · 默认" : ""}`;
+        button.addEventListener("click", () => {
+          selectedSkillId = skillId;
+          renderSkills();
+          renderInspector("skill");
+        });
+        skillList.appendChild(button);
+      });
+
+      const skill = skills[selectedSkillId] || skills[weapon.skills[0]];
+      skillDetail.innerHTML = `
+        <strong>${skill.name}</strong>
+        <p class="muted">${skill.description}</p>
+        <code>${skill.tag}</code>
+        ${skill.slots.map((slot, index) => `<div class="slot"><span>${slot}</span><span>AM_Demo_${index + 1}</span></div>`).join("")}
+      `;
+    }
+
+    function renderDetails() {
+      const weapon = selectedWeapon();
+      document.getElementById("detailPath").textContent = weapon.path;
+      document.getElementById("detailMesh").textContent = weapon.mesh;
+      document.getElementById("detailInfo").textContent = weapon.info;
+      demoStatus.textContent = `已选择：${weapon.name} · ${weapon.warnings} 个演示警告`;
+    }
+
+    function renderInspector(tab) {
+      const weapon = selectedWeapon();
+      if (tab === "skill") {
+        const skill = skills[selectedSkillId];
+        inspectorContent.innerHTML = `<span class="label blue">战技 DA</span><h3>${skill.name}</h3><p>${skill.description}</p><p><strong>Ability Class</strong><br>UGA_${skill.name}</p><p><strong>数据约束</strong><br>${skill.slots.length} 个蒙太奇槽</p>`;
+      } else if (tab === "detail") {
+        inspectorContent.innerHTML = `<span class="label">WeaponDefinition</span><h3>${weapon.display}</h3><p><strong>Display Mesh</strong><br>${weapon.mesh}</p><p><strong>正式状态</strong><br>${weapon.kind === "official" ? "正式资产" : "测试资产"}</p>`;
+      } else {
+        inspectorContent.innerHTML = `<span class="label">主动动作 DA</span><h3>${weapon.display} · 攻击</h3><p>配置普通攻击、冲刺、换弹和切换武器等动作。</p><p class="muted">缺少蒙太奇的动作在运行时不可用。</p>`;
+      }
+    }
+
+    function renderAll() {
+      renderWeapons();
+      renderSkills();
+      renderDetails();
+      const activeTab = document.querySelector(".tab-button[aria-selected='true']").dataset.tab;
+      renderInspector(activeTab);
+    }
+
+    document.querySelectorAll(".filter-button").forEach((button) => {
+      button.addEventListener("click", () => {
+        activeFilter = button.dataset.filter;
+        document.querySelectorAll(".filter-button").forEach((item) => {
+          item.setAttribute("aria-pressed", String(item === button));
+        });
+        const firstVisible = weapons.find((weapon) => weapon.kind === activeFilter);
+        selectedWeaponId = firstVisible.id;
+        selectedSkillId = firstVisible.skills[0];
+        renderAll();
+      });
+    });
+
+    document.querySelectorAll(".tab-button").forEach((button) => {
+      button.addEventListener("click", () => {
+        document.querySelectorAll(".tab-button").forEach((tab) => tab.setAttribute("aria-selected", "false"));
+        document.querySelectorAll(".sim-panel").forEach((panel) => panel.classList.remove("active"));
+        button.setAttribute("aria-selected", "true");
+        document.getElementById(`panel-${button.dataset.tab}`).classList.add("active");
+        renderInspector(button.dataset.tab);
+      });
+    });
+
+    document.querySelectorAll("[data-demo-action]").forEach((button) => {
+      button.addEventListener("click", () => {
+        demoStatus.textContent = `教学演示：已点击“${button.dataset.demoAction}”，没有修改项目。`;
+      });
+    });
+
+    weaponSearch.addEventListener("input", renderWeapons);
+    document.getElementById("printButton").addEventListener("click", () => window.print());
+
+    const checklistInputs = [...document.querySelectorAll("#checklist input")];
+    function updateProgress() {
+      const done = checklistInputs.filter((input) => input.checked).length;
+      document.getElementById("progressBar").style.width = `${done / checklistInputs.length * 100}%`;
+      document.getElementById("progressText").textContent = done === checklistInputs.length
+        ? `${done} / ${checklistInputs.length} 项完成 · 可以进入 P4 最终检查`
+        : `${done} / ${checklistInputs.length} 项完成`;
+    }
+    checklistInputs.forEach((input) => input.addEventListener("change", updateProgress));
+
+    const decisions = [
+      {
+        id: "create",
+        title: "新建正式武器",
+        owner: "主责：美术 + 战斗策划",
+        steps: ["检查 P4 opened 与任务 CL。", "在 /Game/Code/Weapon/<Name> 新建武器。", "填写 WeaponInfo、DisplayMesh、类型与偏移。", "配置动作和候选战技。", "拖入场景验收后签出/保存。"]
+      },
+      {
+        id: "add",
+        title: "添加已有战技",
+        owner: "主责：战斗策划 + 动画",
+        steps: ["选择武器并打开“武器战技”。", "选择程序已经注册的战技类型。", "配置该 GA 要求的蒙太奇槽。", "决定是否设为默认。", "保存并进行 PIE 验收。"]
+      },
+      {
+        id: "newtype",
+        title: "开发全新战技",
+        owner: "主责：战斗程序",
+        steps: ["确认它确实是新行为，而非纯数据变体。", "新增 Weapon.Skill.* Tag。", "新增专用 GA 与专用 DA C++ 类。", "声明中文名、简介和蒙太奇槽。", "补测试、编译并由云端发布新 PCB。"]
+      },
+      {
+        id: "preview",
+        title: "放到场景预览",
+        owner: "主责：武器美术 / 关卡",
+        steps: ["确认 DisplayMesh 有效。", "从左侧武器卡片拖到关卡。", "检查共享 BP_WeaponSpawner 实例。", "在 DA 调整 Offset、Rotation、Scale。", "不要复制新的 Spawner BP。"]
+      },
+      {
+        id: "warning",
+        title: "处理工具警告",
+        owner: "主责：当前资产负责人",
+        steps: ["先切换到对应页签和右侧 DA。", "检查必填引用、默认战技与路径。", "修复后点击刷新。", "若是保留 Tag 或程序契约问题，再交给程序。", "不要用无关资产改动掩盖警告。"]
+      }
+    ];
+
+    const decisionButtons = document.getElementById("decisionButtons");
+    const decisionOutput = document.getElementById("decisionOutput");
+    function showDecision(id) {
+      const decision = decisions.find((item) => item.id === id);
+      decisionOutput.innerHTML = `<h3>${decision.title}</h3><ol>${decision.steps.map((step) => `<li>${step}</li>`).join("")}</ol><span class="owner">${decision.owner}</span>`;
+      document.querySelectorAll(".choice-button").forEach((button) => {
+        button.setAttribute("aria-pressed", String(button.dataset.decision === id));
+      });
+    }
+    decisions.forEach((decision) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "choice-button";
+      button.dataset.decision = decision.id;
+      button.setAttribute("aria-pressed", "false");
+      button.textContent = decision.title;
+      button.addEventListener("click", () => showDecision(decision.id));
+      decisionButtons.appendChild(button);
+    });
+
+    renderAll();
+    updateProgress();
+    showDecision("create");
+  </script>
+</body>
+</html>

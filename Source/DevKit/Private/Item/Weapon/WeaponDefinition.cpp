@@ -7,6 +7,7 @@
 #include "Engine/AssetManager.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
+#include "Data/WeaponSkillDataAsset.h"
 
 namespace
 {
@@ -15,6 +16,10 @@ namespace
 
 void UWeaponDefinition::SetupWeaponToCharacter(USkeletalMeshComponent* AttachTarget, APlayerCharacterBase* ReceivingChar)
 {
+	// End the outgoing skill before replacing its weapon definition or runtime
+	// data so skill-specific cancellation reads the correct SourceObject.
+	ReceivingChar->ClearEquippedWeaponSkillAbilityGrant();
+
 	// ── 0. 清理旧武器（解绑委托 + 销毁） ────────────────────────────────
 	if (ReceivingChar->EquippedWeaponInstance)
 	{
@@ -76,7 +81,9 @@ void UWeaponDefinition::SetupWeaponToCharacter(USkeletalMeshComponent* AttachTar
 
 	// 记录当前装备的武DA，供切关时写RunState
 	ReceivingChar->EquippedWeaponDef = this;
+	ReceivingChar->InitializeEquippedWeaponSkillFromDefinition();
 	ReceivingChar->ApplyAbilityDataFromWeapon(this);
+	ReceivingChar->RefreshEquippedWeaponSkillAbilityGrant();
 
 	// ── 注入背包配置（格子尺+ 激活区───────────────────────────────
 	UE_LOG(LogTemp, Warning, TEXT("[WeaponDefinition] SetupWeaponToCharacter reached end. BackpackConfig W=%d H=%d, Char=%s"),
@@ -125,4 +132,30 @@ void UWeaponDefinition::SetupWeaponToCharacter(USkeletalMeshComponent* AttachTar
 	//	UAnimInstance* AnimInstance = ReceivingChar->GetMesh()->GetAnimInstance();
 	//	AnimInstance->LinkAnimClassLayers(TSubclassOf<UAnimInstance>(WeaponLayer));
 	//}
+}
+
+bool UWeaponDefinition::CanEquipWeaponSkill(const UWeaponSkillDataAsset* WeaponSkill) const
+{
+	return WeaponSkill
+		&& AvailableWeaponSkills.Contains(WeaponSkill)
+		&& WeaponSkill->AbilityClass
+		&& WeaponSkill->AbilityData;
+}
+
+UWeaponSkillDataAsset* UWeaponDefinition::ResolveDefaultWeaponSkill() const
+{
+	if (CanEquipWeaponSkill(DefaultWeaponSkill))
+	{
+		return DefaultWeaponSkill;
+	}
+
+	for (UWeaponSkillDataAsset* WeaponSkill : AvailableWeaponSkills)
+	{
+		if (CanEquipWeaponSkill(WeaponSkill))
+		{
+			return WeaponSkill;
+		}
+	}
+
+	return nullptr;
 }

@@ -110,6 +110,7 @@ public class DevKitEditor : ModuleRules
 				"ClassViewer",
 				"Foliage",
 				"VirtualTexturingEditor",
+				"CelesLightEditor",
 			}
         );
 

@@ -416,6 +416,10 @@ void UWeaponPassiveAbilityMontageData::PostInitProperties()
 	static const FName PassiveKeys[] = {
 		"Action.HitReact.Front", "Action.HitReact.Back",
 		"Action.HitReact.Blocked", "Action.HitReact.Parried",
+		"Action.HitReact.Left", "Action.HitReact.Right", "Action.HitReact.Heavy",
+		"Action.Stun", "Action.GuardBreak",
+		"Action.Knockdown", "Action.GetUp", "Action.Launch", "Action.Landing.Hard",
+		"Action.Execution.Victim", "Action.Backstab.Victim",
 		"Action.Dead",
 	};
 	AddDefaultKeys(MontageMap, PassiveMap, TArrayView<const FName>(), PassiveKeys);

@@ -24,6 +24,7 @@ class UYogGraphicsSettingsWidgetBase;
 class UTexture2D;
 class UYogSaveGame;
 class UActiveSkillDataAsset;
+class UWeaponSkillDataAsset;
 class UCampaignDataAsset;
 
 // =========================================================
@@ -63,6 +64,12 @@ struct FRunState
 	// 切关前备用槽武器 DA（新关卡恢复后保持隐藏备用）
 	UPROPERTY()
 	TObjectPtr<UWeaponDefinition> InactiveWeaponDef;
+
+	UPROPERTY()
+	TObjectPtr<UWeaponSkillDataAsset> EquippedWeaponSkill;
+
+	UPROPERTY()
+	TObjectPtr<UWeaponSkillDataAsset> InactiveWeaponSkill;
 
 	// 整理阶段已选但尚未放入格子的符文（新关卡恢复后放回 PendingRunes）
 	UPROPERTY()

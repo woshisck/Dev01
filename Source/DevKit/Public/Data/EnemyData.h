@@ -8,6 +8,7 @@
 #include "GameplayTagContainer.h"
 #include "AbilitySystem/Abilities/YogGameplayAbility.h"
 #include "Data/CharacterData.h"
+#include "GameModes/LevelFlowTypes.h"
 #include "NiagaraSystem.h"
 #include "EnemyData.generated.h"
 
@@ -16,6 +17,51 @@ class AActor;
 class UEnemyWeaponDefinition;
 class URuneDataAsset;
 class USpawnLifecycleFlowAsset;
+
+UENUM(BlueprintType)
+enum class EEnemyCombatTier : uint8
+{
+	Normal UMETA(DisplayName = "普通敌人"),
+	Elite  UMETA(DisplayName = "精英敌人"),
+	Boss   UMETA(DisplayName = "Boss"),
+};
+
+UENUM(BlueprintType)
+enum class EEnemyProductionStatus : uint8
+{
+	Placeholder  UMETA(DisplayName = "占位"),
+	InProduction UMETA(DisplayName = "制作中"),
+	Playable     UMETA(DisplayName = "可玩"),
+	Validated    UMETA(DisplayName = "已验证"),
+};
+
+/**
+ * One independently rolled reward owned by an enemy definition.
+ *
+ * Room/level rewards continue to live on RoomData and are not replaced by this
+ * configuration. Runtime payout is deliberately kept separate from the legacy
+ * UEnemyAttributeSet::DropExp attribute.
+ */
+USTRUCT(BlueprintType)
+struct DEVKIT_API FEnemyKillRewardEntry
+{
+	GENERATED_BODY()
+
+	FEnemyKillRewardEntry();
+	~FEnemyKillRewardEntry();
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Reward")
+	FLootOption Loot;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Reward", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float DropChance = 1.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Reward", meta = (ClampMin = "1"))
+	int32 MinQuantityMultiplier = 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Reward", meta = (ClampMin = "1"))
+	int32 MaxQuantityMultiplier = 1;
+};
 
 // =========================================================
 // Buff 条目（携带难度扣分）
@@ -303,6 +349,32 @@ class DEVKIT_API UEnemyData : public UCharacterData
 
 public:
 
+	// Stable authoring identity. Do not derive save/analytics identity from the display name.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Identity")
+	FName EnemyId = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Identity")
+	FText DisplayName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Identity")
+	FString EnglishName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Identity")
+	EEnemyCombatTier CombatTier = EEnemyCombatTier::Normal;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Identity")
+	EEnemyProductionStatus ProductionStatus = EEnemyProductionStatus::InProduction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Identity", meta = (Categories = "Enemy.Faction"))
+	FGameplayTag FactionTag;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Identity", meta = (Categories = "Enemy.Region"))
+	FGameplayTagContainer RegionTags;
+
+	// Test enemies are kept in /Game/Test/Enemy and are excluded from formal-release validation.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Identity")
+	bool bTestOnly = false;
+
 	// 对应的敌人 Actor 类（刷怪系统用此类生成敌人）
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy")
 	TSubclassOf<AEnemyCharacterBase> EnemyClass;
@@ -359,4 +431,11 @@ public:
 	// 受到攻击后保持“最近受击”状态的时间（秒）；该状态到期时会清空被动霸体受击计数。
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Poise", meta = (ClampMin = "0.0"))
 	float RecentlyDamagedStateDuration = 3.f;
+
+	// Enemy-owned kill rewards. Room/level rewards remain configured independently on RoomData.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Kill Rewards")
+	bool bEnableKillRewards = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Kill Rewards", meta = (EditCondition = "bEnableKillRewards"))
+	TArray<FEnemyKillRewardEntry> KillRewards;
 };
