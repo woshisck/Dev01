@@ -1996,3 +1996,6 @@ Tools/ProductionGraph/*.log
 /Content/SlashTrailElemental
 /Content/_LevelUpSpawn
 /Engine
+.vsconfig
+/.ugs
+.vsconfig
