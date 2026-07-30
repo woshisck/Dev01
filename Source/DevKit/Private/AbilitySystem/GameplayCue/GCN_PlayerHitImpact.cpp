@@ -7,6 +7,8 @@
 #include "NiagaraSystem.h"
 #include "Sound/SoundBase.h"
 #include "AbilitySystem/GameplayCue/HitCueData.h"
+#include "AbilitySystem/GameplayCue/GlobalHitShakeData.h"
+#include "System/YogSettings.h"
 
 AGCN_PlayerHitImpact::AGCN_PlayerHitImpact()
 {
@@ -38,8 +40,6 @@ bool AGCN_PlayerHitImpact::OnExecute_Implementation(AActor* Target, const FGamep
 	USoundBase* EffectiveSound = CueData && CueData->ImpactSound ? CueData->ImpactSound.Get() : ImpactSound.Get();
 	const float EffectiveSoundVolume = CueData ? CueData->SoundVolumeMultiplier : SoundVolumeMultiplier;
 	const float EffectiveSoundPitch = CueData ? CueData->SoundPitchMultiplier : SoundPitchMultiplier;
-	const TSubclassOf<UCameraShakeBase> EffectiveShakeClass = CueData && CueData->CameraShakeClass ? CueData->CameraShakeClass : CameraShakeClass;
-	const float EffectiveShakeScale = CueData ? CueData->CameraShakeScale : CameraShakeScale;
 
 	const FVector HitLocation = Parameters.Location.IsZero() && Target
 		? Target->GetActorLocation()
@@ -76,22 +76,18 @@ bool AGCN_PlayerHitImpact::OnExecute_Implementation(AActor* Target, const FGamep
 			EffectiveSoundPitch);
 	}
 
-	if (EffectiveShakeClass)
+	// Camera shake is a global setting: one config drives shake for every hit,
+	// scaled by the swing's final HP loss (Parameters.RawMagnitude, see GA_MeleeAttack).
+	const UYogSettings* Settings = UYogSettings::Get();
+	const UGlobalHitShakeData* ShakeConfig = Settings ? Settings->HitShakeConfig.LoadSynchronous() : nullptr;
+	if (ShakeConfig && ShakeConfig->CameraShakeClass)
 	{
 		APlayerController* PC = UGameplayStatics::GetPlayerController(World, 0);
 		if (PC && PC->PlayerCameraManager)
 		{
-			// Parameters.RawMagnitude carries the swing's final HP loss (see GA_MeleeAttack).
-			float DamageScale = 1.f;
-			if (CueData)
-			{
-				const FRichCurve* Curve = CueData->DamageToShakeScale.GetRichCurveConst();
-				if (Curve && Curve->GetNumKeys() > 0)
-				{
-					DamageScale = Curve->Eval(Parameters.RawMagnitude);
-				}
-			}
-			PC->PlayerCameraManager->StartCameraShake(EffectiveShakeClass, EffectiveShakeScale * DamageScale);
+			PC->PlayerCameraManager->StartCameraShake(
+				ShakeConfig->CameraShakeClass,
+				ShakeConfig->ResolveShakeScale(Parameters.RawMagnitude));
 		}
 	}
 

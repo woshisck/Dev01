@@ -4,6 +4,8 @@
 #include "Engine/DeveloperSettings.h"
 #include "YogSettings.generated.h"
 
+class UGlobalHitShakeData;
+
 /**
  * Project Settings → Game → Yog
  */
@@ -14,4 +16,8 @@ class DEVKIT_API UYogSettings : public UDeveloperSettings
 
 public:
 	static const UYogSettings* Get() { return GetDefault<UYogSettings>(); }
+
+	// Global camera-shake config for the player-hits-enemy impact cue. Bigger damage = bigger shake.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Camera")
+	TSoftObjectPtr<UGlobalHitShakeData> HitShakeConfig;
 };
