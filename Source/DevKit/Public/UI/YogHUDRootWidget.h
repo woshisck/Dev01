@@ -12,6 +12,7 @@ class UCombatDeckBarWidget;
 class UPlayerCommonInfoWidget;
 class UCurrentRoomBuffWidget;
 class APlayerCharacterBase;
+class UHorizontalBox;
 class UImage;
 class UOverlay;
 class UTextBlock;
@@ -37,6 +38,14 @@ public:
 
 	bool GetActiveWeaponSlotScreenCenter(FVector2D& OutScreenCenter) const;
 	void ApplyWidgetReflectorDebugVisibility();
+
+protected:
+	// Fired after the weapon panel data refreshes on a switch. Implement in
+	// WBP_HUDRoot to play the weapon-switch animation (art/motion stays in the WBP).
+	UFUNCTION(BlueprintImplementableEvent, Category = "Weapon")
+	void OnWeaponSwitchedAnim();
+
+public:
 
 	// Stable layout regions used by WBP_HUDRoot. These are optional so older
 	// HUD blueprints keep loading while generated layouts catch up.
@@ -105,6 +114,10 @@ private:
 	void RebindWeaponPanelPlayer();
 	void RefreshWeaponPanel(bool bForce = false);
 
+	// Fills a horizontal element row with one icon per unique combat-deck rune icon
+	// of the given weapon. Empty/missing box or weapon clears the row.
+	void PopulateWeaponElementIcons(UHorizontalBox* Box, const UWeaponDefinition* WeaponDefinition, bool bActive);
+
 	UFUNCTION()
 	void HandleWeaponSwitched();
 
@@ -128,6 +141,12 @@ private:
 
 	UPROPERTY(Transient, meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> InactiveWeaponNameText;
+
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
+	TObjectPtr<UHorizontalBox> ActiveWeaponElementBox;
+
+	UPROPERTY(Transient, meta = (BindWidgetOptional))
+	TObjectPtr<UHorizontalBox> InactiveWeaponElementBox;
 
 	TWeakObjectPtr<APlayerCharacterBase> BoundWeaponPanelPlayer;
 	TWeakObjectPtr<UWeaponDefinition> CachedComboWeaponDefinition;

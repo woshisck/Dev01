@@ -14,6 +14,7 @@
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
 #include "Components/Widget.h"
+#include "Data/RuneDataAsset.h"
 #include "Engine/Texture2D.h"
 #include "Item/Weapon/WeaponDefinition.h"
 #include "Item/Weapon/WeaponInfoDA.h"
@@ -376,6 +377,7 @@ void UYogHUDRootWidget::RebindWeaponPanelPlayer()
 void UYogHUDRootWidget::HandleWeaponSwitched()
 {
 	RefreshWeaponPanel(true);
+	OnWeaponSwitchedAnim();
 }
 
 void UYogHUDRootWidget::RefreshWeaponPanel(bool bForce)
@@ -401,6 +403,9 @@ void UYogHUDRootWidget::RefreshWeaponPanel(bool bForce)
 	UpdateWeaponSlot(ActiveWeaponSlot, ActiveWeaponIcon, ActiveWeaponNameText, CurrentWeapon, true);
 	UpdateWeaponSlot(InactiveWeaponSlot, InactiveWeaponIcon, InactiveWeaponNameText, InactiveWeapon, false);
 
+	PopulateWeaponElementIcons(ActiveWeaponElementBox, CurrentWeapon, true);
+	PopulateWeaponElementIcons(InactiveWeaponElementBox, InactiveWeapon, false);
+
 	if (!WeaponComboListPanel || !WeaponComboListText)
 	{
 		return;
@@ -416,4 +421,50 @@ void UYogHUDRootWidget::RefreshWeaponPanel(bool bForce)
 	WeaponComboListPanel->SetVisibility(YogWidgetReflectorDebug::GetInspectableVisibility(ESlateVisibility::HitTestInvisible));
 	WeaponComboListText->SetText(WeaponComboTextUtils::BuildComboHintText(CurrentWeapon, 0, true));
 	ApplyWidgetReflectorDebugVisibility();
+}
+
+void UYogHUDRootWidget::PopulateWeaponElementIcons(UHorizontalBox* Box, const UWeaponDefinition* WeaponDefinition, bool bActive)
+{
+	if (!Box || !WidgetTree)
+	{
+		return;
+	}
+
+	Box->ClearChildren();
+
+	if (!WeaponDefinition)
+	{
+		return;
+	}
+
+	const float IconSize = bActive ? 26.f : 20.f;
+	const FLinearColor Tint = bActive ? FLinearColor::White : FLinearColor(0.72f, 0.76f, 0.82f, 1.f);
+
+	// Dedupe by texture so runes that share an element icon collapse into one slot.
+	TSet<TObjectKey<UTexture2D>> SeenIcons;
+	for (const TObjectPtr<URuneDataAsset>& Rune : WeaponDefinition->InitialCombatDeck)
+	{
+		UTexture2D* ElementIcon = Rune ? Rune->GetRuneIcon() : nullptr;
+		if (!ElementIcon || SeenIcons.Contains(ElementIcon))
+		{
+			continue;
+		}
+		SeenIcons.Add(ElementIcon);
+
+		UImage* IconImage = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
+		IconImage->SetBrushFromTexture(ElementIcon, false);
+		IconImage->SetColorAndOpacity(Tint);
+		IconImage->SetVisibility(YogWidgetReflectorDebug::GetInspectableVisibility(ESlateVisibility::HitTestInvisible));
+
+		USizeBox* IconBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
+		IconBox->SetWidthOverride(IconSize);
+		IconBox->SetHeightOverride(IconSize);
+		IconBox->AddChild(IconImage);
+
+		if (UHorizontalBoxSlot* BoxSlot = Box->AddChildToHorizontalBox(IconBox))
+		{
+			BoxSlot->SetPadding(FMargin(2.f, 0.f, 2.f, 0.f));
+			BoxSlot->SetVerticalAlignment(VAlign_Center);
+		}
+	}
 }
