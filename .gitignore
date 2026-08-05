@@ -2002,3 +2002,5 @@ Tools/ProductionGraph/*.log
 /UGS
 .vsconfig
 *.ps1
+.vsconfig
+Build.bat
