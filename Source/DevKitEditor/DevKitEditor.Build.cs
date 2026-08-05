@@ -57,7 +57,11 @@ public class DevKitEditor : ModuleRules
 				"YogComboGraphEditor",
 				"Flow",
 				"FlowEditor",
-				"Niagara"
+				"Niagara",
+				"StateTreeModule",
+				"StateTreeEditorModule",
+				"GameplayStateTreeModule",
+				"PropertyBindingUtils"
 				//"StudioTelemetry"
 
 
@@ -111,6 +115,10 @@ public class DevKitEditor : ModuleRules
 				"Foliage",
 				"VirtualTexturingEditor",
 				"CelesLightEditor",
+				"StateTreeModule",
+				"StateTreeEditorModule",
+				"GameplayStateTreeModule",
+				"PropertyBindingUtils",
 			}
         );
 

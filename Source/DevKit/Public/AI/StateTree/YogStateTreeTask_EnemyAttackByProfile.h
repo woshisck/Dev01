@@ -17,8 +17,9 @@ class AYogCharacterBase;
 // / cooldown / movement-attack gates, activates the chosen GA, and stays Running
 // until it ends. Reuses AYogAIController's cooldown / combat bookkeeping.
 //
-// Bind TargetActor / DistanceToTarget / bInAttackRange to the
-// "Update Enemy Combat Move" evaluator outputs.
+// TargetActor / DistanceToTarget / bInAttackRange can be bound to the
+// "Update Enemy Combat Move" evaluator outputs. If omitted, EnterState uses
+// runtime fallbacks so generated template trees remain directly compilable.
 
 USTRUCT()
 struct FStateTreeTask_EnemyAttackByProfileInstanceData
@@ -31,13 +32,13 @@ struct FStateTreeTask_EnemyAttackByProfileInstanceData
 	UPROPERTY(EditAnywhere, Category = Parameter)
 	EEnemyAIAttackRole RequiredAttackRole = EEnemyAIAttackRole::CloseMelee;
 
-	UPROPERTY(EditAnywhere, Category = Input)
+	UPROPERTY(EditAnywhere, Category = Input, meta = (Optional))
 	TObjectPtr<AActor> TargetActor = nullptr;
 
-	UPROPERTY(EditAnywhere, Category = Input)
+	UPROPERTY(EditAnywhere, Category = Input, meta = (Optional))
 	float DistanceToTarget = 0.f;
 
-	UPROPERTY(EditAnywhere, Category = Input)
+	UPROPERTY(EditAnywhere, Category = Input, meta = (Optional))
 	bool bInAttackRange = false;
 
 	// Per-attack cooldown end times, indexed alongside AttackProfile.Attacks.

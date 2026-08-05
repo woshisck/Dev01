@@ -17,6 +17,8 @@ class AActor;
 class UEnemyWeaponDefinition;
 class URuneDataAsset;
 class USpawnLifecycleFlowAsset;
+class UBlackboardData;
+class UStateTree;
 
 UENUM(BlueprintType)
 enum class EEnemyCombatTier : uint8
@@ -398,6 +400,16 @@ public:
 	// 此敌人使用的行为树（留空则使用 AIController 默认行为树）
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|AI")
 	TObjectPtr<UBehaviorTree> BehaviorTree;
+
+	// Optional StateTree AI asset. YogAIController starts this before falling back
+	// to BehaviorTree, so existing enemies keep working while StateTree assets migrate in.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|AI")
+	TObjectPtr<UStateTree> StateTree;
+
+	// Blackboard used by Yog StateTree evaluators/tasks. Leave empty to reuse the
+	// BehaviorTree blackboard or the AIController fallback blackboard.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|AI")
+	TObjectPtr<UBlackboardData> StateTreeBlackboard;
 
 	// YogAIController 使用的移动、寻路和避让调参。
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|AI")

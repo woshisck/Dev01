@@ -11,6 +11,10 @@
 #include "AI/BTTask_EnemyAttackByProfile.h"
 #include "AI/BTTask_EnemyPatrolWait.h"
 #include "AI/BTTask_UpdateEnemyPatrolTarget.h"
+#include "AI/StateTree/YogStateTreeConditions.h"
+#include "AI/StateTree/YogStateTreeEvaluators.h"
+#include "AI/StateTree/YogStateTreeTask_EnemyAttackByProfile.h"
+#include "AI/StateTree/YogStateTreeTasks.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "BehaviorTree/BehaviorTree.h"
 #include "BehaviorTree/BlackboardData.h"
@@ -40,6 +44,15 @@
 #include "FileHelpers.h"
 #include "Misc/FileHelper.h"
 #include "Misc/PackageName.h"
+#include "StateTree.h"
+#include "StateTreeCompilerLog.h"
+#include "StateTreeEditingSubsystem.h"
+#include "StateTreeEditorData.h"
+#include "StateTreeEditorModule.h"
+#include "StateTreeEditorSchema.h"
+#include "StateTreeFactory.h"
+#include "StateTreeState.h"
+#include "Components/StateTreeAIComponentSchema.h"
 #include "UObject/Package.h"
 #include "UObject/UnrealType.h"
 
@@ -47,6 +60,7 @@ namespace EnemyAITemplateGenerator
 {
 	const FString BlackboardPath = TEXT("/Game/Code/Enemy/AI/BlackBoard/BB_Enemy_DefaultMelee");
 	const FString BehaviorTreePath = TEXT("/Game/Code/Enemy/AI/Behaviour/BT_Enemy_DefaultMelee");
+	const FString StateTreePath = TEXT("/Game/Code/Enemy/AI/StateTree/ST_Enemy_DefaultMelee");
 	const FString EnemyGASTemplatePath = TEXT("/Game/Docs/Data/Enemy/DA_Enemy_GASTemplate");
 	const FString RatDataPath = TEXT("/Game/Docs/Data/Enemy/Rat/DA_Rat");
 	const FString RottenGuardDataPath = TEXT("/Game/Docs/Data/Enemy/RottenGuard/DA_RottenGuard");
@@ -811,9 +825,149 @@ namespace EnemyAITemplateGenerator
 		BehaviorTree.MarkPackageDirty();
 	}
 
+	UStateTree* CreateOrLoadStateTree(const FString& PackagePath, bool bDryRun, TArray<FString>& ReportLines, TArray<UPackage*>& DirtyPackages)
+	{
+		if (UStateTree* Existing = LoadAssetByPackagePath<UStateTree>(PackagePath))
+		{
+			ReportLines.Add(FString::Printf(TEXT("- Found `%s`."), *PackagePath));
+			return Existing;
+		}
+
+		ReportLines.Add(FString::Printf(TEXT("- %s `%s`."), bDryRun ? TEXT("Would create") : TEXT("Created"), *PackagePath));
+		if (bDryRun)
+		{
+			return nullptr;
+		}
+
+		UPackage* Package = CreatePackage(*PackagePath);
+		const FName AssetName(*FPackageName::GetLongPackageAssetName(PackagePath));
+
+		UStateTreeFactory* Factory = NewObject<UStateTreeFactory>();
+		Factory->SetSchemaClass(UStateTreeAIComponentSchema::StaticClass());
+		UStateTree* StateTree = Cast<UStateTree>(Factory->FactoryCreateNew(
+			UStateTree::StaticClass(),
+			Package,
+			AssetName,
+			RF_Public | RF_Standalone | RF_Transactional,
+			nullptr,
+			GWarn));
+
+		if (!StateTree)
+		{
+			ReportLines.Add(FString::Printf(TEXT("- Failed to create `%s`."), *PackagePath));
+			return nullptr;
+		}
+
+		FAssetRegistryModule::AssetCreated(StateTree);
+		StateTree->MarkPackageDirty();
+		DirtyPackages.AddUnique(Package);
+		return StateTree;
+	}
+
+	template <typename TaskType>
+	TStateTreeEditorNode<TaskType>& AddNamedTask(UStateTreeState& State, const TCHAR* TaskName)
+	{
+		TStateTreeEditorNode<TaskType>& Task = State.AddTask<TaskType>();
+		Task.SetNodeName(FName(TaskName));
+		return Task;
+	}
+
+	TStateTreeEditorNode<FStateTreeTask_EnemyAttackByProfile>& AddAttackState(UStateTreeState& Parent, const TCHAR* StateName, EEnemyAIAttackRole Role)
+	{
+		UStateTreeState& State = Parent.AddChildState(FName(StateName));
+		State.SelectionBehavior = EStateTreeStateSelectionBehavior::TryEnterState;
+		TStateTreeEditorNode<FStateTreeTask_EnemyAttackByProfile>& Task = AddNamedTask<FStateTreeTask_EnemyAttackByProfile>(State, StateName);
+		Task.GetInstanceData().RequiredAttackRole = Role;
+		State.AddTransition(EStateTreeTransitionTrigger::OnStateSucceeded, EStateTreeTransitionType::GotoState, &Parent);
+		State.AddTransition(EStateTreeTransitionTrigger::OnStateFailed, EStateTreeTransitionType::NextSelectableState);
+		return Task;
+	}
+
+	void RebuildStateTree(UStateTree& StateTree, TArray<FString>& ReportLines)
+	{
+		UStateTreeEditorData* EditorData = Cast<UStateTreeEditorData>(StateTree.EditorData);
+		if (!EditorData)
+		{
+			ReportLines.Add(TEXT("- StateTree missing editor data; rebuild skipped."));
+			return;
+		}
+
+		EditorData->Modify();
+		EditorData->Evaluators.Reset();
+		EditorData->GlobalTasks.Reset();
+		EditorData->SubTrees.Reset();
+
+		TStateTreeEditorNode<FStateTreeEvaluator_EnemyAwareness>& Awareness =
+			EditorData->AddEvaluator<FStateTreeEvaluator_EnemyAwareness>();
+		Awareness.SetNodeName(TEXT("Update Enemy Awareness"));
+
+		TStateTreeEditorNode<FStateTreeEvaluator_EnemyCombatMove>& CombatMove =
+			EditorData->AddEvaluator<FStateTreeEvaluator_EnemyCombatMove>();
+		CombatMove.SetNodeName(TEXT("Update Enemy Combat Move"));
+
+		UStateTreeState& Root = EditorData->AddRootState();
+		Root.SelectionBehavior = EStateTreeStateSelectionBehavior::TrySelectChildrenInOrder;
+		Root.Description = TEXT("Generated enemy AI root. State order mirrors the default melee behavior tree.");
+
+		UStateTreeState& Dead = Root.AddChildState(TEXT("Dead"));
+		Dead.SelectionBehavior = EStateTreeStateSelectionBehavior::TryEnterState;
+		Dead.AddEnterCondition<FStateTreeCondition_IsDead>().SetNodeName(TEXT("Enemy Is Dead"));
+		AddNamedTask<FStateTreeTask_PlayDead>(Dead, TEXT("Play Dead"));
+
+		UStateTreeState& Combat = Root.AddChildState(TEXT("Combat"));
+		Combat.SelectionBehavior = EStateTreeStateSelectionBehavior::TrySelectChildrenInOrder;
+		TStateTreeEditorNode<FStateTreeCondition_EnemyAIState>& CombatCondition = Combat.AddEnterCondition<FStateTreeCondition_EnemyAIState>();
+		CombatCondition.SetNodeName(TEXT("Enemy AI State Is Combat"));
+		CombatCondition.GetInstanceData().RequiredState = EEnemyAIState::Combat;
+		AddAttackState(Combat, TEXT("Post Attack Reposition"), EEnemyAIAttackRole::Reposition);
+		AddAttackState(Combat, TEXT("Skill"), EEnemyAIAttackRole::Skill);
+		AddAttackState(Combat, TEXT("Special Movement"), EEnemyAIAttackRole::SpecialMovement);
+		AddAttackState(Combat, TEXT("Close Melee"), EEnemyAIAttackRole::CloseMelee);
+		UStateTreeState& CombatRecheck = Combat.AddChildState(TEXT("Combat Recheck"));
+		CombatRecheck.SelectionBehavior = EStateTreeStateSelectionBehavior::TryEnterState;
+		AddNamedTask<FStateTreeTask_EnemyPatrolWait>(CombatRecheck, TEXT("Combat Recheck Wait"));
+		CombatRecheck.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::GotoState, &Combat);
+
+		UStateTreeState& Alert = Root.AddChildState(TEXT("Alert"));
+		Alert.SelectionBehavior = EStateTreeStateSelectionBehavior::TryEnterState;
+		TStateTreeEditorNode<FStateTreeCondition_EnemyAIState>& AlertCondition = Alert.AddEnterCondition<FStateTreeCondition_EnemyAIState>();
+		AlertCondition.SetNodeName(TEXT("Enemy AI State Is Alert"));
+		AlertCondition.GetInstanceData().RequiredState = EEnemyAIState::Alert;
+		AddNamedTask<FStateTreeTask_EnemyPatrolWait>(Alert, TEXT("Alert Wait"));
+
+		UStateTreeState& Patrol = Root.AddChildState(TEXT("Patrol"));
+		Patrol.SelectionBehavior = EStateTreeStateSelectionBehavior::TryEnterState;
+		TStateTreeEditorNode<FStateTreeCondition_EnemyAIState>& PatrolCondition = Patrol.AddEnterCondition<FStateTreeCondition_EnemyAIState>();
+		PatrolCondition.SetNodeName(TEXT("Enemy AI State Is Patrol"));
+		PatrolCondition.GetInstanceData().RequiredState = EEnemyAIState::Patrol;
+		AddNamedTask<FStateTreeTask_UpdateEnemyPatrolTarget>(Patrol, TEXT("Update Patrol Target"));
+		AddNamedTask<FStateTreeTask_EnemyPatrolWait>(Patrol, TEXT("Patrol Wait"));
+
+		EditorData->ReparentStates();
+		EditorData->FixDuplicateIDs();
+		EditorData->UpdateBindings();
+		UStateTreeEditingSubsystem::MarkAsPubliclyModified(&StateTree);
+
+		FStateTreeCompilerLog Log;
+		const bool bCompiled = UStateTreeEditingSubsystem::CompileStateTree(&StateTree, Log);
+		if (!bCompiled)
+		{
+			Log.DumpToLog(&StateTree, LogTemp);
+			ReportLines.Add(TEXT("- StateTree compile failed; see editor log for details."));
+		}
+		else
+		{
+			ReportLines.Add(TEXT("- Rebuilt and compiled StateTree template."));
+		}
+
+		StateTree.MarkPackageDirty();
+	}
+
 	void AssignBehaviorTreeToEnemyData(
 		const FString& EnemyDataPath,
 		UBehaviorTree* BehaviorTree,
+		UStateTree* StateTree,
+		UBlackboardData* Blackboard,
 		EDefaultEnemyProfile Profile,
 		UAbilityData* AbilityData,
 		UGASTemplate* GASTemplate,
@@ -824,10 +978,11 @@ namespace EnemyAITemplateGenerator
 	{
 		if (bDryRun)
 		{
-			ReportLines.Add(FString::Printf(TEXT("- %s `%s`.BehaviorTree -> `%s`."),
+			ReportLines.Add(FString::Printf(TEXT("- %s `%s`.BehaviorTree -> `%s`; StateTree -> `%s`."),
 				PackageExists(EnemyDataPath) ? TEXT("Would set") : bCreateIfMissing ? TEXT("Would create enemy DA and set") : TEXT("Missing enemy DA"),
 				*EnemyDataPath,
-				*BehaviorTreePath));
+				*BehaviorTreePath,
+				*StateTreePath));
 			return;
 		}
 
@@ -841,18 +996,30 @@ namespace EnemyAITemplateGenerator
 			return;
 		}
 
-		ReportLines.Add(FString::Printf(TEXT("- %s `%s`.BehaviorTree -> `%s`."),
+		ReportLines.Add(FString::Printf(TEXT("- %s `%s`.BehaviorTree -> `%s`; StateTree -> `%s`."),
 			bDryRun ? TEXT("Would set") : TEXT("Set"),
 			*EnemyDataPath,
-			*BehaviorTreePath));
+			*BehaviorTreePath,
+			*StateTreePath));
 
-		if (!BehaviorTree)
+		if (!BehaviorTree && !StateTree)
 		{
 			return;
 		}
 
 		EnemyData->Modify();
-		EnemyData->BehaviorTree = BehaviorTree;
+		if (BehaviorTree)
+		{
+			EnemyData->BehaviorTree = BehaviorTree;
+		}
+		if (StateTree)
+		{
+			EnemyData->StateTree = StateTree;
+		}
+		if (Blackboard)
+		{
+			EnemyData->StateTreeBlackboard = Blackboard;
+		}
 		if (AbilityData)
 		{
 			EnemyData->AbilityData = AbilityData;
@@ -921,6 +1088,16 @@ int32 UEnemyAITemplateGeneratorCommandlet::Main(const FString& Params)
 		}
 
 		ReportLines.Add(TEXT(""));
+		ReportLines.Add(TEXT("## StateTree"));
+		ReportLines.Add(TEXT("- State order: Dead -> Combat attacks -> Combat move -> Alert move -> Patrol."));
+		UStateTree* StateTree = CreateOrLoadStateTree(StateTreePath, bDryRun, ReportLines, DirtyPackages);
+		if (!bDryRun && StateTree)
+		{
+			RebuildStateTree(*StateTree, ReportLines);
+			DirtyPackages.AddUnique(StateTree->GetPackage());
+		}
+
+		ReportLines.Add(TEXT(""));
 		ReportLines.Add(TEXT("## GAS Template"));
 		UGASTemplate* EnemyGASTemplate = CreateOrLoadAsset<UGASTemplate>(EnemyGASTemplatePath, bDryRun, ReportLines, DirtyPackages);
 		if (!bDryRun && EnemyGASTemplate)
@@ -938,10 +1115,10 @@ int32 UEnemyAITemplateGeneratorCommandlet::Main(const FString& Params)
 
 		ReportLines.Add(TEXT(""));
 		ReportLines.Add(TEXT("## Enemy Data"));
-		AssignBehaviorTreeToEnemyData(RatDataPath, BehaviorTree, EDefaultEnemyProfile::Rat, nullptr, nullptr, false, bDryRun, ReportLines, DirtyPackages);
-		AssignBehaviorTreeToEnemyData(RottenGuardDataPath, BehaviorTree, EDefaultEnemyProfile::RottenGuard, nullptr, nullptr, false, bDryRun, ReportLines, DirtyPackages);
-		AssignBehaviorTreeToEnemyData(AlarmBellJailerDataPath, BehaviorTree, EDefaultEnemyProfile::AlarmBellJailer, AlarmBellAbilityData, EnemyGASTemplate, true, bDryRun, ReportLines, DirtyPackages);
-		AssignBehaviorTreeToEnemyData(GuardCaptainDataPath, BehaviorTree, EDefaultEnemyProfile::GuardCaptain, GuardCaptainAbilityData, EnemyGASTemplate, true, bDryRun, ReportLines, DirtyPackages);
+		AssignBehaviorTreeToEnemyData(RatDataPath, BehaviorTree, StateTree, Blackboard, EDefaultEnemyProfile::Rat, nullptr, nullptr, false, bDryRun, ReportLines, DirtyPackages);
+		AssignBehaviorTreeToEnemyData(RottenGuardDataPath, BehaviorTree, StateTree, Blackboard, EDefaultEnemyProfile::RottenGuard, nullptr, nullptr, false, bDryRun, ReportLines, DirtyPackages);
+		AssignBehaviorTreeToEnemyData(AlarmBellJailerDataPath, BehaviorTree, StateTree, Blackboard, EDefaultEnemyProfile::AlarmBellJailer, AlarmBellAbilityData, EnemyGASTemplate, true, bDryRun, ReportLines, DirtyPackages);
+		AssignBehaviorTreeToEnemyData(GuardCaptainDataPath, BehaviorTree, StateTree, Blackboard, EDefaultEnemyProfile::GuardCaptain, GuardCaptainAbilityData, EnemyGASTemplate, true, bDryRun, ReportLines, DirtyPackages);
 	}
 
 	if (!bDryRun && DirtyPackages.Num() > 0)

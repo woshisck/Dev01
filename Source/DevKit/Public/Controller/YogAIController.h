@@ -32,6 +32,9 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "AI")
 	UBlackboardComponent* BlackboardComponent;
 
+	UPROPERTY(BlueprintReadWrite, Category = "AI")
+	TObjectPtr<class UStateTreeAIComponent> StateTreeComponent;
+
 	// ── BT/BB 兜底配置（用于 BT 内部 BlackboardAsset 引用断链时的 C++ 接管启动） ──
 	// 在子类 BP（如 BP_AIControllerBase）的 Class Defaults 里赋值。OnPossess 优先用这两个启动；
 	// 若任一为空则回退到原本的 BP 启动逻辑（不接管）。
@@ -51,6 +54,9 @@ public:
 	/** 蓝图可调：手动启动 BT，使用指定 BB 兜底（不依赖 BT 内置 BlackboardAsset） */
 	UFUNCTION(BlueprintCallable, Category = "AI")
 	bool RunBTWithBlackboard(class UBehaviorTree* BT, class UBlackboardData* BB);
+
+	UFUNCTION(BlueprintCallable, Category = "AI")
+	bool RunStateTreeWithBlackboard(class UStateTree* StateTree, class UBlackboardData* BB);
 
 	bool UpdateCombatMoveBlackboard(
 		UBlackboardComponent* InBlackboard,

@@ -1,6 +1,6 @@
 {
 	"FileVersion": 3,
-	"EngineAssociation": "{46E0491A-41D3-EC24-22BC-21888F46CE5A}",
+	"EngineAssociation": "{116447DB-47C8-3CE0-58F3-348D5E0736AB}",
 	"Category": "",
 	"Description": "",
 	"Modules": [
@@ -57,6 +57,10 @@
 		},
 		{
 			"Name": "GameplayStateTree",
+			"Enabled": true
+		},
+		{
+			"Name": "PropertyBindingUtils",
 			"Enabled": true
 		},
 		{

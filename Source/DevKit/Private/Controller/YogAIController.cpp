@@ -17,6 +17,8 @@
 #include "Navigation/CrowdFollowingComponent.h"
 #include "Navigation/PathFollowingComponent.h"
 #include "NavigationSystem.h"
+#include "Components/StateTreeAIComponent.h"
+#include "StateTree.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogEnemyMoveSmooth, Log, All);
 DEFINE_LOG_CATEGORY_STATIC(LogEnemyAIState, Log, All);
@@ -151,6 +153,8 @@ AYogAIController::AYogAIController(const FObjectInitializer& ObjectInitializer)
 {
     BehaviorTreeComponent = CreateDefaultSubobject<UBehaviorTreeComponent>(TEXT("YogBT"));
     BlackboardComponent = CreateDefaultSubobject<UBlackboardComponent>(TEXT("YogBB"));
+	StateTreeComponent = CreateDefaultSubobject<UStateTreeAIComponent>(TEXT("YogStateTree"));
+	StateTreeComponent->SetStartLogicAutomatically(false);
 }
 
 bool AYogAIController::RunBTWithBlackboard(UBehaviorTree* BT, UBlackboardData* BB)
@@ -184,6 +188,56 @@ bool AYogAIController::RunBTWithBlackboard(UBehaviorTree* BT, UBlackboardData* B
     return bRan;
 }
 
+bool AYogAIController::RunStateTreeWithBlackboard(UStateTree* StateTree, UBlackboardData* BB)
+{
+	if (!StateTree)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[YogAIController] RunStateTreeWithBlackboard FAIL: StateTree is null"));
+		return false;
+	}
+
+	if (!StateTreeComponent)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[YogAIController] RunStateTreeWithBlackboard FAIL: StateTreeComponent is null"));
+		return false;
+	}
+
+	if (!BB)
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("[YogAIController] RunStateTreeWithBlackboard FAIL: Blackboard is null for %s"),
+			*GetNameSafe(StateTree));
+		return false;
+	}
+
+	if (BlackboardComponent)
+	{
+		const bool bUsed = UseBlackboard(BB, BlackboardComponent);
+		UE_LOG(LogTemp, Warning, TEXT("[YogAIController] UseBlackboard(%s) for StateTree -> %d"),
+			*BB->GetName(), bUsed ? 1 : 0);
+		if (!bUsed)
+		{
+			return false;
+		}
+	}
+
+	if (BehaviorTreeComponent && BehaviorTreeComponent->IsRunning())
+	{
+		BehaviorTreeComponent->StopTree(EBTStopMode::Safe);
+	}
+
+	StateTreeComponent->SetStateTree(StateTree);
+	BrainComponent = StateTreeComponent;
+	InitializePatrolState();
+	StateTreeComponent->StartLogic();
+
+	const bool bRunning = StateTreeComponent->IsRunning();
+	UE_LOG(LogTemp, Warning, TEXT("[YogAIController] Start StateTree(%s) -> %d"),
+		*GetNameSafe(StateTree),
+		bRunning ? 1 : 0);
+	return bRunning;
+}
+
 void AYogAIController::OnPossess(APawn* InPawn)
 {
 	Super::OnPossess(InPawn);
@@ -192,6 +246,24 @@ void AYogAIController::OnPossess(APawn* InPawn)
 
 	if (UEnemyData* EnemyData = GetPossessedEnemyData())
 	{
+		if (EnemyData->StateTree)
+		{
+			UBlackboardData* StateTreeBlackboard = EnemyData->StateTreeBlackboard;
+			if (!StateTreeBlackboard && EnemyData->BehaviorTree)
+			{
+				StateTreeBlackboard = EnemyData->BehaviorTree->BlackboardAsset;
+			}
+			if (!StateTreeBlackboard)
+			{
+				StateTreeBlackboard = FallbackBlackboard;
+			}
+
+			if (RunStateTreeWithBlackboard(EnemyData->StateTree, StateTreeBlackboard))
+			{
+				return;
+			}
+		}
+
 		if (EnemyData->BehaviorTree)
 		{
 			RunBTWithBlackboard(EnemyData->BehaviorTree, EnemyData->BehaviorTree->BlackboardAsset);

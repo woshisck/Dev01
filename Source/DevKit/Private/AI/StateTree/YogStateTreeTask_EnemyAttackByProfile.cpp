@@ -101,12 +101,6 @@ EStateTreeRunStatus FStateTreeTask_EnemyAttackByProfile::EnterState(
 		TargetActor = UGameplayStatics::GetPlayerPawn(Pawn->GetWorld(), 0);
 	}
 
-	// Range gate — every role except Reposition requires being in attack range.
-	if (InstanceData.RequiredAttackRole != EEnemyAIAttackRole::Reposition && !InstanceData.bInAttackRange)
-	{
-		return EStateTreeRunStatus::Failed;
-	}
-
 	if (StateTreeTargetHasSmokeAttackBlock(TargetActor))
 	{
 		return EStateTreeRunStatus::Failed;
@@ -139,6 +133,26 @@ EStateTreeRunStatus FStateTreeTask_EnemyAttackByProfile::EnterState(
 		DistanceToTarget = TargetActor
 			? FVector::Dist2D(Pawn->GetActorLocation(), TargetActor->GetActorLocation())
 			: TNumericLimits<float>::Max();
+	}
+
+	bool bInAttackRange = InstanceData.bInAttackRange;
+	if (!bInAttackRange && TargetActor && EnemyData)
+	{
+		float EffectiveAttackRange = EnemyData->MovementTuning.AttackRange + EnemyData->MovementTuning.AttackRangeExitBuffer;
+		for (const FEnemyAIAttackOption& Attack : EnemyData->AttackProfile.Attacks)
+		{
+			if (Attack.AttackRole == InstanceData.RequiredAttackRole && Attack.MaxRange > 0.0f)
+			{
+				EffectiveAttackRange = FMath::Max(EffectiveAttackRange, Attack.MaxRange);
+			}
+		}
+		bInAttackRange = DistanceToTarget <= FMath::Max(EffectiveAttackRange, 0.0f);
+	}
+
+	// Range gate — every role except Reposition requires being in attack range.
+	if (InstanceData.RequiredAttackRole != EEnemyAIAttackRole::Reposition && !bInAttackRange)
+	{
+		return EStateTreeRunStatus::Failed;
 	}
 
 	if (YogAI)
