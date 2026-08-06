@@ -67,7 +67,7 @@ struct FWeaponSpawnData
 	bool bShouldSaveToGame = false;
 };
 
-UCLASS(Blueprintable, BlueprintType, Const, DisplayName = "武器定义")
+UCLASS(Blueprintable, BlueprintType, Const)
 class DEVKIT_API UWeaponDefinition : public UPrimaryDataAsset
 {
 	GENERATED_BODY()

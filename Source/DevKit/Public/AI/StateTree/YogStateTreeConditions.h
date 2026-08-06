@@ -59,3 +59,88 @@ struct DEVKIT_API FStateTreeCondition_IsDead : public FStateTreeAIConditionBase
 	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
 	virtual bool TestCondition(FStateTreeExecutionContext& Context) const override;
 };
+
+// ─── Self Health % Below ────────────────────────────────────────────────────
+// Passes when the controlled pawn's Health/MaxHealth <= Threshold. Use as the
+// Enter Condition on lower-HP boss phases (order high-threshold phases last so
+// the selector enters the deepest matching phase first).
+
+USTRUCT()
+struct FStateTreeCondition_SelfHealthPercentBelowInstanceData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = Context)
+	TObjectPtr<AAIController> AIController = nullptr;
+
+	/** Fraction of max HP (0-1). Condition passes at or below this. */
+	UPROPERTY(EditAnywhere, Category = Parameter, meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float Threshold = 0.5f;
+};
+
+USTRUCT(meta = (DisplayName = "Self Health % Below", Category = "Yog|AI"))
+struct DEVKIT_API FStateTreeCondition_SelfHealthPercentBelow : public FStateTreeAIConditionBase
+{
+	GENERATED_BODY()
+
+	using FInstanceDataType = FStateTreeCondition_SelfHealthPercentBelowInstanceData;
+
+	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
+	virtual bool TestCondition(FStateTreeExecutionContext& Context) const override;
+};
+
+// ─── Time In Combat At Least ────────────────────────────────────────────────
+// Passes once the controller has been in Combat for at least Seconds (measured
+// from AYogAIController::GetCombatStartTime). Pair with an OR next to the HP gate
+// to enter a phase on "took too long" as well as "took enough damage".
+
+USTRUCT()
+struct FStateTreeCondition_TimeInCombatAtLeastInstanceData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = Context)
+	TObjectPtr<AAIController> AIController = nullptr;
+
+	UPROPERTY(EditAnywhere, Category = Parameter, meta = (ClampMin = "0.0"))
+	float Seconds = 30.0f;
+};
+
+USTRUCT(meta = (DisplayName = "Time In Combat At Least", Category = "Yog|AI"))
+struct DEVKIT_API FStateTreeCondition_TimeInCombatAtLeast : public FStateTreeAIConditionBase
+{
+	GENERATED_BODY()
+
+	using FInstanceDataType = FStateTreeCondition_TimeInCombatAtLeastInstanceData;
+
+	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
+	virtual bool TestCondition(FStateTreeExecutionContext& Context) const override;
+};
+
+// ─── Player Health % Below ──────────────────────────────────────────────────
+// Passes when the current target's (player's) Health/MaxHealth <= Threshold.
+// Resolves the target from the controller's TargetActor blackboard key, falling
+// back to player pawn 0. Used to branch the dying reaction on the player's state.
+
+USTRUCT()
+struct FStateTreeCondition_PlayerHealthPercentBelowInstanceData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = Context)
+	TObjectPtr<AAIController> AIController = nullptr;
+
+	UPROPERTY(EditAnywhere, Category = Parameter, meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float Threshold = 0.3f;
+};
+
+USTRUCT(meta = (DisplayName = "Player Health % Below", Category = "Yog|AI"))
+struct DEVKIT_API FStateTreeCondition_PlayerHealthPercentBelow : public FStateTreeAIConditionBase
+{
+	GENERATED_BODY()
+
+	using FInstanceDataType = FStateTreeCondition_PlayerHealthPercentBelowInstanceData;
+
+	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
+	virtual bool TestCondition(FStateTreeExecutionContext& Context) const override;
+};

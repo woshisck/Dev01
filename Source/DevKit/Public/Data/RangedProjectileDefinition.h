@@ -48,12 +48,16 @@ public:
 	int32 MaxHits = 0;
 
 	// ── Damage magnitude (snapshot at fire time) ────────────────────────
+	// ActDamage = BaseEffectMagnitude + Attack * CreatorAttackMagnitudeScale + AttackPower * CreatorAttackPowerMagnitudeScale.
+	// Bullet damage is decoupled from the player's base Attack by default (both scales 0) so ranged weapons
+	// balance independently of melee attribute progression. Set BaseEffectMagnitude per weapon; raise a scale
+	// only if a weapon should intentionally inherit player Attack/AttackPower.
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Damage")
 	float BaseEffectMagnitude = 0.f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Damage")
-	float CreatorAttackMagnitudeScale = 1.f;
+	float CreatorAttackMagnitudeScale = 0.f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Damage")
 	float CreatorAttackPowerMagnitudeScale = 0.f;

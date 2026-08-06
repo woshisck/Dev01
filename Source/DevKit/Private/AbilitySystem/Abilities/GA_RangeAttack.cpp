@@ -180,8 +180,19 @@ void UGA_RangeAttack::ApplyHitDamage(const FGameplayEventData& HitEventData)
 
 	// Spec is created NOW — attributes are read live from the ASC at this moment, so any
 	// buffs acquired while the bullet was in flight are included in the damage calculation.
-	const FYogGameplayEffectContainerSpec ContainerSpec =
+	FYogGameplayEffectContainerSpec ContainerSpec =
 		MakeEffectContainerSpec(HitEffectContainerTag, HitEventData);
+
+	// The bullet's fire-time magnitude arrives as EventMagnitude; the damage GE reads it
+	// through SetByCaller. Without this the execution sees ActDamage = 0 and writes no damage.
+	static const FGameplayTag TAG_ActDamage = FGameplayTag::RequestGameplayTag(FName("Attribute.ActDamage"));
+	for (const FGameplayEffectSpecHandle& SpecHandle : ContainerSpec.TargetGameplayEffectSpecs)
+	{
+		if (SpecHandle.IsValid() && SpecHandle.Data.IsValid())
+		{
+			SpecHandle.Data->SetSetByCallerMagnitude(TAG_ActDamage, HitEventData.EventMagnitude);
+		}
+	}
 
 	if (ContainerSpec.HasValidTargets() && ContainerSpec.HasValidEffects())
 	{

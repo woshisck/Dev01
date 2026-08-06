@@ -15,7 +15,7 @@ class UWeaponSkillAbilityMontageData;
  * 每种战技对应一个独立 C++ GA 类；此 DA 负责选择实现类，并提供该战技独立的
  * 动作数据和显示信息。
  */
-UCLASS(BlueprintType, Blueprintable, Const, DisplayName = "武器战技数据")
+UCLASS(BlueprintType, Blueprintable, Const)
 class DEVKIT_API UWeaponSkillDataAsset : public UPrimaryDataAsset
 {
 	GENERATED_BODY()
@@ -52,21 +52,21 @@ public:
 };
 
 /** 双手剑多段连击战技的专属 C++ 数据类型。 */
-UCLASS(BlueprintType, DisplayName = "双手剑连段战技数据")
+UCLASS(BlueprintType)
 class DEVKIT_API UWeaponSkill_THSwordComboDataAsset : public UWeaponSkillDataAsset
 {
 	GENERATED_BODY()
 };
 
 /** 格挡战技专属字段的数据类型。 */
-UCLASS(BlueprintType, DisplayName = "格挡战技数据")
+UCLASS(BlueprintType)
 class DEVKIT_API UWeaponSkill_BlockDataAsset : public UWeaponSkillDataAsset
 {
 	GENERATED_BODY()
 };
 
 /** 突刺战技专属字段的数据类型。 */
-UCLASS(BlueprintType, DisplayName = "突刺战技数据")
+UCLASS(BlueprintType)
 class DEVKIT_API UWeaponSkill_ThrustDataAsset : public UWeaponSkillDataAsset
 {
 	GENERATED_BODY()

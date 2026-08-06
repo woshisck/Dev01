@@ -8,7 +8,7 @@
 /**
  * Directed transition between two story encounter graph nodes.
  */
-UCLASS(BlueprintType, meta = (DisplayName = "剧情点连线"))
+UCLASS(BlueprintType)
 class DEVKIT_API UStoryEncounterGraphEdge : public UGenericGraphEdge
 {
 	GENERATED_BODY()

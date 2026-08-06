@@ -12,7 +12,7 @@ class UStoryEncounterPointDA;
  *
  * The node is intentionally thin: designers bind a StoryEncounterPoint DA here, and that DA is what level triggers run.
  */
-UCLASS(BlueprintType, meta = (DisplayName = "剧情点节点"))
+UCLASS(BlueprintType)
 class DEVKIT_API UStoryEncounterGraphNode : public UGenericGraphNode
 {
 	GENERATED_BODY()

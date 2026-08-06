@@ -33,6 +33,7 @@ This file applies to the whole repository.
 - For combo work, inspect `ComboRuntimeComponent`, `GameplayAbilityComboGraph`, and weapon combo graph assets/config references.
 - For weapon work, inspect `WeaponDefinition`, `WeaponInstance`, weapon-granted abilities, and current equipped weapon state.
 - For combat-card/rune work, inspect `CombatDeckComponent`, `RuneDataAsset`, BuffFlow assets, and related gameplay tags.
+- For dialogue/cutscene holds, use Conversation Mode: `AYogPlayerControllerBase::EnterConversationMode()` / `ExitConversationMode()` (BlueprintCallable). It blocks player input via `SetBlockGameInput` and pauses each enemy AI brain via `AYogAIController::SetConversationHold()` (`StopMovement` + `BrainComponent->PauseLogic`); the world, animations, and VFX keep running. Re-entry / double-exit are no-ops.
 
 ## Verification
 

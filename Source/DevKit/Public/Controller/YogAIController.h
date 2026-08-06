@@ -102,6 +102,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "AI|State")
 	EEnemyAIState GetEnemyAIState() const;
 
+	// World-time (seconds) when this controller last transitioned into Combat from a
+	// non-Combat state. Returns -FLT_MAX while never-in-combat. Drives the StateTree
+	// time-in-combat phase gate; re-aggro while already fighting does not reset it.
+	float GetCombatStartTime() const { return CombatStartTime; }
+
 	UFUNCTION(BlueprintCallable, Category = "AI|State")
 	void EnterCombat(AActor* TargetActor, bool bBroadcastAlert = true);
 
@@ -110,6 +115,12 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "AI|State")
 	void BroadcastAlert(AActor* TargetActor, FVector AlertLocation) const;
+
+	// Conversation hold: pause/resume the active brain (StateTree or BT) so no new
+	// attack or move decisions fire, and stop in-flight pathing. Animations and VFX
+	// keep playing because the mesh ticks independently of the AI brain. Driven by
+	// the player controller's conversation-mode wrapper.
+	void SetConversationHold(bool bHold);
 
 	bool UpdateAwarenessBlackboard(
 		UBlackboardComponent* InBlackboard,
@@ -163,4 +174,5 @@ private:
 	FName LastSelectedAttackKey = NAME_None;
 	float LastSelectedAttackTime = -FLT_MAX;
 	bool bCombatAttackInProgress = false;
+	float CombatStartTime = -FLT_MAX;
 };

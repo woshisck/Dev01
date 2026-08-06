@@ -1,5 +1,6 @@
 #include "AI/StateTree/YogStateTreeTask_EnemyAttackByProfile.h"
 
+#include "AI/StateTree/YogStateTreeShared.h"
 #include "AIController.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemInterface.h"
@@ -58,21 +59,7 @@ namespace
 
 	float StateTreeResolveHealthPercent(const UAbilitySystemComponent* ASC)
 	{
-		if (!ASC
-			|| !ASC->HasAttributeSetForAttribute(UBaseAttributeSet::GetHealthAttribute())
-			|| !ASC->HasAttributeSetForAttribute(UBaseAttributeSet::GetMaxHealthAttribute()))
-		{
-			return 1.0f;
-		}
-
-		const float MaxHealth = ASC->GetNumericAttribute(UBaseAttributeSet::GetMaxHealthAttribute());
-		if (MaxHealth <= KINDA_SMALL_NUMBER)
-		{
-			return 1.0f;
-		}
-
-		const float Health = ASC->GetNumericAttribute(UBaseAttributeSet::GetHealthAttribute());
-		return FMath::Clamp(Health / MaxHealth, 0.0f, 1.0f);
+		return YogStateTree::ResolveHealthPercent(ASC);
 	}
 }
 

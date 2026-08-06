@@ -5,7 +5,7 @@
 #include "GA_WeaponSkillTypes.generated.h"
 
 /** 双手剑多段连击战技。 */
-UCLASS(BlueprintType, Blueprintable, DisplayName = "双手剑连段 GA")
+UCLASS(BlueprintType, Blueprintable)
 class DEVKIT_API UGA_WeaponSkill_THSwordCombo : public UGA_WeaponSkill
 {
 	GENERATED_BODY()
@@ -38,7 +38,7 @@ private:
 };
 
 /** 按住/松开式格挡战技；格挡独有的 C++ 效果在此扩展。 */
-UCLASS(BlueprintType, Blueprintable, DisplayName = "格挡 GA")
+UCLASS(BlueprintType, Blueprintable)
 class DEVKIT_API UGA_WeaponSkill_Block : public UGA_WeaponSkill
 {
 	GENERATED_BODY()
@@ -48,7 +48,7 @@ public:
 };
 
 /** 单段突刺战技；突刺独有的 C++ 效果在此扩展。 */
-UCLASS(BlueprintType, Blueprintable, DisplayName = "突刺 GA")
+UCLASS(BlueprintType, Blueprintable)
 class DEVKIT_API UGA_WeaponSkill_Thrust : public UGA_WeaponSkill
 {
 	GENERATED_BODY()

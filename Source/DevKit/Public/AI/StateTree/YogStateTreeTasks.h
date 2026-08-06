@@ -1,13 +1,20 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "AITypes.h"
 #include "Tasks/StateTreeAITask.h"
 #include "GameplayTagContainer.h"
+#include "GameplayEffectTypes.h"
+#include "Templates/SubclassOf.h"
 #include "YogStateTreeTasks.generated.h"
 
 class AAIController;
 class UAbilitySystemComponent;
 class AYogCharacterBase;
+class UGameplayEffect;
+class USkeletalMesh;
+class UMaterialInterface;
+class UStoryEncounterPointDA;
 
 // ─── Activate Ability By Tag ────────────────────────────────────────────────
 // Mirrors UBTTask_ActivateAbilityByTag. Filters the requested tags down to the
@@ -138,4 +145,133 @@ struct DEVKIT_API FStateTreeTask_EnemyPatrolWait : public FStateTreeAIActionTask
 	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
 	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
 	virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) const override;
+};
+
+// ─── Enter Boss Phase ───────────────────────────────────────────────────────
+// One-shot state-enter task for a boss phase: applies a phase GameplayEffect
+// (attribute changes) to self, and optionally swaps the look (mesh / material
+// override) and fires a gameplay cue for a VFX burst. Succeeds immediately so a
+// sibling attack task on the same state drives the actual combat. Set
+// bRemoveEffectOnExit only for transient phases; phase changes are usually one-way.
+
+USTRUCT()
+struct FStateTreeTask_EnterBossPhaseInstanceData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = Context)
+	TObjectPtr<AAIController> AIController = nullptr;
+
+	/** Attribute changes for this phase (e.g. +AttackPower, +MoveSpeed). */
+	UPROPERTY(EditAnywhere, Category = Parameter)
+	TSubclassOf<UGameplayEffect> PhaseEffect;
+
+	UPROPERTY(EditAnywhere, Category = Parameter)
+	float PhaseEffectLevel = 1.f;
+
+	/** Optional: swap the pawn's skeletal mesh for the phase look change. */
+	UPROPERTY(EditAnywhere, Category = Parameter)
+	TObjectPtr<USkeletalMesh> PhaseMesh = nullptr;
+
+	/** Optional: override material slot 0 for the phase look change. */
+	UPROPERTY(EditAnywhere, Category = Parameter)
+	TObjectPtr<UMaterialInterface> PhaseMaterialOverride = nullptr;
+
+	/** Optional: gameplay cue executed on enter for a one-shot transformation VFX. */
+	UPROPERTY(EditAnywhere, Category = Parameter)
+	FGameplayTag PhaseVfxCueTag;
+
+	UPROPERTY(EditAnywhere, Category = Parameter)
+	bool bRemoveEffectOnExit = false;
+
+	// Runtime state (not reflected; persists for the active state's lifetime).
+	FActiveGameplayEffectHandle AppliedEffectHandle;
+	TWeakObjectPtr<UAbilitySystemComponent> AppliedASC;
+};
+
+USTRUCT(meta = (DisplayName = "Enter Boss Phase", Category = "Yog|AI"))
+struct DEVKIT_API FStateTreeTask_EnterBossPhase : public FStateTreeAIActionTaskBase
+{
+	GENERATED_BODY()
+
+	using FInstanceDataType = FStateTreeTask_EnterBossPhaseInstanceData;
+
+	FStateTreeTask_EnterBossPhase();
+
+	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
+	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
+	virtual void ExitState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
+};
+
+// ─── Boss Dying Reaction ────────────────────────────────────────────────────
+// Fires an authored Story Encounter point (dialogue / info-hint) through the
+// runtime subsystem, then succeeds immediately. Branch between different reactions
+// at the graph level using the Player Health % Below condition on sibling states.
+
+USTRUCT()
+struct FStateTreeTask_BossDyingReactionInstanceData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = Context)
+	TObjectPtr<AAIController> AIController = nullptr;
+
+	/** Encounter point whose actions (e.g. Dialogue) play when this state is entered. */
+	UPROPERTY(EditAnywhere, Category = Parameter)
+	TObjectPtr<UStoryEncounterPointDA> EncounterPoint = nullptr;
+};
+
+USTRUCT(meta = (DisplayName = "Boss Dying Reaction", Category = "Yog|AI"))
+struct DEVKIT_API FStateTreeTask_BossDyingReaction : public FStateTreeAIActionTaskBase
+{
+	GENERATED_BODY()
+
+	using FInstanceDataType = FStateTreeTask_BossDyingReactionInstanceData;
+
+	FStateTreeTask_BossDyingReaction();
+
+	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
+	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
+};
+
+// ─── Move To Controller Target ──────────────────────────────────────────────
+// Issues a nav MoveTo toward a location read from the controller's blackboard
+// (DestinationKey). Mirrors the BT "Move To" for patrol / alert without needing
+// StateTree property bindings: the destination is sourced from the controller,
+// consistent with the other Yog StateTree tasks. Stays Running until the move
+// request finishes, so it can run in parallel with the wait task on a state.
+
+USTRUCT()
+struct FStateTreeTask_MoveToControllerTargetInstanceData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = Context)
+	TObjectPtr<AAIController> AIController = nullptr;
+
+	/** Blackboard vector key holding the destination (e.g. PatrolTargetLocation, LastKnownTargetLocation). */
+	UPROPERTY(EditAnywhere, Category = Parameter)
+	FName DestinationKey = TEXT("MoveTargetLocation");
+
+	UPROPERTY(EditAnywhere, Category = Parameter)
+	float AcceptanceRadius = 50.f;
+
+	// Runtime state (not reflected; persists for the active state's lifetime).
+	FAIRequestID MoveRequestID;
+	TWeakObjectPtr<AAIController> BoundController;
+	FDelegateHandle RequestFinishedHandle;
+};
+
+USTRUCT(meta = (DisplayName = "Move To Controller Target", Category = "Yog|AI"))
+struct DEVKIT_API FStateTreeTask_MoveToControllerTarget : public FStateTreeAIActionTaskBase
+{
+	GENERATED_BODY()
+
+	using FInstanceDataType = FStateTreeTask_MoveToControllerTargetInstanceData;
+
+	FStateTreeTask_MoveToControllerTarget();
+
+	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
+	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
+	virtual void ExitState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
 };

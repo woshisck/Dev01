@@ -8,7 +8,7 @@
  * 武器展示信息 DA。
  * 配置在 WeaponDefinition.WeaponInfo 中，用于武器名称、说明、缩略图和激活区显示。
  */
-UCLASS(BlueprintType, DisplayName = "武器显示信息")
+UCLASS(BlueprintType)
 class DEVKIT_API UWeaponInfoDA : public UDataAsset
 {
 	GENERATED_BODY()

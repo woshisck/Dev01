@@ -11,7 +11,7 @@ class UStoryEncounterGraphNode;
  *
  * Designers use the GenericGraph editor to connect nodes, and each graph node can bind a StoryEncounterPoint DA.
  */
-UCLASS(BlueprintType, meta = (DisplayName = "剧情教学流程图"))
+UCLASS(BlueprintType)
 class DEVKIT_API UStoryEncounterGraph : public UGenericGraph
 {
 	GENERATED_BODY()

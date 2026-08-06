@@ -4,15 +4,21 @@
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemInterface.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
+#include "BehaviorTree/BlackboardComponent.h"
 #include "Character/EnemyCharacterBase.h"
 #include "Character/YogCharacterBase.h"
 #include "Component/CharacterDataComponent.h"
 #include "Data/AbilityData.h"
 #include "Data/CharacterData.h"
 #include "Data/EnemyData.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Engine/GameInstance.h"
 #include "NavigationSystem.h"
+#include "Navigation/PathFollowingComponent.h"
 #include "StateTreeAsyncExecutionContext.h"
 #include "StateTreeExecutionContext.h"
+#include "Story/Encounter/StoryEncounterPointDataAsset.h"
+#include "Story/Encounter/StoryEncounterRuntimeSubsystem.h"
 
 // ─── Activate Ability By Tag ────────────────────────────────────────────────
 
@@ -135,6 +141,107 @@ void FStateTreeTask_ActivateAbilityByTag::ExitState(
 	}
 }
 
+// ─── Enter Boss Phase ───────────────────────────────────────────────────────
+
+FStateTreeTask_EnterBossPhase::FStateTreeTask_EnterBossPhase()
+{
+	bShouldCallTick = false;
+}
+
+EStateTreeRunStatus FStateTreeTask_EnterBossPhase::EnterState(
+	FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& /*Transition*/) const
+{
+	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+
+	APawn* Pawn = InstanceData.AIController ? InstanceData.AIController->GetPawn() : nullptr;
+	if (!Pawn)
+	{
+		return EStateTreeRunStatus::Failed;
+	}
+
+	IAbilitySystemInterface* ASCInterface = Cast<IAbilitySystemInterface>(Pawn);
+	UAbilitySystemComponent* ASC = ASCInterface ? ASCInterface->GetAbilitySystemComponent() : nullptr;
+
+	if (ASC && InstanceData.PhaseEffect)
+	{
+		FGameplayEffectContextHandle EffectContext = ASC->MakeEffectContext();
+		EffectContext.AddSourceObject(Pawn);
+		const FGameplayEffectSpecHandle Spec = ASC->MakeOutgoingSpec(InstanceData.PhaseEffect, InstanceData.PhaseEffectLevel, EffectContext);
+		if (Spec.IsValid())
+		{
+			InstanceData.AppliedEffectHandle = ASC->ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
+			InstanceData.AppliedASC = ASC;
+		}
+	}
+
+	// Look change: swap mesh / material on the pawn's skeletal mesh component.
+	if (const AYogCharacterBase* Character = Cast<AYogCharacterBase>(Pawn))
+	{
+		if (USkeletalMeshComponent* MeshComp = Character->GetMesh())
+		{
+			if (InstanceData.PhaseMesh)
+			{
+				MeshComp->SetSkeletalMeshAsset(InstanceData.PhaseMesh);
+			}
+			if (InstanceData.PhaseMaterialOverride)
+			{
+				MeshComp->SetMaterial(0, InstanceData.PhaseMaterialOverride);
+			}
+		}
+	}
+
+	if (ASC && InstanceData.PhaseVfxCueTag.IsValid())
+	{
+		ASC->ExecuteGameplayCue(InstanceData.PhaseVfxCueTag);
+	}
+
+	// One-shot: the sibling attack task on this state drives ongoing combat.
+	return EStateTreeRunStatus::Succeeded;
+}
+
+void FStateTreeTask_EnterBossPhase::ExitState(
+	FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& /*Transition*/) const
+{
+	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+
+	if (InstanceData.bRemoveEffectOnExit
+		&& InstanceData.AppliedASC.IsValid()
+		&& InstanceData.AppliedEffectHandle.IsValid())
+	{
+		InstanceData.AppliedASC->RemoveActiveGameplayEffect(InstanceData.AppliedEffectHandle);
+	}
+	InstanceData.AppliedEffectHandle.Invalidate();
+	InstanceData.AppliedASC.Reset();
+}
+
+// ─── Boss Dying Reaction ────────────────────────────────────────────────────
+
+FStateTreeTask_BossDyingReaction::FStateTreeTask_BossDyingReaction()
+{
+	bShouldCallTick = false;
+}
+
+EStateTreeRunStatus FStateTreeTask_BossDyingReaction::EnterState(
+	FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& /*Transition*/) const
+{
+	const FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+
+	APawn* Pawn = InstanceData.AIController ? InstanceData.AIController->GetPawn() : nullptr;
+	if (!Pawn || !InstanceData.EncounterPoint)
+	{
+		return EStateTreeRunStatus::Failed;
+	}
+
+	const UGameInstance* GameInstance = Pawn->GetGameInstance();
+	UStoryEncounterRuntimeSubsystem* Story = GameInstance ? GameInstance->GetSubsystem<UStoryEncounterRuntimeSubsystem>() : nullptr;
+	if (Story)
+	{
+		Story->TriggerEncounterPoint(InstanceData.EncounterPoint, Pawn);
+	}
+
+	return EStateTreeRunStatus::Succeeded;
+}
+
 // ─── Play Dead ──────────────────────────────────────────────────────────────
 
 FStateTreeTask_PlayDead::FStateTreeTask_PlayDead()
@@ -197,6 +304,14 @@ EStateTreeRunStatus FStateTreeTask_UpdateEnemyPatrolTarget::EnterState(
 	}
 
 	InstanceData.PatrolTargetLocation = PatrolTarget;
+
+	// Mirror the point onto the blackboard so a Move To Controller Target task
+	// (which has no property binding) can read it back as its destination.
+	if (UBlackboardComponent* Blackboard = InstanceData.AIController ? InstanceData.AIController->GetBlackboardComponent() : nullptr)
+	{
+		Blackboard->SetValueAsVector(TEXT("PatrolTargetLocation"), PatrolTarget);
+	}
+
 	return EStateTreeRunStatus::Succeeded;
 }
 
@@ -231,4 +346,82 @@ EStateTreeRunStatus FStateTreeTask_EnemyPatrolWait::Tick(
 	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
 	InstanceData.RemainingTime -= DeltaTime;
 	return InstanceData.RemainingTime <= 0.0f ? EStateTreeRunStatus::Succeeded : EStateTreeRunStatus::Running;
+}
+
+// ─── Move To Controller Target ──────────────────────────────────────────────
+
+FStateTreeTask_MoveToControllerTarget::FStateTreeTask_MoveToControllerTarget()
+{
+	// Completion is delegate-driven off the path-following request; no tick needed.
+	bShouldCallTick = false;
+}
+
+EStateTreeRunStatus FStateTreeTask_MoveToControllerTarget::EnterState(
+	FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& /*Transition*/) const
+{
+	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+
+	AAIController* AIController = InstanceData.AIController;
+	if (!AIController)
+	{
+		return EStateTreeRunStatus::Failed;
+	}
+
+	const UBlackboardComponent* Blackboard = AIController->GetBlackboardComponent();
+	if (!Blackboard || InstanceData.DestinationKey.IsNone())
+	{
+		return EStateTreeRunStatus::Failed;
+	}
+
+	FAIMoveRequest MoveRequest;
+	MoveRequest.SetGoalLocation(Blackboard->GetValueAsVector(InstanceData.DestinationKey));
+	MoveRequest.SetAcceptanceRadius(InstanceData.AcceptanceRadius);
+	MoveRequest.SetUsePathfinding(true);
+	MoveRequest.SetAllowPartialPath(true);
+	MoveRequest.SetCanStrafe(true);
+
+	const FPathFollowingRequestResult RequestResult = AIController->MoveTo(MoveRequest);
+	if (RequestResult.Code == EPathFollowingRequestResult::AlreadyAtGoal)
+	{
+		return EStateTreeRunStatus::Succeeded;
+	}
+	if (RequestResult.Code == EPathFollowingRequestResult::Failed)
+	{
+		return EStateTreeRunStatus::Failed;
+	}
+
+	InstanceData.MoveRequestID = RequestResult.MoveId;
+	InstanceData.BoundController = AIController;
+	if (UPathFollowingComponent* PathFollowing = AIController->GetPathFollowingComponent())
+	{
+		InstanceData.RequestFinishedHandle = PathFollowing->OnRequestFinished.AddLambda(
+			[WeakContext = Context.MakeWeakExecutionContext(), RequestID = RequestResult.MoveId](FAIRequestID FinishedID, const FPathFollowingResult& /*Result*/)
+			{
+				if (FinishedID == RequestID)
+				{
+					// Patrol / alert do not distinguish arrival from abort; either way the
+					// state proceeds (loops or re-selects) once the move settles.
+					WeakContext.FinishTask(EStateTreeFinishTaskType::Succeeded);
+				}
+			});
+	}
+
+	return EStateTreeRunStatus::Running;
+}
+
+void FStateTreeTask_MoveToControllerTarget::ExitState(
+	FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& /*Transition*/) const
+{
+	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+
+	if (InstanceData.BoundController.IsValid() && InstanceData.RequestFinishedHandle.IsValid())
+	{
+		if (UPathFollowingComponent* PathFollowing = InstanceData.BoundController->GetPathFollowingComponent())
+		{
+			PathFollowing->OnRequestFinished.Remove(InstanceData.RequestFinishedHandle);
+		}
+	}
+	InstanceData.RequestFinishedHandle.Reset();
+	InstanceData.BoundController.Reset();
+	InstanceData.MoveRequestID = FAIRequestID::InvalidRequest;
 }

@@ -6,6 +6,7 @@
 #include "BehaviorTree/BehaviorTree.h"
 #include "BehaviorTree/BlackboardData.h"
 #include "BehaviorTree/BlackboardComponent.h"
+#include "BehaviorTree/BrainComponent.h"
 #include "Character/EnemyCharacterBase.h"
 #include "Component/CharacterDataComponent.h"
 #include "Component/CombatItemComponent.h"
@@ -388,6 +389,13 @@ void AYogAIController::EnterCombat(AActor* TargetActor, bool bBroadcastAlert)
 	BB->SetValueAsFloat(TEXT("LastSeenTargetTime"), CurrentTime);
 	BB->SetValueAsFloat(TEXT("AlertExpireTime"), 0.0f);
 
+	// Stamp the combat entry time only on the non-Combat -> Combat edge so the
+	// time-in-combat phase gate measures sustained combat, not each re-aggro.
+	if (PreviousState != EEnemyAIState::Combat)
+	{
+		CombatStartTime = CurrentTime;
+	}
+
 	if (bBroadcastAlert)
 	{
 		BroadcastAlert(TargetActor, TargetLocation);
@@ -478,6 +486,22 @@ void AYogAIController::BroadcastAlert(AActor* TargetActor, FVector AlertLocation
 		}
 
 		NearbyAI->EnterAlert(TargetActor, AlertLocation, false);
+	}
+}
+
+void AYogAIController::SetConversationHold(bool bHold)
+{
+	if (bHold)
+	{
+		StopMovement();
+		if (BrainComponent)
+		{
+			BrainComponent->PauseLogic(TEXT("Conversation"));
+		}
+	}
+	else if (BrainComponent)
+	{
+		BrainComponent->ResumeLogic(TEXT("Conversation"));
 	}
 }
 

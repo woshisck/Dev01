@@ -194,6 +194,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "UI")
 	void SetBlockGameInput(bool bBlock, bool bUIOnly = false);
 
+	// ── Conversation mode ──────────────────────────────────────────────
+	// Soft cinematic hold for NPC/enemy dialogue. Enter blocks the player's
+	// move/attack/dash input and pauses every enemy AI brain (no new attacks
+	// or movement) while leaving the world, animations and VFX running; Exit
+	// restores both. Composes SetBlockGameInput + per-AI SetConversationHold.
+	// Safe to call repeatedly — re-entry / double-exit is a no-op.
+	UFUNCTION(BlueprintCallable, Category = "Conversation")
+	void EnterConversationMode();
+
+	UFUNCTION(BlueprintCallable, Category = "Conversation")
+	void ExitConversationMode();
+
 	void SetGameplayCursorControlActive(bool bActive);
 	void ApplyGameplayInputModeForCurrentInputType();
 
@@ -219,6 +231,7 @@ private:
 #endif
 
 	bool bBlockGameInput = false;
+	bool bConversationModeActive = false;
 	bool bGameplayCursorControlActive = false;
 	bool bGameplayCursorUsesMouse = true;
 #if !UE_BUILD_SHIPPING

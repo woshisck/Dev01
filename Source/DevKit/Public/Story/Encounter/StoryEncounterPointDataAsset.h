@@ -10,7 +10,7 @@
  *
  * This is the asset level designers place on triggers, and graph nodes bind to it for visual flow authoring.
  */
-UCLASS(BlueprintType, meta = (DisplayName = "剧情教学点"))
+UCLASS(BlueprintType)
 class DEVKIT_API UStoryEncounterPointDA : public UDataAsset
 {
 	GENERATED_BODY()

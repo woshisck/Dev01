@@ -39,6 +39,9 @@
 #include "Misc/Parse.h"
 #include "GameplayTagContainer.h"
 
+#include "Controller/YogAIController.h"
+#include "EngineUtils.h"
+
 #include "Component/BufferComponent.h"
 #include "Component/CombatDeckComponent.h"
 #include "Component/CombatItemComponent.h"
@@ -857,6 +860,57 @@ void AYogPlayerControllerBase::SetBlockGameInput(bool bBlock, bool bUIOnly)
 	else
 	{
 		SetGameplayCursorControlActive(true);
+	}
+}
+
+void AYogPlayerControllerBase::EnterConversationMode()
+{
+	if (bConversationModeActive)
+	{
+		return;
+	}
+	bConversationModeActive = true;
+
+	// Player side: block move/attack/dash/etc. without hard-pausing the world.
+	SetBlockGameInput(true);
+
+	// Enemy side: pause each AI brain so no new attack/move decisions fire and
+	// in-flight pathing stops. Meshes keep ticking, so anims and VFX play on.
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+	for (TActorIterator<AYogAIController> It(World); It; ++It)
+	{
+		if (AYogAIController* AIController = *It)
+		{
+			AIController->SetConversationHold(true);
+		}
+	}
+}
+
+void AYogPlayerControllerBase::ExitConversationMode()
+{
+	if (!bConversationModeActive)
+	{
+		return;
+	}
+	bConversationModeActive = false;
+
+	SetBlockGameInput(false);
+
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+	for (TActorIterator<AYogAIController> It(World); It; ++It)
+	{
+		if (AYogAIController* AIController = *It)
+		{
+			AIController->SetConversationHold(false);
+		}
 	}
 }
 
