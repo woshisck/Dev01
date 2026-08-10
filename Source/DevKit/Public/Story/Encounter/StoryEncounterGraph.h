@@ -19,15 +19,15 @@ class DEVKIT_API UStoryEncounterGraph : public UGenericGraph
 public:
 	UStoryEncounterGraph();
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "剧情流程图")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Story Graph")
 	FName EncounterId;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "剧情流程图")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Story Graph")
 	FText DisplayName;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "剧情流程图", meta = (MultiLine = true))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Story Graph", meta = (MultiLine = true))
 	FText Description;
 
-	UFUNCTION(BlueprintPure, Category = "剧情流程图")
+	UFUNCTION(BlueprintPure, Category = "Story Graph")
 	UStoryEncounterGraphNode* FindNodeByStoryNodeId(FName NodeId) const;
 };

@@ -11,13 +11,13 @@ class DEVKIT_API UStoryEncounterMap : public UDataAsset
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "剧情流程")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Story Flow")
 	FName EncounterId;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "剧情流程")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Story Flow")
 	FText DisplayName;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "剧情流程")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Story Flow")
 	TArray<FStoryEncounterNode> Nodes;
 
 	const FStoryEncounterNode* FindNode(FName NodeId) const;

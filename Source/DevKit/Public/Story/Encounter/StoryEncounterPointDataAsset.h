@@ -16,45 +16,45 @@ class DEVKIT_API UStoryEncounterPointDA : public UDataAsset
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "剧情点")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Story Point")
 	FName EncounterId;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "剧情点")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Story Point")
 	FName NodeId;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "剧情点")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Story Point")
 	FText DisplayName;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "剧情点")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Story Point")
 	EStoryEncounterNodeKind Kind = EStoryEncounterNodeKind::Area;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "剧情点", meta = (MultiLine = true))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Story Point", meta = (MultiLine = true))
 	FText PlayerFacingEvent;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "剧情点")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Story Point")
 	EStoryEncounterFirePolicy FirePolicy = EStoryEncounterFirePolicy::Once;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "触发条件")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Trigger Conditions")
 	FStoryEncounterCondition Condition;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "触发结果")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Trigger Results")
 	TArray<FStoryEncounterAction> Actions;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "节点 Flow")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Node Flow")
 	TObjectPtr<UStoryFlowAsset> NodeEventFlow = nullptr;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "关卡放置")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Level Placement")
 	FName PlacementLevel;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "关卡放置")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Level Placement")
 	FName PlacementName;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "编辑器")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Editor")
 	FVector2D EditorPosition = FVector2D::ZeroVector;
 
-	UFUNCTION(BlueprintPure, Category = "剧情点")
+	UFUNCTION(BlueprintPure, Category = "Story Point")
 	FName GetStableNodeId() const;
 
-	UFUNCTION(BlueprintPure, Category = "剧情点")
+	UFUNCTION(BlueprintPure, Category = "Story Point")
 	FStoryEncounterNode ToEncounterNode() const;
 };

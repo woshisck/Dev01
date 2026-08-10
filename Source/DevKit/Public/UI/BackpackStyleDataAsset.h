@@ -54,25 +54,25 @@ public:
     // 格子颜色（无纹理时使用）
     // =========================================================
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "格子颜色")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Grid Colors")
     FLinearColor EmptyColor = FLinearColor(0.09f, 0.09f, 0.105f, 0.82f);
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "格子颜色")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Grid Colors")
     FLinearColor EmptyActiveColor = FLinearColor(0.46f, 0.54f, 0.62f, 0.92f);
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "格子颜色")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Grid Colors")
     FLinearColor OccupiedActiveColor = FLinearColor(0.74f, 0.80f, 0.84f, 1.f);
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "格子颜色")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Grid Colors")
     FLinearColor OccupiedInactiveColor = FLinearColor(0.20f, 0.18f, 0.19f, 0.96f);
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "格子颜色")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Grid Colors")
     FLinearColor SelectedColor = FLinearColor(0.84f, 0.88f, 0.92f, 1.f);
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "格子颜色")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Grid Colors")
     FLinearColor HoverColor = FLinearColor(0.62f, 0.70f, 0.74f, 1.f);
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "格子颜色")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Grid Colors")
     FLinearColor GrabbedSourceColor = FLinearColor(0.34f, 0.035f, 0.045f, 1.f);
 
     // =========================================================
@@ -80,35 +80,35 @@ public:
     // =========================================================
 
     /** 普通空格底图 */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "格子纹理")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Grid Textures")
     TObjectPtr<UTexture2D> CellEmptyTexture;
 
     /** 激活区空格底图 */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "格子纹理")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Grid Textures")
     TObjectPtr<UTexture2D> CellActiveTexture;
 
     /** 激活区有符文底图 */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "格子纹理")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Grid Textures")
     TObjectPtr<UTexture2D> CellOccupiedActiveTexture;
 
     /** 非激活区有符文底图 */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "格子纹理")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Grid Textures")
     TObjectPtr<UTexture2D> CellOccupiedInactiveTexture;
 
     /** 选中状态底图 */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "格子纹理")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Grid Textures")
     TObjectPtr<UTexture2D> CellSelectedTexture;
 
     /** 拖拽悬浮目标格底图 */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "格子纹理")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Grid Textures")
     TObjectPtr<UTexture2D> CellHoverTexture;
 
     /** 被抓起的源格底图 */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "格子纹理")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Grid Textures")
     TObjectPtr<UTexture2D> CellGrabbedSourceTexture;
 
     /** 多格符文的非主格通用图标（留空则不显示图标） */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "格子纹理")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Grid Textures")
     TObjectPtr<UTexture2D> CellMultipartIcon;
 
     // =========================================================
@@ -120,11 +120,11 @@ public:
      * 在 Material Editor 里用 Time 节点驱动动画，无需 C++ Tick。
      * 留空时不显示特效层。
      */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "激活区特效")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Active Zone FX")
     TObjectPtr<UMaterialInterface> ActiveZoneAnimMaterial;
 
     /** 激活区特效层透明度（0=不显示，1=完全不透明） */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "激活区特效",
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Active Zone FX",
               meta = (ClampMin = "0.0", ClampMax = "1.0"))
     float ActiveZoneOverlayOpacity = 0.6f;
 
@@ -133,12 +133,12 @@ public:
      * 热度检视模式下当前阶段以外的区域使用此值；
      * 未开启检视时，所有无符文格子也使用此值。
      */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "激活区特效",
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Active Zone FX",
               meta = (ClampMin = "0.0", ClampMax = "1.0"))
     float InactiveZoneOpacity = 0.35f;
 
     /** 热度预览时激活区空格子的 dim glow 透明度（0=无，1=全亮）*/
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "激活区特效",
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Active Zone FX",
               meta = (ClampMin = "0.0", ClampMax = "1.0"))
     float ZoneGlowOpacity = 0.20f;
 
@@ -147,13 +147,13 @@ public:
     // =========================================================
 
     // Phase 1=冷白/淡蓝  Phase 2=暖橙  Phase 3=金色
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "热度阶段颜色")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Heat Phase Colors")
     FLinearColor HeatZone0Color = FLinearColor(0.68f, 0.74f, 0.80f, 1.f);  // Phase1 moonlit silver
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "热度阶段颜色")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Heat Phase Colors")
     FLinearColor HeatZone1Color = FLinearColor(0.46f, 0.12f, 0.13f, 1.f);  // Phase2 oxblood
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "热度阶段颜色")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Heat Phase Colors")
     FLinearColor HeatZone2Color = FLinearColor(0.84f, 0.80f, 0.68f, 1.f);  // Phase3 pale metal
 
     // =========================================================
@@ -161,42 +161,42 @@ public:
     // 与上方背包格子颜色保持同色相，数值可 >1 以增强发光强度
     // =========================================================
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "热度升阶发光颜色")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Heat Upgrade Glow Colors")
     FLinearColor Phase1GlowColor = FLinearColor(0.9f, 1.0f, 1.8f);   // 冷白/淡蓝（对应 HeatZone0）
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "热度升阶发光颜色")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Heat Upgrade Glow Colors")
     FLinearColor Phase2GlowColor = FLinearColor(2.5f, 1.0f, 0.08f);  // 暖橙（对应 HeatZone1）
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "热度升阶发光颜色")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Heat Upgrade Glow Colors")
     FLinearColor Phase3GlowColor = FLinearColor(5.5f, 4.0f, 0.3f);   // 金色（对应 HeatZone2）
 
     // =========================================================
     // 待放置区颜色
     // =========================================================
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "待放置区颜色")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Pending Zone Colors")
     FLinearColor PendingHasRuneColor = FLinearColor(0.18f, 0.045f, 0.055f, 0.96f);
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "待放置区颜色")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Pending Zone Colors")
     FLinearColor PendingEmptyColor = FLinearColor(0.08f, 0.08f, 0.095f, 0.82f);
 
     // =========================================================
     // 格子尺寸
     // =========================================================
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "格子尺寸",
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Grid Size",
               meta = (ClampMin = "32", ClampMax = "128"))
     float CellSize = 64.f;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "格子尺寸",
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Grid Size",
               meta = (ClampMin = "0", ClampMax = "16"))
     float CellPadding = 2.f;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "格子尺寸",
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Grid Size",
               meta = (ClampMin = "0", ClampMax = "20"))
     float CellCornerRadius = 3.f;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "格子尺寸",
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Grid Size",
               meta = (ClampMin = "0", ClampMax = "24"))
     float IconPadding = 6.f;
 };

@@ -19,16 +19,16 @@ class DEVKIT_API AStoryEncounterTrigger : public AActor
 public:
 	AStoryEncounterTrigger();
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "剧情触发")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Story Trigger")
 	TObjectPtr<UStoryEncounterPointDA> EncounterPoint = nullptr;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "剧情触发")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Story Trigger")
 	TObjectPtr<UStoryEncounterMap> EncounterMap = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Story Encounter")
 	TObjectPtr<UStoryEncounterGraph> EncounterGraph = nullptr;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "剧情触发")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Story Trigger")
 	FName NodeId;
 
 	FSimpleMulticastDelegate OnPlayerExited;
@@ -37,10 +37,10 @@ public:
 	bool RunLevelFlow(ULevelFlowAsset* FlowAsset, bool bStopExistingFlow = true);
 
 protected:
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "剧情触发")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Story Trigger")
 	TObjectPtr<UBoxComponent> TriggerVolume = nullptr;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "剧情触发")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Story Trigger")
 	TObjectPtr<UFlowComponent> LevelFlowComp = nullptr;
 
 	UFUNCTION()
@@ -54,6 +54,6 @@ protected:
 	bool ShouldBlockRepeatTrigger() const;
 
 private:
-	UPROPERTY(VisibleAnywhere, Category = "剧情触发|Debug")
+	UPROPERTY(VisibleAnywhere, Category = "Story Trigger|Debug")
 	bool bTriggered = false;
 };

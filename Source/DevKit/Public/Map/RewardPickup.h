@@ -112,19 +112,19 @@ protected:
 	TObjectPtr<UBoxComponent> CollisionVolume;
 
 	// 符文奖励浮窗 WidgetComponent（Screen Space）
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "浮窗")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Floating Panel")
 	TObjectPtr<UWidgetComponent> RuneInfoWidgetComp;
 
 	// 在 BP_RewardPickup 里指定浮窗 WBP 类
-	UPROPERTY(EditDefaultsOnly, Category = "浮窗")
+	UPROPERTY(EditDefaultsOnly, Category = "Floating Panel")
 	TSubclassOf<URuneRewardFloatWidget> RuneFloatWidgetClass;
 
 	// 浮窗侧向偏移（摄像机 Right 方向，cm）
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "浮窗")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Floating Panel")
 	float WidgetSideOffset = 300.f;
 
 	// 浮窗垂直偏移（cm）
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "浮窗")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Floating Panel")
 	float WidgetZOffset = 50.f;
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "Reward|Pickup")

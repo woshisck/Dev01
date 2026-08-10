@@ -56,23 +56,23 @@ class DEVKIT_API UBFNode_SpawnRangedProjectiles : public UBFNode_Base
 	// ---- 弹幕模式 ----
 
 	// 启用数量模式 — 勾选后改用「发射数量 + 散布锥角」均匀分布，取代手动偏航角列表
-	UPROPERTY(EditAnywhere, Category = "Ranged Projectile|弹幕模式", meta = (DisplayName = "启用数量模式"))
+	UPROPERTY(EditAnywhere, Category = "Ranged Projectile|Barrage Mode", meta = (DisplayName = "启用数量模式"))
 	bool bUseProjectileCountPattern = false;
 
 	// 发射数量 — 启用数量模式时，单次发射的基础弹丸枚数（最小 1）；若下方数据引脚已连线则被覆盖
-	UPROPERTY(EditAnywhere, Category = "Ranged Projectile|弹幕模式", meta = (ClampMin = "1", DisplayName = "发射数量"))
+	UPROPERTY(EditAnywhere, Category = "Ranged Projectile|Barrage Mode", meta = (ClampMin = "1", DisplayName = "发射数量"))
 	int32 ProjectileCount = 1;
 
 	// 发射数量（数据引脚）— 连线后覆盖上方「发射数量」；可从 GetProjectileModule 节点接入
-	UPROPERTY(EditAnywhere, Category = "Ranged Projectile|弹幕模式", meta = (DisplayName = "发射数量（数据引脚）"))
+	UPROPERTY(EditAnywhere, Category = "Ranged Projectile|Barrage Mode", meta = (DisplayName = "发射数量（数据引脚）"))
 	FFlowDataPinInputProperty_Int32 ProjectileCountPin;
 
 	// 散布锥角（度）— 多枚弹丸的水平展开角；0 = 全部正前方，90 = 90 度扇形；若下方数据引脚已连线则被覆盖
-	UPROPERTY(EditAnywhere, Category = "Ranged Projectile|弹幕模式", meta = (ClampMin = "0.0", ClampMax = "180.0", DisplayName = "散布锥角（度）"))
+	UPROPERTY(EditAnywhere, Category = "Ranged Projectile|Barrage Mode", meta = (ClampMin = "0.0", ClampMax = "180.0", DisplayName = "散布锥角（度）"))
 	float ProjectileConeAngleDegrees = 0.f;
 
 	// 散布锥角（数据引脚）— 连线后覆盖上方「散布锥角」；可从 GetProjectileModule 节点接入
-	UPROPERTY(EditAnywhere, Category = "Ranged Projectile|弹幕模式", meta = (DisplayName = "散布锥角（数据引脚）"))
+	UPROPERTY(EditAnywhere, Category = "Ranged Projectile|Barrage Mode", meta = (DisplayName = "散布锥角（数据引脚）"))
 	FFlowDataPinInputProperty_Float ProjectileConeAnglePinDegrees;
 
 	// ---- 伤害 ----
@@ -88,15 +88,15 @@ class DEVKIT_API UBFNode_SpawnRangedProjectiles : public UBFNode_Base
 	// ---- 连击追加 ----
 
 	// 连击追加发射数 — 勾选后：当前连击层数 × 每层追加数 = 额外多发弹丸枚数
-	UPROPERTY(EditAnywhere, Category = "Ranged Projectile|连击追加", meta = (DisplayName = "连击追加发射数"))
+	UPROPERTY(EditAnywhere, Category = "Ranged Projectile|Combo Bonus", meta = (DisplayName = "连击追加发射数"))
 	bool bAddComboStacksToProjectileCount = false;
 
 	// 每层连击追加数 — 每增加一层连击，额外多发几枚弹丸
-	UPROPERTY(EditAnywhere, Category = "Ranged Projectile|连击追加", meta = (ClampMin = "0", EditCondition = "bAddComboStacksToProjectileCount", EditConditionHides, DisplayName = "每层连击追加数"))
+	UPROPERTY(EditAnywhere, Category = "Ranged Projectile|Combo Bonus", meta = (ClampMin = "0", EditCondition = "bAddComboStacksToProjectileCount", EditConditionHides, DisplayName = "每层连击追加数"))
 	int32 ProjectilesPerComboStack = 1;
 
 	// 最大追加上限 — 连击追加的弹丸总数上限（0 = 无上限）
-	UPROPERTY(EditAnywhere, Category = "Ranged Projectile|连击追加", meta = (ClampMin = "0", EditCondition = "bAddComboStacksToProjectileCount", EditConditionHides, DisplayName = "最大追加上限"))
+	UPROPERTY(EditAnywhere, Category = "Ranged Projectile|Combo Bonus", meta = (ClampMin = "0", EditCondition = "bAddComboStacksToProjectileCount", EditConditionHides, DisplayName = "最大追加上限"))
 	int32 MaxBonusProjectiles = 0;
 
 	// ---- 攻击实例 ----
@@ -118,19 +118,19 @@ class DEVKIT_API UBFNode_SpawnRangedProjectiles : public UBFNode_Base
 	// ---- 命中事件（用于流程图回调） ----
 
 	// 命中事件 Tag — 弹丸命中时向 ASC 发送的 Gameplay 事件 Tag，供同 FA 内「等待事件」节点接收
-	UPROPERTY(EditAnywhere, Category = "Ranged Projectile|命中事件", meta = (DisplayName = "命中事件 Tag"))
+	UPROPERTY(EditAnywhere, Category = "Ranged Projectile|Hit Event", meta = (DisplayName = "命中事件 Tag"))
 	FGameplayTag HitGameplayEventTag;
 
 	// 事件发给攻击来源 — 勾选后事件发给发射者（玩家）ASC，等待事件节点设置 Target = BuffOwner 即可接收
-	UPROPERTY(EditAnywhere, Category = "Ranged Projectile|命中事件", meta = (EditCondition = "HitGameplayEventTag.IsValid()", EditConditionHides, DisplayName = "事件发给攻击来源"))
+	UPROPERTY(EditAnywhere, Category = "Ranged Projectile|Hit Event", meta = (EditCondition = "HitGameplayEventTag.IsValid()", EditConditionHides, DisplayName = "事件发给攻击来源"))
 	bool bSendHitGameplayEventToSourceASC = true;
 
 	// 用伤害量作为事件强度 — Magnitude = 命中实际伤害值，供下游节点通过事件读取伤害数值
-	UPROPERTY(EditAnywhere, Category = "Ranged Projectile|命中事件", meta = (EditCondition = "HitGameplayEventTag.IsValid()", EditConditionHides, DisplayName = "用伤害量作为事件强度"))
+	UPROPERTY(EditAnywhere, Category = "Ranged Projectile|Hit Event", meta = (EditCondition = "HitGameplayEventTag.IsValid()", EditConditionHides, DisplayName = "用伤害量作为事件强度"))
 	bool bUseDamageAsHitGameplayEventMagnitude = true;
 
 	// 命中事件强度 — 不用伤害量时，手动指定的 Magnitude 值；可连接 Pure 数据节点输出
-	UPROPERTY(EditAnywhere, Category = "Ranged Projectile|命中事件", meta = (EditCondition = "HitGameplayEventTag.IsValid() && !bUseDamageAsHitGameplayEventMagnitude", EditConditionHides, DisplayName = "命中事件强度"))
+	UPROPERTY(EditAnywhere, Category = "Ranged Projectile|Hit Event", meta = (EditCondition = "HitGameplayEventTag.IsValid() && !bUseDamageAsHitGameplayEventMagnitude", EditConditionHides, DisplayName = "命中事件强度"))
 	FFlowDataPinInputProperty_Float HitGameplayEventMagnitude;
 
 protected:

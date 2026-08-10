@@ -14,7 +14,7 @@ class UNiagaraSystem;
  * Camera shake level is per-hit here; when left at 0 the cue falls back to the
  * global damage-scaled shake on UYogSettings::HitShakeConfig.
  * Impact SFX is target-scoped, not here — resolved per victim by
- * UHitImpactVisualComponent from the victim's hit-react tier (armor forces the Hard tier).
+ * UHitImpactVisualComponent from the victim's material and state tags.
  */
 UCLASS(BlueprintType, Blueprintable)
 class DEVKIT_API UHitCueData : public UDataAsset

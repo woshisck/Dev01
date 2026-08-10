@@ -28,12 +28,8 @@ public:
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Camera")
 	TSoftObjectPtr<UDataTable> CameraShakeLevelTable;
 
-	// DataTable of FBuffHitFeedbackRow: buff GameplayTag -> on-hit VFX/SFX/shake for a buffed victim.
-	// Resolved per victim by GA_MeleeAttack when a hit lands.
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Combat")
-	TSoftObjectPtr<UDataTable> BuffHitFeedbackTable;
-
-	// Shared per-tier enemy hit sound/VFX (Soft/Hard/Immaterial). Resolved by UHitImpactVisualComponent.
+	// Victim-side hit sound/VFX, keyed by the victim's material and state tags.
+	// Resolved by UHitImpactVisualComponent on every landed hit.
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Combat")
 	TSoftObjectPtr<UEnemyHitImpactData> EnemyHitImpactData;
 };

@@ -3,11 +3,11 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Data/EnemyHitImpactData.h"
+#include "GameplayTagContainer.h"
 #include "HitImpactVisualComponent.generated.h"
 
 class USkeletalMeshComponent;
 class AActor;
-struct FBuffHitFeedbackRow;
 
 UCLASS(ClassGroup=(Combat), meta=(BlueprintSpawnableComponent))
 class DEVKIT_API UHitImpactVisualComponent : public UActorComponent
@@ -21,12 +21,13 @@ public:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
-	// Plays this victim's hit sound + VFX at HitLocation. Uses the buff-row feedback from
-	// UYogSettings::BuffHitFeedbackTable when the owner has a matching Buff.* tag, otherwise
-	// the component defaults below. Returns the buff camera-shake level (0 = none) so the
-	// caller can aggregate one shake per swing. Does not play the hit push (call that separately).
+	// Plays this victim's hit sound + VFX at HitLocation, resolved from UEnemyHitImpactData by
+	// cascading every entry whose MatchTag this victim owns (Level picks the intensity entry).
+	// Returns the resolved camera-shake level (0 = none) so the caller can aggregate one shake
+	// per swing, and reports whether the attacker should mute its weapon transient layer.
+	// Does not play the hit push (call that separately).
 	UFUNCTION(BlueprintCallable, Category = "Combat|Hit Impact Visual")
-	int32 PlayHitFeedback(const FVector& HitLocation);
+	int32 PlayHitFeedback(const FVector& HitLocation, int32 Level, bool& bOutSuppressWeaponTransient);
 
 	UFUNCTION(BlueprintCallable, Category = "Combat|Hit Impact Visual")
 	void PlayHitPush(AActor* SourceActor, float Strength = 1.0f);
@@ -62,19 +63,17 @@ public:
 	float MinRefreshInterval = 0.03f;
 
 	// ─── Hit React ─────────────────────────────────────────────────────────
-	// Physical tier of this victim. The base hit sound/VFX come from the shared
-	// UYogSettings::EnemyHitImpactData entry for this tier (a matching DT_BuffHitFeedback
-	// row still overrides it). While the owner has ArmorHP > 0 the Hard tier is used instead.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Hit Impact Visual|Hit React")
-	EHitReactTier HitReactTier = EHitReactTier::Soft;
+	// Physical surface of this victim, matched against UEnemyHitImpactData::Entries to pick the
+	// material layer of the hit sound. Falls back to HitReact.Material.Soft when left unset.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Hit Impact Visual|Hit React",
+		meta = (Categories = "HitReact.Material"))
+	FGameplayTag HitReactMaterial;
 
 private:
-	// Effective tier FX from the shared data: Hard while the owner's ArmorHP > 0, else HitReactTier.
-	// Null if no data asset is configured.
-	const FHitImpactTierFX* ResolveTierFX() const;
-
-	// Highest-Priority DT_BuffHitFeedback row whose BuffTag the owner currently owns; null if none.
-	const FBuffHitFeedbackRow* ResolveBuffHitFeedback() const;
+	// Tags the hit-impact table is matched against: this victim's material tag plus every tag its
+	// ASC currently owns. Armor is an attribute rather than a tag, so Buff.Status.Armored is
+	// synthesized here while ArmorHP > 0 to keep the table uniformly tag-keyed.
+	FGameplayTagContainer GatherVictimTags() const;
 
 	USkeletalMeshComponent* ResolveMesh() const;
 	FVector ConvertWorldOffsetToMeshParentSpace(const USkeletalMeshComponent* Mesh, const FVector& WorldOffset) const;

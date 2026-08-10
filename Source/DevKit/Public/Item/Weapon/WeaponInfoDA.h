@@ -14,25 +14,25 @@ class DEVKIT_API UWeaponInfoDA : public UDataAsset
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "武器信息", meta = (DisplayName = "武器名称"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon Info", meta = (DisplayName = "武器名称"))
 	FText WeaponName;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "武器信息", meta = (MultiLine = true, DisplayName = "主要描述"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon Info", meta = (MultiLine = true, DisplayName = "主要描述"))
 	FText WeaponDescription;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "武器信息", meta = (MultiLine = true, DisplayName = "补充描述"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon Info", meta = (MultiLine = true, DisplayName = "补充描述"))
 	FText WeaponSubDescription;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "武器信息", meta = (DisplayName = "缩略图"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon Info", meta = (DisplayName = "缩略图"))
 	TObjectPtr<UTexture2D> Thumbnail;
 
 	// 激活区图像（留空则显示点阵）
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "激活区", meta = (DisplayName = "激活区图片 1"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Active Zone", meta = (DisplayName = "激活区图片 1"))
 	TObjectPtr<UTexture2D> Zone1Image;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "激活区", meta = (DisplayName = "激活区图片 2"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Active Zone", meta = (DisplayName = "激活区图片 2"))
 	TObjectPtr<UTexture2D> Zone2Image;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "激活区", meta = (DisplayName = "激活区图片 3"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Active Zone", meta = (DisplayName = "激活区图片 3"))
 	TObjectPtr<UTexture2D> Zone3Image;
 };

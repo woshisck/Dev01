@@ -65,19 +65,19 @@ struct DEVKIT_API FStoryEncounterCondition
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情条件")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Condition")
 	EStoryEncounterConditionKind Kind = EStoryEncounterConditionKind::None;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情条件")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Condition")
 	FName ProgressKey;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情条件")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Condition")
 	FText ProgressLabel;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情条件")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Condition")
 	FGameplayTag FeatureTag;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情条件", meta = (ClampMin = "0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Condition", meta = (ClampMin = "0"))
 	int32 RunCount = 0;
 };
 
@@ -86,85 +86,85 @@ struct DEVKIT_API FStoryEncounterAction
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Action")
 	EStoryEncounterActionKind Kind = EStoryEncounterActionKind::WeakHint;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Action")
 	FName ActionId;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Action")
 	FName ReuseKey;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Action")
 	FText Title;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作", meta = (MultiLine = true))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Action", meta = (MultiLine = true))
 	FText Body;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Action")
 	bool bUseInputTextVariants = false;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作", meta = (MultiLine = true))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Action", meta = (MultiLine = true))
 	FText KeyboardMouseBody;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作", meta = (MultiLine = true))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Action", meta = (MultiLine = true))
 	FText GamepadBody;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Action")
 	FName TutorialEventId;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Action")
 	TArray<FTutorialPage> TutorialPages;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Action")
 	bool bPauseGame = true;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Action")
 	FName ProgressKey;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Action")
 	FText ProgressLabel;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Action")
 	FGameplayTag FeatureTag;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Action")
 	FGameplayTag QuestTaskTag;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Action")
 	FName TargetNodeId;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作|关卡对象")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Action|Level Objects")
 	FName TargetActorName;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作|关卡对象")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Action|Level Objects")
 	FName TargetActorTag;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作|关卡对象")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Action|Level Objects")
 	bool bActorEnabled = true;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Action")
 	TObjectPtr<ULevelFlowAsset> LevelFlow = nullptr;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Action")
 	bool bStopExistingStoryFlow = true;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作|奖励拾取物")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Action|Reward Pickup")
 	TSubclassOf<ARewardPickup> RewardPickupClass;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作|奖励拾取物")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Action|Reward Pickup")
 	TArray<FLootOption> RewardLootOptions;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作|奖励拾取物", meta = (ClampMin = "1"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Action|Reward Pickup", meta = (ClampMin = "1"))
 	int32 RewardPickupCount = 1;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作|奖励拾取物")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Action|Reward Pickup")
 	FVector RewardSpawnOffset = FVector(120.f, 0.f, 0.f);
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作|奖励拾取物")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Action|Reward Pickup")
 	bool bSpawnRewardOnTargetDeath = true;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情动作|奖励拾取物")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Action|Reward Pickup")
 	bool bRewardPickupAllowedOutsideArrangement = true;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Action|Reward Pickup")
@@ -188,33 +188,33 @@ struct DEVKIT_API FStoryEncounterNode
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情节点")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Node")
 	FName NodeId;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情节点")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Node")
 	FText DisplayName;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情节点")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Node")
 	EStoryEncounterNodeKind Kind = EStoryEncounterNodeKind::Area;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情节点", meta = (MultiLine = true))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Node", meta = (MultiLine = true))
 	FText PlayerFacingEvent;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情节点")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Node")
 	EStoryEncounterFirePolicy FirePolicy = EStoryEncounterFirePolicy::Once;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情节点")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Node")
 	FStoryEncounterCondition Condition;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情节点")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Node")
 	TArray<FStoryEncounterAction> Actions;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情节点|Flow")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Node|Flow")
 	TObjectPtr<UStoryFlowAsset> NodeEventFlow = nullptr;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情节点")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Node")
 	FName NextNodeId;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "剧情节点")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Node")
 	FVector2D EditorPosition = FVector2D::ZeroVector;
 };

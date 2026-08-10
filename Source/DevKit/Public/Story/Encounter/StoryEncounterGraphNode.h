@@ -20,28 +20,28 @@ class DEVKIT_API UStoryEncounterGraphNode : public UGenericGraphNode
 public:
 	UStoryEncounterGraphNode();
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "剧情点")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Story Point")
 	TObjectPtr<UStoryEncounterPointDA> Point = nullptr;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "剧情点|兜底")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Story Point|Fallback")
 	FName FallbackEncounterId;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "剧情点|兜底")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Story Point|Fallback")
 	FName FallbackNodeId;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "剧情点|兜底")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Story Point|Fallback")
 	FText FallbackTitle;
 
-	UFUNCTION(BlueprintPure, Category = "剧情点")
+	UFUNCTION(BlueprintPure, Category = "Story Point")
 	UStoryEncounterPointDA* GetPoint() const;
 
-	UFUNCTION(BlueprintPure, Category = "剧情点")
+	UFUNCTION(BlueprintPure, Category = "Story Point")
 	FName GetEncounterId() const;
 
-	UFUNCTION(BlueprintPure, Category = "剧情点")
+	UFUNCTION(BlueprintPure, Category = "Story Point")
 	FName GetStoryNodeId() const;
 
-	UFUNCTION(BlueprintPure, Category = "剧情点")
+	UFUNCTION(BlueprintPure, Category = "Story Point")
 	FStoryEncounterNode ToEncounterNode() const;
 
 #if WITH_EDITOR

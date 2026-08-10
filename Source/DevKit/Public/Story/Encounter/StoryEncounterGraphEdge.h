@@ -16,10 +16,10 @@ class DEVKIT_API UStoryEncounterGraphEdge : public UGenericGraphEdge
 public:
 	UStoryEncounterGraphEdge();
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "剧情连线")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Story Edge")
 	FText TransitionLabel;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "剧情连线")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Story Edge")
 	FStoryEncounterCondition Condition;
 
 #if WITH_EDITOR

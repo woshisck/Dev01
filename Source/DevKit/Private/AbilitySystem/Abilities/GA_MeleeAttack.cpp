@@ -31,6 +31,7 @@
 #include "Data/RuneDataAsset.h"
 #include "Camera/YogPlayerCameraManager.h"
 #include "Component/HitImpactVisualComponent.h"
+#include "Item/Weapon/WeaponDefinition.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
@@ -1712,30 +1713,64 @@ void UGA_MeleeAttack::ApplyHitReactions(AYogCharacterBase* Owner, const FYogGame
 			UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(Owner, HitTag, Payload);
 		}
 
-		// Victim hit feedback (sound + VFX, buff-row or defaults) is owned by each victim's
-		// UHitImpactVisualComponent. HitActors is AddUnique, so multi-hit swings get one
-		// burst per distinct target. The component returns the buff camera-shake level; we
-		// aggregate the max and shake once per swing (shake is a player-global concern).
-		int32 MaxBuffShakeLevel = 0;
+		// Victim hit feedback (sound + VFX) is owned by each victim's UHitImpactVisualComponent,
+		// resolved from its material and state tags. HitActors is AddUnique, so multi-hit swings
+		// get one burst per distinct target. Each component returns its resolved camera-shake
+		// level; we aggregate the max and shake once per swing (shake is a player-global concern,
+		// so N victims must not stack into N shakes).
+		// The attacker's equipped weapon picks the intensity level (players only; else 1).
+		int32 WeaponHitLevel = 1;
+		const UWeaponDefinition* WeaponDef = PlayerOwner ? PlayerOwner->EquippedWeaponDef.Get() : nullptr;
+		if (WeaponDef)
+		{
+			WeaponHitLevel = WeaponDef->HitImpactLevel;
+		}
+
+		int32 MaxHitShakeLevel = 0;
+		FVector TransientLocation = FVector::ZeroVector;
+		bool bHasTransientLocation = false;
+		bool bSuppressWeaponTransient = false;
 		for (AActor* HitActor : HitActors)
 		{
 			if (AYogCharacterBase* HitChar = Cast<AYogCharacterBase>(HitActor))
 			{
 				if (UHitImpactVisualComponent* HIVC = HitChar->HitImpactVisualComponent)
 				{
-					MaxBuffShakeLevel = FMath::Max(MaxBuffShakeLevel,
-						HIVC->PlayHitFeedback(HitChar->GetActorLocation()));
+					const FVector VictimLocation = HitChar->GetActorLocation();
+					bool bVictimSuppressesTransient = false;
+					MaxHitShakeLevel = FMath::Max(MaxHitShakeLevel,
+						HIVC->PlayHitFeedback(VictimLocation, WeaponHitLevel, bVictimSuppressesTransient));
+					bSuppressWeaponTransient |= bVictimSuppressesTransient;
+
+					if (!bHasTransientLocation)
+					{
+						TransientLocation = VictimLocation;
+						bHasTransientLocation = true;
+					}
 				}
 			}
 		}
 
-		if (MaxBuffShakeLevel > 0)
+		// Attacker-side transient layer of the composite hit sound (see UWeaponDefinition
+		// ImpactTransientSound). Deliberately one per swing rather than per victim: the weapon
+		// only rings once, so a 3-target swing playing 3 copies on one frame would spike
+		// amplitude and comb-filter instead of reading as a heavier hit. Spawned at the first
+		// victim so it still localises to a contact point. Any victim whose resolved feedback
+		// owns the whole impact sound (parry, invulnerable) suppresses it for the swing.
+		if (WeaponDef && WeaponDef->ImpactTransientSound && bHasTransientLocation && !bSuppressWeaponTransient)
+		{
+			UGameplayStatics::SpawnSoundAtLocation(
+				GetWorld(), WeaponDef->ImpactTransientSound, TransientLocation, FRotator::ZeroRotator,
+				WeaponDef->ImpactTransientVolume, WeaponDef->ImpactTransientPitch);
+		}
+
+		if (MaxHitShakeLevel > 0)
 		{
 			if (APlayerController* PC = UGameplayStatics::GetPlayerController(Owner, 0))
 			{
 				if (AYogPlayerCameraManager* CM = Cast<AYogPlayerCameraManager>(PC->PlayerCameraManager))
 				{
-					CM->PlayShakeLevel(MaxBuffShakeLevel);
+					CM->PlayShakeLevel(MaxHitShakeLevel);
 				}
 			}
 		}

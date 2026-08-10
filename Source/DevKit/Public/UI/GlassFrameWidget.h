@@ -40,7 +40,7 @@ public:
     // =========================================================
 
     /** 玻璃边框材质（M_GlassFrame 或已填好参数的 MI）*/
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "玻璃框|材质")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Glass Frame|Material")
     TObjectPtr<UMaterialInterface> GlassBorderMaterial;
 
     // =========================================================
@@ -48,12 +48,12 @@ public:
     // =========================================================
 
     /** 中心区域模糊强度（GlassBGCenter，配合渐变遮罩让中心更"厚"） */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "玻璃框|模糊",
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Glass Frame|Blur",
               meta = (ClampMin = "0", ClampMax = "100"))
     float CenterBlurStrength = 28.f;
 
     /** 边缘/全局底层模糊强度（GlassBG，铺满整个控件） */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "玻璃框|模糊",
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Glass Frame|Blur",
               meta = (ClampMin = "0", ClampMax = "50"))
     float BlurStrength = 6.f;
 
@@ -62,12 +62,12 @@ public:
     // =========================================================
 
     /** 圆角半径（UV 空间，0=直角，0.5=圆形） */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "玻璃框|边框",
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Glass Frame|Border",
               meta = (ClampMin = "0", ClampMax = "0.5"))
     float CornerRadius = 0.06f;
 
     /** 边框宽度（UV 空间） */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "玻璃框|边框",
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Glass Frame|Border",
               meta = (ClampMin = "0", ClampMax = "0.2"))
     float BorderWidth = 0.025f;
 
@@ -76,7 +76,7 @@ public:
     // =========================================================
 
     /** 菲涅尔集中程度（值越大越集中在角落，推荐 2–4） */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "玻璃框|菲涅尔",
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Glass Frame|Fresnel",
               meta = (ClampMin = "0.5", ClampMax = "8.0"))
     float FresnelPower = 2.5f;
 
@@ -85,12 +85,12 @@ public:
     // =========================================================
 
     /** 炫彩强度（建议 0.1–0.25，太高则失去神秘感） */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "玻璃框|炫彩",
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Glass Frame|Iridescence",
               meta = (ClampMin = "0", ClampMax = "1"))
     float IridIntensity = 0.18f;
 
     /** 炫彩流动速度（建议保持较小，0.02–0.08） */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "玻璃框|炫彩",
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Glass Frame|Iridescence",
               meta = (ClampMin = "0", ClampMax = "1"))
     float IridSpeed = 0.04f;
 
@@ -99,11 +99,11 @@ public:
     // =========================================================
 
     /** 将所有参数写入 DynMat + 更新 BackgroundBlur 强度。运行时调整参数后调用。 */
-    UFUNCTION(BlueprintCallable, Category = "玻璃框")
+    UFUNCTION(BlueprintCallable, Category = "Glass Frame")
     void ApplyGlassStyle();
 
     /** 获取运行时 DynMat（供 BP 做额外参数扩展）。NativeConstruct 之前为 null。 */
-    UFUNCTION(BlueprintPure, Category = "玻璃框")
+    UFUNCTION(BlueprintPure, Category = "Glass Frame")
     UMaterialInstanceDynamic* GetGlassDynMat() const { return GlassDynMat; }
 
 protected:

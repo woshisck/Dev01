@@ -2,17 +2,30 @@
 
 #include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/Character.h"
-#include "AbilitySystem/GameplayCue/BuffHitFeedbackRow.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "Character/YogCharacterBase.h"
 #include "Data/EnemyHitImpactData.h"
 #include "System/YogSettings.h"
-#include "Engine/DataTable.h"
 #include "Kismet/GameplayStatics.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
 #include "Sound/SoundBase.h"
+
+namespace
+{
+	const FGameplayTag& HitImpactVisual_DefaultMaterialTag()
+	{
+		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(TEXT("HitReact.Material.Soft"));
+		return Tag;
+	}
+
+	const FGameplayTag& HitImpactVisual_ArmoredTag()
+	{
+		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Armored"));
+		return Tag;
+	}
+}
 
 UHitImpactVisualComponent::UHitImpactVisualComponent()
 {
@@ -67,100 +80,64 @@ void UHitImpactVisualComponent::TickComponent(float DeltaTime, ELevelTick TickTy
 	}
 }
 
-const FHitImpactTierFX* UHitImpactVisualComponent::ResolveTierFX() const
+FGameplayTagContainer UHitImpactVisualComponent::GatherVictimTags() const
 {
-	// Armor promotes any base tier to Hard while ArmorHP > 0.
-	EHitReactTier Tier = HitReactTier;
-	if (const AYogCharacterBase* OwnerChar = Cast<AYogCharacterBase>(GetOwner()))
-	{
-		if (const UYogAbilitySystemComponent* ASC = OwnerChar->GetASC())
-		{
-			if (ASC->GetNumericAttribute(UBaseAttributeSet::GetArmorHPAttribute()) > 0.f)
-			{
-				Tier = EHitReactTier::Hard;
-			}
-		}
-	}
+	FGameplayTagContainer Tags;
+	Tags.AddTag(HitReactMaterial.IsValid() ? HitReactMaterial : HitImpactVisual_DefaultMaterialTag());
 
-	const UYogSettings* YogSettings = UYogSettings::Get();
-	const UEnemyHitImpactData* Data = YogSettings ? YogSettings->EnemyHitImpactData.LoadSynchronous() : nullptr;
-	return Data ? &Data->GetTierFX(Tier) : nullptr;
-}
-
-const FBuffHitFeedbackRow* UHitImpactVisualComponent::ResolveBuffHitFeedback() const
-{
 	const AYogCharacterBase* OwnerChar = Cast<AYogCharacterBase>(GetOwner());
 	const UYogAbilitySystemComponent* ASC = OwnerChar ? OwnerChar->GetASC() : nullptr;
 	if (!ASC)
 	{
-		return nullptr;
+		return Tags;
 	}
 
-	const UYogSettings* YogSettings = UYogSettings::Get();
-	UDataTable* Table = YogSettings ? YogSettings->BuffHitFeedbackTable.LoadSynchronous() : nullptr;
-	if (!Table)
+	FGameplayTagContainer OwnedTags;
+	ASC->GetOwnedGameplayTags(OwnedTags);
+	Tags.AppendTags(OwnedTags);
+
+	// Armor is tracked as an attribute, not a granted tag, so bridge it here.
+	if (ASC->GetNumericAttribute(UBaseAttributeSet::GetArmorHPAttribute()) > 0.f)
 	{
-		return nullptr;
+		Tags.AddTag(HitImpactVisual_ArmoredTag());
 	}
 
-	static const FString ContextString(TEXT("HitImpactVisual_BuffHitFeedback"));
-	TArray<FBuffHitFeedbackRow*> Rows;
-	Table->GetAllRows(ContextString, Rows);
-
-	const FBuffHitFeedbackRow* Best = nullptr;
-	for (const FBuffHitFeedbackRow* Row : Rows)
-	{
-		if (Row && Row->BuffTag.IsValid() && ASC->HasMatchingGameplayTag(Row->BuffTag))
-		{
-			if (!Best || Row->Priority > Best->Priority)
-			{
-				Best = Row;
-			}
-		}
-	}
-
-	return Best;
+	return Tags;
 }
 
-int32 UHitImpactVisualComponent::PlayHitFeedback(const FVector& HitLocation)
+int32 UHitImpactVisualComponent::PlayHitFeedback(const FVector& HitLocation, int32 Level, bool& bOutSuppressWeaponTransient)
 {
+	bOutSuppressWeaponTransient = false;
+
 	UWorld* World = GetWorld();
 	if (!World)
 	{
 		return 0;
 	}
 
-	const FBuffHitFeedbackRow* Row = ResolveBuffHitFeedback();
-	const FHitImpactTierFX* TierFX = ResolveTierFX();
-
-	// VFX: buff-row VFX takes precedence over the tier default.
-	UNiagaraSystem* EffectiveVFX = (Row && Row->ImpactVFX) ? Row->ImpactVFX.Get()
-		: (TierFX ? TierFX->VFX.Get() : nullptr);
-	if (EffectiveVFX)
+	const UYogSettings* YogSettings = UYogSettings::Get();
+	const UEnemyHitImpactData* Data = YogSettings ? YogSettings->EnemyHitImpactData.LoadSynchronous() : nullptr;
+	if (!Data)
 	{
-		const bool bUseRowVFX = (Row && Row->ImpactVFX);
-		const FVector EffectiveScale = bUseRowVFX ? Row->VFXScale : TierFX->VFXScale;
-		const FRotator EffectiveRotation = bUseRowVFX ? Row->VFXRotationOffset : FRotator::ZeroRotator;
+		return 0;
+	}
+
+	const FHitImpactResolved FX = Data->Resolve(GatherVictimTags(), Level);
+	bOutSuppressWeaponTransient = FX.bSuppressWeaponTransient;
+
+	if (FX.VFX)
+	{
 		UNiagaraFunctionLibrary::SpawnSystemAtLocation(
-			World, EffectiveVFX, HitLocation, EffectiveRotation, EffectiveScale);
+			World, FX.VFX, HitLocation, FX.VFXRotationOffset, FX.VFXScale);
 	}
 
-	// SFX: a buff-row sound replaces the tier default unless bReplaceDefaultSound is false.
-	bool bBuffReplacedSound = false;
-	if (Row && Row->ImpactSound)
+	if (FX.Sound)
 	{
 		UGameplayStatics::SpawnSoundAtLocation(
-			World, Row->ImpactSound, HitLocation, FRotator::ZeroRotator, Row->SoundVolume, Row->SoundPitch);
-		bBuffReplacedSound = Row->bReplaceDefaultSound;
+			World, FX.Sound, HitLocation, FRotator::ZeroRotator, FX.SoundVolume, FX.SoundPitch);
 	}
 
-	if (!bBuffReplacedSound && TierFX && TierFX->Sound)
-	{
-		UGameplayStatics::SpawnSoundAtLocation(
-			World, TierFX->Sound, HitLocation, FRotator::ZeroRotator, TierFX->SoundVolume, TierFX->SoundPitch);
-	}
-
-	return Row ? Row->CameraShakeLevel : 0;
+	return FX.CameraShakeLevel;
 }
 
 void UHitImpactVisualComponent::PlayHitPush(AActor* SourceActor, float Strength)

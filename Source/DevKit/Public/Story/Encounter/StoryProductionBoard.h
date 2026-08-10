@@ -21,37 +21,37 @@ struct DEVKIT_API FStoryProductionRow
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "制作清单")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Production Board")
 	FName RequirementId;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "制作清单")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Production Board")
 	FName FlowId;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "制作清单")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Production Board")
 	FText PointName;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "制作清单")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Production Board")
 	FText PlayerAction;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "制作清单")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Production Board")
 	FText ExperienceGoal;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "制作清单")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Production Board")
 	FName EncounterId;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "制作清单")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Production Board")
 	FName NodeId;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "制作清单")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Production Board")
 	FName LevelName;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "制作清单")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Production Board")
 	FName PlacementName;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "制作清单")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Production Board")
 	EStoryProductionStatus Status = EStoryProductionStatus::Designed;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "制作清单", meta = (MultiLine = true))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Production Board", meta = (MultiLine = true))
 	FText Notes;
 };
 
@@ -61,7 +61,7 @@ class DEVKIT_API UStoryProductionBoardDA : public UDataAsset
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "制作清单")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Production Board")
 	TArray<FStoryProductionRow> Rows;
 
 	const FStoryProductionRow* FindRow(FName RequirementId) const;

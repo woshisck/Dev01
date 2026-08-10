@@ -110,19 +110,19 @@ public:
 	TObjectPtr<UStaticMeshComponent> WeaponMesh;
 
 	// 各轴旋转速度（度/秒）。Pitch=X，Yaw=Z，Roll=Y
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "武器展示|旋转")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon Display|Rotation")
 	FRotator RotationRate = FRotator(0.f, 40.f, 0.f);
 
 	// 浮动偏移幅度（cm），0 = 不偏移
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "武器展示|浮动", meta = (ClampMin = "0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon Display|Float", meta = (ClampMin = "0"))
 	float BobAmplitude = 0.f;
 
 	// 浮动频率（Hz，完整周期数/秒）
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "武器展示|浮动", meta = (ClampMin = "0.01"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon Display|Float", meta = (ClampMin = "0.01"))
 	float BobFrequency = 1.f;
 
 	// 浮动方向（局部空间，默认 Z 轴上下浮动）
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "武器展示|浮动")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon Display|Float")
 	FVector BobAxis = FVector(0.f, 0.f, 1.f);
 
 	// 玩家接近时登记 PendingWeaponSpawner，按 E 后调用 TryPickupWeapon
@@ -139,27 +139,27 @@ public:
 	AWeaponInstance* SpawnWeaponDeferred(UWorld* World, const FTransform& SpawnTransform, const FWeaponSpawnData& SpawnData);
 
 	// 武器信息浮窗 WidgetComponent（Screen Space，自动跟随武器位置）
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "浮窗", meta = (AllowPrivateAccess = true))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Floating Panel", meta = (AllowPrivateAccess = true))
 	TObjectPtr<UWidgetComponent> WeaponInfoWidgetComp;
 
 	// 在 BP_WeaponSpawner 里指定浮窗 WBP 类
-	UPROPERTY(EditDefaultsOnly, Category = "浮窗")
+	UPROPERTY(EditDefaultsOnly, Category = "Floating Panel")
 	TSubclassOf<UWeaponFloatWidget> WeaponFloatWidgetClass;
 
 	// 浮窗水平偏移（cm，武器屏幕位置左/右侧偏移量）
-	UPROPERTY(EditDefaultsOnly, Category = "浮窗", meta = (ClampMin = "0"))
+	UPROPERTY(EditDefaultsOnly, Category = "Floating Panel", meta = (ClampMin = "0"))
 	float WidgetSideOffset = 300.f;
 
 	// 浮窗垂直偏移（cm，沿 Z 轴抬升）
-	UPROPERTY(EditDefaultsOnly, Category = "浮窗", meta = (ClampMin = "0"))
+	UPROPERTY(EditDefaultsOnly, Category = "Floating Panel", meta = (ClampMin = "0"))
 	float WidgetZOffset = 50.f;
 
 	// 拾取时浮窗折叠动画时长（秒），增大可预览效果
-	UPROPERTY(EditDefaultsOnly, Category = "浮窗", meta = (ClampMin = "0.05"))
+	UPROPERTY(EditDefaultsOnly, Category = "Floating Panel", meta = (ClampMin = "0.05"))
 	float PickupCollapseDuration = 0.25f;
 
 	// 被拾取后替换的材质（通常为纯黑 MI），所有插槽统一使用
-	UPROPERTY(EditDefaultsOnly, Category = "武器展示|材质")
+	UPROPERTY(EditDefaultsOnly, Category = "Weapon Display|Material")
 	TObjectPtr<UMaterialInterface> PickedUpMaterial;
 
 	// Optional generic story hook fired after this spawner successfully equips its weapon.

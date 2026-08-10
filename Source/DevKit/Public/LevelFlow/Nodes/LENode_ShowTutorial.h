@@ -24,14 +24,14 @@ class DEVKIT_API ULENode_ShowTutorial : public ULENode_Base
 	 * 直接在此数组里填写 Title / Body / SubText / Illustration。
 	 * 数组非空时忽略 EventID，不查 DialogContentDA。
 	 */
-	UPROPERTY(EditAnywhere, Category = "Tutorial|内容")
+	UPROPERTY(EditAnywhere, Category = "Tutorial|Content")
 	TArray<FTutorialPage> InlinePages;
 
 	/**
 	 * 在 TutorialRegistry 里查找内容 DA 的 Key（InlinePages 为空时生效）。
 	 * 对应 BP_HUD → TutorialRegistry → Entries 的 TMap Key。
 	 */
-	UPROPERTY(EditAnywhere, Category = "Tutorial|内容")
+	UPROPERTY(EditAnywhere, Category = "Tutorial|Content")
 	FName EventID = TEXT("WeaponTutorial");
 
 	// 取消勾选 = 纯信息浮窗（不暂停游戏，不屏蔽输入）
