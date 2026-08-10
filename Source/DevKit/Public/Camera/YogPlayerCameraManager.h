@@ -49,13 +49,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Camera")
 	void SetCameraInputAxis(FVector2D Axis);
 
-	/** 触发重伤相机震动 */
+	/** 按整数等级触发相机震动，从 UYogSettings::CameraShakeLevelTable 查表（重击=1，暴击=2，...） */
 	UFUNCTION(BlueprintCallable, Category = "Camera")
-	void NotifyHeavyHit();
-
-	/** 触发暴击相机震动 */
-	UFUNCTION(BlueprintCallable, Category = "Camera")
-	void NotifyCritHit();
+	void PlayShakeLevel(int32 Level, float ScaleMultiplier = 1.f);
 
 	/** 注册/注销当前有效边界 Volume（由 AYogCameraVolume Overlap 回调调用） */
 	UFUNCTION(BlueprintCallable, Category = "Camera")
@@ -143,20 +139,6 @@ public:
 	/** 冲刺期间相机跟随速度（越大越贴紧，15~25 为推荐范围；0 = 完全贴紧/瞬间） */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|Dash", meta = (ClampMin = "0.0"))
 	float DashFollowSpeed = 18.f;
-
-	// ─── 相机震动 ─────────────────────────────────────────────────────────
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|Events")
-	TSubclassOf<UCameraShakeBase> HeavyHitShakeClass;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|Events", meta = (ClampMin = "0.0"))
-	float HeavyHitShakeScale = 1.f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|Events")
-	TSubclassOf<UCameraShakeBase> CritHitShakeClass;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|Events", meta = (ClampMin = "0.0"))
-	float CritHitShakeScale = 1.f;
 
 protected:
 	virtual void DisplayDebug(UCanvas* Canvas, const FDebugDisplayInfo& DebugDisplay, float& YL, float& YPos) override;

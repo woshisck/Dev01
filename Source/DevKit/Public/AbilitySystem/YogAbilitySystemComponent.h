@@ -242,6 +242,7 @@ private:
 	bool bAccumulatingDealtDamage = false;
 	float AccumulatedMaxHealthDamage = 0.f;
 	FVector AccumulatedHitLocation = FVector::ZeroVector;
+	bool bAccumulatedCrit = false;
 
 	UPROPERTY(Transient)
 	TMap<FGameplayTag, TObjectPtr<UNiagaraComponent>> ActiveStatusNiagaraEffects;
@@ -376,8 +377,11 @@ public:
 	void BeginDealtDamageAccumulation();
 	// Reports final HP actually removed (post armor/shield) on one damaged target.
 	void ReportDealtHealthDamage(float HealthDamage, const FVector& HitLocation);
+	// Flags that a critical hit landed during the current accumulation window.
+	void ReportDealtCrit();
 	// Reads the strongest hit and resets; returns false if no damage was accumulated.
-	bool ConsumeAccumulatedDealtDamage(float& OutMaxHealthDamage, FVector& OutHitLocation);
+	// bOutWasCrit reports whether any hit this swing was a critical hit.
+	bool ConsumeAccumulatedDealtDamage(float& OutMaxHealthDamage, FVector& OutHitLocation, bool& bOutWasCrit);
 
 	/**
 	 * 玩家伤害日志（基础版，向后兼容）

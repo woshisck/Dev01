@@ -113,28 +113,6 @@ void AYogCameraPawn::SetCameraInputAxis(FVector2D Axis)
 	GamepadInputAxis = Axis;
 }
 
-void AYogCameraPawn::NotifyHeavyHit()
-{
-	if (!HeavyHitShakeClass) return;
-
-	APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0);
-	if (PC && PC->PlayerCameraManager)
-	{
-		PC->PlayerCameraManager->StartCameraShake(HeavyHitShakeClass, HeavyHitShakeScale);
-	}
-}
-
-void AYogCameraPawn::NotifyCritHit()
-{
-	if (!CritHitShakeClass) return;
-
-	APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0);
-	if (PC && PC->PlayerCameraManager)
-	{
-		PC->PlayerCameraManager->StartCameraShake(CritHitShakeClass, CritHitShakeScale);
-	}
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // 辅助函数
 // ─────────────────────────────────────────────────────────────────────────────

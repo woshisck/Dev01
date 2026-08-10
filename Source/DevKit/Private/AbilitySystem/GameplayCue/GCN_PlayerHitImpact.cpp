@@ -1,11 +1,11 @@
 #include "AbilitySystem/GameplayCue/GCN_PlayerHitImpact.h"
 
 #include "Camera/PlayerCameraManager.h"
+#include "Camera/YogPlayerCameraManager.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
-#include "Sound/SoundBase.h"
 #include "AbilitySystem/GameplayCue/HitCueData.h"
 #include "AbilitySystem/GameplayCue/GlobalHitShakeData.h"
 #include "System/YogSettings.h"
@@ -37,9 +37,6 @@ bool AGCN_PlayerHitImpact::OnExecute_Implementation(AActor* Target, const FGamep
 	UNiagaraSystem* EffectiveVFX = CueData && CueData->ImpactVFX ? CueData->ImpactVFX.Get() : ImpactVFX.Get();
 	const FRotator EffectiveVFXRotationOffset = CueData ? CueData->VFXRotationOffset : VFXRotationOffset;
 	const FVector EffectiveVFXScale = CueData ? CueData->VFXScale : VFXScale;
-	USoundBase* EffectiveSound = CueData && CueData->ImpactSound ? CueData->ImpactSound.Get() : ImpactSound.Get();
-	const float EffectiveSoundVolume = CueData ? CueData->SoundVolumeMultiplier : SoundVolumeMultiplier;
-	const float EffectiveSoundPitch = CueData ? CueData->SoundPitchMultiplier : SoundPitchMultiplier;
 
 	const FVector HitLocation = Parameters.Location.IsZero() && Target
 		? Target->GetActorLocation()
@@ -65,25 +62,33 @@ bool AGCN_PlayerHitImpact::OnExecute_Implementation(AActor* Target, const FGamep
 			false);
 	}
 
-	if (EffectiveSound)
+	// Camera shake: prefer the per-hit discrete level from the cue payload (heavy = 1,
+	// crit-promoted = CritCameraShakeLevel). When no level is configured, fall back to
+	// the global damage-scaled shake on UYogSettings::HitShakeConfig.
+	int32 ShakeLevel = 0;
+	if (CueData)
 	{
-		UGameplayStatics::SpawnSoundAtLocation(
-			World,
-			EffectiveSound,
-			HitLocation,
-			HitRotation,
-			EffectiveSoundVolume,
-			EffectiveSoundPitch);
+		static const FGameplayTag TAG_CritHit = FGameplayTag::RequestGameplayTag(TEXT("Ability.Event.Attack.CritHit"));
+		const bool bCrit = Parameters.AggregatedSourceTags.HasTag(TAG_CritHit);
+		ShakeLevel = (bCrit && CueData->CritCameraShakeLevel > 0)
+			? CueData->CritCameraShakeLevel
+			: CueData->CameraShakeLevel;
 	}
 
-	// Camera shake is a global setting: one config drives shake for every hit,
-	// scaled by the swing's final HP loss (Parameters.RawMagnitude, see GA_MeleeAttack).
-	const UYogSettings* Settings = UYogSettings::Get();
-	const UGlobalHitShakeData* ShakeConfig = Settings ? Settings->HitShakeConfig.LoadSynchronous() : nullptr;
-	if (ShakeConfig && ShakeConfig->CameraShakeClass)
+	APlayerController* PC = UGameplayStatics::GetPlayerController(World, 0);
+
+	if (ShakeLevel > 0)
 	{
-		APlayerController* PC = UGameplayStatics::GetPlayerController(World, 0);
-		if (PC && PC->PlayerCameraManager)
+		if (AYogPlayerCameraManager* CM = PC ? Cast<AYogPlayerCameraManager>(PC->PlayerCameraManager) : nullptr)
+		{
+			CM->PlayShakeLevel(ShakeLevel);
+		}
+	}
+	else
+	{
+		const UYogSettings* Settings = UYogSettings::Get();
+		const UGlobalHitShakeData* ShakeConfig = Settings ? Settings->HitShakeConfig.LoadSynchronous() : nullptr;
+		if (ShakeConfig && ShakeConfig->CameraShakeClass && PC && PC->PlayerCameraManager)
 		{
 			PC->PlayerCameraManager->StartCameraShake(
 				ShakeConfig->CameraShakeClass,

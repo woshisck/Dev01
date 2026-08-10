@@ -5,12 +5,11 @@
 #include "GCN_PlayerHitImpact.generated.h"
 
 class UNiagaraSystem;
-class USoundBase;
 
 /**
  * One-shot GameplayCue notify for player-hits-enemy impact feedback.
- * Spawns a Niagara VFX and sound at the hit location. Camera shake is driven
- * globally by UYogSettings::HitShakeConfig, not per-cue.
+ * Spawns a Niagara VFX at the hit location and plays camera shake. Impact SFX
+ * is target-scoped and played by the ability per victim, not here.
  * Triggered via ExecuteGameplayCue — not intended for persistent (active/remove) use.
  */
 UCLASS(Blueprintable, BlueprintType)
@@ -33,15 +32,6 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HitImpact|VFX")
 	FVector VFXScale = FVector(1.f);
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HitImpact|SFX")
-	TObjectPtr<USoundBase> ImpactSound;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HitImpact|SFX", meta = (ClampMin = "0.0"))
-	float SoundVolumeMultiplier = 1.f;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HitImpact|SFX", meta = (ClampMin = "0.0"))
-	float SoundPitchMultiplier = 1.f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HitImpact")
 	bool bSkipDedicatedServer = true;

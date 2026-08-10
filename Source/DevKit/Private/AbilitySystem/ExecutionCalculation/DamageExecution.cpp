@@ -191,6 +191,7 @@ void UDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 	if (bIsCrit && SourceASC)
 	{
 		SourceASC->OnCritHit.Broadcast(TargetASC, FinalDamage);
+		SourceASC->ReportDealtCrit();
 
 		AActor* CritSourceActor = SourceASC->GetAvatarActor();
 		if (CritSourceActor)

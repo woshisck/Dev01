@@ -3,12 +3,15 @@
 #include "Camera/YogPlayerCameraManager.h"
 
 #include "Camera/YogSpringArmComponent.h"
+#include "Camera/CameraShakeLevelRow.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Volume/YogCameraVolume.h"
 #include "GameFramework/Character.h"
 #include "GameModes/YogGameMode.h"
 #include "GameModes/LevelFlowTypes.h"
 #include "Map/RewardPickup.h"
+#include "System/YogSettings.h"
+#include "Engine/DataTable.h"
 #include "Kismet/GameplayStatics.h"
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -42,19 +45,26 @@ void AYogPlayerCameraManager::SetCameraInputAxis(FVector2D Axis)
 	GamepadInputAxis = Axis;
 }
 
-void AYogPlayerCameraManager::NotifyHeavyHit()
+void AYogPlayerCameraManager::PlayShakeLevel(int32 Level, float ScaleMultiplier)
 {
-	if (HeavyHitShakeClass)
+	const UYogSettings* Settings = UYogSettings::Get();
+	UDataTable* Table = Settings ? Settings->CameraShakeLevelTable.LoadSynchronous() : nullptr;
+	if (!Table)
 	{
-		StartCameraShake(HeavyHitShakeClass, HeavyHitShakeScale);
+		return;
 	}
-}
 
-void AYogPlayerCameraManager::NotifyCritHit()
-{
-	if (CritHitShakeClass)
+	static const FString ContextString(TEXT("PlayShakeLevel"));
+	TArray<FCameraShakeLevelRow*> Rows;
+	Table->GetAllRows(ContextString, Rows);
+
+	for (const FCameraShakeLevelRow* Row : Rows)
 	{
-		StartCameraShake(CritHitShakeClass, CritHitShakeScale);
+		if (Row && Row->Level == Level && Row->ShakeClass)
+		{
+			StartCameraShake(Row->ShakeClass, Row->Scale * ScaleMultiplier);
+			return;
+		}
 	}
 }
 

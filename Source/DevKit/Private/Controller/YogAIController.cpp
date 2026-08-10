@@ -6,7 +6,7 @@
 #include "BehaviorTree/BehaviorTree.h"
 #include "BehaviorTree/BlackboardData.h"
 #include "BehaviorTree/BlackboardComponent.h"
-#include "BehaviorTree/BrainComponent.h"
+#include "BrainComponent.h"
 #include "Character/EnemyCharacterBase.h"
 #include "Component/CharacterDataComponent.h"
 #include "Component/CombatItemComponent.h"

@@ -29,8 +29,11 @@
 #include "Data/MontageAttackDataAsset.h"
 #include "Data/MontageConfigDA.h"
 #include "Data/RuneDataAsset.h"
+#include "Camera/YogPlayerCameraManager.h"
+#include "Component/HitImpactVisualComponent.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/PlayerController.h"
+#include "Kismet/GameplayStatics.h"
 #include "TimerManager.h"
 #include "UObject/ObjectKey.h"
 
@@ -1709,6 +1712,34 @@ void UGA_MeleeAttack::ApplyHitReactions(AYogCharacterBase* Owner, const FYogGame
 			UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(Owner, HitTag, Payload);
 		}
 
+		// Victim hit feedback (sound + VFX, buff-row or defaults) is owned by each victim's
+		// UHitImpactVisualComponent. HitActors is AddUnique, so multi-hit swings get one
+		// burst per distinct target. The component returns the buff camera-shake level; we
+		// aggregate the max and shake once per swing (shake is a player-global concern).
+		int32 MaxBuffShakeLevel = 0;
+		for (AActor* HitActor : HitActors)
+		{
+			if (AYogCharacterBase* HitChar = Cast<AYogCharacterBase>(HitActor))
+			{
+				if (UHitImpactVisualComponent* HIVC = HitChar->HitImpactVisualComponent)
+				{
+					MaxBuffShakeLevel = FMath::Max(MaxBuffShakeLevel,
+						HIVC->PlayHitFeedback(HitChar->GetActorLocation()));
+				}
+			}
+		}
+
+		if (MaxBuffShakeLevel > 0)
+		{
+			if (APlayerController* PC = UGameplayStatics::GetPlayerController(Owner, 0))
+			{
+				if (AYogPlayerCameraManager* CM = Cast<AYogPlayerCameraManager>(PC->PlayerCameraManager))
+				{
+					CM->PlayShakeLevel(MaxBuffShakeLevel);
+				}
+			}
+		}
+
 		if (PlayerOwner)
 		{
 			if (PlayerOwner->CombatItemComponent)
@@ -1755,13 +1786,21 @@ void UGA_MeleeAttack::ApplyHitReactions(AYogCharacterBase* Owner, const FYogGame
 			// the final HP removed (post armor/shield) for the cue's damage->scale curve.
 			float SwingHealthDamage = 0.f;
 			FVector SwingHitLocation = FVector::ZeroVector;
-			const bool bHadDamage = ASC->ConsumeAccumulatedDealtDamage(SwingHealthDamage, SwingHitLocation);
+			bool bSwingCrit = false;
+			const bool bHadDamage = ASC->ConsumeAccumulatedDealtDamage(SwingHealthDamage, SwingHitLocation, bSwingCrit);
 
 			FGameplayCueParameters CueParams;
 			CueParams.Instigator = Owner;
 			CueParams.EffectCauser = Owner;
 			CueParams.SourceObject = Owner->PendingHitImpactCueData.Get();
 			CueParams.RawMagnitude = SwingHealthDamage;
+
+			// Signal a crit to the cue so it can pick CritCameraShakeLevel over the base level.
+			if (bSwingCrit)
+			{
+				static const FGameplayTag TAG_CritHit = FGameplayTag::RequestGameplayTag(TEXT("Ability.Event.Attack.CritHit"));
+				CueParams.AggregatedSourceTags.AddTag(TAG_CritHit);
+			}
 
 			const FVector ImpactLocation = bHadDamage
 				? SwingHitLocation

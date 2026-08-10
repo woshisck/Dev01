@@ -785,6 +785,7 @@ void UYogAbilitySystemComponent::BeginDealtDamageAccumulation()
 	bAccumulatingDealtDamage = true;
 	AccumulatedMaxHealthDamage = 0.f;
 	AccumulatedHitLocation = FVector::ZeroVector;
+	bAccumulatedCrit = false;
 }
 
 void UYogAbilitySystemComponent::ReportDealtHealthDamage(float HealthDamage, const FVector& HitLocation)
@@ -797,15 +798,25 @@ void UYogAbilitySystemComponent::ReportDealtHealthDamage(float HealthDamage, con
 	AccumulatedHitLocation = HitLocation;
 }
 
-bool UYogAbilitySystemComponent::ConsumeAccumulatedDealtDamage(float& OutMaxHealthDamage, FVector& OutHitLocation)
+void UYogAbilitySystemComponent::ReportDealtCrit()
+{
+	if (bAccumulatingDealtDamage)
+	{
+		bAccumulatedCrit = true;
+	}
+}
+
+bool UYogAbilitySystemComponent::ConsumeAccumulatedDealtDamage(float& OutMaxHealthDamage, FVector& OutHitLocation, bool& bOutWasCrit)
 {
 	const bool bHadDamage = bAccumulatingDealtDamage && AccumulatedMaxHealthDamage > 0.f;
 	OutMaxHealthDamage = AccumulatedMaxHealthDamage;
 	OutHitLocation = AccumulatedHitLocation;
+	bOutWasCrit = bAccumulatedCrit;
 
 	bAccumulatingDealtDamage = false;
 	AccumulatedMaxHealthDamage = 0.f;
 	AccumulatedHitLocation = FVector::ZeroVector;
+	bAccumulatedCrit = false;
 
 	return bHadDamage;
 }

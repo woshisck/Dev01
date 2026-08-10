@@ -199,24 +199,6 @@ public:
 		meta = (ClampMin = "1.0"))
 	float MovingSpeedThreshold = 10.0f;
 
-	// ─── 相机震动事件 ──────────────────────────────────────────────────────
-
-	/** 普通重伤时触发的相机震动（在 Blueprint Details 中指定） */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|Events")
-	TSubclassOf<UCameraShakeBase> HeavyHitShakeClass;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|Events",
-		meta = (ClampMin = "0.0"))
-	float HeavyHitShakeScale = 1.0f;
-
-	/** 暴击时触发的相机震动 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|Events")
-	TSubclassOf<UCameraShakeBase> CritHitShakeClass;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|Events",
-		meta = (ClampMin = "0.0"))
-	float CritHitShakeScale = 1.0f;
-
 	// ─── 公开接口 ─────────────────────────────────────────────────────────
 
 	/**
@@ -232,14 +214,6 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Camera|Input")
 	void SetCameraInputAxis(FVector2D Axis);
-
-	/** 触发重伤相机震动（被暴击等强击事件时调用） */
-	UFUNCTION(BlueprintCallable, Category = "Camera|Events")
-	void NotifyHeavyHit();
-
-	/** 触发暴击相机震动 */
-	UFUNCTION(BlueprintCallable, Category = "Camera|Events")
-	void NotifyCritHit();
 
 	// ─── 旧接口兼容（供蓝图使用） ─────────────────────────────────────────
 
