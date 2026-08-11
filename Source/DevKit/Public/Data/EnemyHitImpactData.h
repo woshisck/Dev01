@@ -59,11 +59,6 @@ struct FHitImpactEntry
 	// 0 = contribute no shake. Resolved via UYogSettings::CameraShakeLevelTable / PlayShakeLevel.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitImpact", meta = (ClampMin = "0"))
 	int32 CameraShakeLevel = 0;
-
-	// Mutes the attacker's weapon transient layer (UWeaponDefinition::ImpactTransientSound) for
-	// hits on this victim, for states that should own the whole impact sound (parry, invulnerable).
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HitImpact")
-	bool bSuppressWeaponTransient = false;
 };
 
 /** Flattened cascade output. Not reflected — plain by-value result of a Resolve call. */
@@ -78,15 +73,15 @@ struct FHitImpactResolved
 	FRotator VFXRotationOffset = FRotator::ZeroRotator;
 
 	int32 CameraShakeLevel = 0;
-	bool bSuppressWeaponTransient = false;
 };
 
 /**
  * Project-wide victim hit feedback table, keyed by GameplayTag. Referenced from
  * UYogSettings::EnemyHitImpactData and read by UHitImpactVisualComponent at hit time.
  *
- * This is the single definition site for the victim-side ("what was struck") sound layer. The
- * complementary attacker-side transient lives on UWeaponDefinition::ImpactTransientSound.
+ * This is the single definition site for hit-contact sound. The attacker side contributes only
+ * the pre-contact swing whoosh (UWeaponDefinition::WhiffSound), which is independent of hit
+ * resolution and never mixes with these entries in the same frame.
  */
 UCLASS(BlueprintType)
 class DEVKIT_API UEnemyHitImpactData : public UDataAsset
@@ -101,7 +96,7 @@ public:
 	 * Resolves every entry whose MatchTag the victim owns into one result, highest Priority first.
 	 * Each field independently takes the first value that is set as the cascade descends, so a
 	 * high-priority state entry can contribute only VFX and still inherit the material sound
-	 * beneath it. bSuppressWeaponTransient ORs across all matches.
+	 * beneath it.
 	 * Level is 1-based and clamps into each entry's Levels array.
 	 */
 	FHitImpactResolved Resolve(const FGameplayTagContainer& VictimTags, int32 Level) const;

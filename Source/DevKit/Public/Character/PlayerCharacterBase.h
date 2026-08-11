@@ -352,8 +352,15 @@ public:
 	void RelinkWeaponAnimLayer();
 
 	// 当前装备的武器定义（切关时写入 RunState，由 RestoreRunStateFromGI 重新装备）
+	// 空手状态下刻意保持为 null，读取时优先用 GetEffectiveEquippedWeaponDefinition。
 	UPROPERTY(BlueprintReadOnly, Category = "Weapon")
 	TObjectPtr<UWeaponDefinition> EquippedWeaponDef;
+
+	// Equipped definition with the unarmed default folded in. EquippedWeaponDef stays null while
+	// unarmed so TryPickupWeapon routes the first real weapon to the primary slot, so anything
+	// reading weapon config for behaviour must go through here or it silently misses unarmed.
+	UFUNCTION(BlueprintPure, Category = "Weapon")
+	UWeaponDefinition* GetEffectiveEquippedWeaponDefinition() const;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Weapon Skill")
 	TObjectPtr<UWeaponSkillDataAsset> EquippedWeaponSkill;
@@ -465,8 +472,6 @@ protected:
 	TObjectPtr<AYogCameraPawn> CameraPawnActor;
 
 private:
-	UWeaponDefinition* GetEffectiveEquippedWeaponDefinition() const;
-
 	void SetupHeatPhaseTagListeners();
 	void OnHeatPhaseTagChanged(const FGameplayTag Tag, int32 NewCount);
 	void OnHeatPhaseParentTagChanged(const FGameplayTag Tag, int32 NewCount);

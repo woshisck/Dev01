@@ -105,10 +105,8 @@ FGameplayTagContainer UHitImpactVisualComponent::GatherVictimTags() const
 	return Tags;
 }
 
-int32 UHitImpactVisualComponent::PlayHitFeedback(const FVector& HitLocation, int32 Level, bool& bOutSuppressWeaponTransient)
+int32 UHitImpactVisualComponent::PlayHitFeedback(const FVector& HitLocation, int32 Level)
 {
-	bOutSuppressWeaponTransient = false;
-
 	UWorld* World = GetWorld();
 	if (!World)
 	{
@@ -123,7 +121,6 @@ int32 UHitImpactVisualComponent::PlayHitFeedback(const FVector& HitLocation, int
 	}
 
 	const FHitImpactResolved FX = Data->Resolve(GatherVictimTags(), Level);
-	bOutSuppressWeaponTransient = FX.bSuppressWeaponTransient;
 
 	if (FX.VFX)
 	{

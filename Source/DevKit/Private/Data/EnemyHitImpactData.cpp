@@ -34,8 +34,6 @@ FHitImpactResolved UEnemyHitImpactData::Resolve(const FGameplayTagContainer& Vic
 
 	for (const FHitImpactEntry* Entry : Matches)
 	{
-		Result.bSuppressWeaponTransient |= Entry->bSuppressWeaponTransient;
-
 		if (Result.CameraShakeLevel == 0)
 		{
 			Result.CameraShakeLevel = Entry->CameraShakeLevel;

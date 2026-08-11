@@ -131,21 +131,21 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Hit Feedback", meta = (DisplayName = "命中冲击等级", ClampMin = "1"))
 	int32 HitImpactLevel = 1;
 
-	// Attacker-side layer of the composite hit sound: the short dry transient identifying WHICH
-	// weapon struck (blade shing / hammer thock). The victim's UEnemyHitImpactData tier supplies
-	// the complementary body-and-tail layer identifying WHAT was struck; the two mix into one
-	// impact. Played once per swing by GA_MeleeAttack no matter how many targets were hit — one
-	// swing only rings the weapon once, so stacking it per victim would spike amplitude and comb
-	// filter. Author it short (30-80ms) and free of reverb tail so it does not mask the victim
-	// layer. Optional; leave empty to keep tier-sound-only behaviour.
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Hit Feedback", meta = (DisplayName = "命中瞬态音效"))
-	TObjectPtr<USoundBase> ImpactTransientSound;
+	// Air-swing sound identifying WHICH weapon is being swung. Played by UAN_WeaponWhiffSound at
+	// the montage's swing-arc peak, so it fires on every swing regardless of whether the swing
+	// connects — a miss is otherwise silent. Independent of the victim-side contact sound in
+	// UEnemyHitImpactData, which resolves later and only when something is actually hit.
+	// Author it 150-400ms with an audible air swell and its own decay tail baked in: playback is
+	// fire-and-forget, so nothing fades it out if the montage is cancelled mid-arc.
+	// Optional; leave empty for a silent swing.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Whiff", meta = (DisplayName = "挥击音效"))
+	TObjectPtr<USoundBase> WhiffSound;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Hit Feedback", meta = (DisplayName = "命中瞬态音量", ClampMin = "0.0"))
-	float ImpactTransientVolume = 1.f;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Whiff", meta = (DisplayName = "挥击音量", ClampMin = "0.0"))
+	float WhiffSoundVolume = 1.f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Hit Feedback", meta = (DisplayName = "命中瞬态音调", ClampMin = "0.0"))
-	float ImpactTransientPitch = 1.f;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Whiff", meta = (DisplayName = "挥击音调", ClampMin = "0.0"))
+	float WhiffSoundPitch = 1.f;
 
 	// Projectile data used by AN_FireProjectile to spawn bullets via UYogBulletManagerSubsystem.
 	// Only relevant when WeaponType == Ranged.

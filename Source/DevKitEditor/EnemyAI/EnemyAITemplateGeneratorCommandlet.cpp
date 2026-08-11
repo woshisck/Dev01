@@ -68,6 +68,8 @@ namespace EnemyAITemplateGenerator
 	const FString AlarmBellJailerAbilityDataPath = TEXT("/Game/Docs/Data/Enemy/AlarmBellJailer/DA_AbilityMontage_AlarmBellJailer_01");
 	const FString GuardCaptainDataPath = TEXT("/Game/Docs/Data/Enemy/GuardCaptain/DA_GuardCaptain");
 	const FString GuardCaptainAbilityDataPath = TEXT("/Game/Docs/Data/Enemy/GuardCaptain/DA_AbilityMontage_GuardCaptain_01");
+	const FString BossStateTreePath = TEXT("/Game/Code/Enemy/AI/StateTree/ST_Boss");
+	const FString BossDataPath = TEXT("/Game/Docs/Data/Enemy/Boss/DA_Boss");
 
 	enum class EDefaultEnemyProfile : uint8
 	{
@@ -75,6 +77,7 @@ namespace EnemyAITemplateGenerator
 		RottenGuard,
 		AlarmBellJailer,
 		GuardCaptain,
+		Boss,
 	};
 
 	FString ToObjectPath(const FString& PackagePath)
@@ -605,6 +608,41 @@ namespace EnemyAITemplateGenerator
 			UpsertAttackOptionByTag(EnemyData.AttackProfile, FlameIgnition);
 			break;
 		}
+
+		case EDefaultEnemyProfile::Boss:
+		{
+			EnemyData.DifficultyScore = 12;
+			EnemyData.AwarenessTuning.DetectionRadius = 1400.f;
+			EnemyData.AwarenessTuning.CombatEnterRadius = 1000.f;
+			EnemyData.AwarenessTuning.CombatExitRadius = 2500.f;
+			EnemyData.AwarenessTuning.AlertDuration = 3.0f;
+			EnemyData.AwarenessTuning.AlertBroadcastRadius = 1800.f;
+			EnemyData.AwarenessTuning.PatrolRadius = 500.f;
+			EnemyData.AwarenessTuning.PatrolWaitMin = 1.0f;
+			EnemyData.AwarenessTuning.PatrolWaitMax = 2.5f;
+			EnemyData.MovementTuning.ApproachStyle = EEnemyAIApproachStyle::BruiserHold;
+			EnemyData.MovementTuning.PreferredRange = 260.f;
+			EnemyData.MovementTuning.AttackRange = 250.f;
+			EnemyData.MovementTuning.AcceptanceRadius = 120.f;
+			EnemyData.MovementTuning.RepathInterval = 0.3f;
+			EnemyData.MovementTuning.FlankDistance = 120.f;
+			EnemyData.MovementTuning.StrafeChance = 0.f;
+			EnemyData.MovementTuning.CrowdSeparationWeight = 3.6f;
+			EnemyData.MovementTuning.bUseForwardSteering = true;
+			EnemyData.MovementTuning.ForwardTurnLeadDistance = 260.f;
+			EnemyData.MovementTuning.MaxTurnYawSpeed = 200.f;
+			EnemyData.MovementTuning.MoveTargetSmoothingSpeed = 4.0f;
+			EnemyData.MovementTuning.SharpTurnAngle = 100.f;
+			EnemyData.MovementTuning.MaxWalkSpeedOverride = 380.f;
+			EnemyData.MovementTuning.CombatSlotLockDuration = 0.3f;
+			EnemyData.MovementTuning.AttackRangeExitBuffer = 60.f;
+			EnemyData.AttackProfile.RecentAttackMemoryDuration = 0.f;
+			EnemyData.AttackProfile.RepeatAttackWeightMultiplier = 1.0f;
+			EnemyData.AttackProfile.WhiffRepositionChance = 0.f;
+
+			UpsertAttackOptionByTag(EnemyData.AttackProfile, MakeAttackOption(TEXT("HeavySlam"), TEXT("Enemy.Melee.HAtk1"), 0.f, 250.f, 1.0f, 1.8f));
+			break;
+		}
 		}
 
 		SyncAttackProfileFromAbilityData(EnemyData);
@@ -883,6 +921,126 @@ namespace EnemyAITemplateGenerator
 		return Task;
 	}
 
+	UStateTreeState& AddMoveState(
+		UStateTreeState& Parent,
+		const TCHAR* StateName,
+		const TCHAR* DestinationKey,
+		float AcceptanceRadius)
+	{
+		UStateTreeState& State = Parent.AddChildState(FName(StateName));
+		State.SelectionBehavior = EStateTreeStateSelectionBehavior::TryEnterState;
+		TStateTreeEditorNode<FStateTreeTask_MoveToControllerTarget>& Task =
+			AddNamedTask<FStateTreeTask_MoveToControllerTarget>(State, StateName);
+		Task.GetInstanceData().DestinationKey = FName(DestinationKey);
+		Task.GetInstanceData().AcceptanceRadius = AcceptanceRadius;
+		return State;
+	}
+
+	void RebuildBossStateTree(UStateTree& StateTree, TArray<FString>& ReportLines)
+	{
+		UStateTreeEditorData* EditorData = Cast<UStateTreeEditorData>(StateTree.EditorData);
+		if (!EditorData)
+		{
+			ReportLines.Add(TEXT("- Boss StateTree missing editor data; rebuild skipped."));
+			return;
+		}
+
+		EditorData->Modify();
+		EditorData->Evaluators.Reset();
+		EditorData->GlobalTasks.Reset();
+		EditorData->SubTrees.Reset();
+
+		TStateTreeEditorNode<FStateTreeEvaluator_EnemyAwareness>& Awareness =
+			EditorData->AddEvaluator<FStateTreeEvaluator_EnemyAwareness>();
+		Awareness.SetNodeName(TEXT("Update Enemy Awareness"));
+
+		TStateTreeEditorNode<FStateTreeEvaluator_EnemyCombatMove>& CombatMove =
+			EditorData->AddEvaluator<FStateTreeEvaluator_EnemyCombatMove>();
+		CombatMove.SetNodeName(TEXT("Update Enemy Combat Move"));
+
+		UStateTreeState& Root = EditorData->AddRootState();
+		Root.SelectionBehavior = EStateTreeStateSelectionBehavior::TrySelectChildrenInOrder;
+		Root.Description = TEXT("Heavy boss root: idle wander near spawn, alert approach, then close-and-repeat heavy attack. Distances live on the boss UEnemyData.");
+
+		UStateTreeState& Dead = Root.AddChildState(TEXT("Dead"));
+		Dead.SelectionBehavior = EStateTreeStateSelectionBehavior::TryEnterState;
+		Dead.AddEnterCondition<FStateTreeCondition_IsDead>().SetNodeName(TEXT("Enemy Is Dead"));
+		AddNamedTask<FStateTreeTask_PlayDead>(Dead, TEXT("Play Dead"));
+
+		UStateTreeState& Combat = Root.AddChildState(TEXT("Combat"));
+		Combat.SelectionBehavior = EStateTreeStateSelectionBehavior::TrySelectChildrenInOrder;
+		TStateTreeEditorNode<FStateTreeCondition_EnemyAIState>& CombatCondition = Combat.AddEnterCondition<FStateTreeCondition_EnemyAIState>();
+		CombatCondition.SetNodeName(TEXT("Enemy AI State Is Combat"));
+		CombatCondition.GetInstanceData().RequiredState = EEnemyAIState::Combat;
+
+		// The attack task itself fails when nothing in the profile is in range or off
+		// cooldown, which is the signal to fall through to the chase state.
+		AddAttackState(Combat, TEXT("Heavy Attack"), EEnemyAIAttackRole::CloseMelee);
+
+		// Chase exits to the recheck wait rather than straight back to Combat: MoveTo
+		// returns AlreadyAtGoal in the same frame when the boss is already close, so a
+		// direct loop would spin every frame while the heavy attack is on cooldown.
+		UStateTreeState& ChaseTarget = AddMoveState(Combat, TEXT("Chase Target"), TEXT("MoveTargetLocation"), 120.f);
+		ChaseTarget.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::NextSelectableState);
+
+		UStateTreeState& CombatRecheck = Combat.AddChildState(TEXT("Combat Recheck"));
+		CombatRecheck.SelectionBehavior = EStateTreeStateSelectionBehavior::TryEnterState;
+		AddNamedTask<FStateTreeTask_EnemyPatrolWait>(CombatRecheck, TEXT("Combat Recheck Wait"));
+		CombatRecheck.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::GotoState, &Combat);
+
+		UStateTreeState& Alert = Root.AddChildState(TEXT("Alert"));
+		Alert.SelectionBehavior = EStateTreeStateSelectionBehavior::TrySelectChildrenInOrder;
+		TStateTreeEditorNode<FStateTreeCondition_EnemyAIState>& AlertCondition = Alert.AddEnterCondition<FStateTreeCondition_EnemyAIState>();
+		AlertCondition.SetNodeName(TEXT("Enemy AI State Is Alert"));
+		AlertCondition.GetInstanceData().RequiredState = EEnemyAIState::Alert;
+
+		UStateTreeState& AlertApproach = AddMoveState(Alert, TEXT("Alert Approach"), TEXT("LastKnownTargetLocation"), 100.f);
+		AlertApproach.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::NextState);
+
+		UStateTreeState& AlertWait = Alert.AddChildState(TEXT("Alert Wait"));
+		AlertWait.SelectionBehavior = EStateTreeStateSelectionBehavior::TryEnterState;
+		AddNamedTask<FStateTreeTask_EnemyPatrolWait>(AlertWait, TEXT("Alert Wait"));
+		AlertWait.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::GotoState, &Alert);
+
+		UStateTreeState& Patrol = Root.AddChildState(TEXT("Patrol"));
+		Patrol.SelectionBehavior = EStateTreeStateSelectionBehavior::TrySelectChildrenInOrder;
+		TStateTreeEditorNode<FStateTreeCondition_EnemyAIState>& PatrolCondition = Patrol.AddEnterCondition<FStateTreeCondition_EnemyAIState>();
+		PatrolCondition.SetNodeName(TEXT("Enemy AI State Is Patrol"));
+		PatrolCondition.GetInstanceData().RequiredState = EEnemyAIState::Patrol;
+
+		UStateTreeState& PatrolPickPoint = Patrol.AddChildState(TEXT("Patrol Pick Point"));
+		PatrolPickPoint.SelectionBehavior = EStateTreeStateSelectionBehavior::TryEnterState;
+		AddNamedTask<FStateTreeTask_UpdateEnemyPatrolTarget>(PatrolPickPoint, TEXT("Update Patrol Target"));
+		PatrolPickPoint.AddTransition(EStateTreeTransitionTrigger::OnStateSucceeded, EStateTreeTransitionType::NextState);
+
+		UStateTreeState& PatrolMove = AddMoveState(Patrol, TEXT("Patrol Move"), TEXT("PatrolTargetLocation"), 50.f);
+		PatrolMove.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::NextState);
+
+		UStateTreeState& PatrolWait = Patrol.AddChildState(TEXT("Patrol Wait"));
+		PatrolWait.SelectionBehavior = EStateTreeStateSelectionBehavior::TryEnterState;
+		AddNamedTask<FStateTreeTask_EnemyPatrolWait>(PatrolWait, TEXT("Patrol Wait"));
+		PatrolWait.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::GotoState, &Patrol);
+
+		EditorData->ReparentStates();
+		EditorData->FixDuplicateIDs();
+		EditorData->UpdateBindings();
+		UStateTreeEditingSubsystem::MarkAsPubliclyModified(&StateTree);
+
+		FStateTreeCompilerLog Log;
+		const bool bCompiled = UStateTreeEditingSubsystem::CompileStateTree(&StateTree, Log);
+		if (!bCompiled)
+		{
+			Log.DumpToLog(&StateTree, LogTemp);
+			ReportLines.Add(TEXT("- Boss StateTree compile failed; see editor log for details."));
+		}
+		else
+		{
+			ReportLines.Add(TEXT("- Rebuilt and compiled Boss StateTree template."));
+		}
+
+		StateTree.MarkPackageDirty();
+	}
+
 	void RebuildStateTree(UStateTree& StateTree, TArray<FString>& ReportLines)
 	{
 		UStateTreeEditorData* EditorData = Cast<UStateTreeEditorData>(StateTree.EditorData);
@@ -976,13 +1134,16 @@ namespace EnemyAITemplateGenerator
 		TArray<FString>& ReportLines,
 		TArray<UPackage*>& DirtyPackages)
 	{
+		const FString BehaviorTreeLabel = BehaviorTree ? BehaviorTree->GetPathName() : TEXT("<none>");
+		const FString StateTreeLabel = StateTree ? StateTree->GetPathName() : TEXT("<none>");
+
 		if (bDryRun)
 		{
 			ReportLines.Add(FString::Printf(TEXT("- %s `%s`.BehaviorTree -> `%s`; StateTree -> `%s`."),
 				PackageExists(EnemyDataPath) ? TEXT("Would set") : bCreateIfMissing ? TEXT("Would create enemy DA and set") : TEXT("Missing enemy DA"),
 				*EnemyDataPath,
-				*BehaviorTreePath,
-				*StateTreePath));
+				*BehaviorTreeLabel,
+				*StateTreeLabel));
 			return;
 		}
 
@@ -999,8 +1160,8 @@ namespace EnemyAITemplateGenerator
 		ReportLines.Add(FString::Printf(TEXT("- %s `%s`.BehaviorTree -> `%s`; StateTree -> `%s`."),
 			bDryRun ? TEXT("Would set") : TEXT("Set"),
 			*EnemyDataPath,
-			*BehaviorTreePath,
-			*StateTreePath));
+			*BehaviorTreeLabel,
+			*StateTreeLabel));
 
 		if (!BehaviorTree && !StateTree)
 		{
@@ -1051,6 +1212,7 @@ int32 UEnemyAITemplateGeneratorCommandlet::Main(const FString& Params)
 	using namespace EnemyAITemplateGenerator;
 
 	const bool bDryRun = Params.Contains(TEXT("DryRun"), ESearchCase::IgnoreCase);
+	const bool bPresetBoss = Params.Contains(TEXT("Preset=Boss"), ESearchCase::IgnoreCase);
 	const bool bPresetDefaultMelee = Params.Contains(TEXT("Preset=DefaultMelee"), ESearchCase::IgnoreCase)
 		|| !Params.Contains(TEXT("Preset="), ESearchCase::IgnoreCase);
 
@@ -1058,12 +1220,40 @@ int32 UEnemyAITemplateGeneratorCommandlet::Main(const FString& Params)
 	TArray<UPackage*> DirtyPackages;
 	ReportLines.Add(TEXT("# Enemy AI Template Generator Report"));
 	ReportLines.Add(FString::Printf(TEXT("- Mode: %s"), bDryRun ? TEXT("DryRun") : TEXT("Apply")));
-	ReportLines.Add(FString::Printf(TEXT("- Preset: %s"), bPresetDefaultMelee ? TEXT("DefaultMelee") : TEXT("Unsupported")));
+	ReportLines.Add(FString::Printf(TEXT("- Preset: %s"),
+		bPresetBoss ? TEXT("Boss") : bPresetDefaultMelee ? TEXT("DefaultMelee") : TEXT("Unsupported")));
 	ReportLines.Add(TEXT(""));
 
-	if (!bPresetDefaultMelee)
+	if (bPresetBoss)
 	{
-		ReportLines.Add(TEXT("- Unsupported preset. Use `-Preset=DefaultMelee`."));
+		ReportLines.Add(TEXT("## Blackboard"));
+		UBlackboardData* Blackboard = CreateOrLoadAsset<UBlackboardData>(BlackboardPath, bDryRun, ReportLines, DirtyPackages);
+		if (!bDryRun && Blackboard)
+		{
+			ConfigureBlackboard(*Blackboard);
+			DirtyPackages.AddUnique(Blackboard->GetPackage());
+			ReportLines.Add(TEXT("- Ensured shared enemy blackboard keys."));
+		}
+
+		ReportLines.Add(TEXT(""));
+		ReportLines.Add(TEXT("## StateTree"));
+		ReportLines.Add(TEXT("- State order: Dead -> Combat (Heavy Attack -> Chase Target -> Combat Recheck) -> Alert (Approach -> Wait) -> Patrol (Pick Point -> Move -> Wait)."));
+		UStateTree* BossStateTree = CreateOrLoadStateTree(BossStateTreePath, bDryRun, ReportLines, DirtyPackages);
+		if (!bDryRun && BossStateTree)
+		{
+			RebuildBossStateTree(*BossStateTree, ReportLines);
+			DirtyPackages.AddUnique(BossStateTree->GetPackage());
+		}
+
+		ReportLines.Add(TEXT(""));
+		ReportLines.Add(TEXT("## Enemy Data"));
+		// No BehaviorTree: AYogAIController::OnPossess prefers EnemyData->StateTree, so the
+		// boss runs on the StateTree exclusively.
+		AssignBehaviorTreeToEnemyData(BossDataPath, nullptr, BossStateTree, Blackboard, EDefaultEnemyProfile::Boss, nullptr, nullptr, true, bDryRun, ReportLines, DirtyPackages);
+	}
+	else if (!bPresetDefaultMelee)
+	{
+		ReportLines.Add(TEXT("- Unsupported preset. Use `-Preset=DefaultMelee` or `-Preset=Boss`."));
 	}
 	else
 	{
@@ -1131,5 +1321,5 @@ int32 UEnemyAITemplateGeneratorCommandlet::Main(const FString& Params)
 	DevKitEditorCommandletReports::SaveReportLines(TEXT("EnemyAITemplateGeneratorReport.md"), ReportLines, ReportPath, SharedReportPath);
 
 	UE_LOG(LogTemp, Display, TEXT("Enemy AI template generator finished. Report: %s Shared: %s"), *ReportPath, *SharedReportPath);
-	return bPresetDefaultMelee ? 0 : 1;
+	return (bPresetBoss || bPresetDefaultMelee) ? 0 : 1;
 }

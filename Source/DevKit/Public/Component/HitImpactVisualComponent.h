@@ -24,10 +24,9 @@ public:
 	// Plays this victim's hit sound + VFX at HitLocation, resolved from UEnemyHitImpactData by
 	// cascading every entry whose MatchTag this victim owns (Level picks the intensity entry).
 	// Returns the resolved camera-shake level (0 = none) so the caller can aggregate one shake
-	// per swing, and reports whether the attacker should mute its weapon transient layer.
-	// Does not play the hit push (call that separately).
+	// per swing. Does not play the hit push (call that separately).
 	UFUNCTION(BlueprintCallable, Category = "Combat|Hit Impact Visual")
-	int32 PlayHitFeedback(const FVector& HitLocation, int32 Level, bool& bOutSuppressWeaponTransient);
+	int32 PlayHitFeedback(const FVector& HitLocation, int32 Level);
 
 	UFUNCTION(BlueprintCallable, Category = "Combat|Hit Impact Visual")
 	void PlayHitPush(AActor* SourceActor, float Strength = 1.0f);

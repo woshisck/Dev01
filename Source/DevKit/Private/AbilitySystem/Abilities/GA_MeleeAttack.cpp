@@ -1720,48 +1720,23 @@ void UGA_MeleeAttack::ApplyHitReactions(AYogCharacterBase* Owner, const FYogGame
 		// so N victims must not stack into N shakes).
 		// The attacker's equipped weapon picks the intensity level (players only; else 1).
 		int32 WeaponHitLevel = 1;
-		const UWeaponDefinition* WeaponDef = PlayerOwner ? PlayerOwner->EquippedWeaponDef.Get() : nullptr;
+		const UWeaponDefinition* WeaponDef = PlayerOwner ? PlayerOwner->GetEffectiveEquippedWeaponDefinition() : nullptr;
 		if (WeaponDef)
 		{
 			WeaponHitLevel = WeaponDef->HitImpactLevel;
 		}
 
 		int32 MaxHitShakeLevel = 0;
-		FVector TransientLocation = FVector::ZeroVector;
-		bool bHasTransientLocation = false;
-		bool bSuppressWeaponTransient = false;
 		for (AActor* HitActor : HitActors)
 		{
 			if (AYogCharacterBase* HitChar = Cast<AYogCharacterBase>(HitActor))
 			{
 				if (UHitImpactVisualComponent* HIVC = HitChar->HitImpactVisualComponent)
 				{
-					const FVector VictimLocation = HitChar->GetActorLocation();
-					bool bVictimSuppressesTransient = false;
 					MaxHitShakeLevel = FMath::Max(MaxHitShakeLevel,
-						HIVC->PlayHitFeedback(VictimLocation, WeaponHitLevel, bVictimSuppressesTransient));
-					bSuppressWeaponTransient |= bVictimSuppressesTransient;
-
-					if (!bHasTransientLocation)
-					{
-						TransientLocation = VictimLocation;
-						bHasTransientLocation = true;
-					}
+						HIVC->PlayHitFeedback(HitChar->GetActorLocation(), WeaponHitLevel));
 				}
 			}
-		}
-
-		// Attacker-side transient layer of the composite hit sound (see UWeaponDefinition
-		// ImpactTransientSound). Deliberately one per swing rather than per victim: the weapon
-		// only rings once, so a 3-target swing playing 3 copies on one frame would spike
-		// amplitude and comb-filter instead of reading as a heavier hit. Spawned at the first
-		// victim so it still localises to a contact point. Any victim whose resolved feedback
-		// owns the whole impact sound (parry, invulnerable) suppresses it for the swing.
-		if (WeaponDef && WeaponDef->ImpactTransientSound && bHasTransientLocation && !bSuppressWeaponTransient)
-		{
-			UGameplayStatics::SpawnSoundAtLocation(
-				GetWorld(), WeaponDef->ImpactTransientSound, TransientLocation, FRotator::ZeroRotator,
-				WeaponDef->ImpactTransientVolume, WeaponDef->ImpactTransientPitch);
 		}
 
 		if (MaxHitShakeLevel > 0)
