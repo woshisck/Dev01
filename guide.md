@@ -2,6 +2,205 @@
 
 This guide captures current project direction and working assumptions. `AGENTS.md` asks Codex to read this file before starting repository work.
 
+## Engine, P4, Cloud Build, and UGS Distribution
+
+Dev01 uses a customized UE 5.8 source engine, but UGS clients do **not** receive or build the complete engine source. The development and distribution chain is:
+
+```mermaid
+flowchart LR
+    A["Source engine development<br/>X:\Dev-BuildEngine"] --> B["Local compile and visual validation"]
+    B --> C["Source-free Installed Build"]
+    C --> D["P4 Engine stream<br/>//Dev01Engine/main"]
+    D --> E["Read-only Engine import<br/>inside //Dev01/main"]
+    E --> F["Cloud project/plugin build"]
+    F --> G["UGS project PCB"]
+    G --> H["One UGS workspace per teammate"]
+```
+
+The core boundary is:
+
+- The local workstation develops, compiles, visually validates, and publishes the customized UE 5.8 engine.
+- P4 stores the complete project, the source-free Installed Build, the UGS PCB, and the UGS self-update package.
+- The cloud build agent uses the imported Installed Build to compile project and plugin modules. It does not rebuild the complete Unreal Engine.
+- GitHub carries project code and approved text files only. It must not receive Unreal Engine source, project assets, Engine binaries, PCB archives, or generated build output.
+- Teammates use UGS and one personal main workspace. They do not need engine source, a separate Engine workspace, or a local DevKitEditor build.
+
+### Authoritative Roots and Roles
+
+| Role | Path or depot | Rule |
+| --- | --- | --- |
+| Editable UE 5.8 source | `X:\Dev-BuildEngine` | The only authoritative engine source tree. Renderer, Shader, material-interface, stylized-lighting, and UGS source changes belong here. |
+| Project Git worktree | `X:\Project\Dev01` | Project code collaboration and GitHub-side maintenance. Do not publish complete Engine source to GitHub. |
+| Local P4/UGS validation workspace | `X:\Project\YogProject\Dev01` | Complete project plus the read-only imported source-free Engine. Use it for P4/UGS acceptance, not engine-source development. |
+| Local UGS checkout/install | `X:\Project\YogProject\UnrealGameSync` | UGS client and local self-update validation. |
+| Local release pipeline | `X:\Dev-BuildPipeline\Dev01` | Builds and prepares the source-free Installed Build and its release metadata. |
+| Canonical Installed Build output | `X:\Dev-InstalledBuilds\UE_5.8_Dev01\Windows` | Local source-free engine product before publication. |
+| Isolated Engine publish stage | `X:\Dev-EnginePublishStage\UE_5.8_Dev01\Engine` | Exact Engine payload staged for P4 publication. |
+| Cloud P4 workspace | `C:\Project\Dev01-P4` | Cloud-side project sync and project/plugin compilation. |
+| Cloud build automation | `C:\BuildAgent\Dev01` | Project build, validation, PCB packaging, and publication entrypoints. |
+
+`X:\Project\YogProject\Dev01\Engine` is **not** the editable source engine. It is the source-free Installed Build imported for UGS. Never make engine feature changes there and never treat its files as the authoritative source of Renderer or Shader work.
+
+### P4 Layout
+
+| Depot path | Contents |
+| --- | --- |
+| `//Dev01/main` | Complete Dev01 project, code, configuration, assets, UGS configuration, and release metadata. |
+| `//Dev01Engine/main` | Source-free UE 5.8 Installed Build used by the project and UGS clients. |
+| `//Dev01Binaries/UGS/++Dev01+main-Editor.zip` | Precompiled project and project-plugin Editor binaries (PCB). It does not contain the complete Engine again. |
+| `//Dev01Binaries/Tools/UnrealGameSync/Release.zip` | UGS installer/self-update package. |
+
+The project stream must import an explicit Engine changelist:
+
+```text
+import Engine/... //Dev01Engine/main/...@<EngineCL>
+```
+
+Never change this to follow `#head`. The project changelist, imported Engine changelist, PCB code changelist, and BuildId must remain traceable as one tested release set.
+
+### Choosing the Correct Engine
+
+For engine feature, Renderer, Shader, material-interface, or stylized-lighting work, compile and launch the source engine:
+
+```powershell
+& 'X:\Dev-BuildEngine\Engine\Build\BatchFiles\Build.bat' DevKitEditor Win64 Development '-Project=X:\Project\YogProject\Dev01\DevKit.uproject' -WaitMutex
+& 'X:\Dev-BuildEngine\Engine\Binaries\Win64\UnrealEditor.exe' 'X:\Project\YogProject\Dev01\DevKit.uproject'
+```
+
+Do not launch `X:\Project\YogProject\Dev01\Engine\Binaries\Win64\UnrealEditor.exe` to develop or compile full engine-source changes. That executable is the UGS/Installed Build version and is appropriate only for distribution acceptance and teammate-equivalent testing.
+
+Before an engine release, use the source engine to open `X:\Project\YogProject\Dev01\DevKit.uproject` and manually validate the requested rendering or gameplay effect. Confirm that there are no module-version errors, Shader failures, crashes, or broken asset references before starting publication.
+
+### Engine Release Flow
+
+An engine-source or engine-Shader update requires the full chain below:
+
+1. Inspect both source-engine Git state and project P4 state. Preserve unrelated local changes and identify ownership before staging or opening files.
+2. Modify and compile only in `X:\Dev-BuildEngine`.
+3. Open `DevKit.uproject` with the source-engine `UnrealEditor.exe` and complete visual/runtime acceptance locally.
+4. Validate the local release pipeline:
+
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File X:\Dev-BuildPipeline\Dev01\test_dev01_release_pipeline.ps1
+   ```
+
+5. Generate the Installed Build:
+
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File X:\Dev-BuildPipeline\Dev01\start_ue58_installed_build.ps1
+   ```
+
+6. Publish the isolated, source-free Engine payload to a new submitted changelist under `//Dev01Engine/main`.
+7. Verify the Engine payload and its BuildId, then pin `//Dev01/main` to that exact Engine changelist and update the project release marker.
+8. Let the cloud build agent sync the pinned project and compile DevKit, DevKitEditor, DevKitShaders, and all formal project/plugin Runtime and Editor modules with the Installed Build.
+9. Publish a matching PCB to `//Dev01Binaries/UGS/++Dev01+main-Editor.zip`, then run `p4 verify -q` on the archive.
+10. Use a clean teammate-equivalent UGS workspace to sync, download the PCB, and open the project without compiling locally. Save the UGS state/log and editor startup log as acceptance evidence.
+
+The Installed Build includes the Editor executable and engine DLLs, runtime Content, `.usf`/`.ush` Shader sources, Python runtime, required public headers/BuildRules, and Installed Build/version metadata. It must exclude the complete private Engine source tree, Epic Git history, local caches/Saved data, unnecessary Intermediate output, and debug PDBs not explicitly required by the release contract.
+
+`X:\Dev-BuildPipeline\Dev01\README.md` documents the local binary pipeline. Some of its project-PCB stages are retained for bootstrap/audit history; the production project/plugin build and PCB publication are cloud responsibilities. Do not combine the local legacy PCB flow with the cloud flow unless the release procedure has been deliberately reconciled and revalidated.
+
+### Project-Only Update Flow
+
+Project or project-plugin code changes do not require a new Engine publication:
+
+```text
+GitHub/P4 project code update
+-> cloud project/plugin compile
+-> matching PCB publication
+-> UGS update and launch validation
+```
+
+Do not rebuild or republish `//Dev01Engine/main` unless the Engine payload, engine Shader source, or the Engine/project binary contract actually changed.
+
+### Cloud Build and PCB Contract
+
+The cloud server at `124.223.187.156` is the P4 authority, project build node, and UGS distribution node. Its routine build must use the published Installed Build and must not compile the complete Unreal Engine source.
+
+Current cloud entrypoints are expected under `C:\BuildAgent\Dev01`, including:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File C:\BuildAgent\Dev01\dev01_ci_project_build.ps1 -Force
+powershell -ExecutionPolicy Bypass -File C:\BuildAgent\Dev01\dev01_publish_ugs_binaries.ps1
+```
+
+The known stable project-build policy is low concurrency with `-MaxParallelActions=2`, `-NoUBA`, and `-UsePrecompiled`. Treat the actual cloud scripts and their logs as authoritative for a production run; if cloud access is unavailable, do not claim the current task, scheduler, disk, cache, or BuildId gate has been independently verified.
+
+The PCB contains project and project-plugin binary output such as `Binaries/Win64`, `Plugins/*/Binaries/Win64`, and required platform binary folders. It must not package the complete Engine. `Build/UnrealGameSync.ini` provides the authoritative `ZippedBinariesPath`.
+
+The PCB depot changelist description must contain the UGS-recognized code/project changelist, for example:
+
+```text
+[CL 00000083] Cloud-built DevKitEditor ...
+```
+
+The PCB depot changelist, the bracketed UGS code changelist, and the Engine changelist are different concepts and do not have to be the same number.
+
+### BuildId Invariant
+
+The authoritative BuildId comes from:
+
+```text
+Engine\Binaries\Win64\UnrealEditor.modules
+```
+
+The same BuildId must appear in all formal release manifests, including:
+
+- `Binaries\Win64\DevKitEditor.target` under `Version.BuildId`.
+- `Binaries\Win64\UnrealEditor.modules`.
+- Every formal `Plugins\...\Binaries\Win64\UnrealEditor.modules` included in the PCB.
+
+The cloud build and publish scripts must restore authoritative P4 Engine manifests, normalize project/plugin metadata after compilation, scan every formal module manifest, and refuse publication on any mismatch. A “Missing DevKit Modules” or “built with a different engine version” dialog is normally a release-contract failure between Engine and PCB; do not click **Yes** and rebuild locally as the teammate fix.
+
+### Teammate UGS Workflow
+
+Each teammate should have one personal P4 user/ticket and one personal main workspace. The normal workflow is:
+
+1. Install P4V and authenticate to P4.
+2. Run `SetupDev01UGS.bat` or use `Dev01_Menu.bat` from the workspace.
+3. Let UGS sync `//Dev01/main`, including the Engine imported at the pinned changelist.
+4. Let UGS select and unpack the PCB that matches the selected project/code changelist.
+5. Launch `<Workspace>\Engine\Binaries\Win64\UnrealEditor.exe` and open `<Workspace>\DevKit.uproject`.
+
+Teammates should not need the Engine source, Visual Studio engine compilation, a second Engine workspace, manual DLL copying, or local recovery builds.
+
+UGS prevents a second launch of the same project while its Editor is starting or running. It activates the existing window instead, protecting the exclusive `Saved/Search/FileInfo.db` Asset Search database from cross-process contention and repeated `disk I/O error` logging.
+
+### GitHub and P4 Boundary
+
+- P4 is authoritative for the complete Unreal project, assets, `Build/` release metadata, the Installed Engine, and PCB archives.
+- GitHub is the project code/text collaboration mirror. Synchronization must be whitelist-based and dry-run/audit capable.
+- GitHub-eligible content may include `Source`, approved `Config`, project/plugin source, text build scripts, and reviewed documentation.
+- Never upload `Engine`, `Content` assets, `Binaries`, `Intermediate`, `Saved`, PCB ZIP files, or complete Unreal Engine source/binaries to the project GitHub repository.
+- Git-to-P4 reconciliation must not delete P4-only UGS configuration, Engine import state, assets, or release markers.
+
+### Distribution Maintenance Safety
+
+Before any Engine, project-stream, cloud-build, PCB, UGS, or Git/P4 bridge maintenance:
+
+1. Run `p4 opened`, inspect pending changelists, and run `p4 resolve -n` where relevant.
+2. Confirm the current `//Dev01/main` head, `//Dev01Engine/main` head, pinned Engine import, PCB revision/description, and release marker.
+3. Inspect Git status in every source worktree that will participate. Never mix unrelated user changes into a maintenance commit or changelist.
+4. Do not create a new numbered changelist until existing opened files and ownership are understood. Do not place maintenance files into a default changelist that already contains unrelated assets.
+5. Do not submit, sync over, revert, delete, or reconcile unrelated user work.
+6. Distribution maintenance does not authorize changes to character rendering, stylized lighting, gameplay, or content assets. Make those changes only under a separate explicit feature request and validate them first in the source engine.
+
+The project currently uses `Build/Dev01EngineRelease.txt` as its checked local release marker. Some older pipeline documentation refers to `Build/Dev01EngineRelease.json`; do not recreate, delete, or switch marker formats implicitly. Reconcile and version the marker contract deliberately before the next Engine release.
+
+### Verified Distribution Snapshot (2026-07-19)
+
+This is a dated checkpoint, not a permanent configuration. Refresh it from live P4 and local manifests before every release:
+
+- Project head: `//Dev01/main` CL83.
+- Engine head: `//Dev01Engine/main` CL76.
+- Project Engine import: `Engine/... <- //Dev01Engine/main/...@76`.
+- Project release marker: `Build/Dev01EngineRelease.txt`, pinned Engine CL76.
+- PCB: `//Dev01Binaries/UGS/++Dev01+main-Editor.zip#12`, submitted in P4 CL84 for `[CL 00000083]`.
+- UGS self-update: `//Dev01Binaries/Tools/UnrealGameSync/Release.zip#8`, P4 CL85. This release prevents duplicate same-project Editor launches and writes BOM-free `Deployment.json` metadata.
+- Engine, DevKitEditor target, project modules, and scanned formal plugin modules use BuildId `792eec68-5f82-4e2f-852a-66474164b377`.
+- Source engine: branch `5.8`, Git HEAD `6673776aad735f49a5ce3bbed474ffcc701e7a8e`, with local engine/Shader/UGS modifications present; preserve them as authoritative local work.
+- The local P4 default changelist contained unrelated character-material, outline, lighting-built-data, and test-map assets during this check. It was not used for this guide update, and no numbered changelist was created.
+
 ## Current Direction
 
 - Player combat input is now four independent actions: Attack, Skill, WeaponSkill, and Dash.
@@ -45,12 +244,22 @@ This guide captures current project direction and working assumptions. `AGENTS.m
 
 ## Initial Data Assets
 
-- Weapon combat AbilityData is merged onto runtime `CharacterData->AbilityData` in `APlayerCharacterBase::ApplyAbilityDataFromWeapon`. `WeaponDefinition.AttackAbilityData` owns attack + dash rows, `WeaponDefinition.WeaponSkillAbilityData` owns weapon skill rows, and `WeaponDefinition.PassiveAbilityData` owns weapon-specific reaction/death passive rows such as `Action.HitReact.Front`, `Action.HitReact.Back`, and `Action.Dead`. `WeaponDefinition.SpecialAbilityData` is deprecated compatibility data and is not merged into runtime combat. The legacy all-in-one `WeaponDefinition.AbilityData` slot has been removed.
+- Weapon combat AbilityData is merged onto runtime `CharacterData->AbilityData` in `APlayerCharacterBase::ApplyAbilityDataFromWeapon`. `WeaponDefinition.AttackAbilityData` owns attack + dash rows, the currently equipped `UWeaponSkillDataAsset::AbilityData` owns weapon-skill rows, and `WeaponDefinition.PassiveAbilityData` owns weapon-specific reaction/death passive rows such as `Action.HitReact.Front`, `Action.HitReact.Back`, and `Action.Dead`. `WeaponDefinition.WeaponSkillAbilityData` and `SpecialAbilityData` are deprecated compatibility fallbacks for unmigrated assets. The legacy all-in-one `WeaponDefinition.AbilityData` slot has been removed.
 
 - `DA_Base_AbilitySet_Initial` (`/Game/Docs/GlobalSet/CharacterBaseSet/DA_Base_AbilitySet_Initial`): base `UGASTemplate` loaded by every character at `BeginPlay` via `YogCharacterBase`. Contains shared reactive GAs (`GA_Dead`, `GA_HitReaction`, `GA_Knockback`, etc.). Do **not** put weapon combat montage-routing GAs here; keep player combat grants on the player combat ability set.
 - `CharacterData` GAS template (`UGASTemplate::AbilityMap`): per-character ability grants applied during `InitializeComponentsWithStats`. Logged as `"Grant ability from GAS Template: <name>"` in the output log. Same rule: no weapon combat GAs here.
 - `DefaultUnarmedWeaponDef` (`APlayerCharacterBase::DefaultUnarmedWeaponDef`): a `UWeaponDefinition` asset assigned in the player character Blueprint. Auto-equipped at `BeginPlay` if `EquippedWeaponDef` is still null after all init (i.e. no weapon loaded from save). Set `DefaultUnarmedWeaponDef` on the BP so the full weapon path (ability data + deck + weapon type tag) is initialized consistently.
-- `DA_DefaultCombatAbility` (`UYogAbilitySet'/Game/Docs/GlobalSet/CharacterBaseSet/DA_DefaultCombatAbility.DA_DefaultCombatAbility'`): player-only `UYogAbilitySet` assigned to `APlayerCharacterBase::DefaultCombatAbilitySet`. Granted once at `BeginPlay` (after `Super::BeginPlay`). These abilities are weapon-agnostic; the equipped weapon's AbilityData controls which montage each action plays. Do **not** grant or revoke these per weapon switch; they live for the entire play session.
+- `DA_DefaultCombatAbility` (`UYogAbilitySet'/Game/Docs/GlobalSet/CharacterBaseSet/DA_DefaultCombatAbility.DA_DefaultCombatAbility'`): player-only `UYogAbilitySet` assigned to `APlayerCharacterBase::DefaultCombatAbilitySet`. Granted once at `BeginPlay` (after `Super::BeginPlay`). Keep weapon-agnostic Attack/Dash/support abilities here. Concrete weapon-skill GAs are selected by `UWeaponSkillDataAsset` and dynamically granted for the active weapon; do not add new concrete weapon-skill GAs to this always-on set.
+
+## Equipable Weapon Skills
+
+- Each concrete weapon skill uses a dedicated native `UGA_WeaponSkill` subclass and a dedicated `UWeaponSkillDataAsset`.
+- `WeaponDefinition.AvailableWeaponSkills` is the compatibility container; `DefaultWeaponSkill` must be one of its entries. Each active/inactive weapon slot retains exactly one selected skill.
+- The selected skill DA supplies its GA class and `WeaponSkillAbilityData`. Equipping or switching weapons removes the old dynamic ability spec, grants the selected GA, and merges only that skill's AbilityData into runtime CharacterData.
+- `WeaponDefinition.WeaponSkillAbilityData` is a deprecated fallback for unmigrated weapon assets only. New weapon content must use the equipable skill container.
+- Weapon-skill input activates the exact dynamically granted ability spec rather than a broad tag match. Skill-specific behavior belongs in the native GA; skill-specific values may be added through a native `UWeaponSkillDataAsset` subclass and read with `UGA_WeaponSkill::GetEquippedWeaponSkillData()`.
+- `DefaultUnarmedWeaponDef` is the effective weapon definition while the real primary slot is empty, so its selected skill still uses the dedicated GA path without preventing the first pickup from becoming the primary weapon.
+- A weapon-skill GA reads its defining DA from the current Ability Spec `SourceObject`; switching skills cancels the outgoing spec before replacing weapon/skill runtime data.
 
 ## Combat Architecture
 

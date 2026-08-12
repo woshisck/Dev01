@@ -89,6 +89,7 @@ void UStylizedLightingSettings::ApplyToConsoleVariables() const
 	SetConsoleVariable(TEXT("r.StylizedLumenLighting.GlossInfluence"), GlossInfluence);
 	SetConsoleVariable(TEXT("r.StylizedLumenLighting.DirectBlend"), DirectBlend);
 	SetConsoleVariable(TEXT("r.StylizedLumenLighting.IndirectBlend"), IndirectBlend);
+	SetConsoleVariable(TEXT("r.StylizedLumenLighting.IndirectMaxLuminance"), IndirectMaxLuminance);
 	SetConsoleVariable(TEXT("r.StylizedLumenLighting.SpecularIntensity"), SpecularIntensity);
 	SetConsoleVariable(TEXT("r.StylizedLumenLighting.SpecularOffset"), SpecularOffset);
 	// Kuwahara is intentionally disabled for character rendering. Keep the

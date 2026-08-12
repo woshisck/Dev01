@@ -72,6 +72,7 @@ public class DevKitEditor : ModuleRules
             new string[] {
                 "Core",
                 "CoreUObject",
+				"RHI",
                 "TimeManagement",
                 "InputCore",
 				"Slate",
@@ -113,6 +114,7 @@ public class DevKitEditor : ModuleRules
 				"AdvancedPreviewScene",
 				"ClassViewer",
 				"Foliage",
+				"FoliageEdit",
 				"VirtualTexturingEditor",
 				"CelesLightEditor",
 				"StateTreeModule",

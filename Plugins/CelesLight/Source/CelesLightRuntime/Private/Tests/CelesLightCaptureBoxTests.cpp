@@ -1,6 +1,8 @@
 #include "Misc/AutomationTest.h"
 
 #include "Actors/CelesPointLight.h"
+#include "Actors/StylizedEmissiveLight.h"
+#include "Components/LightComponent.h"
 #include "Components/PointLightComponent.h"
 #include "GameFramework/Actor.h"
 #include "UObject/UnrealType.h"
@@ -75,6 +77,28 @@ bool FCelesLightPointLightUsesSingleEditorIconTest::RunTest(const FString& Param
 	{
 		TestNotNull(TEXT("Editor library exposes Celes point light creation"), EditorLibraryClass->FindFunctionByName(TEXT("CreateCelesPointLight")));
 	}
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FCelesLightStylizedEmissiveUsesNoSceneLightTest,
+	"CelesLight.StylizedEmissive.UsesNoSceneLight",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCelesLightStylizedEmissiveUsesNoSceneLightTest::RunTest(const FString& Parameters)
+{
+	const AStylizedEmissiveLight* Defaults = GetDefault<AStylizedEmissiveLight>();
+	TestNotNull(TEXT("Stylized emissive default object is available"), Defaults);
+	if (!Defaults)
+	{
+		return false;
+	}
+
+	TestNull(
+		TEXT("Stylized emissive owns no UE light component"),
+		Defaults->FindComponentByClass<ULightComponent>());
+	TestNotNull(TEXT("Stylized emissive keeps an emissive surface"), Defaults->EmissiveSource.Get());
 
 	return true;
 }

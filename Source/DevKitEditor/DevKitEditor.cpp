@@ -41,9 +41,11 @@
 #include "Tools/LevelRVT/SDevKitLevelRVTWidget.h"
 #include "Tools/LevelBatch/SDevKitLevelBatchProcessorWidget.h"
 #include "Tools/MapCreator/SDevKitMapCreatorWidget.h"
+// The surface library owns both RVT decals and visible ground-object foliage entries.
 #include "Tools/RVTMeshDecal/SDevKitRVTMeshDecalWidget.h"
 #include "Tools/SMaterialBatchToolsWidget.h"
 #include "Tools/SMaterialTextureRulesWidget.h"
+#include "Tools/SMaterialTextureWorkbenchWidget.h"
 #include "Tools/SMetaProgressionWorkbenchWidget.h"
 #include "Tools/SModelAssetComplianceWidget.h"
 #include "Tools/SRuntimeGMSettingsWidget.h"
@@ -89,6 +91,7 @@ namespace
 	const FName MaterialTextureRulesTabName(TEXT("DevKitMaterialTextureRules"));
 	const FName TextureVTAuditTabName(TEXT("DevKitTextureVTAudit"));
 	const FName VirtualTextureCollectionManagerTabName(TEXT("DevKitVirtualTextureCollectionManager"));
+	const FName RVTMaterialManagerTabName(TEXT("DevKitRVTMaterialManager"));
 	const FName MapCreatorTabName(TEXT("DevKitMapCreator"));
 	const FName LevelRVTTabName(TEXT("DevKitLevelRVT"));
 	const FName RVTMeshDecalTabName(TEXT("DevKitRVTMeshDecal"));
@@ -417,6 +420,13 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			.SetMenuType(ETabSpawnerMenuType::Hidden);
 
 		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
+			RVTMaterialManagerTabName,
+			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnRVTMaterialManagerTab))
+			.SetDisplayName(LOCTEXT("RVTMaterialManagerTabTitle", "材质与贴图工作台"))
+			.SetTooltipText(LOCTEXT("RVTMaterialManagerTabTooltip", "统一管理 RVT 层材质、材质合规、贴图 NoVT 与 Texture Collection。"))
+			.SetMenuType(ETabSpawnerMenuType::Hidden);
+
+		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
 			MapCreatorTabName,
 			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnMapCreatorTab))
 			.SetDisplayName(LOCTEXT("MapCreatorTabTitle", "地图创建器"))
@@ -433,8 +443,16 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
 			RVTMeshDecalTabName,
 			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnRVTMeshDecalTab))
-			.SetDisplayName(LOCTEXT("RVTMeshDecalTabTitle", "RVT 网格贴花刷"))
-			.SetTooltipText(LOCTEXT("RVTMeshDecalTabTooltip", "创建可用植被模式刷出的 RVT 网格贴花 FoliageType。"))
+			.SetDisplayName(LOCTEXT("RVTMeshDecalTabTitle", "RVT 地表物件库"))
+			.SetTooltipText(LOCTEXT("RVTMeshDecalTabTooltip", "制作并使用 RVT 平面贴花与可见地表物件；通过专用 ISM 控制 Actor 逐实例选择、移动、旋转和缩放。"))
+			.SetMenuType(ETabSpawnerMenuType::Hidden);
+
+		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
+			StylizedEmissiveLibraryTabName,
+			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnStylizedEmissiveLibraryTab))
+			.SetDisplayName(LOCTEXT("StylizedEmissiveLibraryTabTitle", "风格化自发光库"))
+			.SetTooltipText(LOCTEXT("StylizedEmissiveLibraryTabTooltip", "配置模型、发光材质和光照参数，并将完整预设直接拖入场景。"))
+			.SetIcon(GetStylizedEmissiveLibraryIcon())
 			.SetMenuType(ETabSpawnerMenuType::Hidden);
 
 		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
@@ -490,6 +508,7 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(MaterialTextureRulesTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(TextureVTAuditTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(VirtualTextureCollectionManagerTabName);
+		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(RVTMaterialManagerTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(MapCreatorTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(LevelRVTTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(RVTMeshDecalTabName);
@@ -719,6 +738,16 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			];
 	}
 
+	TSharedRef<SDockTab> SpawnRVTMaterialManagerTab(const FSpawnTabArgs& SpawnTabArgs)
+	{
+		return SNew(SDockTab)
+			.TabRole(ETabRole::NomadTab)
+			.Label(LOCTEXT("RVTMaterialManagerTabLabel", "材质与贴图工作台"))
+			[
+				SNew(SMaterialTextureWorkbenchWidget)
+			];
+	}
+
 	TSharedRef<SDockTab> SpawnMapCreatorTab(const FSpawnTabArgs& SpawnTabArgs)
 	{
 		return SNew(SDockTab)
@@ -743,7 +772,7 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 	{
 		return SNew(SDockTab)
 			.TabRole(ETabRole::NomadTab)
-			.Label(LOCTEXT("RVTMeshDecalTabLabel", "RVT 网格贴花刷"))
+			.Label(LOCTEXT("RVTMeshDecalTabLabel", "RVT 地表物件库"))
 			[
 				SNew(SDevKitRVTMeshDecalWidget)
 			];
@@ -1084,23 +1113,11 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			GetModelAssetComplianceIcon(),
 			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenModelAssetComplianceTab)));
 		ArtAssetSection.AddMenuEntry(
-			TEXT("OpenMaterialTextureRules"),
-			LOCTEXT("OpenMaterialTextureRulesLabel", "材质合规检查"),
-			LOCTEXT("OpenMaterialTextureRulesTooltip", "检查贴图命名、sRGB、尺寸、VT 建议和材质性能分级接口。"),
-			GetMaterialTextureRulesIcon(),
-			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenMaterialTextureRulesTab)));
-		ArtAssetSection.AddMenuEntry(
-			TEXT("OpenTextureVTAudit"),
-			LOCTEXT("OpenTextureVTAuditLabel", "贴图 NoVT 审计"),
-			LOCTEXT("OpenTextureVTAuditTooltip", "检查所有 Texture2D 是否误开 VT，并确认普通 Texture Collection 基础兼容性。支持批量关闭 VT。"),
-			GetTextureVTAuditIcon(),
-			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenTextureVTAuditTab)));
-		ArtAssetSection.AddMenuEntry(
-			TEXT("OpenVTCManager"),
-			LOCTEXT("OpenVTCManagerLabel", "Texture Collection 管理器"),
-			LOCTEXT("OpenVTCManagerTooltip", "管理项目中所有普通 TextureCollection：新建、批量添加成员、NoVT 合规校验。"),
+			TEXT("OpenRVTMaterialManager"),
+			LOCTEXT("OpenRVTMaterialManagerLabel", "材质与贴图工作台"),
+			LOCTEXT("OpenRVTMaterialManagerTooltip", "统一打开 RVT 层材质库、材质合规、贴图 NoVT 审计和 Texture Collection 管理。"),
 			GetVTCManagerIcon(),
-			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenVirtualTextureCollectionManagerTab)));
+			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenRVTMaterialManagerTab)));
 		ArtAssetSection.AddMenuEntry(
 			TEXT("OpenEnvBatchTaggerArt"),
 			LOCTEXT("OpenEnvBatchTaggerArtLabel", "环境合批标记"),
@@ -1122,8 +1139,8 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 
 		ArtAssetSection.AddMenuEntry(
 			TEXT("OpenRVTMeshDecal"),
-			LOCTEXT("OpenRVTMeshDecalLabel", "RVT 网格贴花刷"),
-			LOCTEXT("OpenRVTMeshDecalTooltip", "创建可通过植被模式刷出的 RVT 网格贴花 FoliageType，按材质和 Priority 分层。"),
+			LOCTEXT("OpenRVTMeshDecalLabel", "RVT 地表物件库"),
+			LOCTEXT("OpenRVTMeshDecalTooltip", "从最终地表资产库放置实例，或在三栏编辑页组合网格、材质与 RVT 设置；实例由专用 ISM 控制 Actor 管理。"),
 			GetVTCManagerIcon(),
 			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenRVTMeshDecalTab)));
 		ArtAssetSection.AddMenuEntry(
@@ -1382,6 +1399,11 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 	void OpenVirtualTextureCollectionManagerTab()
 	{
 		FGlobalTabmanager::Get()->TryInvokeTab(VirtualTextureCollectionManagerTabName);
+	}
+
+	void OpenRVTMaterialManagerTab()
+	{
+		FGlobalTabmanager::Get()->TryInvokeTab(RVTMaterialManagerTabName);
 	}
 
 	void OpenMapCreatorTab()
