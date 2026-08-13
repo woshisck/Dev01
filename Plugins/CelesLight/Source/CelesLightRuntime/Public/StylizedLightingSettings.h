@@ -73,7 +73,7 @@ struct CELESLIGHTRUNTIME_API FStylizedCharacterLightingProfile
 	UPROPERTY(EditAnywhere, Category = "Environment", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
 	float IndirectOcclusionStrength = 1.0f;
 
-	/** Minimum final diffuse-lighting level, expressed as a multiplier of the material BaseColor. */
+	/** Minimum neutral indirect diffuse-lighting level. Uses PBR DiffuseColor, so metallic surfaces receive no fake diffuse fill. */
 	UPROPERTY(EditAnywhere, Category = "Environment", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
 	float CharacterBaseFill = 0.20f;
 
@@ -114,7 +114,7 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "Character Features|01 Basic Half Lambert")
 	bool bEnableHalfLambertPartition = true;
 
-	/** Keeps final character diffuse lighting above a configurable BaseColor-derived minimum. */
+	/** Keeps non-metal character diffuse lighting above a neutral, PBR-aware minimum. */
 	UPROPERTY(Config, EditAnywhere, Category = "Character Features|01 Basic Half Lambert")
 	bool bEnableDarkColorFloor = true;
 
@@ -172,7 +172,7 @@ public:
 
 	/** Enables character-only exposure and contrast processing. */
 	UPROPERTY(Config, EditAnywhere, Category = "Character Features|06 Color Fidelity")
-	bool bEnableCharacterTone = true;
+	bool bEnableCharacterTone = false;
 
 	/** Enables banded stylization for scene direct and Lumen indirect lighting. */
 	UPROPERTY(Config, EditAnywhere, Category = "Scene Lighting")
@@ -198,9 +198,13 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "Scene Lighting", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float IndirectBlend = 0.35f;
 
+	/** Scene-referred GI luminance represented by the brightest indirect-light band. */
+	UPROPERTY(Config, EditAnywhere, Category = "Scene Lighting", meta = (ClampMin = "0.01", UIMin = "0.1", UIMax = "8.0"))
+	float IndirectMaxLuminance = 2.0f;
+
 	/** Global strength of stylized scene specular highlights. */
 	UPROPERTY(Config, EditAnywhere, Category = "Scene Lighting", meta = (ClampMin = "0.0", UIMax = "4.0"))
-	float SpecularIntensity = 1.2f;
+	float SpecularIntensity = 1.0f;
 
 	/** Offset added to N dot H before evaluating stylized scene specular highlights. */
 	UPROPERTY(Config, EditAnywhere, Category = "Scene Lighting", meta = (UIMin = "-1.0", UIMax = "1.0"))

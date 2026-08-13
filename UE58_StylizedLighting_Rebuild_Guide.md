@@ -17,10 +17,10 @@
 
 | 用途 | 路径 |
 | --- | --- |
-| UE 5.8 源码引擎 | `D:\Dev-BuildEngine` |
-| 项目 | `D:\Self\GItGame\Dev01` |
-| 项目文件 | `D:\Self\GItGame\Dev01\DevKit.uproject` |
-| 灯光插件 | `D:\Self\GItGame\Dev01\Plugins\CelesLight` |
+| UE 5.8 源码引擎 | `X:\Dev-BuildEngine` |
+| 项目 | `Dev01` |
+| 项目文件 | `Dev01\DevKit.uproject` |
+| 灯光插件 | `Plugins\CelesLight` |
 | 角色主材质 | `/Game/Art/Material/CharacterMaterial/M_MasterCharacterMAT` |
 
 建议另一台机器保持相同结构；若路径不同，所有命令替换为本机实际路径即可。
@@ -483,4 +483,3 @@ FModuleManager::LoadModuleChecked<ISettingsModule>(TEXT("Settings"))
 - `.NET SDK 10.0.301` 已安装。
 
 首次完整构建未成功结束，原因是构建期间项目已有 UHT 头文件变化，造成生成代码行号过期；重新构建即可刷新。重建时确保无人编辑带反射宏的头文件。
-
