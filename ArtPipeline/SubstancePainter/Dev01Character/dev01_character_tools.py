@@ -34,6 +34,20 @@ def _require_project():
         raise RuntimeError("请先打开一个 Substance Painter 项目。")
 
 
+def _default_export_directory():
+    """Use the newer API when present and a safe user folder on Painter 7.x."""
+    get_default_path = getattr(
+        substance_painter.export, "get_default_export_path", None)
+    if get_default_path is not None:
+        return get_default_path()
+
+    documents = os.path.expanduser("~/Documents")
+    fallback = os.path.join(documents, "Dev01CharacterExports")
+    if not os.path.isdir(fallback):
+        os.makedirs(fallback)
+    return fallback
+
+
 def apply_neutral_preview_display():
     """Keep display mapping stable; shader lighting itself is parameter-free."""
     try:
@@ -240,7 +254,7 @@ def validate_export():
     try:
         stacks = _simple_stacks()
         _validate_channels(stacks)
-        output_directory = substance_painter.export.get_default_export_path()
+        output_directory = _default_export_directory()
         config = build_export_config(output_directory, stacks)
         textures = substance_painter.export.list_project_textures(config)
         flattened = [path for paths in textures.values() for path in paths]
@@ -259,7 +273,7 @@ def export_textures():
         stacks = _simple_stacks()
         _validate_channels(stacks)
         parent = substance_painter.ui.get_main_window()
-        start_directory = substance_painter.export.get_default_export_path()
+        start_directory = _default_export_directory()
         output_directory = QtWidgets.QFileDialog.getExistingDirectory(
             parent, "Export Dev01 Character Textures", start_directory)
         if not output_directory:

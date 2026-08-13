@@ -20,7 +20,7 @@ Shader Settings 只开放以下项目参数：
 - 风格化只作用于直接光的半兰伯特明暗二分；二分是在同一照明预算内重分配，不额外叠加亮度。
 - 漫反射使用 `BaseColor / PI` 并扣除镜面占用的能量；金属不再保留不合理的漫反射。
 - 固定中性半球光仅用于看清暗面材质，不是可调的角色最低亮度参数。
-- AO 只保留 35% 影响，用于接缝和接触细节，不允许整块背光面被压成黑色。
+- Painter 7.4 兼容预览不采样或开放独立 AO；Unreal 中的间接遮蔽仍只保留 35% 影响，用于接缝和接触细节，不允许整块背光面被压成黑色。
 - 非金属暗部保留中性漫反射信息；金属暗部不增加伪漫反射，只依靠中性环境反射显示颜色和粗糙度。
 - 高光使用有限面积光近似，避免小粗糙度出现针状过曝。
 - 不叠加项目的 `CharacterExposure=1` 和 `CharacterContrast=1.5`；这些属于 Unreal 最终画面，不属于贴图制作用光。
@@ -75,6 +75,10 @@ powershell -ExecutionPolicy Bypass -File .\Install-Dev01CharacterTools.ps1
 2. 用新版工具包再次运行 `Install-Dev01CharacterTools.ps1`，允许覆盖旧文件。
 3. 重启 Painter，在 `Shader Settings` 重新选择 `Dev01_StylizedCharacter`。
 4. 如果仍是紫色，打开 `Window > Views > Log`，把第一条 `Shader` / `GLSL` 编译错误发给维护者；它会直接指出无法兼容的函数或库名。
+
+本版不依赖 7.4.3 缺失的 `lib-bent-normal.glsl` 或新版 `lib-pbr.glsl` 辅助函数；预览保持 Base Color、法线、Diffuse Bias 二分和 MixMap 高光控制，但不把 Painter 环境光当作 Unreal 的 Lumen。
+
+为避免依赖 Painter 7.4 不同补丁版本中的全局相机参数和辅助库组合，兼容版以稳定的物体空间视线近似镜面视线。这只会使预览中的高光落点与 Painter 新版略有差异，不影响三图打包、导出或 Unreal 内的最终效果。
 
 ## 给同事分发
 
