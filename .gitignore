@@ -2005,3 +2005,4 @@ Tools/ProductionGraph/*.log
 Build.bat
 .vsconfig
 .vsconfig
+*.modules
