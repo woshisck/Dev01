@@ -39,14 +39,6 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Health Bar|Material")
     TObjectPtr<UMaterialInterface> LiquidMaterial;
 
-    /**
-     * Leak layer material (M_LiquidHealthBarDrips). Optional: the whole leak effect is
-     * skipped silently when DripImage is absent, so existing WBPs keep working.
-     * Companion shader: /Project/LiquidHealthBarDrips.ush
-     */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Health Bar|Material")
-    TObjectPtr<UMaterialInterface> DripMaterial;
-
     // =========================================================
     // 颜色
     // =========================================================
@@ -62,34 +54,6 @@ public:
     /** 液面高光线颜色（偏暖；如橙白 1.0,0.65,0.4） */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Health Bar|Colors")
     FLinearColor GlintColor = FLinearColor(1.f, 0.65f, 0.4f, 1.f);
-
-    /** Falling droplet color. Slightly brighter than the deep liquid reads best. */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Health Bar|Colors")
-    FLinearColor DripColor = FLinearColor(0.55f, 0.03f, 0.02f, 1.f);
-
-    /** Wet residue color smeared under the breach. Keep this darker than DripColor. */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Health Bar|Colors")
-    FLinearColor StainColor = FLinearColor(0.18f, 0.01f, 0.01f, 1.f);
-
-    // =========================================================
-    // Leak
-    // =========================================================
-
-    /**
-     * Health fraction at or below which the leak ramps in. Set 0 to disable leaking.
-     * At LeakThreshold the intensity is 0; at 0 health it is 1.
-     */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Health Bar|Leak",
-              meta = (ClampMin = "0.0", ClampMax = "1.0"))
-    float LeakThreshold = 0.35f;
-
-    /**
-     * Shaping exponent on the leak ramp. >1 keeps the effect subtle until health is
-     * genuinely low, which avoids the bar looking broken during normal play.
-     */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Health Bar|Leak",
-              meta = (ClampMin = "1.0", ClampMax = "4.0"))
-    float LeakCurveExponent = 2.f;
 
     // =========================================================
     // 晃动参数
@@ -147,10 +111,6 @@ public:
     UFUNCTION(BlueprintPure, Category = "Health Bar")
     float GetHealthPercent() const { return CurrentPct; }
 
-    /** Current leak strength (0-1) derived from health. Useful for driving extra VFX/SFX. */
-    UFUNCTION(BlueprintPure, Category = "Health Bar|Leak")
-    float GetLeakIntensity() const;
-
     /** 将颜色参数重新写入 DynMat（在编辑器修改颜色后调用可实时预览） */
     UFUNCTION(BlueprintCallable, Category = "Health Bar")
     void ApplyColors();
@@ -167,30 +127,15 @@ protected:
     UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
     TObjectPtr<UImage> LiquidFillImage;
 
-    /**
-     * Leak layer. Optional so existing WBPs keep loading. Must extend below the tube
-     * art, otherwise droplets have nowhere to fall and stay invisible.
-     */
-    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-    TObjectPtr<UImage> DripImage;
-
 private:
     bool EnsureDynamicMaterial();
-    bool EnsureDripMaterial();
-
-    // Pushes LeakIntensity / LeakX to the drip DMI. No-op without a drip layer.
-    void UpdateLeakParams();
 
     UPROPERTY()
     TObjectPtr<UMaterialInstanceDynamic> LiquidDynMat;
-
-    UPROPERTY()
-    TObjectPtr<UMaterialInstanceDynamic> DripDynMat;
 
     float CurrentPct = 1.f;   // 当前血量（0-1）
     float SloshAmp   = 0.f;   // 当前晃动幅度
     float SloshPh    = 0.f;   // 当前晃动相位（弧度，持续累加）
     bool  bNeedsTick = false; // 仅在晃动激活时 Tick，避免每帧 DMI 写入开销
     bool  bLoggedMissingMaterialSetup = false;
-    bool  bTriedDripFallbackLoad = false; // Only probe the fallback drip asset once
 };

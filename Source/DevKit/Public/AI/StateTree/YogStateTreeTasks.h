@@ -275,3 +275,62 @@ struct DEVKIT_API FStateTreeTask_MoveToControllerTarget : public FStateTreeAIAct
 	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
 	virtual void ExitState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
 };
+
+// ─── Enemy Combat Move ──────────────────────────────────────────────────────
+// Port of UBTTask_EnemyCombatMove. Chases the combat slot that the "Update Enemy
+// Combat Move" evaluator writes to the blackboard, repathing as the slot drifts,
+// and succeeds once the pawn is in attack range. Unlike Move To Controller Target
+// this re-issues the move on a timer rather than waiting on a single path request,
+// which is what lets an enemy track a moving player.
+
+USTRUCT()
+struct FStateTreeTask_EnemyCombatMoveInstanceData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = Context)
+	TObjectPtr<AAIController> AIController = nullptr;
+
+	// Blackboard key names — must match the keys the combat move evaluator writes.
+	UPROPERTY(EditAnywhere, Category = Parameter)
+	FName TargetActorKey = TEXT("TargetActor");
+
+	UPROPERTY(EditAnywhere, Category = Parameter)
+	FName MoveTargetLocationKey = TEXT("MoveTargetLocation");
+
+	UPROPERTY(EditAnywhere, Category = Parameter)
+	FName DistanceToTargetKey = TEXT("DistanceToTarget");
+
+	UPROPERTY(EditAnywhere, Category = Parameter)
+	FName bInAttackRangeKey = TEXT("bInAttackRange");
+
+	UPROPERTY(EditAnywhere, Category = Parameter)
+	FName AcceptanceRadiusKey = TEXT("AcceptanceRadius");
+
+	/** Slot drift that forces an immediate repath instead of waiting for RepathInterval. */
+	UPROPERTY(EditAnywhere, Category = Parameter, meta = (ClampMin = "0.0"))
+	float TargetRefreshDistance = 80.0f;
+
+	// Runtime state (not reflected; persists for the active state's lifetime).
+	FVector LastMoveTarget = FVector::ZeroVector;
+	float LastMoveRequestTime = -FLT_MAX;
+	bool bHasMoveRequest = false;
+};
+
+USTRUCT(meta = (DisplayName = "Enemy Combat Move", Category = "Yog|AI"))
+struct DEVKIT_API FStateTreeTask_EnemyCombatMove : public FStateTreeAIActionTaskBase
+{
+	GENERATED_BODY()
+
+	using FInstanceDataType = FStateTreeTask_EnemyCombatMoveInstanceData;
+
+	FStateTreeTask_EnemyCombatMove();
+
+	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
+	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
+	virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) const override;
+	virtual void ExitState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
+
+private:
+	bool IssueMove(FInstanceDataType& InstanceData, bool bTargetMoved, float RepathInterval) const;
+};

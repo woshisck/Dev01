@@ -101,3 +101,11 @@ bool FStateTreeCondition_PlayerHealthPercentBelow::TestCondition(FStateTreeExecu
 
 	return YogStateTree::ResolveHealthPercent(YogStateTreeGetASC(TargetActor)) <= InstanceData.Threshold;
 }
+
+bool FStateTreeCondition_EnemyPostAttackReposition::TestCondition(FStateTreeExecutionContext& Context) const
+{
+	const FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+	const AAIController* AIC = InstanceData.AIController;
+	const UBlackboardComponent* Blackboard = AIC ? AIC->GetBlackboardComponent() : nullptr;
+	return Blackboard && Blackboard->GetValueAsBool(InstanceData.bPostAttackRepositionKey);
+}

@@ -910,7 +910,7 @@ namespace EnemyAITemplateGenerator
 		return Task;
 	}
 
-	TStateTreeEditorNode<FStateTreeTask_EnemyAttackByProfile>& AddAttackState(UStateTreeState& Parent, const TCHAR* StateName, EEnemyAIAttackRole Role)
+	UStateTreeState& AddAttackState(UStateTreeState& Parent, const TCHAR* StateName, EEnemyAIAttackRole Role)
 	{
 		UStateTreeState& State = Parent.AddChildState(FName(StateName));
 		State.SelectionBehavior = EStateTreeStateSelectionBehavior::TryEnterState;
@@ -918,7 +918,7 @@ namespace EnemyAITemplateGenerator
 		Task.GetInstanceData().RequiredAttackRole = Role;
 		State.AddTransition(EStateTreeTransitionTrigger::OnStateSucceeded, EStateTreeTransitionType::GotoState, &Parent);
 		State.AddTransition(EStateTreeTransitionTrigger::OnStateFailed, EStateTreeTransitionType::NextSelectableState);
-		return Task;
+		return State;
 	}
 
 	UStateTreeState& AddMoveState(
@@ -934,6 +934,33 @@ namespace EnemyAITemplateGenerator
 		Task.GetInstanceData().DestinationKey = FName(DestinationKey);
 		Task.GetInstanceData().AcceptanceRadius = AcceptanceRadius;
 		return State;
+	}
+
+	// Chase state built on the ported UBTTask_EnemyCombatMove: repaths toward the
+	// combat slot as the player moves and succeeds once in attack range. Distinct
+	// from AddMoveState, which fires a single path request and waits on it.
+	UStateTreeState& AddChaseState(UStateTreeState& Parent, const TCHAR* StateName)
+	{
+		UStateTreeState& State = Parent.AddChildState(FName(StateName));
+		State.SelectionBehavior = EStateTreeStateSelectionBehavior::TryEnterState;
+		AddNamedTask<FStateTreeTask_EnemyCombatMove>(State, StateName);
+		return State;
+	}
+
+	// OnTick escape hatch so a state hands off the moment the awareness evaluator
+	// flips EnemyAIState, instead of waiting for its own tasks to finish.
+	void AddStateGateTransition(
+		UStateTreeState& From,
+		UStateTreeState& To,
+		EEnemyAIState RequiredState,
+		const TCHAR* ConditionName)
+	{
+		FStateTreeTransition& Transition = From.AddTransition(
+			EStateTreeTransitionTrigger::OnTick, EStateTreeTransitionType::GotoState, &To);
+		TStateTreeEditorNode<FStateTreeCondition_EnemyAIState>& Condition =
+			Transition.AddConditionWithOuter<FStateTreeCondition_EnemyAIState>(&From);
+		Condition.SetNodeName(FName(ConditionName));
+		Condition.GetInstanceData().RequiredState = RequiredState;
 	}
 
 	void RebuildBossStateTree(UStateTree& StateTree, TArray<FString>& ReportLines)
@@ -1077,21 +1104,45 @@ namespace EnemyAITemplateGenerator
 		TStateTreeEditorNode<FStateTreeCondition_EnemyAIState>& CombatCondition = Combat.AddEnterCondition<FStateTreeCondition_EnemyAIState>();
 		CombatCondition.SetNodeName(TEXT("Enemy AI State Is Combat"));
 		CombatCondition.GetInstanceData().RequiredState = EEnemyAIState::Combat;
-		AddAttackState(Combat, TEXT("Post Attack Reposition"), EEnemyAIAttackRole::Reposition);
+
+		// Reposition is gated on the whiff flag the controller sets in
+		// NotifyAttackResolved; without it this branch is attempted on every
+		// combat re-selection, which reads as reposition spam.
+		UStateTreeState& Reposition = AddAttackState(Combat, TEXT("Post Attack Reposition"), EEnemyAIAttackRole::Reposition);
+		Reposition.AddEnterCondition<FStateTreeCondition_EnemyPostAttackReposition>()
+			.SetNodeName(TEXT("Enemy Post Attack Reposition"));
+
 		AddAttackState(Combat, TEXT("Skill"), EEnemyAIAttackRole::Skill);
 		AddAttackState(Combat, TEXT("Special Movement"), EEnemyAIAttackRole::SpecialMovement);
 		AddAttackState(Combat, TEXT("Close Melee"), EEnemyAIAttackRole::CloseMelee);
+
+		// Every attack task fails when nothing in the profile is in range or off
+		// cooldown, which is the signal to close distance. Chase exits to the recheck
+		// wait rather than straight back to Combat: the task succeeds the instant the
+		// pawn is in range, so a direct loop would spin every frame while attacks are
+		// on cooldown.
+		UStateTreeState& ChaseTarget = AddChaseState(Combat, TEXT("Chase Target"));
+		ChaseTarget.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::NextSelectableState);
+
 		UStateTreeState& CombatRecheck = Combat.AddChildState(TEXT("Combat Recheck"));
 		CombatRecheck.SelectionBehavior = EStateTreeStateSelectionBehavior::TryEnterState;
 		AddNamedTask<FStateTreeTask_EnemyPatrolWait>(CombatRecheck, TEXT("Combat Recheck Wait"));
 		CombatRecheck.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::GotoState, &Combat);
 
+		// Alert and Patrol run their wait and move tasks in parallel on a single
+		// state: FStateTreeTask_MoveToControllerTarget stays Running until its path
+		// request settles, so it coexists with the wait timer.
 		UStateTreeState& Alert = Root.AddChildState(TEXT("Alert"));
 		Alert.SelectionBehavior = EStateTreeStateSelectionBehavior::TryEnterState;
 		TStateTreeEditorNode<FStateTreeCondition_EnemyAIState>& AlertCondition = Alert.AddEnterCondition<FStateTreeCondition_EnemyAIState>();
 		AlertCondition.SetNodeName(TEXT("Enemy AI State Is Alert"));
 		AlertCondition.GetInstanceData().RequiredState = EEnemyAIState::Alert;
 		AddNamedTask<FStateTreeTask_EnemyPatrolWait>(Alert, TEXT("Alert Wait"));
+		TStateTreeEditorNode<FStateTreeTask_MoveToControllerTarget>& AlertMove =
+			AddNamedTask<FStateTreeTask_MoveToControllerTarget>(Alert, TEXT("Alert Approach"));
+		AlertMove.GetInstanceData().DestinationKey = TEXT("LastKnownTargetLocation");
+		AlertMove.GetInstanceData().AcceptanceRadius = 100.f;
+		Alert.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::GotoState, &Alert);
 
 		UStateTreeState& Patrol = Root.AddChildState(TEXT("Patrol"));
 		Patrol.SelectionBehavior = EStateTreeStateSelectionBehavior::TryEnterState;
@@ -1100,6 +1151,19 @@ namespace EnemyAITemplateGenerator
 		PatrolCondition.GetInstanceData().RequiredState = EEnemyAIState::Patrol;
 		AddNamedTask<FStateTreeTask_UpdateEnemyPatrolTarget>(Patrol, TEXT("Update Patrol Target"));
 		AddNamedTask<FStateTreeTask_EnemyPatrolWait>(Patrol, TEXT("Patrol Wait"));
+		TStateTreeEditorNode<FStateTreeTask_MoveToControllerTarget>& PatrolMove =
+			AddNamedTask<FStateTreeTask_MoveToControllerTarget>(Patrol, TEXT("Patrol Move"));
+		PatrolMove.GetInstanceData().DestinationKey = TEXT("PatrolTargetLocation");
+		PatrolMove.GetInstanceData().AcceptanceRadius = 50.f;
+		Patrol.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::GotoState, &Patrol);
+
+		// Wired after all three states exist so each can name the others as targets.
+		AddStateGateTransition(Combat, Alert, EEnemyAIState::Alert, TEXT("Enemy AI State Is Alert"));
+		AddStateGateTransition(Combat, Patrol, EEnemyAIState::Patrol, TEXT("Enemy AI State Is Patrol"));
+		AddStateGateTransition(Alert, Combat, EEnemyAIState::Combat, TEXT("Enemy AI State Is Combat"));
+		AddStateGateTransition(Alert, Patrol, EEnemyAIState::Patrol, TEXT("Enemy AI State Is Patrol"));
+		AddStateGateTransition(Patrol, Combat, EEnemyAIState::Combat, TEXT("Enemy AI State Is Combat"));
+		AddStateGateTransition(Patrol, Alert, EEnemyAIState::Alert, TEXT("Enemy AI State Is Alert"));
 
 		EditorData->ReparentStates();
 		EditorData->FixDuplicateIDs();
@@ -1169,10 +1233,9 @@ namespace EnemyAITemplateGenerator
 		}
 
 		EnemyData->Modify();
-		if (BehaviorTree)
-		{
-			EnemyData->BehaviorTree = BehaviorTree;
-		}
+		// Assigned unconditionally so passing null actually retires the BehaviorTree.
+		// The BT asset itself is still generated, so reassigning it by hand rolls back.
+		EnemyData->BehaviorTree = BehaviorTree;
 		if (StateTree)
 		{
 			EnemyData->StateTree = StateTree;
@@ -1279,7 +1342,7 @@ int32 UEnemyAITemplateGeneratorCommandlet::Main(const FString& Params)
 
 		ReportLines.Add(TEXT(""));
 		ReportLines.Add(TEXT("## StateTree"));
-		ReportLines.Add(TEXT("- State order: Dead -> Combat attacks -> Combat move -> Alert move -> Patrol."));
+		ReportLines.Add(TEXT("- State order: Dead -> Combat (Post Attack Reposition -> Skill -> Special Movement -> Close Melee -> Chase Target -> Combat Recheck) -> Alert (wait + approach) -> Patrol (pick + wait + move)."));
 		UStateTree* StateTree = CreateOrLoadStateTree(StateTreePath, bDryRun, ReportLines, DirtyPackages);
 		if (!bDryRun && StateTree)
 		{
@@ -1305,10 +1368,12 @@ int32 UEnemyAITemplateGeneratorCommandlet::Main(const FString& Params)
 
 		ReportLines.Add(TEXT(""));
 		ReportLines.Add(TEXT("## Enemy Data"));
-		AssignBehaviorTreeToEnemyData(RatDataPath, BehaviorTree, StateTree, Blackboard, EDefaultEnemyProfile::Rat, nullptr, nullptr, false, bDryRun, ReportLines, DirtyPackages);
-		AssignBehaviorTreeToEnemyData(RottenGuardDataPath, BehaviorTree, StateTree, Blackboard, EDefaultEnemyProfile::RottenGuard, nullptr, nullptr, false, bDryRun, ReportLines, DirtyPackages);
-		AssignBehaviorTreeToEnemyData(AlarmBellJailerDataPath, BehaviorTree, StateTree, Blackboard, EDefaultEnemyProfile::AlarmBellJailer, AlarmBellAbilityData, EnemyGASTemplate, true, bDryRun, ReportLines, DirtyPackages);
-		AssignBehaviorTreeToEnemyData(GuardCaptainDataPath, BehaviorTree, StateTree, Blackboard, EDefaultEnemyProfile::GuardCaptain, GuardCaptainAbilityData, EnemyGASTemplate, true, bDryRun, ReportLines, DirtyPackages);
+		// No BehaviorTree: these enemies run on the StateTree exclusively. BT_Enemy_DefaultMelee
+		// is still generated above, so reassigning it by hand is the rollback path.
+		AssignBehaviorTreeToEnemyData(RatDataPath, nullptr, StateTree, Blackboard, EDefaultEnemyProfile::Rat, nullptr, nullptr, false, bDryRun, ReportLines, DirtyPackages);
+		AssignBehaviorTreeToEnemyData(RottenGuardDataPath, nullptr, StateTree, Blackboard, EDefaultEnemyProfile::RottenGuard, nullptr, nullptr, false, bDryRun, ReportLines, DirtyPackages);
+		AssignBehaviorTreeToEnemyData(AlarmBellJailerDataPath, nullptr, StateTree, Blackboard, EDefaultEnemyProfile::AlarmBellJailer, AlarmBellAbilityData, EnemyGASTemplate, true, bDryRun, ReportLines, DirtyPackages);
+		AssignBehaviorTreeToEnemyData(GuardCaptainDataPath, nullptr, StateTree, Blackboard, EDefaultEnemyProfile::GuardCaptain, GuardCaptainAbilityData, EnemyGASTemplate, true, bDryRun, ReportLines, DirtyPackages);
 	}
 
 	if (!bDryRun && DirtyPackages.Num() > 0)

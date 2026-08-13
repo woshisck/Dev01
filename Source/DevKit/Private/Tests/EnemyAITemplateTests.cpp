@@ -8,6 +8,7 @@
 #include "BehaviorTree/BlackboardData.h"
 #include "Data/AbilityData.h"
 #include "Data/EnemyData.h"
+#include "StateTree.h"
 
 namespace
 {
@@ -35,14 +36,16 @@ bool FEnemyAIDefaultTemplateTest::RunTest(const FString& Parameters)
 {
 	UBlackboardData* Blackboard = LoadTestAsset<UBlackboardData>(TEXT("/Game/Code/Enemy/AI/BlackBoard/BB_Enemy_DefaultMelee.BB_Enemy_DefaultMelee"));
 	UBehaviorTree* BehaviorTree = LoadTestAsset<UBehaviorTree>(TEXT("/Game/Code/Enemy/AI/Behaviour/BT_Enemy_DefaultMelee.BT_Enemy_DefaultMelee"));
+	UStateTree* StateTree = LoadTestAsset<UStateTree>(TEXT("/Game/Code/Enemy/AI/StateTree/ST_Enemy_DefaultMelee.ST_Enemy_DefaultMelee"));
 	UEnemyData* RatData = LoadTestAsset<UEnemyData>(TEXT("/Game/Docs/Data/Enemy/Rat/DA_Rat.DA_Rat"));
 	UEnemyData* RottenGuardData = LoadTestAsset<UEnemyData>(TEXT("/Game/Docs/Data/Enemy/RottenGuard/DA_RottenGuard.DA_RottenGuard"));
 
 	TestNotNull(TEXT("Default melee blackboard exists"), Blackboard);
 	TestNotNull(TEXT("Default melee behavior tree exists"), BehaviorTree);
+	TestNotNull(TEXT("Default melee state tree exists"), StateTree);
 	TestNotNull(TEXT("DA_Rat exists"), RatData);
 	TestNotNull(TEXT("DA_RottenGuard exists"), RottenGuardData);
-	if (!Blackboard || !BehaviorTree || !RatData || !RottenGuardData)
+	if (!Blackboard || !BehaviorTree || !StateTree || !RatData || !RottenGuardData)
 	{
 		return false;
 	}
@@ -113,8 +116,14 @@ bool FEnemyAIDefaultTemplateTest::RunTest(const FString& Parameters)
 			}
 		}
 	}
-	TestEqual(TEXT("DA_Rat uses default melee behavior tree"), RatData->BehaviorTree.Get(), BehaviorTree);
-	TestEqual(TEXT("DA_RottenGuard uses default melee behavior tree"), RottenGuardData->BehaviorTree.Get(), BehaviorTree);
+	// The enemies run on the StateTree; BehaviorTree is retired but BT_Enemy_DefaultMelee
+	// is still generated above so reassigning it by hand rolls the migration back.
+	TestEqual(TEXT("DA_Rat uses default melee state tree"), RatData->StateTree.Get(), StateTree);
+	TestEqual(TEXT("DA_RottenGuard uses default melee state tree"), RottenGuardData->StateTree.Get(), StateTree);
+	TestEqual(TEXT("DA_Rat uses default melee state tree blackboard"), RatData->StateTreeBlackboard.Get(), Blackboard);
+	TestEqual(TEXT("DA_RottenGuard uses default melee state tree blackboard"), RottenGuardData->StateTreeBlackboard.Get(), Blackboard);
+	TestNull(TEXT("DA_Rat has retired its behavior tree"), RatData->BehaviorTree.Get());
+	TestNull(TEXT("DA_RottenGuard has retired its behavior tree"), RottenGuardData->BehaviorTree.Get());
 	TestEqual(TEXT("DA_Rat starts with swarm flank movement"), RatData->MovementTuning.ApproachStyle, EEnemyAIApproachStyle::SwarmFlank);
 	TestEqual(TEXT("DA_Rat attack range is configured"), RatData->MovementTuning.AttackRange, 150.0f);
 	TestEqual(TEXT("DA_Rat locks combat slot briefly"), RatData->MovementTuning.CombatSlotLockDuration, 1.2f);

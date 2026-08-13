@@ -144,3 +144,32 @@ struct DEVKIT_API FStateTreeCondition_PlayerHealthPercentBelow : public FStateTr
 	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
 	virtual bool TestCondition(FStateTreeExecutionContext& Context) const override;
 };
+
+// ─── Enemy Post Attack Reposition ───────────────────────────────────────────
+// Mirrors UBTDecorator_EnemyPostAttackReposition: passes while the controller has
+// flagged a reposition request on its blackboard. AYogAIController::NotifyAttackResolved
+// sets the flag on a whiff and clears it on a connect. Use as the Enter Condition on
+// the Reposition attack state so it is only attempted after a miss.
+
+USTRUCT()
+struct FStateTreeCondition_EnemyPostAttackRepositionInstanceData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = Context)
+	TObjectPtr<AAIController> AIController = nullptr;
+
+	UPROPERTY(EditAnywhere, Category = Parameter)
+	FName bPostAttackRepositionKey = TEXT("bPostAttackReposition");
+};
+
+USTRUCT(meta = (DisplayName = "Enemy Post Attack Reposition", Category = "Yog|AI"))
+struct DEVKIT_API FStateTreeCondition_EnemyPostAttackReposition : public FStateTreeAIConditionBase
+{
+	GENERATED_BODY()
+
+	using FInstanceDataType = FStateTreeCondition_EnemyPostAttackRepositionInstanceData;
+
+	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
+	virtual bool TestCondition(FStateTreeExecutionContext& Context) const override;
+};

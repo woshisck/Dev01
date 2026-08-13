@@ -8,6 +8,7 @@
 #include "Character/EnemyCharacterBase.h"
 #include "Character/YogCharacterBase.h"
 #include "Component/CharacterDataComponent.h"
+#include "Controller/YogAIController.h"
 #include "Data/AbilityData.h"
 #include "Data/CharacterData.h"
 #include "Data/EnemyData.h"
@@ -424,4 +425,216 @@ void FStateTreeTask_MoveToControllerTarget::ExitState(
 	InstanceData.RequestFinishedHandle.Reset();
 	InstanceData.BoundController.Reset();
 	InstanceData.MoveRequestID = FAIRequestID::InvalidRequest;
+}
+
+// ─── Enemy Combat Move ──────────────────────────────────────────────────────
+
+FStateTreeTask_EnemyCombatMove::FStateTreeTask_EnemyCombatMove()
+{
+	// The slot the evaluator publishes moves with the player, so completion is a
+	// per-frame range check plus a repath timer rather than a single path request.
+	bShouldCallTick = true;
+}
+
+EStateTreeRunStatus FStateTreeTask_EnemyCombatMove::EnterState(
+	FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& /*Transition*/) const
+{
+	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+
+	AAIController* AIController = InstanceData.AIController;
+	const UBlackboardComponent* Blackboard = AIController ? AIController->GetBlackboardComponent() : nullptr;
+	if (!Blackboard)
+	{
+		return EStateTreeRunStatus::Failed;
+	}
+
+	if (Blackboard->GetValueAsBool(InstanceData.bInAttackRangeKey))
+	{
+		AIController->StopMovement();
+		return EStateTreeRunStatus::Succeeded;
+	}
+
+	return IssueMove(InstanceData, true, 0.0f) ? EStateTreeRunStatus::Running : EStateTreeRunStatus::Failed;
+}
+
+EStateTreeRunStatus FStateTreeTask_EnemyCombatMove::Tick(
+	FStateTreeExecutionContext& Context, const float /*DeltaTime*/) const
+{
+	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+
+	AAIController* AIController = InstanceData.AIController;
+	const UBlackboardComponent* Blackboard = AIController ? AIController->GetBlackboardComponent() : nullptr;
+	if (!Blackboard)
+	{
+		return EStateTreeRunStatus::Failed;
+	}
+
+	if (Blackboard->GetValueAsBool(InstanceData.bInAttackRangeKey))
+	{
+		AIController->StopMovement();
+		return EStateTreeRunStatus::Succeeded;
+	}
+
+	const UWorld* World = AIController->GetWorld();
+	const float CurrentTime = World ? World->GetTimeSeconds() : 0.0f;
+	const FVector MoveTarget = Blackboard->GetValueAsVector(InstanceData.MoveTargetLocationKey);
+
+	float RepathInterval = 0.25f;
+	if (const AYogAIController* YogAI = Cast<AYogAIController>(AIController))
+	{
+		if (const UEnemyData* EnemyData = YogAI->GetPossessedEnemyData())
+		{
+			RepathInterval = FMath::Max(EnemyData->MovementTuning.RepathInterval, 0.05f);
+		}
+	}
+
+	const bool bTargetMoved = !InstanceData.bHasMoveRequest
+		|| FVector::DistSquared2D(InstanceData.LastMoveTarget, MoveTarget) >= FMath::Square(InstanceData.TargetRefreshDistance);
+	if (bTargetMoved || CurrentTime - InstanceData.LastMoveRequestTime >= RepathInterval)
+	{
+		if (!IssueMove(InstanceData, bTargetMoved, RepathInterval))
+		{
+			return EStateTreeRunStatus::Failed;
+		}
+	}
+
+	return EStateTreeRunStatus::Running;
+}
+
+void FStateTreeTask_EnemyCombatMove::ExitState(
+	FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& /*Transition*/) const
+{
+	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+
+	if (InstanceData.AIController)
+	{
+		InstanceData.AIController->StopMovement();
+	}
+	InstanceData.bHasMoveRequest = false;
+	InstanceData.LastMoveRequestTime = -FLT_MAX;
+}
+
+bool FStateTreeTask_EnemyCombatMove::IssueMove(
+	FInstanceDataType& InstanceData, bool bTargetMoved, float RepathInterval) const
+{
+	AAIController* AIController = InstanceData.AIController;
+	APawn* ControlledPawn = AIController ? AIController->GetPawn() : nullptr;
+	UBlackboardComponent* Blackboard = AIController ? AIController->GetBlackboardComponent() : nullptr;
+	if (!AIController || !ControlledPawn || !Blackboard)
+	{
+		return false;
+	}
+
+	FVector MoveTarget = Blackboard->GetValueAsVector(InstanceData.MoveTargetLocationKey);
+	const float AcceptanceRadius = FMath::Max(Blackboard->GetValueAsFloat(InstanceData.AcceptanceRadiusKey), 25.0f);
+	const float DistanceToTarget = Blackboard->GetValueAsFloat(InstanceData.DistanceToTargetKey);
+	const UEnemyData* EnemyData = nullptr;
+	if (const AYogAIController* YogAI = Cast<AYogAIController>(AIController))
+	{
+		EnemyData = YogAI->GetPossessedEnemyData();
+	}
+	const FEnemyAIMovementTuning Tuning = EnemyData ? EnemyData->MovementTuning : FEnemyAIMovementTuning();
+	const float ExitRange = Tuning.AttackRange + FMath::Max(Tuning.AttackRangeExitBuffer, 0.0f);
+
+	// Standing on the slot but still out of attack range means the slot itself is
+	// short; push the goal toward the target so the pawn keeps making progress.
+	if (!Blackboard->GetValueAsBool(InstanceData.bInAttackRangeKey)
+		&& DistanceToTarget > ExitRange
+		&& FVector::Dist2D(ControlledPawn->GetActorLocation(), MoveTarget) <= AcceptanceRadius + 10.0f)
+	{
+		if (const AActor* TargetActor = Cast<AActor>(Blackboard->GetValueAsObject(InstanceData.TargetActorKey)))
+		{
+			FVector DirectionToTarget = TargetActor->GetActorLocation() - ControlledPawn->GetActorLocation();
+			DirectionToTarget.Z = 0.0f;
+			if (!DirectionToTarget.IsNearlyZero())
+			{
+				const float ProgressDistance = FMath::Max(Tuning.AcceptanceRadius + 140.0f, 180.0f);
+				MoveTarget = ControlledPawn->GetActorLocation() + DirectionToTarget.GetSafeNormal2D() * ProgressDistance;
+				if (UWorld* World = AIController->GetWorld())
+				{
+					if (UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World))
+					{
+						FNavLocation NavLocation;
+						if (NavSys->ProjectPointToNavigation(MoveTarget, NavLocation, FVector(220.0f, 220.0f, 300.0f)))
+						{
+							MoveTarget = NavLocation.Location;
+						}
+					}
+				}
+				Blackboard->SetValueAsVector(InstanceData.MoveTargetLocationKey, MoveTarget);
+			}
+		}
+	}
+
+	const AActor* TargetActor = Cast<AActor>(Blackboard->GetValueAsObject(InstanceData.TargetActorKey));
+	if (UWorld* World = AIController->GetWorld())
+	{
+		if (UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World))
+		{
+			FNavLocation NavLocation;
+			const FVector ProjectionExtent(500.0f, 500.0f, 800.0f);
+			if (NavSys->ProjectPointToNavigation(MoveTarget, NavLocation, ProjectionExtent))
+			{
+				MoveTarget = NavLocation.Location;
+				Blackboard->SetValueAsVector(InstanceData.MoveTargetLocationKey, MoveTarget);
+			}
+			else if (TargetActor && DistanceToTarget > ExitRange)
+			{
+				FVector DirectionToTarget = TargetActor->GetActorLocation() - ControlledPawn->GetActorLocation();
+				DirectionToTarget.Z = 0.0f;
+				if (!DirectionToTarget.IsNearlyZero())
+				{
+					const float ProgressDistance = FMath::Clamp(
+						DistanceToTarget - ExitRange * 0.5f,
+						FMath::Max(Tuning.AcceptanceRadius + 140.0f, 180.0f),
+						FMath::Max(Tuning.ForwardTurnLeadDistance, 240.0f));
+					const FVector ProgressTarget = ControlledPawn->GetActorLocation() + DirectionToTarget.GetSafeNormal2D() * ProgressDistance;
+					if (NavSys->ProjectPointToNavigation(ProgressTarget, NavLocation, ProjectionExtent))
+					{
+						MoveTarget = NavLocation.Location;
+					}
+					else
+					{
+						MoveTarget = ProgressTarget;
+						MoveTarget.Z = ControlledPawn->GetActorLocation().Z;
+					}
+					Blackboard->SetValueAsVector(InstanceData.MoveTargetLocationKey, MoveTarget);
+				}
+			}
+			else
+			{
+				MoveTarget.Z = ControlledPawn->GetActorLocation().Z;
+				Blackboard->SetValueAsVector(InstanceData.MoveTargetLocationKey, MoveTarget);
+			}
+		}
+	}
+
+	const EPathFollowingRequestResult::Type MoveResult = AIController->MoveToLocation(
+		MoveTarget,
+		AcceptanceRadius,
+		false,
+		true,
+		true,
+		false,
+		nullptr,
+		true);
+
+	if (AYogAIController* YogAI = Cast<AYogAIController>(AIController))
+	{
+		YogAI->RecordCombatMoveRequestForDebug(
+			MoveTarget,
+			static_cast<int32>(MoveResult),
+			bTargetMoved,
+			RepathInterval,
+			AcceptanceRadius);
+	}
+
+	const UWorld* World = AIController->GetWorld();
+	InstanceData.LastMoveTarget = MoveTarget;
+	InstanceData.LastMoveRequestTime = World ? World->GetTimeSeconds() : 0.0f;
+	InstanceData.bHasMoveRequest = true;
+
+	// A failed MoveTo request must not fail the task. If it does, the combat state
+	// re-selects every attack branch and can starve movement entirely while spamming logs.
+	return true;
 }
