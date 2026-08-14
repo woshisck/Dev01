@@ -4,19 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "UI/YogCursorStyleDataAsset.h"
 #include "YogCursorWidget.generated.h"
 
 class UImage;
 class UTexture2D;
-
-UENUM(BlueprintType)
-enum class EYogCursorState : uint8
-{
-	Default,
-	Interact,
-	Drag,
-	Invalid
-};
 
 UCLASS(Abstract)
 class DEVKIT_API UYogCursorWidget : public UUserWidget

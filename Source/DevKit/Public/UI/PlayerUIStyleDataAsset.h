@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
-#include "UI/YogCursorWidget.h"
+#include "UI/YogCursorStyleDataAsset.h"
 #include "PlayerUIStyleDataAsset.generated.h"
 
 /**

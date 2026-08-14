@@ -7,6 +7,7 @@
 #include "Data/StateConflictDataAsset.h"
 #include "UI/YogUIRegistry.h"
 #include "UI/PlayerUIStyleDataAsset.h"
+#include "UI/YogCursorStyleDataAsset.h"
 
 UDevAssetManager::UDevAssetManager()
 {
@@ -48,6 +49,11 @@ UYogUIRegistry* UDevAssetManager::GetUIRegistry()
 UPlayerUIStyleDataAsset* UDevAssetManager::GetUIStyle()
 {
 	return GetAsset<UPlayerUIStyleDataAsset>(UIStyle);
+}
+
+UYogCursorStyleDataAsset* UDevAssetManager::GetCursorStyle()
+{
+	return GetAsset<UYogCursorStyleDataAsset>(CursorStyle);
 }
 
 void UDevAssetManager::AsyncLoadAsset(FSoftObjectPath Path, FOnAsyncLoadFinished OnPackageLoaded) {

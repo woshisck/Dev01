@@ -21,6 +21,7 @@ class UPrimaryDataAsset;
 class UStateConflictDataAsset;
 class UYogUIRegistry;
 class UPlayerUIStyleDataAsset;
+class UYogCursorStyleDataAsset;
 
 
 UCLASS(Config = Game)
@@ -52,6 +53,9 @@ public:
 
 	/** Player-interface texture theme (path set in DefaultGame.ini). */
 	UPlayerUIStyleDataAsset* GetUIStyle();
+
+	/** Hardware mouse cursor art (path set in DefaultGame.ini). */
+	UYogCursorStyleDataAsset* GetCursorStyle();
 
 	//	TSoftObjectPtr<UGameplayTagRelation> GameplayTagRelation;
 
@@ -124,6 +128,9 @@ protected:
 
 	UPROPERTY(Config)
 	TSoftObjectPtr<UPlayerUIStyleDataAsset> UIStyle;
+
+	UPROPERTY(Config)
+	TSoftObjectPtr<UYogCursorStyleDataAsset> CursorStyle;
 
 
 

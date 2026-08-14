@@ -41,6 +41,7 @@
 #include "Data/GasTemplate.h"
 #include "EdGraph/EdGraphPin.h"
 #include "EdGraphSchema_BehaviorTree.h"
+#include "Engine/Blueprint.h"
 #include "FileHelpers.h"
 #include "Misc/FileHelper.h"
 #include "Misc/PackageName.h"
@@ -70,6 +71,12 @@ namespace EnemyAITemplateGenerator
 	const FString GuardCaptainAbilityDataPath = TEXT("/Game/Docs/Data/Enemy/GuardCaptain/DA_AbilityMontage_GuardCaptain_01");
 	const FString BossStateTreePath = TEXT("/Game/Code/Enemy/AI/StateTree/ST_Boss");
 	const FString BossDataPath = TEXT("/Game/Docs/Data/Enemy/Boss/DA_Boss");
+	// Phase 2 stat buff. Authored as a GE asset rather than typed into ST_Boss because
+	// RebuildBossStateTree wipes anything set on the StateTree itself.
+	const FString BossPhase2EffectPath = TEXT("/Game/Code/Enemy/AI/Phase/GE_BossPhase2");
+
+	// Boss flips to phase 2 at or below this fraction of max HP.
+	constexpr float BossPhase2HealthPercent = 0.5f;
 
 	enum class EDefaultEnemyProfile : uint8
 	{
@@ -963,6 +970,36 @@ namespace EnemyAITemplateGenerator
 		Condition.GetInstanceData().RequiredState = RequiredState;
 	}
 
+	// A boss phase is a container whose children are tried in order. Phases are added
+	// low-HP-threshold first, because the selector takes the first child whose enter
+	// conditions pass and the base phase carries no condition at all.
+	UStateTreeState& AddBossPhaseState(UStateTreeState& Parent, const TCHAR* StateName)
+	{
+		UStateTreeState& State = Parent.AddChildState(FName(StateName));
+		State.SelectionBehavior = EStateTreeStateSelectionBehavior::TrySelectChildrenInOrder;
+		return State;
+	}
+
+	// Close-and-repeat melee loop shared by every boss phase, so phases only have to
+	// declare what they add on top of it.
+	void AddBossCombatBody(UStateTreeState& Phase)
+	{
+		// The attack task itself fails when nothing in the profile is in range or off
+		// cooldown, which is the signal to fall through to the chase state.
+		AddAttackState(Phase, TEXT("Heavy Attack"), EEnemyAIAttackRole::CloseMelee);
+
+		// Chase exits to the recheck wait rather than straight back to the phase: MoveTo
+		// returns AlreadyAtGoal in the same frame when the boss is already close, so a
+		// direct loop would spin every frame while the heavy attack is on cooldown.
+		UStateTreeState& ChaseTarget = AddMoveState(Phase, TEXT("Chase Target"), TEXT("MoveTargetLocation"), 120.f);
+		ChaseTarget.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::NextSelectableState);
+
+		UStateTreeState& CombatRecheck = Phase.AddChildState(TEXT("Combat Recheck"));
+		CombatRecheck.SelectionBehavior = EStateTreeStateSelectionBehavior::TryEnterState;
+		AddNamedTask<FStateTreeTask_EnemyPatrolWait>(CombatRecheck, TEXT("Combat Recheck Wait"));
+		CombatRecheck.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::GotoState, &Phase);
+	}
+
 	void RebuildBossStateTree(UStateTree& StateTree, TArray<FString>& ReportLines)
 	{
 		UStateTreeEditorData* EditorData = Cast<UStateTreeEditorData>(StateTree.EditorData);
@@ -987,7 +1024,7 @@ namespace EnemyAITemplateGenerator
 
 		UStateTreeState& Root = EditorData->AddRootState();
 		Root.SelectionBehavior = EStateTreeStateSelectionBehavior::TrySelectChildrenInOrder;
-		Root.Description = TEXT("Heavy boss root: idle wander near spawn, alert approach, then close-and-repeat heavy attack. Distances live on the boss UEnemyData.");
+		Root.Description = TEXT("Heavy boss root: holds position until aware, alert approach, then a two-phase fight. Phase 1 is close-and-repeat heavy attack; phase 2 gates in at or below 50% HP and adds Skill and Special Movement attacks plus the phase effect. Distances live on the boss UEnemyData.");
 
 		UStateTreeState& Dead = Root.AddChildState(TEXT("Dead"));
 		Dead.SelectionBehavior = EStateTreeStateSelectionBehavior::TryEnterState;
@@ -1000,20 +1037,42 @@ namespace EnemyAITemplateGenerator
 		CombatCondition.SetNodeName(TEXT("Enemy AI State Is Combat"));
 		CombatCondition.GetInstanceData().RequiredState = EEnemyAIState::Combat;
 
-		// The attack task itself fails when nothing in the profile is in range or off
-		// cooldown, which is the signal to fall through to the chase state.
-		AddAttackState(Combat, TEXT("Heavy Attack"), EEnemyAIAttackRole::CloseMelee);
+		// Phase 2 is declared before phase 1 so the low-HP gate gets first refusal.
+		UStateTreeState& Phase2 = AddBossPhaseState(Combat, TEXT("Phase 2"));
+		TStateTreeEditorNode<FStateTreeCondition_SelfHealthPercentBelow>& Phase2Gate =
+			Phase2.AddEnterCondition<FStateTreeCondition_SelfHealthPercentBelow>();
+		Phase2Gate.SetNodeName(TEXT("Self Health % Below Phase 2"));
+		Phase2Gate.GetInstanceData().Threshold = BossPhase2HealthPercent;
 
-		// Chase exits to the recheck wait rather than straight back to Combat: MoveTo
-		// returns AlreadyAtGoal in the same frame when the boss is already close, so a
-		// direct loop would spin every frame while the heavy attack is on cooldown.
-		UStateTreeState& ChaseTarget = AddMoveState(Combat, TEXT("Chase Target"), TEXT("MoveTargetLocation"), 120.f);
-		ChaseTarget.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::NextSelectableState);
+		// Kept as a leaf: the task succeeds on EnterState, and an immediately-completing
+		// task on a container state would complete the container and unwind the branch.
+		UStateTreeState& Phase2Enter = Phase2.AddChildState(TEXT("Phase 2 Enter"));
+		Phase2Enter.SelectionBehavior = EStateTreeStateSelectionBehavior::TryEnterState;
+		TStateTreeEditorNode<FStateTreeTask_EnterBossPhase>& Phase2EnterTask =
+			AddNamedTask<FStateTreeTask_EnterBossPhase>(Phase2Enter, TEXT("Enter Boss Phase 2"));
+		if (const UBlueprint* PhaseEffectBlueprint = LoadAssetByPackagePath<UBlueprint>(BossPhase2EffectPath))
+		{
+			Phase2EnterTask.GetInstanceData().PhaseEffect = PhaseEffectBlueprint->GeneratedClass;
+			ReportLines.Add(FString::Printf(TEXT("- Boss phase 2 effect bound to `%s`."), *BossPhase2EffectPath));
+		}
+		else
+		{
+			ReportLines.Add(FString::Printf(
+				TEXT("- Boss phase 2 effect `%s` not found; phase 2 changes moveset only. Author it as an Infinite, non-stacking GE."),
+				*BossPhase2EffectPath));
+		}
+		Phase2Enter.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::NextSelectableState);
 
-		UStateTreeState& CombatRecheck = Combat.AddChildState(TEXT("Combat Recheck"));
-		CombatRecheck.SelectionBehavior = EStateTreeStateSelectionBehavior::TryEnterState;
-		AddNamedTask<FStateTreeTask_EnemyPatrolWait>(CombatRecheck, TEXT("Combat Recheck Wait"));
-		CombatRecheck.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::GotoState, &Combat);
+		// Extra roles unlocked by phase 2. Harmless before they are authored on DA_Boss:
+		// the attack task fails and AddAttackState already falls through to the next state.
+		AddAttackState(Phase2, TEXT("Phase 2 Skill"), EEnemyAIAttackRole::Skill);
+		AddAttackState(Phase2, TEXT("Phase 2 Special Movement"), EEnemyAIAttackRole::SpecialMovement);
+		AddBossCombatBody(Phase2);
+
+		// No enter condition: phase 1 is the always-selectable fallback, so a boss at full
+		// health starts here.
+		UStateTreeState& Phase1 = AddBossPhaseState(Combat, TEXT("Phase 1"));
+		AddBossCombatBody(Phase1);
 
 		UStateTreeState& Alert = Root.AddChildState(TEXT("Alert"));
 		Alert.SelectionBehavior = EStateTreeStateSelectionBehavior::TrySelectChildrenInOrder;
@@ -1029,24 +1088,16 @@ namespace EnemyAITemplateGenerator
 		AddNamedTask<FStateTreeTask_EnemyPatrolWait>(AlertWait, TEXT("Alert Wait"));
 		AlertWait.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::GotoState, &Alert);
 
-		UStateTreeState& Patrol = Root.AddChildState(TEXT("Patrol"));
-		Patrol.SelectionBehavior = EStateTreeStateSelectionBehavior::TrySelectChildrenInOrder;
-		TStateTreeEditorNode<FStateTreeCondition_EnemyAIState>& PatrolCondition = Patrol.AddEnterCondition<FStateTreeCondition_EnemyAIState>();
-		PatrolCondition.SetNodeName(TEXT("Enemy AI State Is Patrol"));
-		PatrolCondition.GetInstanceData().RequiredState = EEnemyAIState::Patrol;
-
-		UStateTreeState& PatrolPickPoint = Patrol.AddChildState(TEXT("Patrol Pick Point"));
-		PatrolPickPoint.SelectionBehavior = EStateTreeStateSelectionBehavior::TryEnterState;
-		AddNamedTask<FStateTreeTask_UpdateEnemyPatrolTarget>(PatrolPickPoint, TEXT("Update Patrol Target"));
-		PatrolPickPoint.AddTransition(EStateTreeTransitionTrigger::OnStateSucceeded, EStateTreeTransitionType::NextState);
-
-		UStateTreeState& PatrolMove = AddMoveState(Patrol, TEXT("Patrol Move"), TEXT("PatrolTargetLocation"), 50.f);
-		PatrolMove.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::NextState);
-
-		UStateTreeState& PatrolWait = Patrol.AddChildState(TEXT("Patrol Wait"));
-		PatrolWait.SelectionBehavior = EStateTreeStateSelectionBehavior::TryEnterState;
-		AddNamedTask<FStateTreeTask_EnemyPatrolWait>(PatrolWait, TEXT("Patrol Wait"));
-		PatrolWait.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::GotoState, &Patrol);
+		// A boss holds its arena instead of patrolling, but EEnemyAIState still defaults to
+		// Patrol, so a Patrol-gated state has to exist or state selection finds no match at
+		// all while the boss is unaware of the player.
+		UStateTreeState& Idle = Root.AddChildState(TEXT("Idle"));
+		Idle.SelectionBehavior = EStateTreeStateSelectionBehavior::TryEnterState;
+		TStateTreeEditorNode<FStateTreeCondition_EnemyAIState>& IdleCondition = Idle.AddEnterCondition<FStateTreeCondition_EnemyAIState>();
+		IdleCondition.SetNodeName(TEXT("Enemy AI State Is Patrol"));
+		IdleCondition.GetInstanceData().RequiredState = EEnemyAIState::Patrol;
+		AddNamedTask<FStateTreeTask_EnemyPatrolWait>(Idle, TEXT("Idle Wait"));
+		Idle.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::GotoState, &Idle);
 
 		EditorData->ReparentStates();
 		EditorData->FixDuplicateIDs();
@@ -1300,7 +1351,7 @@ int32 UEnemyAITemplateGeneratorCommandlet::Main(const FString& Params)
 
 		ReportLines.Add(TEXT(""));
 		ReportLines.Add(TEXT("## StateTree"));
-		ReportLines.Add(TEXT("- State order: Dead -> Combat (Heavy Attack -> Chase Target -> Combat Recheck) -> Alert (Approach -> Wait) -> Patrol (Pick Point -> Move -> Wait)."));
+		ReportLines.Add(TEXT("- State order: Dead -> Combat (Phase 2 [HP <= 50%: Enter Phase -> Skill -> Special Movement -> Heavy Attack -> Chase -> Recheck] -> Phase 1 [Heavy Attack -> Chase -> Recheck]) -> Alert (Approach -> Wait) -> Idle (holds position)."));
 		UStateTree* BossStateTree = CreateOrLoadStateTree(BossStateTreePath, bDryRun, ReportLines, DirtyPackages);
 		if (!bDryRun && BossStateTree)
 		{

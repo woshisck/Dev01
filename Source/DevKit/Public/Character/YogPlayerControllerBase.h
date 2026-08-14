@@ -9,7 +9,7 @@
 #include "CommonInputTypeEnum.h"
 #include "EnhancedInputComponent.h"
 #include "InputAction.h"
-#include "UI/YogCursorWidget.h"
+#include "UI/YogCursorStyleDataAsset.h"
 
 #include "YogPlayerControllerBase.generated.h"
 
@@ -135,11 +135,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
 	TSubclassOf<UUserWidget> CombatHUDClass;
 
-	/** Legacy custom software cursor widget. Leave unset to use the platform hardware cursor. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "UI|Cursor")
-	TSubclassOf<class UYogCursorWidget> MouseCursorWidgetClass;
-
-	/** Swap the legacy custom cursor image to match a game state. No-op when hardware cursor is used. */
+	/** Switches the visible hardware cursor to the shape registered for this state. */
 	UFUNCTION(BlueprintCallable, Category = "UI|Cursor")
 	void SetCursorState(EYogCursorState NewState);
 
@@ -224,7 +220,7 @@ private:
 	bool SetupAttackMotionWarpTarget(APlayerCharacterBase* PlayerCharacter);
 	void HandleCommonInputMethodChanged(ECommonInputType NewInputType);
 	void SetGameplayCursorUsesMouse(bool bUsesMouse);
-	void ClearSoftwareMouseCursorWidget();
+	void ApplyHardwareCursorStyle();
 #if !UE_BUILD_SHIPPING
 	void MaybeScheduleRuntimeGMSmokeTest();
 	void RunRuntimeGMSmokeTest();
@@ -246,9 +242,6 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UUserWidget> CombatHUDWidget;
-
-	UPROPERTY()
-	TObjectPtr<UYogCursorWidget> MouseCursorWidget;
 
 	UPROPERTY()
 	TObjectPtr<class ULootSelectionWidget> LootSelectionWidget;

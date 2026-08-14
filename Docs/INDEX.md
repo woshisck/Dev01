@@ -1,6 +1,6 @@
 # Docs 文档库总入口
 
-> 更新：2026-06-06  
+> 更新：2026-08-14  
 > 目标：打开文件夹就能分清“策划需求、玩法设计、策划配置、开发实现、完成功能/任务状态”。归档和废弃文档不得作为当前实现依据。
 
 ## 先看这三个
@@ -41,6 +41,7 @@
 | 查符文系统完整指南 | [RuneLogic_Complete_Guide](04_开发实现与系统文档/系统/Rune/RuneLogic_Complete_Guide.md) |
 | 查 AI 代码规范 | [AI代码编写规范](06_AI协作与VibeCoding/AI代码编写规范.md) |
 | 查普通贴图 NoVT / Texture Collection / 地面 RVT 工具使用 | [NoVT / Texture Collection / RVT 指南](04_开发实现与系统文档/性能/UE58_VirtualTexture_And_VTC_Guide.md) |
+| 换鼠标光标图片 | [硬件鼠标光标配置说明](03_策划配置与制作手册/核心配置说明/UI/硬件鼠标光标配置说明.md) |
 
 ## 维护规则
 

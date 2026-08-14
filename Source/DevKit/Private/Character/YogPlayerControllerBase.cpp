@@ -9,6 +9,9 @@
 #include "UI/BackpackScreenWidget.h"
 #include "UI/LootSelectionWidget.h"
 #include "UI/YogHUD.h"
+#include "UI/YogCursorStyleDataAsset.h"
+#include "DevAssetManager.h"
+#include "Engine/GameViewportClient.h"
 #include "Blueprint/UserWidget.h"
 
 #include "GameFramework/CharacterMovementComponent.h"
@@ -289,7 +292,7 @@ void AYogPlayerControllerBase::BeginPlay()
 
 	SetGameplayCursorControlActive(true);
 
-	ClearSoftwareMouseCursorWidget();
+	ApplyHardwareCursorStyle();
 
 #if !UE_BUILD_SHIPPING
 	MaybeScheduleRuntimeGMSmokeTest();
@@ -955,26 +958,50 @@ void AYogPlayerControllerBase::HandleCommonInputMethodChanged(ECommonInputType N
 	SetGameplayCursorUsesMouse(NewInputType != ECommonInputType::Gamepad);
 }
 
-void AYogPlayerControllerBase::ClearSoftwareMouseCursorWidget()
+void AYogPlayerControllerBase::ApplyHardwareCursorStyle()
 {
 	if (!IsLocalController())
 	{
 		return;
 	}
 
+	// Guarantee no software cursor widget is left registered, otherwise Slate paints it
+	// during its own tick and the cursor visibly trails the real pointer.
 	SetMouseCursorWidget(EMouseCursor::Default, nullptr);
-	if (IsValid(MouseCursorWidget))
+
+	const UYogCursorStyleDataAsset* CursorStyle = UDevAssetManager::Get().GetCursorStyle();
+	if (!CursorStyle)
 	{
-		MouseCursorWidget = nullptr;
+		return;
+	}
+
+	UGameViewportClient* ViewportClient = GetWorld() ? GetWorld()->GetGameViewport() : nullptr;
+	if (!ViewportClient)
+	{
+		return;
+	}
+
+	for (const TPair<EYogCursorState, FYogCursorArt>& Entry : CursorStyle->CursorArt)
+	{
+		if (Entry.Value.CursorPath.IsNone())
+		{
+			continue;
+		}
+
+		const EMouseCursor::Type Slot = UYogCursorStyleDataAsset::StateToSlot(Entry.Key);
+		if (!ViewportClient->SetHardwareCursor(Slot, Entry.Value.CursorPath, Entry.Value.HotSpot))
+		{
+			// Silent failure otherwise: the file is missing, misnamed, or has an extension in the path.
+			UE_LOG(LogTemp, Warning,
+				TEXT("[YogCursor] Failed to load hardware cursor '%s'. Expected a loose .png/.cur/.ani under Content/, with no extension in the path."),
+				*Entry.Value.CursorPath.ToString());
+		}
 	}
 }
 
 void AYogPlayerControllerBase::SetCursorState(EYogCursorState NewState)
 {
-	if (IsValid(MouseCursorWidget))
-	{
-		MouseCursorWidget->OnCursorStateChanged(NewState);
-	}
+	CurrentMouseCursor = UYogCursorStyleDataAsset::StateToSlot(NewState);
 }
 
 void AYogPlayerControllerBase::SetGameplayCursorUsesMouse(bool bUsesMouse)
