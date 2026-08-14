@@ -135,11 +135,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
 	TSubclassOf<UUserWidget> CombatHUDClass;
 
-	/** Custom software mouse cursor (UMG). Bound to EMouseCursor::Default at BeginPlay. */
+	/** Legacy custom software cursor widget. Leave unset to use the platform hardware cursor. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "UI|Cursor")
 	TSubclassOf<class UYogCursorWidget> MouseCursorWidgetClass;
 
-	/** Swap the custom cursor image to match a game state. */
+	/** Swap the legacy custom cursor image to match a game state. No-op when hardware cursor is used. */
 	UFUNCTION(BlueprintCallable, Category = "UI|Cursor")
 	void SetCursorState(EYogCursorState NewState);
 
@@ -224,7 +224,7 @@ private:
 	bool SetupAttackMotionWarpTarget(APlayerCharacterBase* PlayerCharacter);
 	void HandleCommonInputMethodChanged(ECommonInputType NewInputType);
 	void SetGameplayCursorUsesMouse(bool bUsesMouse);
-	void InitMouseCursorWidget();
+	void ClearSoftwareMouseCursorWidget();
 #if !UE_BUILD_SHIPPING
 	void MaybeScheduleRuntimeGMSmokeTest();
 	void RunRuntimeGMSmokeTest();

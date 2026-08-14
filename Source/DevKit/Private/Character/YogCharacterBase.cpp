@@ -494,7 +494,8 @@ void AYogCharacterBase::HealthChanged(const FOnAttributeChangeData& Data)
 		if (!AbilitySystemComponent->HasMatchingGameplayTag(
 			FGameplayTag::RequestGameplayTag(TEXT("Buff.SuperArmor"), false)))
 		{
-			StartHitFlash();
+			// Temporarily disabled so hit-impact VFX/sound can be reviewed without the white mesh overlay.
+			// StartHitFlash();
 		}
 	}
 

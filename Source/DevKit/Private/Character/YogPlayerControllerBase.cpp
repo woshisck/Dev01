@@ -289,7 +289,7 @@ void AYogPlayerControllerBase::BeginPlay()
 
 	SetGameplayCursorControlActive(true);
 
-	InitMouseCursorWidget();
+	ClearSoftwareMouseCursorWidget();
 
 #if !UE_BUILD_SHIPPING
 	MaybeScheduleRuntimeGMSmokeTest();
@@ -955,22 +955,17 @@ void AYogPlayerControllerBase::HandleCommonInputMethodChanged(ECommonInputType N
 	SetGameplayCursorUsesMouse(NewInputType != ECommonInputType::Gamepad);
 }
 
-void AYogPlayerControllerBase::InitMouseCursorWidget()
+void AYogPlayerControllerBase::ClearSoftwareMouseCursorWidget()
 {
-	if (!IsLocalController() || MouseCursorWidgetClass == nullptr)
+	if (!IsLocalController())
 	{
 		return;
 	}
 
-	if (!IsValid(MouseCursorWidget))
-	{
-		MouseCursorWidget = CreateWidget<UYogCursorWidget>(this, MouseCursorWidgetClass);
-	}
-
+	SetMouseCursorWidget(EMouseCursor::Default, nullptr);
 	if (IsValid(MouseCursorWidget))
 	{
-		SetMouseCursorWidget(EMouseCursor::Default, MouseCursorWidget);
-		SetCursorState(EYogCursorState::Default);
+		MouseCursorWidget = nullptr;
 	}
 }
 
