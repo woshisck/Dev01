@@ -2011,3 +2011,5 @@ Plugins/CommonLoadingScreen/Binaries/Win64/UnrealEditor.modules
 Plugins/ElectronicNodes/Binaries/Win64/UnrealEditor.modules
 Plugins/GameFeatures/CountDownTime/Binaries/Win64/UnrealEditor.modules
 Plugins/ModularGameplayActors/Binaries/Win64/UnrealEditor.modules
+/UI_Reference
+/SourceArt
