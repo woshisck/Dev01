@@ -725,6 +725,16 @@ int32 UYogArtMaterialMasterSetupCommandlet::Main(const FString& Params)
 {
 	const bool bApply = FParse::Param(*Params, TEXT("Apply"));
 	const bool bForce = FParse::Param(*Params, TEXT("Force"));
+	if (bApply)
+	{
+		UE_LOG(
+			LogTemp,
+			Error,
+			TEXT("YogArtMaterialMasterSetup is legacy and cannot write scene master materials. ")
+			TEXT("Use -run=YogArtCodeMaterialSetup -Apply -Target=Building|Prop|All -nop4 -AllowCommandletRendering instead. ")
+			TEXT("No assets were changed."));
+		return 1;
+	}
 
 	TArray<FString> ReportLines;
 	ReportLines.Add(TEXT("# YogArt Material Master Setup"));

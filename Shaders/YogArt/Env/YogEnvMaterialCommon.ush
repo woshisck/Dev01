@@ -1,0 +1,354 @@
+#ifndef YOG_ENV_MATERIAL_COMMON_USH
+#define YOG_ENV_MATERIAL_COMMON_USH
+
+// Shared code for code-authored environment materials.
+//
+// Project texture packing:
+//   MRAH.r = Metallic
+//   MRAH.g = Roughness
+//   MRAH.b = Ambient Occlusion
+//   MRAH.a = Height
+// Packed normal/light texture:
+//   NormalLight.rg = Tangent-space normal X/Y
+//   NormalLight.b  = Material light/specular mask
+//   NormalLight.a  = Reserved
+// Normal Z is always reconstructed from RG. The texture must be sampled as
+// linear color and must never use BC5/TC_Normalmap, which discards B.
+
+static const float YOG_ENV_EPSILON = 1.0e-4f;
+static const int YOG_ENV_MAX_POM_STEPS = 8;
+static const float YOG_ENV_POM_HEIGHT_SCALE = 0.04f;
+static const float YOG_ENV_POM_FADE_START_CM = 1500.0f;
+static const float YOG_ENV_POM_FADE_END_CM = 3000.0f;
+
+#if UE_BINDLESS_ENABLED
+uint YogEnvClampResourceCollectionIndex(
+	FResourceCollection ResourceCollection,
+	float RequestedIndex)
+{
+	const uint ResourceCount = GetCountFromResourceCollection(ResourceCollection);
+	if (ResourceCount == 0u)
+	{
+		return 0u;
+	}
+
+	const int RoundedIndex = (int)round(RequestedIndex);
+	return (uint)clamp(RoundedIndex, 0, (int)ResourceCount - 1);
+}
+#endif
+
+struct FYogEnvHeightBlendResult
+{
+	float Mask;
+	float Height;
+};
+
+struct FYogEnvPOMResult
+{
+	float2 UV;
+	float Height;
+};
+
+struct FYogEnvNormalLightSample
+{
+	float3 NormalTS;
+	float LightMask;
+};
+
+float YogEnvCheapContrast(float Value, float Contrast)
+{
+	const float SafeContrast = max(Contrast, 0.0f);
+	return saturate(Value * (2.0f * SafeContrast + 1.0f) - SafeContrast);
+}
+
+FYogEnvHeightBlendResult YogEnvHeightBlend(
+	float BottomHeight,
+	float TopHeight,
+	float InputMask,
+	float HeightBlendContrast)
+{
+	FYogEnvHeightBlendResult Result;
+
+	// Matches the project's MLB_HeightLayerBlend height comparison.
+	const float PaintedTop = saturate(TopHeight) * saturate(InputMask);
+	const float HeightDelta = max(saturate(BottomHeight) - PaintedTop, 0.0f);
+	const float BlendWidth =
+		max(1.0f - saturate(HeightBlendContrast), YOG_ENV_EPSILON);
+
+	Result.Mask = saturate(1.0f - HeightDelta / BlendWidth);
+	Result.Height = lerp(
+		saturate(BottomHeight),
+		saturate(TopHeight),
+		Result.Mask);
+	return Result;
+}
+
+float4 YogEnvSampleMRAHGrad(
+	Texture2D MRAHTexture,
+	SamplerState MRAHSampler,
+	float2 UV,
+	float2 UVddx,
+	float2 UVddy)
+{
+	return saturate(
+		Texture2DSampleGrad(
+			MRAHTexture,
+			MRAHSampler,
+			UV,
+			UVddx,
+			UVddy));
+}
+
+FYogEnvNormalLightSample YogEnvSampleNormalLightTSGrad(
+	Texture2D NormalTexture,
+	SamplerState NormalSampler,
+	float2 UV,
+	float2 UVddx,
+	float2 UVddy)
+{
+	FYogEnvNormalLightSample Result;
+	const float3 PackedNormalLight =
+		Texture2DSampleGrad(
+			NormalTexture,
+			NormalSampler,
+			UV,
+			UVddx,
+			UVddy).rgb;
+	const float2 NormalXY = PackedNormalLight.rg * 2.0f - 1.0f;
+	const float NormalZ = sqrt(saturate(1.0f - dot(NormalXY, NormalXY)));
+	Result.NormalTS = normalize(
+		float3(NormalXY, NormalZ)
+		+ float3(0.0f, 0.0f, YOG_ENV_EPSILON));
+	Result.LightMask = saturate(PackedNormalLight.b);
+	return Result;
+}
+
+float3 YogEnvBlendNormalTS(
+	float3 BottomNormalTS,
+	float3 TopNormalTS,
+	float FinalBlendMask)
+{
+	return normalize(
+		lerp(BottomNormalTS, TopNormalTS, saturate(FinalBlendMask))
+		+ float3(0.0f, 0.0f, YOG_ENV_EPSILON));
+}
+
+void YogEnvSampleTwoLayerHeightFieldGrad(
+	Texture2D Layer0MRAH,
+	SamplerState Layer0MRAHSampler,
+	Texture2D Layer1MRAH,
+	SamplerState Layer1MRAHSampler,
+	float2 BaseUV,
+	float2 dBaseUVdx,
+	float2 dBaseUVdy,
+	float Layer0UVScale,
+	float Layer1UVScale,
+	float InputMask,
+	float HeightBlendContrast,
+	out float FinalBlendMask,
+	out float CombinedHeight)
+{
+	const float SafeLayer0Scale = max(abs(Layer0UVScale), YOG_ENV_EPSILON);
+	const float SafeLayer1Scale = max(abs(Layer1UVScale), YOG_ENV_EPSILON);
+	const float2 Layer0UV = BaseUV * SafeLayer0Scale;
+	const float2 Layer1UV = BaseUV * SafeLayer1Scale;
+	const float2 Layer0UVddx = dBaseUVdx * SafeLayer0Scale;
+	const float2 Layer0UVddy = dBaseUVdy * SafeLayer0Scale;
+	const float2 Layer1UVddx = dBaseUVdx * SafeLayer1Scale;
+	const float2 Layer1UVddy = dBaseUVdy * SafeLayer1Scale;
+
+	const float Layer0Height =
+		Texture2DSampleGrad(
+			Layer0MRAH,
+			Layer0MRAHSampler,
+			Layer0UV,
+			Layer0UVddx,
+			Layer0UVddy).a;
+	const float Layer1Height =
+		Texture2DSampleGrad(
+			Layer1MRAH,
+			Layer1MRAHSampler,
+			Layer1UV,
+			Layer1UVddx,
+			Layer1UVddy).a;
+
+	const FYogEnvHeightBlendResult HeightBlend = YogEnvHeightBlend(
+		Layer0Height,
+		Layer1Height,
+		InputMask,
+		HeightBlendContrast);
+	FinalBlendMask = HeightBlend.Mask;
+	CombinedHeight = HeightBlend.Height;
+}
+
+FYogEnvPOMResult YogEnvTraceTwoLayerPOM(
+	Texture2D Layer0MRAH,
+	SamplerState Layer0MRAHSampler,
+	Texture2D Layer1MRAH,
+	SamplerState Layer1MRAHSampler,
+	float2 BaseUV,
+	float2 dBaseUVdx,
+	float2 dBaseUVdy,
+	float3 ViewDirectionTS,
+	float Layer0UVScale,
+	float Layer1UVScale,
+	float InputMask,
+	float HeightBlendContrast,
+	float POMSteps,
+	float PixelDepth)
+{
+	FYogEnvPOMResult Result;
+	Result.UV = BaseUV;
+	Result.Height = 0.0f;
+
+	// Low and Medium feed a compile-time zero through a QualitySwitch.
+	// Return before the height-field reads so those tiers keep the six base
+	// surface reads instead of paying two duplicate MRAH reads.
+	if (POMSteps < 0.5f)
+	{
+		return Result;
+	}
+
+	const float DistanceFade =
+		1.0f
+		- smoothstep(
+			YOG_ENV_POM_FADE_START_CM,
+			YOG_ENV_POM_FADE_END_CM,
+			max(PixelDepth, 0.0f));
+	const float EffectiveHeightScale =
+		YOG_ENV_POM_HEIGHT_SCALE * DistanceFade;
+	if (EffectiveHeightScale <= YOG_ENV_EPSILON)
+	{
+		return Result;
+	}
+
+	float InitialBlendMask = 0.0f;
+	YogEnvSampleTwoLayerHeightFieldGrad(
+		Layer0MRAH,
+		Layer0MRAHSampler,
+		Layer1MRAH,
+		Layer1MRAHSampler,
+		BaseUV,
+		dBaseUVdx,
+		dBaseUVdy,
+		Layer0UVScale,
+		Layer1UVScale,
+		InputMask,
+		HeightBlendContrast,
+		InitialBlendMask,
+		Result.Height);
+
+	const float ViewZ = max(abs(ViewDirectionTS.z), 0.05f);
+	// Reduce both displacement amplitude and iteration cost through the
+	// 15-30m fade band; 30m and beyond returned before any height read.
+	const float MaxSteps = clamp(
+		lerp(1.0f, POMSteps, DistanceFade),
+		1.0f,
+		(float)YOG_ENV_MAX_POM_STEPS);
+	const float MinSteps = min(MaxSteps, 4.0f);
+	const float RequestedSteps =
+		lerp(MaxSteps, MinSteps, saturate(ViewZ));
+	const int StepCount =
+		clamp((int)round(RequestedSteps), 1, YOG_ENV_MAX_POM_STEPS);
+	const float StepDepth = rcp((float)StepCount);
+	const float2 StepUV =
+		(-ViewDirectionTS.xy / ViewZ * EffectiveHeightScale) * StepDepth;
+
+	float2 PreviousUV = BaseUV;
+	float PreviousRayDepth = 0.0f;
+	float PreviousSurfaceDepth = 1.0f - Result.Height;
+
+	float2 CurrentUV = BaseUV;
+	float CurrentRayDepth = 0.0f;
+	float CurrentSurfaceDepth = PreviousSurfaceDepth;
+
+	[loop]
+	for (int StepIndex = 0; StepIndex < YOG_ENV_MAX_POM_STEPS; ++StepIndex)
+	{
+		if (StepIndex >= StepCount || CurrentRayDepth >= CurrentSurfaceDepth)
+		{
+			break;
+		}
+
+		PreviousUV = CurrentUV;
+		PreviousRayDepth = CurrentRayDepth;
+		PreviousSurfaceDepth = CurrentSurfaceDepth;
+
+		CurrentUV += StepUV;
+		CurrentRayDepth += StepDepth;
+
+		float CurrentBlendMask = 0.0f;
+		float CurrentHeight = 0.0f;
+		YogEnvSampleTwoLayerHeightFieldGrad(
+			Layer0MRAH,
+			Layer0MRAHSampler,
+			Layer1MRAH,
+			Layer1MRAHSampler,
+			CurrentUV,
+			dBaseUVdx,
+			dBaseUVdy,
+			Layer0UVScale,
+			Layer1UVScale,
+			InputMask,
+			HeightBlendContrast,
+			CurrentBlendMask,
+			CurrentHeight);
+		CurrentSurfaceDepth = 1.0f - CurrentHeight;
+	}
+
+	const float BeforeSurface = PreviousSurfaceDepth - PreviousRayDepth;
+	const float AfterSurface = CurrentSurfaceDepth - CurrentRayDepth;
+	const float IntersectionWeight = saturate(
+		BeforeSurface
+		/ max(BeforeSurface - AfterSurface, YOG_ENV_EPSILON));
+	Result.UV = lerp(PreviousUV, CurrentUV, IntersectionWeight);
+	return Result;
+}
+
+void YogEnvApplyDirt(
+	inout float3 BaseColor,
+	inout float Roughness,
+	float4 DirtSample,
+	float VertexMask,
+	float Opacity,
+	float4 Control)
+{
+	// Control: R=mask contrast, G=color multiply weight,
+	//          B=roughness multiply weight, A=roughness value.
+	const float RawMask =
+		saturate(VertexMask)
+		* saturate(DirtSample.a)
+		* max(Opacity, 0.0f);
+	const float Mask =
+		YogEnvCheapContrast(saturate(RawMask), Control.r);
+
+	const float3 CoverColor = DirtSample.rgb;
+	const float3 MultiplyColor = BaseColor * DirtSample.rgb;
+	const float3 ColorTarget =
+		lerp(CoverColor, MultiplyColor, saturate(Control.g));
+	BaseColor = lerp(BaseColor, ColorTarget, Mask);
+
+	const float RoughnessValue = saturate(Control.a);
+	const float RoughnessTarget = lerp(
+		RoughnessValue,
+		saturate(Roughness * RoughnessValue),
+		saturate(Control.b));
+	Roughness = lerp(Roughness, RoughnessTarget, Mask);
+}
+
+float YogEnvGroundBlendMask(
+	float WorldPositionZ,
+	float GroundWorldHeight,
+	float BlendWidth,
+	float BlendOffset,
+	float GroundRVTEnabled)
+{
+	const float HeightDelta =
+		WorldPositionZ - GroundWorldHeight - BlendOffset;
+	const float SafeWidth = max(BlendWidth, YOG_ENV_EPSILON);
+	const float HeightMask =
+		1.0f - smoothstep(0.0f, SafeWidth, max(HeightDelta, 0.0f));
+	return saturate(HeightMask * GroundRVTEnabled);
+}
+
+#endif // YOG_ENV_MATERIAL_COMMON_USH

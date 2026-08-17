@@ -1,9 +1,11 @@
 #include "System/YogPerformanceSettingsLibrary.h"
 
 #include "Engine/Engine.h"
+#include "EngineUtils.h"
 #include "GameFramework/GameUserSettings.h"
 #include "HAL/IConsoleManager.h"
 #include "Kismet/GameplayStatics.h"
+#include "RVT/DevKitRVTSurfaceInstanceActor.h"
 #include "SaveGame/YogSaveSubsystem.h"
 
 namespace
@@ -37,6 +39,11 @@ static TAutoConsoleVariable<int32> CVarYogBatchProxyPreference(
 	TEXT("r.Yog.BatchProxyPreference"),
 	0,
 	TEXT("Project resource selection preference for generated batch proxies: 0 source-biased, 1 proxy-biased."));
+
+static TAutoConsoleVariable<int32> CVarYogRVTSurfaceForceProjectionOnly(
+	TEXT("r.Yog.RVTSurface.ForceProjectionOnly"),
+	0,
+	TEXT("Platform override for Quality Scaled RVT surface objects: 0 follows quality, 1 always uses RVT projection."));
 
 static TAutoConsoleVariable<int32> CVarYogTextureCollectionQuality(
 	TEXT("r.Yog.TextureCollectionQuality"),
@@ -429,6 +436,18 @@ bool UYogPerformanceSettingsLibrary::ApplyGraphicsSettings(UObject* WorldContext
 	SetCVarInt(TEXT("r.Yog.VTAtlasQuality"), ClampQuality(Settings.TextureCollectionQuality));
 	SetCVarFloat(TEXT("r.ScreenPercentage"), FMath::Clamp(Settings.ResolutionScalePercent, 25.f, 100.f));
 	SetCVarFloat(TEXT("t.MaxFPS"), Settings.FrameRateLimit > 0 ? static_cast<float>(Settings.FrameRateLimit) : 0.f);
+
+	// PC quality changes are applied from the settings UI while the world is already running.
+	// Refresh existing controllers immediately; newly streamed/spawned actors also resolve in BeginPlay.
+	if (UWorld* World = GEngine
+		? GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::ReturnNull)
+		: nullptr)
+	{
+		for (TActorIterator<ADevKitRVTSurfaceInstanceActor> It(World); It; ++It)
+		{
+			It->ApplySurfaceAsset();
+		}
+	}
 
 	UE_LOG(LogTemp, Log, TEXT("[PerfSettings] ApplyGraphicsSettings END — r.Yog.DynamicLightQuality=%d r.Yog.MaterialLightQuality=%d r.Yog.MaterialLight.MaxLightInfoCount=%d"),
 		ClampQuality(Settings.DynamicLightQuality),

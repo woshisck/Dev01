@@ -117,6 +117,7 @@ public class DevKitEditor : ModuleRules
 				"FoliageEdit",
 				"VirtualTexturingEditor",
 				"CelesLightEditor",
+				"TypedElementFramework",
 				"StateTreeModule",
 				"StateTreeEditorModule",
 				"GameplayStateTreeModule",

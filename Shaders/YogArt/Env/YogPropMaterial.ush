@@ -1,0 +1,139 @@
+#ifndef YOG_PROP_MATERIAL_USH
+#define YOG_PROP_MATERIAL_USH
+
+#include "/Project/YogArt/Env/YogEnvMaterialCommon.ush"
+
+float3 YogEvaluatePropMaterial(
+	Texture2D BaseColorTexture,
+	SamplerState BaseColorTextureSampler,
+	Texture2D MRAHTexture,
+	SamplerState MRAHTextureSampler,
+	Texture2D NormalTexture,
+	SamplerState NormalTextureSampler,
+	float MaterialIndex,
+	float UVScale,
+	float4 EmissiveColor,
+	float EmissiveIntensity,
+	float GroundBlendWidth,
+	float GroundBlendOffset,
+	FResourceCollection TC_Env_BaseColor,
+	FResourceCollection TC_Env_MRAH,
+	FResourceCollection TC_Env_Normal,
+	float UseTextureCollection,
+	float3 GroundRVTBaseColor,
+	float GroundRVTRoughness,
+	float GroundRVTSpecular,
+	float3 GroundRVTNormalTS,
+	float GroundRVTWorldHeight,
+	float GroundRVTEnabled,
+	float2 UV0,
+	float4 VertexColor,
+	float3 ViewDirTS,
+	float PixelDepth,
+	float3 AbsoluteWorldPosition,
+	out float3 NormalTS,
+	out float AmbientOcclusion,
+	out float Roughness,
+	out float Metallic,
+	out float3 Emissive,
+	out float MaterialLightMask)
+{
+	Texture2D ResolvedBaseColorTexture = BaseColorTexture;
+	Texture2D ResolvedMRAHTexture = MRAHTexture;
+	Texture2D ResolvedNormalTexture = NormalTexture;
+
+	const float SafeUVScale = max(abs(UVScale), YOG_ENV_EPSILON);
+	const float2 FinalUV = UV0 * SafeUVScale;
+	const float2 FinalUVddx = ddx(UV0) * SafeUVScale;
+	const float2 FinalUVddy = ddy(UV0) * SafeUVScale;
+
+	#if UE_BINDLESS_ENABLED
+	if (UseTextureCollection >= 0.5f)
+	{
+		if (GetCountFromResourceCollection(TC_Env_BaseColor) > 0u)
+		{
+			ResolvedBaseColorTexture = TextureFromCollection_Texture2D(
+				TC_Env_BaseColor,
+				YogEnvClampResourceCollectionIndex(
+					TC_Env_BaseColor,
+					MaterialIndex));
+		}
+
+		if (GetCountFromResourceCollection(TC_Env_MRAH) > 0u)
+		{
+			ResolvedMRAHTexture = TextureFromCollection_Texture2D(
+				TC_Env_MRAH,
+				YogEnvClampResourceCollectionIndex(
+					TC_Env_MRAH,
+					MaterialIndex));
+		}
+
+		if (GetCountFromResourceCollection(TC_Env_Normal) > 0u)
+		{
+			ResolvedNormalTexture = TextureFromCollection_Texture2D(
+				TC_Env_Normal,
+				YogEnvClampResourceCollectionIndex(
+					TC_Env_Normal,
+					MaterialIndex));
+		}
+	}
+	#endif
+
+	float3 BaseColor = Texture2DSampleGrad(
+		ResolvedBaseColorTexture,
+		BaseColorTextureSampler,
+		FinalUV,
+		FinalUVddx,
+		FinalUVddy).rgb;
+	const float4 Packed = YogEnvSampleMRAHGrad(
+		ResolvedMRAHTexture,
+		MRAHTextureSampler,
+		FinalUV,
+		FinalUVddx,
+		FinalUVddy);
+
+	const FYogEnvNormalLightSample NormalLight =
+		YogEnvSampleNormalLightTSGrad(
+		ResolvedNormalTexture,
+		NormalTextureSampler,
+		FinalUV,
+		FinalUVddx,
+		FinalUVddy);
+	NormalTS = NormalLight.NormalTS;
+	MaterialLightMask = NormalLight.LightMask;
+	Metallic = Packed.r;
+	Roughness = Packed.g;
+	AmbientOcclusion = Packed.b;
+	Emissive = EmissiveColor.rgb * max(EmissiveIntensity, 0.0f);
+
+	// ISM/HISM custom data is zero-initialized. Width cannot validly be zero,
+	// so reserve zero as the compact "use material default" encoding.
+	const float EffectiveGroundBlendWidth =
+		GroundBlendWidth > YOG_ENV_EPSILON ? GroundBlendWidth : 25.0f;
+	const float GroundBlendMask = YogEnvGroundBlendMask(
+		AbsoluteWorldPosition.z,
+		GroundRVTWorldHeight,
+		EffectiveGroundBlendWidth,
+		GroundBlendOffset,
+		GroundRVTEnabled);
+	BaseColor = lerp(
+		BaseColor,
+		GroundRVTBaseColor,
+		GroundBlendMask);
+	Roughness = lerp(
+		Roughness,
+		saturate(GroundRVTRoughness),
+		GroundBlendMask);
+	NormalTS = normalize(
+		lerp(NormalTS, GroundRVTNormalTS, GroundBlendMask)
+		+ float3(0.0f, 0.0f, YOG_ENV_EPSILON));
+	Metallic = lerp(Metallic, 0.0f, GroundBlendMask);
+	MaterialLightMask = lerp(
+		MaterialLightMask,
+		saturate(GroundRVTSpecular),
+		GroundBlendMask);
+
+	return BaseColor;
+}
+
+#endif // YOG_PROP_MATERIAL_USH

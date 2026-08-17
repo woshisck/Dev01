@@ -1,4 +1,4 @@
-﻿// Fill out your copyright notice in the Description page of Project Settings.
+// Fill out your copyright notice in the Description page of Project Settings.
 
 
 #include "Character/YogCharacterBase.h"
@@ -507,7 +507,7 @@ void AYogCharacterBase::HealthChanged(const FOnAttributeChangeData& Data)
 			FGameplayTag::RequestGameplayTag(TEXT("Buff.SuperArmor"), false)))
 		{
 			// Temporarily disabled so hit-impact VFX/sound can be reviewed without the white mesh overlay.
-			// StartHitFlash();
+			StartHitFlash();
 		}
 	}
 

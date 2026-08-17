@@ -1,0 +1,298 @@
+#ifndef YOG_BUILDING_MATERIAL_USH
+#define YOG_BUILDING_MATERIAL_USH
+
+#include "/Project/YogArt/Env/YogEnvMaterialCommon.ush"
+
+float3 YogEvaluateBuildingMaterial(
+	Texture2D Layer0BaseColor,
+	SamplerState Layer0BaseColorSampler,
+	Texture2D Layer0MRAH,
+	SamplerState Layer0MRAHSampler,
+	Texture2D Layer0Normal,
+	SamplerState Layer0NormalSampler,
+	float Layer0TextureIndex,
+	Texture2D Layer1BaseColor,
+	SamplerState Layer1BaseColorSampler,
+	Texture2D Layer1MRAH,
+	SamplerState Layer1MRAHSampler,
+	Texture2D Layer1Normal,
+	SamplerState Layer1NormalSampler,
+	float Layer1TextureIndex,
+	Texture2D Dirt0Color,
+	SamplerState Dirt0ColorSampler,
+	float Dirt0TextureIndex,
+	Texture2D Dirt1Color,
+	SamplerState Dirt1ColorSampler,
+	float Dirt1TextureIndex,
+	float4 BaseUVScales,
+	float4 DirtUVScales,
+	float HeightBlendContrast,
+	float4 Dirt0Control,
+	float Dirt0Opacity,
+	float4 Dirt1Control,
+	float Dirt1Opacity,
+	float GroundBlendWidth,
+	float GroundBlendOffset,
+	FResourceCollection TC_Env_BaseColor,
+	FResourceCollection TC_Env_MRAH,
+	FResourceCollection TC_Env_Normal,
+	float UseTextureCollection,
+	float POMSteps,
+	float3 GroundRVTBaseColor,
+	float GroundRVTRoughness,
+	float GroundRVTSpecular,
+	float3 GroundRVTNormalTS,
+	float GroundRVTWorldHeight,
+	float GroundRVTEnabled,
+	float2 UV0,
+	float4 VertexColor,
+	float3 ViewDirTS,
+	float PixelDepth,
+	float3 AbsoluteWorldPosition,
+	out float3 NormalTS,
+	out float AmbientOcclusion,
+	out float Roughness,
+	out float Metallic,
+	out float MaterialLightMask)
+{
+	Texture2D ResolvedLayer0BaseColor = Layer0BaseColor;
+	Texture2D ResolvedLayer0MRAH = Layer0MRAH;
+	Texture2D ResolvedLayer0Normal = Layer0Normal;
+	Texture2D ResolvedLayer1BaseColor = Layer1BaseColor;
+	Texture2D ResolvedLayer1MRAH = Layer1MRAH;
+	Texture2D ResolvedLayer1Normal = Layer1Normal;
+	Texture2D ResolvedDirt0Color = Dirt0Color;
+	Texture2D ResolvedDirt1Color = Dirt1Color;
+
+	// Evaluate derivatives before any bindless branch or ray-march loop.
+	const float2 dBaseUVdx = ddx(UV0);
+	const float2 dBaseUVdy = ddy(UV0);
+
+	#if UE_BINDLESS_ENABLED
+	if (UseTextureCollection >= 0.5f)
+	{
+		if (GetCountFromResourceCollection(TC_Env_BaseColor) > 0u)
+		{
+			ResolvedLayer0BaseColor = TextureFromCollection_Texture2D(
+				TC_Env_BaseColor,
+				YogEnvClampResourceCollectionIndex(
+					TC_Env_BaseColor,
+					Layer0TextureIndex));
+			ResolvedLayer1BaseColor = TextureFromCollection_Texture2D(
+				TC_Env_BaseColor,
+				YogEnvClampResourceCollectionIndex(
+					TC_Env_BaseColor,
+					Layer1TextureIndex));
+			ResolvedDirt0Color = TextureFromCollection_Texture2D(
+				TC_Env_BaseColor,
+				YogEnvClampResourceCollectionIndex(
+					TC_Env_BaseColor,
+					Dirt0TextureIndex));
+			ResolvedDirt1Color = TextureFromCollection_Texture2D(
+				TC_Env_BaseColor,
+				YogEnvClampResourceCollectionIndex(
+					TC_Env_BaseColor,
+					Dirt1TextureIndex));
+		}
+
+		if (GetCountFromResourceCollection(TC_Env_MRAH) > 0u)
+		{
+			ResolvedLayer0MRAH = TextureFromCollection_Texture2D(
+				TC_Env_MRAH,
+				YogEnvClampResourceCollectionIndex(
+					TC_Env_MRAH,
+					Layer0TextureIndex));
+			ResolvedLayer1MRAH = TextureFromCollection_Texture2D(
+				TC_Env_MRAH,
+				YogEnvClampResourceCollectionIndex(
+					TC_Env_MRAH,
+					Layer1TextureIndex));
+		}
+
+		if (GetCountFromResourceCollection(TC_Env_Normal) > 0u)
+		{
+			ResolvedLayer0Normal = TextureFromCollection_Texture2D(
+				TC_Env_Normal,
+				YogEnvClampResourceCollectionIndex(
+					TC_Env_Normal,
+					Layer0TextureIndex));
+			ResolvedLayer1Normal = TextureFromCollection_Texture2D(
+				TC_Env_Normal,
+				YogEnvClampResourceCollectionIndex(
+					TC_Env_Normal,
+					Layer1TextureIndex));
+		}
+	}
+	#endif
+
+	const float Layer0Scale =
+		max(abs(BaseUVScales.x), YOG_ENV_EPSILON);
+	const float Layer1Scale =
+		max(abs(BaseUVScales.y), YOG_ENV_EPSILON);
+	const float InputMask = saturate(VertexColor.r);
+
+	const FYogEnvPOMResult POM = YogEnvTraceTwoLayerPOM(
+		ResolvedLayer0MRAH,
+		Layer0MRAHSampler,
+		ResolvedLayer1MRAH,
+		Layer1MRAHSampler,
+		UV0,
+		dBaseUVdx,
+		dBaseUVdy,
+		ViewDirTS,
+		Layer0Scale,
+		Layer1Scale,
+		InputMask,
+		HeightBlendContrast,
+		POMSteps,
+		PixelDepth);
+
+	const float2 Layer0UV = POM.UV * Layer0Scale;
+	const float2 Layer1UV = POM.UV * Layer1Scale;
+	const float2 Layer0UVddx = dBaseUVdx * Layer0Scale;
+	const float2 Layer0UVddy = dBaseUVdy * Layer0Scale;
+	const float2 Layer1UVddx = dBaseUVdx * Layer1Scale;
+	const float2 Layer1UVddy = dBaseUVdy * Layer1Scale;
+
+	const float3 Layer0Color =
+		Texture2DSampleGrad(
+			ResolvedLayer0BaseColor,
+			Layer0BaseColorSampler,
+			Layer0UV,
+			Layer0UVddx,
+			Layer0UVddy).rgb;
+	const float3 Layer1Color =
+		Texture2DSampleGrad(
+			ResolvedLayer1BaseColor,
+			Layer1BaseColorSampler,
+			Layer1UV,
+			Layer1UVddx,
+			Layer1UVddy).rgb;
+	const float4 Layer0Packed = YogEnvSampleMRAHGrad(
+		ResolvedLayer0MRAH,
+		Layer0MRAHSampler,
+		Layer0UV,
+		Layer0UVddx,
+		Layer0UVddy);
+	const float4 Layer1Packed = YogEnvSampleMRAHGrad(
+		ResolvedLayer1MRAH,
+		Layer1MRAHSampler,
+		Layer1UV,
+		Layer1UVddx,
+		Layer1UVddy);
+	const FYogEnvNormalLightSample Layer0NormalLight =
+		YogEnvSampleNormalLightTSGrad(
+		ResolvedLayer0Normal,
+		Layer0NormalSampler,
+		Layer0UV,
+		Layer0UVddx,
+		Layer0UVddy);
+	const FYogEnvNormalLightSample Layer1NormalLight =
+		YogEnvSampleNormalLightTSGrad(
+		ResolvedLayer1Normal,
+		Layer1NormalSampler,
+		Layer1UV,
+		Layer1UVddx,
+		Layer1UVddy);
+
+	const FYogEnvHeightBlendResult HeightBlend = YogEnvHeightBlend(
+		Layer0Packed.a,
+		Layer1Packed.a,
+		InputMask,
+		HeightBlendContrast);
+	const float BlendMask = HeightBlend.Mask;
+
+	float3 BaseColor = lerp(Layer0Color, Layer1Color, BlendMask);
+	const float4 Packed = lerp(Layer0Packed, Layer1Packed, BlendMask);
+	NormalTS = YogEnvBlendNormalTS(
+		Layer0NormalLight.NormalTS,
+		Layer1NormalLight.NormalTS,
+		BlendMask);
+	MaterialLightMask = lerp(
+		Layer0NormalLight.LightMask,
+		Layer1NormalLight.LightMask,
+		BlendMask);
+	Metallic = Packed.r;
+	Roughness = Packed.g;
+	AmbientOcclusion = Packed.b;
+
+	const float Dirt0Scale =
+		max(abs(DirtUVScales.x), YOG_ENV_EPSILON);
+	const float Dirt1Scale =
+		max(abs(DirtUVScales.y), YOG_ENV_EPSILON);
+	float4 Dirt0Sample = 0.0f;
+	float4 Dirt1Sample = 0.0f;
+	// The explicit gradients make these instance/vertex-mask branches safe.
+	// Clean meshes and disabled per-instance dirt layers avoid both samples.
+	[branch]
+	if (Dirt0Opacity > YOG_ENV_EPSILON
+		&& VertexColor.g > YOG_ENV_EPSILON)
+	{
+		Dirt0Sample = Texture2DSampleGrad(
+			ResolvedDirt0Color,
+			Dirt0ColorSampler,
+			UV0 * Dirt0Scale,
+			dBaseUVdx * Dirt0Scale,
+			dBaseUVdy * Dirt0Scale);
+	}
+	[branch]
+	if (Dirt1Opacity > YOG_ENV_EPSILON
+		&& VertexColor.b > YOG_ENV_EPSILON)
+	{
+		Dirt1Sample = Texture2DSampleGrad(
+			ResolvedDirt1Color,
+			Dirt1ColorSampler,
+			UV0 * Dirt1Scale,
+			dBaseUVdx * Dirt1Scale,
+			dBaseUVdy * Dirt1Scale);
+	}
+
+	// Dirt 0 is applied first, Dirt 1 is the final overlay.
+	YogEnvApplyDirt(
+		BaseColor,
+		Roughness,
+		Dirt0Sample,
+		VertexColor.g,
+		Dirt0Opacity,
+		Dirt0Control);
+	YogEnvApplyDirt(
+		BaseColor,
+		Roughness,
+		Dirt1Sample,
+		VertexColor.b,
+		Dirt1Opacity,
+		Dirt1Control);
+
+	// ISM/HISM custom data is zero-initialized. Width cannot validly be zero,
+	// so reserve zero as the compact "use material default" encoding.
+	const float EffectiveGroundBlendWidth =
+		GroundBlendWidth > YOG_ENV_EPSILON ? GroundBlendWidth : 50.0f;
+	const float GroundBlendMask = YogEnvGroundBlendMask(
+		AbsoluteWorldPosition.z,
+		GroundRVTWorldHeight,
+		EffectiveGroundBlendWidth,
+		GroundBlendOffset,
+		GroundRVTEnabled);
+	BaseColor = lerp(
+		BaseColor,
+		GroundRVTBaseColor,
+		GroundBlendMask);
+	Roughness = lerp(
+		Roughness,
+		saturate(GroundRVTRoughness),
+		GroundBlendMask);
+	NormalTS = normalize(
+		lerp(NormalTS, GroundRVTNormalTS, GroundBlendMask)
+		+ float3(0.0f, 0.0f, YOG_ENV_EPSILON));
+	// The existing surface RVT has no Metallic channel; ground contact is
+	// therefore treated as dielectric instead of misreading Specular.
+	Metallic = lerp(Metallic, 0.0f, GroundBlendMask);
+	MaterialLightMask = lerp(
+		MaterialLightMask,
+		saturate(GroundRVTSpecular),
+		GroundBlendMask);
+
+	return BaseColor;
+}
+
+#endif // YOG_BUILDING_MATERIAL_USH

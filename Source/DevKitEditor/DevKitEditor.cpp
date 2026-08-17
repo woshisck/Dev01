@@ -15,10 +15,12 @@
 #include "Data/RuneDataAsset.h"
 #include "Editor.h"
 #include "Editor/EditorEngine.h"
+#include "EditorModeManager.h"
 #include "FileHelpers.h"
 #include "Framework/Application/IInputProcessor.h"
 #include "Framework/Application/SlateApplication.h"
 #include "GameFramework/PlayerController.h"
+#include "EngineUtils.h"
 #include "LevelEditor.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/MessageDialog.h"
@@ -26,6 +28,7 @@
 #include "Misc/Paths.h"
 #include "PlayInEditorDataTypes.h"
 #include "RuneEditor/SRuneEditorWidget.h"
+#include "Selection.h"
 #include "Styling/AppStyle.h"
 #include "Styling/SlateStyle.h"
 #include "Styling/SlateStyleRegistry.h"
@@ -43,8 +46,12 @@
 #include "Tools/MapCreator/SDevKitMapCreatorWidget.h"
 // The surface library owns both RVT decals and visible ground-object foliage entries.
 #include "Tools/RVTMeshDecal/SDevKitRVTMeshDecalWidget.h"
+#include "Tools/DecalCollection/SDevKitDecalCollectionWidget.h"
+#include "Tools/DecalCollection/DevKitDecalCollectionEdMode.h"
+#include "Surface/DevKitDecalCollectionActor.h"
 #include "Tools/SMaterialBatchToolsWidget.h"
 #include "Tools/SMaterialTextureRulesWidget.h"
+#include "Tools/SMaterialTextureWorkbenchWidget.h"
 #include "Tools/SMetaProgressionWorkbenchWidget.h"
 #include "Tools/SModelAssetComplianceWidget.h"
 #include "Tools/SRuntimeGMSettingsWidget.h"
@@ -54,6 +61,7 @@
 #include "Tools/StoryEncounter/SStoryEncounterWorkbenchWidget.h"
 #include "Tools/WeaponManager/SWeaponManagerWidget.h"
 #include "Customization/GameplayAbilityComboGraphNodeDetails.h"
+#include "Customization/DevKitDecalCollectionActorDetails.h"
 #include "Data/GameplayAbilityComboGraph.h"
 #include "System/YogRuntimeGMSubsystem.h"
 #include "UI/CombatLogEditorUtilityWidget.h"
@@ -94,6 +102,7 @@ namespace
 	const FName MapCreatorTabName(TEXT("DevKitMapCreator"));
 	const FName LevelRVTTabName(TEXT("DevKitLevelRVT"));
 	const FName RVTMeshDecalTabName(TEXT("DevKitRVTMeshDecal"));
+	const FName DecalCollectionTabName(TEXT("DevKitDecalCollection"));
 	const FName StylizedEmissiveLibraryTabName(TEXT("DevKitStylizedEmissiveLibrary"));
 	const FName PerformanceToolsLauncherTabName(TEXT("DevKitPerformanceToolsLauncher"));
 	const FName RuntimeGMSettingsTabName(TEXT("DevKitRuntimeGMSettings"));
@@ -284,6 +293,9 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 		PropertyModule.RegisterCustomClassLayout(
 			UGameplayAbilityComboGraphNode::StaticClass()->GetFName(),
 			FOnGetDetailCustomizationInstance::CreateStatic(&FGameplayAbilityComboGraphNodeDetails::MakeInstance));
+		PropertyModule.RegisterCustomClassLayout(
+			ADevKitDecalCollectionActor::StaticClass()->GetFName(),
+			FOnGetDetailCustomizationInstance::CreateStatic(&FDevKitDecalCollectionActorDetails::MakeInstance));
 
 		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
 			RuneBalanceTabName,
@@ -447,11 +459,10 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			.SetMenuType(ETabSpawnerMenuType::Hidden);
 
 		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
-			StylizedEmissiveLibraryTabName,
-			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnStylizedEmissiveLibraryTab))
-			.SetDisplayName(LOCTEXT("StylizedEmissiveLibraryTabTitle", "风格化自发光库"))
-			.SetTooltipText(LOCTEXT("StylizedEmissiveLibraryTabTooltip", "配置模型、发光材质和光照参数，并将完整预设直接拖入场景。"))
-			.SetIcon(GetStylizedEmissiveLibraryIcon())
+			DecalCollectionTabName,
+			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnDecalCollectionTab))
+			.SetDisplayName(LOCTEXT("DecalCollectionTabTitle", "贴花与地表物件"))
+			.SetTooltipText(LOCTEXT("DecalCollectionTabTooltip", "统一管理 RVT、静态网格和延迟贴花；按关卡/区域进入 Collection 编辑。"))
 			.SetMenuType(ETabSpawnerMenuType::Hidden);
 
 		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
@@ -511,6 +522,7 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(MapCreatorTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(LevelRVTTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(RVTMeshDecalTabName);
+		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(DecalCollectionTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(StylizedEmissiveLibraryTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(PerformanceToolsLauncherTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(RuntimeGMSettingsTabName);
@@ -529,6 +541,7 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			PropertyEditorModule->UnregisterCustomPropertyTypeLayout(TEXT("ShopEntry"));
 			PropertyEditorModule->UnregisterCustomClassLayout(URuneDataAsset::StaticClass()->GetFName());
 			PropertyEditorModule->UnregisterCustomClassLayout(UGameplayAbilityComboGraphNode::StaticClass()->GetFName());
+			PropertyEditorModule->UnregisterCustomClassLayout(ADevKitDecalCollectionActor::StaticClass()->GetFName());
 			PropertyEditorModule->NotifyCustomizationModuleChanged();
 		}
 
@@ -743,54 +756,7 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			.TabRole(ETabRole::NomadTab)
 			.Label(LOCTEXT("RVTMaterialManagerTabLabel", "材质与贴图工作台"))
 			[
-				SNew(SBorder)
-				.Padding(16.0f)
-				[
-					SNew(SVerticalBox)
-					+ SVerticalBox::Slot()
-					.AutoHeight()
-					.Padding(0.0f, 0.0f, 0.0f, 12.0f)
-					[
-						SNew(STextBlock)
-						.Text(LOCTEXT("RVTMaterialManagerDescription", "Open a material or texture authoring tool:"))
-					]
-					+ SVerticalBox::Slot()
-					.AutoHeight()
-					.Padding(0.0f, 4.0f)
-					[
-						SNew(SButton)
-						.Text(LOCTEXT("OpenMaterialTextureRulesButton", "Material compliance"))
-						.OnClicked_Lambda([this]()
-						{
-							OpenMaterialTextureRulesTab();
-							return FReply::Handled();
-						})
-					]
-					+ SVerticalBox::Slot()
-					.AutoHeight()
-					.Padding(0.0f, 4.0f)
-					[
-						SNew(SButton)
-						.Text(LOCTEXT("OpenTextureVTAuditButton", "Texture NoVT audit"))
-						.OnClicked_Lambda([this]()
-						{
-							OpenTextureVTAuditTab();
-							return FReply::Handled();
-						})
-					]
-					+ SVerticalBox::Slot()
-					.AutoHeight()
-					.Padding(0.0f, 4.0f)
-					[
-						SNew(SButton)
-						.Text(LOCTEXT("OpenVirtualTextureCollectionManagerButton", "Texture Collection manager"))
-						.OnClicked_Lambda([this]()
-						{
-							OpenVirtualTextureCollectionManagerTab();
-							return FReply::Handled();
-						})
-					]
-				]
+				SNew(SMaterialTextureWorkbenchWidget)
 			];
 	}
 
@@ -821,6 +787,16 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			.Label(LOCTEXT("RVTMeshDecalTabLabel", "RVT 地表物件库"))
 			[
 				SNew(SDevKitRVTMeshDecalWidget)
+			];
+	}
+
+	TSharedRef<SDockTab> SpawnDecalCollectionTab(const FSpawnTabArgs& SpawnTabArgs)
+	{
+		return SNew(SDockTab)
+			.TabRole(ETabRole::NomadTab)
+			.Label(LOCTEXT("DecalCollectionTabLabel", "贴花与地表物件"))
+			[
+				SNew(SDevKitDecalCollectionWidget)
 			];
 	}
 
@@ -1190,6 +1166,12 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			GetVTCManagerIcon(),
 			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenRVTMeshDecalTab)));
 		ArtAssetSection.AddMenuEntry(
+			TEXT("OpenDecalCollection"),
+			LOCTEXT("OpenDecalCollectionLabel", "贴花与地表物件"),
+			LOCTEXT("OpenDecalCollectionTooltip", "统一管理当前场景的 RVT 网格贴花、静态网格贴花、延迟贴花和 Collection 编辑会话。"),
+			GetVTCManagerIcon(),
+			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenDecalCollectionTab)));
+		ArtAssetSection.AddMenuEntry(
 			TEXT("OpenStylizedEmissiveModelLibrary"),
 			LOCTEXT("OpenStylizedEmissiveModelLibraryLabel", "风格化自发光模型库"),
 			LOCTEXT("OpenStylizedEmissiveModelLibraryTooltip", "创建或打开风格化自发光源使用的模型库；可选择预设模型，也可让 Actor 使用无 Mesh 数据模式。"),
@@ -1467,6 +1449,58 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 		FGlobalTabmanager::Get()->TryInvokeTab(RVTMeshDecalTabName);
 	}
 
+	void OpenDecalCollectionTab()
+	{
+		if (!GEditor)
+		{
+			return;
+		}
+
+		ADevKitDecalCollectionActor* Collection = nullptr;
+		if (AActor* SelectedActor = GEditor->GetSelectedActors()->GetTop<AActor>())
+		{
+			Collection = Cast<ADevKitDecalCollectionActor>(SelectedActor);
+		}
+		UWorld* World = GEditor->GetEditorWorldContext().World();
+		if (!Collection && World && !World->IsGameWorld())
+		{
+			for (TActorIterator<ADevKitDecalCollectionActor> It(World); It; ++It)
+			{
+				Collection = *It;
+				break;
+			}
+		}
+		if (!Collection && World && !World->IsGameWorld())
+		{
+			FActorSpawnParameters SpawnParams;
+			SpawnParams.OverrideLevel = World->GetCurrentLevel();
+			SpawnParams.Name = MakeUniqueObjectName(SpawnParams.OverrideLevel, ADevKitDecalCollectionActor::StaticClass(), TEXT("DecalCollection_Default"));
+			Collection = World->SpawnActor<ADevKitDecalCollectionActor>(ADevKitDecalCollectionActor::StaticClass(), FTransform::Identity, SpawnParams);
+			if (Collection)
+			{
+				Collection->CollectionName = TEXT("Default");
+			}
+		}
+		if (Collection)
+		{
+			GEditor->SelectNone(false, true);
+			GEditor->SelectActor(Collection, true, true);
+			GEditor->NoteSelectionChange();
+			GLevelEditorModeTools().ActivateMode(UDevKitDecalCollectionEdMode::EM_DevKitDecalCollection, false);
+			if (GLevelEditorModeTools().IsModeActive(UDevKitDecalCollectionEdMode::EM_DevKitDecalCollection))
+			{
+				if (TSharedPtr<SDockTab> LegacyTab = FGlobalTabmanager::Get()->FindExistingLiveTab(FTabId(DecalCollectionTabName)))
+				{
+					LegacyTab->RequestCloseTab();
+				}
+			}
+			return;
+		}
+
+		// Keep the hidden tab as a recovery path for worlds without an editor level.
+		FGlobalTabmanager::Get()->TryInvokeTab(DecalCollectionTabName);
+	}
+
 	void OpenStylizedEmissiveModelLibrary()
 	{
 		FGlobalTabmanager::Get()->TryInvokeTab(StylizedEmissiveLibraryTabName);
@@ -1520,13 +1554,13 @@ private:
 
 void FDevKitEditorModule::OnMapOpened(const FString& Filename, bool bAsTemplate)
 {
-	//UWorld* EditorWorld = GEditor->GetEditorWorldContext().World();
-	//if (!EditorWorld) return;
-	//// Spawn your actor in the editor world or modify existing actors here
-	//// Example: Spawn actor at origin
-	//FActorSpawnParameters SpawnParams;
-	//SpawnParams.Name = FName(TEXT("MyAutoSpawnedActor"));
-	//EditorWorld->SpawnActor<AActor>(AActor::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
+	// The old Nomad tab can be restored by a previous layout.  The collection
+	// UI now belongs to the active Editor Mode, so close the legacy tab when a
+	// map is opened instead of leaving two competing entry points visible.
+	if (TSharedPtr<SDockTab> LegacyTab = FGlobalTabmanager::Get()->FindExistingLiveTab(FTabId(DecalCollectionTabName)))
+	{
+		LegacyTab->RequestCloseTab();
+	}
 }
 
 
