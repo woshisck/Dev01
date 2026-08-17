@@ -1,11 +1,15 @@
 #include "Component/MontageVFXBindingComponent.h"
 
-#include "Character/PlayerCharacterBase.h"
+#include "AbilitySystem/YogAbilitySystemComponent.h"
+#include "Character/YogCharacterBase.h"
 #include "Components/MeshComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Data/MontageVFXBindingDataAsset.h"
+#include "Data/WhiffVFXData.h"
+#include "Item/Weapon/WeaponDefinitionBase.h"
 #include "Item/Weapon/WeaponInstance.h"
+#include "System/YogSettings.h"
 #include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/StaticMesh.h"
@@ -32,102 +36,235 @@ void UMontageVFXBindingComponent::RegisterBinding(FName SlotName, const FMontage
 void UMontageVFXBindingComponent::ActivateSlot(FName SlotName, const FActionData* ActionData,
 	float AnnulusPlaneRemainTime)
 {
-	const FMontageVFXBindingConfig* Config = PendingBindings.Find(SlotName);
-	if (!Config && DefaultBindingsAsset)
+	if (SlotName.IsNone())
 	{
-		Config = DefaultBindingsAsset->ResolveBinding(SlotName);
-	}
-	if (!Config)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[MontageVFXBinding] ActivateSlot: no pending or default binding for slot=%s"), *SlotName.ToString());
 		return;
 	}
 
-	if (FMontageVFXActiveState* Stale = ActiveStates.Find(SlotName))
+	if (FMontageVFXActiveSlot* Stale = ActiveStates.Find(SlotName))
 	{
-		TearDownActiveState(*Stale);
+		TearDownActiveSlot(*Stale);
 		ActiveStates.Remove(SlotName);
 	}
+
+	if (!GetOwner())
+	{
+		return;
+	}
+
+	// A BuffFlow registration overrides the base look outright, so a one-off rune can bypass
+	// the table entirely. Everything below is the fallback chain when no rune claimed this slot.
+	const FMontageVFXBindingConfig* BaseConfig = PendingBindings.Find(SlotName);
+
+	FWhiffVFXResolved Resolved;
+	if (!BaseConfig)
+	{
+		const UYogSettings* Settings = UYogSettings::Get();
+		if (const UWhiffVFXData* WhiffTable = Settings ? Settings->WhiffVFXData.LoadSynchronous() : nullptr)
+		{
+			Resolved = WhiffTable->Resolve(SlotName, BuildWhiffTagContext());
+			BaseConfig = Resolved.Base;
+		}
+	}
+
+	if (!BaseConfig && DefaultBindingsAsset)
+	{
+		BaseConfig = DefaultBindingsAsset->ResolveBinding(SlotName);
+	}
+
+	// Lives until the end of this call, which is all the spawn below needs.
+	FMontageVFXBindingConfig WeaponFallbackConfig;
+	if (!BaseConfig && BuildWeaponFallbackConfig(WeaponFallbackConfig))
+	{
+		BaseConfig = &WeaponFallbackConfig;
+	}
+
+	FMontageVFXActiveSlot NewSlot;
+
+	if (BaseConfig)
+	{
+		NewSlot.Layers.Add(SpawnLayer(*BaseConfig, ActionData, AnnulusPlaneRemainTime, /*bIsBaseLayer=*/true));
+	}
+
+	for (const FMontageVFXBindingConfig* AdditiveConfig : Resolved.Additive)
+	{
+		if (AdditiveConfig)
+		{
+			NewSlot.Layers.Add(SpawnLayer(*AdditiveConfig, ActionData, AnnulusPlaneRemainTime, /*bIsBaseLayer=*/false));
+		}
+	}
+
+	if (Resolved.AdditiveOverflowCount > 0)
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("[MontageVFXBinding] ActivateSlot slot=%s dropped %d additive layer(s) over the cap"),
+			*SlotName.ToString(), Resolved.AdditiveOverflowCount);
+	}
+
+	if (NewSlot.Layers.Num() == 0)
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("[MontageVFXBinding] ActivateSlot: nothing resolved for slot=%s (no BuffFlow binding, no WhiffVFXData row, no default, no weapon fallback)"),
+			*SlotName.ToString());
+		return;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[MontageVFXBinding] ActivateSlot slot=%s layers=%d (base=%s additive=%d) niagara=%s sound=%s mat=%s"),
+		*SlotName.ToString(),
+		NewSlot.Layers.Num(),
+		BaseConfig ? TEXT("yes") : TEXT("none"),
+		Resolved.Additive.Num(),
+		*GetNameSafe(BaseConfig ? BaseConfig->NiagaraSystem.Get() : nullptr),
+		*GetNameSafe(BaseConfig ? BaseConfig->Sound.Get() : nullptr),
+		*GetNameSafe(BaseConfig ? BaseConfig->WeaponMaterialOverride.Get() : nullptr));
+
+	ActiveStates.Add(SlotName, MoveTemp(NewSlot));
+}
+
+FGameplayTagContainer UMontageVFXBindingComponent::BuildWhiffTagContext() const
+{
+	FGameplayTagContainer Context;
+
+	const AYogCharacterBase* Character = Cast<AYogCharacterBase>(GetOwner());
+	if (!Character)
+	{
+		return Context;
+	}
+
+	if (const UWeaponDefinitionBase* WeaponDefinition = Character->GetEffectiveWeaponDefinition())
+	{
+		if (WeaponDefinition->WeaponIdentityTag.IsValid())
+		{
+			Context.AddTag(WeaponDefinition->WeaponIdentityTag);
+		}
+	}
+
+	// Buff/status tags come straight off the ASC, so the look follows whatever is active right now.
+	if (const UYogAbilitySystemComponent* ASC = Character->GetASC())
+	{
+		FGameplayTagContainer OwnedTags;
+		ASC->GetOwnedGameplayTags(OwnedTags);
+		Context.AppendTags(OwnedTags);
+	}
+
+	return Context;
+}
+
+bool UMontageVFXBindingComponent::BuildWeaponFallbackConfig(FMontageVFXBindingConfig& OutConfig) const
+{
+	const AYogCharacterBase* Character = Cast<AYogCharacterBase>(GetOwner());
+	const UWeaponDefinitionBase* WeaponDefinition = Character ? Character->GetEffectiveWeaponDefinition() : nullptr;
+	if (!WeaponDefinition)
+	{
+		return false;
+	}
+
+	if (!WeaponDefinition->WhiffVFX && !WeaponDefinition->WhiffSound)
+	{
+		return false;
+	}
+
+	OutConfig.NiagaraSystem = WeaponDefinition->WhiffVFX;
+	OutConfig.Sound = WeaponDefinition->WhiffSound;
+	OutConfig.SoundVolume = WeaponDefinition->WhiffSoundVolume;
+	OutConfig.SoundPitch = WeaponDefinition->WhiffSoundPitch;
+	OutConfig.AttachTarget = EGCNAttachedNiagaraAttachTarget::EquippedWeapon;
+	OutConfig.bFallbackToTargetActorIfWeaponMissing = true;
+
+	return true;
+}
+
+FMontageVFXActiveState UMontageVFXBindingComponent::SpawnLayer(const FMontageVFXBindingConfig& Config,
+	const FActionData* ActionData, float AnnulusPlaneRemainTime, bool bIsBaseLayer)
+{
+	FMontageVFXActiveState State;
 
 	AActor* Owner = GetOwner();
 	if (!Owner)
 	{
-		return;
+		return State;
 	}
 
-	FMontageVFXActiveState State;
-
 	// ── Niagara ──────────────────────────────────────────────────────────────
-	if (Config->NiagaraSystem)
+	if (Config.NiagaraSystem)
 	{
 		FName ResolvedSocket = NAME_None;
-		USceneComponent* AttachComp = ResolveAttachTarget(*Config, ResolvedSocket);
+		USceneComponent* AttachComp = ResolveAttachTarget(Config, ResolvedSocket);
 
 		UNiagaraComponent* NiagaraComp = nullptr;
 		if (AttachComp)
 		{
 			NiagaraComp = UNiagaraFunctionLibrary::SpawnSystemAttached(
-				Config->NiagaraSystem,
+				Config.NiagaraSystem,
 				AttachComp,
 				ResolvedSocket,
-				Config->LocationOffset,
-				Config->RotationOffset,
+				Config.LocationOffset,
+				Config.RotationOffset,
 				EAttachLocation::KeepRelativeOffset,
 				false);
 
 			if (NiagaraComp)
 			{
-				NiagaraComp->SetRelativeScale3D(Config->Scale);
+				NiagaraComp->SetRelativeScale3D(Config.Scale);
 			}
 		}
-		else if (Config->AttachTarget != EGCNAttachedNiagaraAttachTarget::EquippedWeapon
-			|| Config->bFallbackToTargetActorIfWeaponMissing)
+		else if (Config.AttachTarget != EGCNAttachedNiagaraAttachTarget::EquippedWeapon
+			|| Config.bFallbackToTargetActorIfWeaponMissing)
 		{
 			UWorld* World = Owner->GetWorld();
 			if (World)
 			{
-				const FVector SpawnLoc = Owner->GetActorTransform().TransformPosition(Config->LocationOffset);
-				const FRotator SpawnRot = (Owner->GetActorRotation() + Config->RotationOffset).GetNormalized();
+				const FVector SpawnLoc = Owner->GetActorTransform().TransformPosition(Config.LocationOffset);
+				const FRotator SpawnRot = (Owner->GetActorRotation() + Config.RotationOffset).GetNormalized();
 				NiagaraComp = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
-					World, Config->NiagaraSystem, SpawnLoc, SpawnRot, Config->Scale, false);
+					World, Config.NiagaraSystem, SpawnLoc, SpawnRot, Config.Scale, false);
 			}
 		}
 
 		if (NiagaraComp)
 		{
 			NiagaraComp->SetAutoDestroy(false);
-			ApplyNiagaraParameterOverrides(NiagaraComp, Config->NiagaraParameterOverrides);
+			ApplyNiagaraParameterOverrides(NiagaraComp, Config.NiagaraParameterOverrides);
 			State.NiagaraComp = NiagaraComp;
 		}
 	}
 
 	// ── Sound ────────────────────────────────────────────────────────────────
-	if (Config->Sound)
+	if (Config.Sound)
 	{
-		UGameplayStatics::SpawnSoundAttached(Config->Sound, Owner->GetRootComponent());
+		UGameplayStatics::SpawnSoundAttached(Config.Sound, Owner->GetRootComponent(), NAME_None,
+			FVector::ZeroVector, EAttachLocation::KeepRelativeOffset, true,
+			Config.SoundVolume, Config.SoundPitch);
 	}
 
 	// ── Weapon material override ──────────────────────────────────────────────
-	if (Config->WeaponMaterialOverride)
+	if (Config.WeaponMaterialOverride)
 	{
-		AWeaponInstance* Weapon = ResolveEquippedWeapon();
-		if (Weapon)
+		if (!bIsBaseLayer)
+		{
+			// Each state caches one OriginalMaterial, so letting two layers patch the same weapon
+			// slot would make their restores stomp each other and strand the override.
+			UE_LOG(LogTemp, Warning,
+				TEXT("[MontageVFXBinding] Additive layer requested weapon material %s; ignored (only the base layer may override weapon materials)"),
+				*GetNameSafe(Config.WeaponMaterialOverride.Get()));
+		}
+		else if (AWeaponInstance* Weapon = ResolveEquippedWeapon())
 		{
 			TArray<UMeshComponent*> Meshes;
 			Weapon->GetComponents<UMeshComponent>(Meshes);
 			if (Meshes.IsValidIndex(0) && Meshes[0])
 			{
 				UMeshComponent* WeaponMesh = Meshes[0];
-				const int32 Slot = Config->WeaponMaterialSlot;
+				const int32 Slot = Config.WeaponMaterialSlot;
 
 				State.WeaponMesh = WeaponMesh;
 				State.MaterialSlot = Slot;
 				State.OriginalMaterial = WeaponMesh->GetMaterial(Slot);
 
-				UMaterialInstanceDynamic* DynMat = UMaterialInstanceDynamic::Create(Config->WeaponMaterialOverride, this);
+				UMaterialInstanceDynamic* DynMat = UMaterialInstanceDynamic::Create(Config.WeaponMaterialOverride, this);
 				if (DynMat)
 				{
-					ApplyMaterialParams(DynMat, Config->WeaponMaterialParameterOverrides);
+					ApplyMaterialParams(DynMat, Config.WeaponMaterialParameterOverrides);
 					WeaponMesh->SetMaterial(Slot, DynMat);
 					State.ActiveDynamicMaterial = DynMat;
 				}
@@ -138,47 +275,53 @@ void UMontageVFXBindingComponent::ActivateSlot(FName SlotName, const FActionData
 	// ── Annulus plane ────────────────────────────────────────────────────────
 	if (ActionData)
 	{
-		SpawnAnnulusPlanes(*Config, *ActionData, State, AnnulusPlaneRemainTime);
+		SpawnAnnulusPlanes(Config, *ActionData, State, AnnulusPlaneRemainTime);
 	}
 
-	ActiveStates.Add(SlotName, MoveTemp(State));
+	return State;
+}
 
-	UE_LOG(LogTemp, Log, TEXT("[MontageVFXBinding] ActivateSlot slot=%s niagara=%s sound=%s mat=%s annulusPlane=%d"),
-		*SlotName.ToString(),
-		*GetNameSafe(Config->NiagaraSystem.Get()),
-		*GetNameSafe(Config->Sound.Get()),
-		*GetNameSafe(Config->WeaponMaterialOverride.Get()),
-		Config->bSpawnAnnulusPlane ? 1 : 0);
+void UMontageVFXBindingComponent::TearDownActiveSlot(FMontageVFXActiveSlot& Slot)
+{
+	// Reverse order so the base layer's weapon-material restore is the last write.
+	for (int32 Index = Slot.Layers.Num() - 1; Index >= 0; --Index)
+	{
+		TearDownActiveState(Slot.Layers[Index]);
+	}
+	Slot.Layers.Reset();
 }
 
 void UMontageVFXBindingComponent::DeactivateSlot(FName SlotName)
 {
-	FMontageVFXActiveState* State = ActiveStates.Find(SlotName);
-	if (!State)
+	FMontageVFXActiveSlot* Slot = ActiveStates.Find(SlotName);
+	if (!Slot)
 	{
 		return;
 	}
-	TearDownActiveState(*State);
+	TearDownActiveSlot(*Slot);
 	ActiveStates.Remove(SlotName);
 	PendingBindings.Remove(SlotName);
 }
 
 void UMontageVFXBindingComponent::SetAnnulusPlaneProgress(FName SlotName, float Progress)
 {
-	FMontageVFXActiveState* State = ActiveStates.Find(SlotName);
-	if (!State)
+	FMontageVFXActiveSlot* Slot = ActiveStates.Find(SlotName);
+	if (!Slot)
 	{
 		return;
 	}
 
 	const float ClampedProgress = FMath::Clamp(Progress, 0.f, 1.f);
-	for (UMaterialInstanceDynamic* Material : State->AnnulusPlaneMaterials)
+	for (FMontageVFXActiveState& State : Slot->Layers)
 	{
-		if (Material)
+		for (UMaterialInstanceDynamic* Material : State.AnnulusPlaneMaterials)
 		{
-			Material->SetScalarParameterValue(TEXT("ChargeProgress"), ClampedProgress);
-			Material->SetScalarParameterValue(TEXT("Progress"), ClampedProgress);
-			Material->SetScalarParameterValue(TEXT("FillPercent"), ClampedProgress);
+			if (Material)
+			{
+				Material->SetScalarParameterValue(TEXT("ChargeProgress"), ClampedProgress);
+				Material->SetScalarParameterValue(TEXT("Progress"), ClampedProgress);
+				Material->SetScalarParameterValue(TEXT("FillPercent"), ClampedProgress);
+			}
 		}
 	}
 }
@@ -187,7 +330,7 @@ void UMontageVFXBindingComponent::ClearAllBindings()
 {
 	for (auto& Pair : ActiveStates)
 	{
-		TearDownActiveState(Pair.Value);
+		TearDownActiveSlot(Pair.Value);
 	}
 	ActiveStates.Reset();
 	PendingBindings.Reset();
@@ -383,8 +526,10 @@ USceneComponent* UMontageVFXBindingComponent::ResolveOwnerAttachComponent(const 
 
 AWeaponInstance* UMontageVFXBindingComponent::ResolveEquippedWeapon() const
 {
-	const APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(GetOwner());
-	return Player ? Player->EquippedWeaponInstance : nullptr;
+	// Goes through AYogCharacterBase rather than casting to the player subclass, so enemies
+	// resolve their spawned weapon actor too.
+	const AYogCharacterBase* Character = Cast<AYogCharacterBase>(GetOwner());
+	return Character ? Character->GetEquippedWeaponActor() : nullptr;
 }
 
 void UMontageVFXBindingComponent::ApplyNiagaraParameterOverrides(UNiagaraComponent* Comp, const TArray<FGCNNiagaraParamOverride>& Overrides) const

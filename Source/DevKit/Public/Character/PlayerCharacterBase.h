@@ -194,9 +194,6 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SkillCharge")
 	TObjectPtr<USkillChargeComponent> SkillChargeComponent;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "VFX")
-	TObjectPtr<UMontageVFXBindingComponent> MontageVFXBindingComponent;
-
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Motion Warping")
 	TObjectPtr<UMotionWarpingComponent> MotionWarpingComponent;
 
@@ -361,6 +358,9 @@ public:
 	// reading weapon config for behaviour must go through here or it silently misses unarmed.
 	UFUNCTION(BlueprintPure, Category = "Weapon")
 	UWeaponDefinition* GetEffectiveEquippedWeaponDefinition() const;
+
+	virtual const UWeaponDefinitionBase* GetEffectiveWeaponDefinition() const override;
+	virtual AWeaponInstance* GetEquippedWeaponActor() const override;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Weapon Skill")
 	TObjectPtr<UWeaponSkillDataAsset> EquippedWeaponSkill;

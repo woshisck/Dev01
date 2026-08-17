@@ -115,7 +115,6 @@ AEnemyCharacterBase::AEnemyCharacterBase(const FObjectInitializer& ObjectInitial
 	EnemyAttributeSet = CreateDefaultSubobject<UEnemyAttributeSet>(TEXT("EnemyAttributeSet"));
 	BuffFlowComponent = CreateDefaultSubobject<UBuffFlowComponent>(TEXT("BuffFlowComponent"));
 	HealthDisplayComponent = CreateDefaultSubobject<UEnemyHealthDisplayComponent>(TEXT("EnemyHealthDisplayComponent"));
-	MontageVFXBindingComponent = CreateDefaultSubobject<UMontageVFXBindingComponent>(TEXT("MontageVFXBindingComponent"));
 
 	// 近战默认命中框：C++ 实现，无需在每个角色蓝图 Class Defaults 中单独配置
 	DefaultMeleeTargetType = UYogTargetType_Enemy::StaticClass();
@@ -260,6 +259,24 @@ void AEnemyCharacterBase::DestroySpawnedEnemyWeaponActors()
 	}
 
 	SpawnedEnemyWeaponActors.Reset();
+}
+
+const UWeaponDefinitionBase* AEnemyCharacterBase::GetEffectiveWeaponDefinition() const
+{
+	return EquippedEnemyWeaponDefinition.Get();
+}
+
+AWeaponInstance* AEnemyCharacterBase::GetEquippedWeaponActor() const
+{
+	for (const TObjectPtr<AActor>& SpawnedActor : SpawnedEnemyWeaponActors)
+	{
+		if (AWeaponInstance* Weapon = Cast<AWeaponInstance>(SpawnedActor.Get()))
+		{
+			return Weapon;
+		}
+	}
+
+	return nullptr;
 }
 
 void AEnemyCharacterBase::SetPendingEnemyWeaponDefinition(UEnemyWeaponDefinition* WeaponDefinition)

@@ -4,7 +4,7 @@
 #include "Engine/DataAsset.h"
 #include "Data/CharacterData.h"
 #include "Data/EnemyData.h"
-#include "Item/Weapon/WeaponDefinition.h"
+#include "Item/Weapon/WeaponDefinitionBase.h"
 #include "EnemyWeaponDefinition.generated.h"
 
 class UAbilityData;
@@ -49,7 +49,7 @@ struct DEVKIT_API FEnemyWeaponAttributeModifiers
 };
 
 UCLASS(BlueprintType, Blueprintable, DisplayName = "Enemy Weapon Definition")
-class DEVKIT_API UEnemyWeaponDefinition : public UPrimaryDataAsset
+class DEVKIT_API UEnemyWeaponDefinition : public UWeaponDefinitionBase
 {
 	GENERATED_BODY()
 
@@ -68,9 +68,6 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Enemy Weapon|Effects")
 	TArray<TSubclassOf<UGameplayEffect>> PassiveEffects;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Enemy Weapon|Visual")
-	TArray<FWeaponSpawnData> ActorsToSpawn;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Enemy Weapon|Animation")
 	TArray<TSubclassOf<UAnimInstance>> AnimLayers;

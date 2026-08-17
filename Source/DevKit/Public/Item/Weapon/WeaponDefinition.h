@@ -8,6 +8,7 @@
 #include "Component/BackpackGridComponent.h"
 #include "Data/AbilityData.h"
 #include "GameplayTagContainer.h"
+#include "Item/Weapon/WeaponDefinitionBase.h"
 #include "Item/Weapon/WeaponInfoDA.h"
 #include "Item/Weapon/WeaponTypes.h"
 
@@ -24,6 +25,7 @@ class UMaterialInterface;
 class UGameplayEffect;
 class URuneDataAsset;
 class USoundBase;
+class UNiagaraSystem;
 //class UYogAnimInstance;
 
 
@@ -43,33 +45,8 @@ struct FBackpackConfig
     FActivationZoneConfig ActivationZoneConfig;
 };
 
-USTRUCT(BlueprintType)
-struct FWeaponSpawnData
-{
-	GENERATED_BODY()
-
-	FWeaponSpawnData()
-	{}
-
-	UPROPERTY(EditAnywhere, Category = "装备生成", meta = (DisplayName = "武器 Actor 类"))
-	TSubclassOf<AWeaponInstance> ActorToSpawn;
-
-	UPROPERTY(EditAnywhere, Category = "装备生成", meta = (DisplayName = "挂接插槽"))
-	FName AttachSocket;
-
-	UPROPERTY(EditAnywhere, Category = "装备生成", meta = (DisplayName = "挂接变换"))
-	FTransform AttachTransform;
-
-	UPROPERTY(EditAnywhere, Category = "装备生成", meta = (DisplayName = "武器动画层"))
-	TSubclassOf<UYogAnimInstance> WeaponLayer;
-
-	// Optional: Save game data for persistence
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "装备生成", meta = (DisplayName = "写入存档"))
-	bool bShouldSaveToGame = false;
-};
-
 UCLASS(Blueprintable, BlueprintType, Const, DisplayName = "武器定义")
-class DEVKIT_API UWeaponDefinition : public UPrimaryDataAsset
+class DEVKIT_API UWeaponDefinition : public UWeaponDefinitionBase
 {
 	GENERATED_BODY()
 
@@ -125,37 +102,11 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "装备", meta = (DisplayName = "武器类型"))
 	EWeaponType WeaponType = EWeaponType::Melee;
 
-	// Hit-impact intensity level (1+) this weapon produces on victims. Selects which Levels entry
-	// is read from each matching UEnemyHitImpactData entry. Read by GA_MeleeAttack and passed to
-	// the victim's UHitImpactVisualComponent. Non-player attackers default to level 1.
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Hit Feedback", meta = (DisplayName = "命中冲击等级", ClampMin = "1"))
-	int32 HitImpactLevel = 1;
-
-	// Air-swing sound identifying WHICH weapon is being swung. Played by UAN_WeaponWhiffSound at
-	// the montage's swing-arc peak, so it fires on every swing regardless of whether the swing
-	// connects — a miss is otherwise silent. Independent of the victim-side contact sound in
-	// UEnemyHitImpactData, which resolves later and only when something is actually hit.
-	// Author it 150-400ms with an audible air swell and its own decay tail baked in: playback is
-	// fire-and-forget, so nothing fades it out if the montage is cancelled mid-arc.
-	// Optional; leave empty for a silent swing.
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Whiff", meta = (DisplayName = "挥击音效"))
-	TObjectPtr<USoundBase> WhiffSound;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Whiff", meta = (DisplayName = "挥击音量", ClampMin = "0.0"))
-	float WhiffSoundVolume = 1.f;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Whiff", meta = (DisplayName = "挥击音调", ClampMin = "0.0"))
-	float WhiffSoundPitch = 1.f;
-
 	// Projectile data used by AN_FireProjectile to spawn bullets via UYogBulletManagerSubsystem.
 	// Only relevant when WeaponType == Ranged.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "装备",
 		meta = (EditCondition = "WeaponType == EWeaponType::Ranged", EditConditionHides, DisplayName = "远程弹丸定义"))
 	TObjectPtr<URangedProjectileDefinition> ProjectileDefinition;
-
-	// Actors to spawn on the pawn when this is equipped
-	UPROPERTY(EditDefaultsOnly, Category = "装备", meta = (DisplayName = "装备后生成的武器 Actor"))
-	TArray<FWeaponSpawnData> ActorsToSpawn;
 
 	//Sets the height of the display mesh above the Weapon spawner
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "场景拾取|显示模型", meta = (DisplayName = "模型位置偏移"))

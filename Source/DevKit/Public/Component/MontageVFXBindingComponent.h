@@ -4,6 +4,7 @@
 #include "Components/ActorComponent.h"
 #include "AbilitySystem/GameplayCue/GCN_AttachedNiagara.h"
 #include "Data/AbilityData.h"
+#include "GameplayTagContainer.h"
 #include "MontageVFXBindingComponent.generated.h"
 
 class UNiagaraSystem;
@@ -66,6 +67,12 @@ struct DEVKIT_API FMontageVFXBindingConfig
 	// Sound (fire-and-forget on NotifyBegin)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VFX|Sound")
 	TObjectPtr<USoundBase> Sound;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VFX|Sound", meta = (ClampMin = "0.0"))
+	float SoundVolume = 1.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VFX|Sound", meta = (ClampMin = "0.0"))
+	float SoundPitch = 1.f;
 
 	// Weapon material override (restored on NotifyEnd / ClearAllBindings)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VFX|Material",
@@ -134,7 +141,19 @@ struct DEVKIT_API FMontageVFXActiveState
 
 	UPROPERTY()
 	TArray<TObjectPtr<UMaterialInstanceDynamic>> AnnulusPlaneMaterials;
+};
 
+/**
+ * One slot's live layers: index 0 is the base look, the rest are additive.
+ * Torn down in reverse so the base layer's weapon-material restore lands last.
+ */
+USTRUCT()
+struct DEVKIT_API FMontageVFXActiveSlot
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TArray<FMontageVFXActiveState> Layers;
 };
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -158,11 +177,26 @@ public:
 	void ClearAllBindings();
 
 private:
+	/** BuffFlow registrations. Present here means a rune overrode this slot's base look outright. */
 	UPROPERTY()
 	TMap<FName, FMontageVFXBindingConfig> PendingBindings;
 
 	UPROPERTY()
-	TMap<FName, FMontageVFXActiveState> ActiveStates;
+	TMap<FName, FMontageVFXActiveSlot> ActiveStates;
+
+	/**
+	 * Weapon identity tag plus every tag the owner's ASC owns. This is what UWhiffVFXData rows
+	 * match against, and it is why a swing's look tracks the current weapon and active buffs.
+	 */
+	FGameplayTagContainer BuildWhiffTagContext() const;
+
+	/** Falls back to the equipped weapon's own whiff VFX/SFX so a weapon looks like itself before any table row exists. */
+	bool BuildWeaponFallbackConfig(FMontageVFXBindingConfig& OutConfig) const;
+
+	FMontageVFXActiveState SpawnLayer(const FMontageVFXBindingConfig& Config, const FActionData* ActionData,
+		float AnnulusPlaneRemainTime, bool bIsBaseLayer);
+
+	void TearDownActiveSlot(FMontageVFXActiveSlot& Slot);
 
 	USceneComponent* ResolveAttachTarget(const FMontageVFXBindingConfig& Config, FName& OutSocket) const;
 	USceneComponent* ResolveWeaponAttachComponent(const FMontageVFXBindingConfig& Config, FName& OutSocket) const;

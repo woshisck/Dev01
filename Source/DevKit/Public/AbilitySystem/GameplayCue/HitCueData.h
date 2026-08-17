@@ -4,17 +4,17 @@
 #include "Engine/DataAsset.h"
 #include "HitCueData.generated.h"
 
-class UNiagaraSystem;
-
 /**
- * Per-hit visual payload for the shared hit-impact GameplayCue.
- * Passed to GCN_PlayerHitImpact via FGameplayCueParameters::SourceObject so one
- * cue tag/class can produce many different looks — one asset per weapon/notify,
- * instead of a unique cue notify per weapon.
- * Camera shake level is per-hit here; when left at 0 the cue falls back to the
- * global damage-scaled shake on UYogSettings::HitShakeConfig.
- * Impact SFX is target-scoped, not here — resolved per victim by
- * UHitImpactVisualComponent from the victim's material and state tags.
+ * Per-hit camera-shake payload for the shared hit-impact GameplayCue.
+ * Passed to GCN_PlayerHitImpact via FGameplayCueParameters::SourceObject so one cue
+ * tag/class can shake differently per weapon/notify, instead of needing a unique cue
+ * notify per weapon. When CameraShakeLevel is 0 the cue falls back to the global
+ * damage-scaled shake on UYogSettings::HitShakeConfig.
+ *
+ * Shake only, by design. Both VFX and SFX are target-scoped and resolved per victim by
+ * UHitImpactVisualComponent from UEnemyHitImpactData against the victim's material and
+ * state tags. This asset used to also carry ImpactVFX, which could double up with the
+ * victim table's VFX on the same swing — nothing coordinated the two.
  */
 UCLASS(BlueprintType, Blueprintable)
 class DEVKIT_API UHitCueData : public UDataAsset
@@ -22,16 +22,6 @@ class DEVKIT_API UHitCueData : public UDataAsset
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HitImpact|VFX")
-	TObjectPtr<UNiagaraSystem> ImpactVFX;
-
-	// Rotation applied to the VFX spawn, relative to the hit surface normal.
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HitImpact|VFX")
-	FRotator VFXRotationOffset = FRotator::ZeroRotator;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HitImpact|VFX")
-	FVector VFXScale = FVector(1.f);
-
 	// Camera shake level for this hit, resolved via UYogSettings::CameraShakeLevelTable
 	// and played by AYogPlayerCameraManager::PlayShakeLevel. 0 = no level shake (the cue
 	// falls back to the global damage-scaled HitShakeConfig).

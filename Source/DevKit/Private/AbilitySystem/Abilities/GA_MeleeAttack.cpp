@@ -1718,10 +1718,12 @@ void UGA_MeleeAttack::ApplyHitReactions(AYogCharacterBase* Owner, const FYogGame
 		// get one burst per distinct target. Each component returns its resolved camera-shake
 		// level; we aggregate the max and shake once per swing (shake is a player-global concern,
 		// so N victims must not stack into N shakes).
-		// The attacker's equipped weapon picks the intensity level (players only; else 1).
+		// The attacker's equipped weapon picks the intensity level. Read through the shared weapon
+		// definition base so enemy weapons drive this too, not just player ones.
 		int32 WeaponHitLevel = 1;
-		const UWeaponDefinition* WeaponDef = PlayerOwner ? PlayerOwner->GetEffectiveEquippedWeaponDefinition() : nullptr;
-		if (WeaponDef)
+		const AYogCharacterBase* AttackerCharacter = Cast<AYogCharacterBase>(GetAvatarActorFromActorInfo());
+		if (const UWeaponDefinitionBase* WeaponDef =
+			AttackerCharacter ? AttackerCharacter->GetEffectiveWeaponDefinition() : nullptr)
 		{
 			WeaponHitLevel = WeaponDef->HitImpactLevel;
 		}

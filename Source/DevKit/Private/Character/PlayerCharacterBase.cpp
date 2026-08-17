@@ -240,7 +240,6 @@ APlayerCharacterBase::APlayerCharacterBase(const FObjectInitializer& ObjectIniti
 	BuffFlowComponent = CreateDefaultSubobject<UBuffFlowComponent>(TEXT("BuffFlowComponent"));
 	SacrificeRuneComponent = CreateDefaultSubobject<USacrificeRuneComponent>(TEXT("SacrificeRuneComponent"));
 	SkillChargeComponent = CreateDefaultSubobject<USkillChargeComponent>(TEXT("SkillChargeComponent"));
-	MontageVFXBindingComponent = CreateDefaultSubobject<UMontageVFXBindingComponent>(TEXT("MontageVFXBindingComponent"));
 	MotionWarpingComponent = CreateDefaultSubobject<UMotionWarpingComponent>(TEXT("MotionWarpingComponent"));
 
 	// 近战默认命中框：C++ 实现，无需在每个角色蓝Class Defaults 中单独配
@@ -449,6 +448,17 @@ void APlayerCharacterBase::ApplyCurrentEquipmentAbilityData()
 UWeaponDefinition* APlayerCharacterBase::GetEffectiveEquippedWeaponDefinition() const
 {
 	return EquippedWeaponDef ? EquippedWeaponDef.Get() : DefaultUnarmedWeaponDef.Get();
+}
+
+const UWeaponDefinitionBase* APlayerCharacterBase::GetEffectiveWeaponDefinition() const
+{
+	// Goes through the effective definition so the unarmed default still contributes a look.
+	return GetEffectiveEquippedWeaponDefinition();
+}
+
+AWeaponInstance* APlayerCharacterBase::GetEquippedWeaponActor() const
+{
+	return EquippedWeaponInstance;
 }
 
 void APlayerCharacterBase::InitializeEquippedWeaponSkillFromDefinition()

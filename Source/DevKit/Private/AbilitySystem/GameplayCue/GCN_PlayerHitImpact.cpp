@@ -4,8 +4,6 @@
 #include "Camera/YogPlayerCameraManager.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
-#include "NiagaraFunctionLibrary.h"
-#include "NiagaraSystem.h"
 #include "AbilitySystem/GameplayCue/HitCueData.h"
 #include "AbilitySystem/GameplayCue/GlobalHitShakeData.h"
 #include "System/YogSettings.h"
@@ -31,36 +29,8 @@ bool AGCN_PlayerHitImpact::OnExecute_Implementation(AActor* Target, const FGamep
 		return false;
 	}
 
-	// Per-hit visual payload (weapon/notify) overrides the class defaults when provided.
+	// Per-hit payload (weapon/notify) overrides the class defaults when provided.
 	const UHitCueData* CueData = Cast<UHitCueData>(Parameters.SourceObject.Get());
-
-	UNiagaraSystem* EffectiveVFX = CueData && CueData->ImpactVFX ? CueData->ImpactVFX.Get() : ImpactVFX.Get();
-	const FRotator EffectiveVFXRotationOffset = CueData ? CueData->VFXRotationOffset : VFXRotationOffset;
-	const FVector EffectiveVFXScale = CueData ? CueData->VFXScale : VFXScale;
-
-	const FVector HitLocation = Parameters.Location.IsZero() && Target
-		? Target->GetActorLocation()
-		: FVector(Parameters.Location);
-
-	// Orient VFX to face away from the surface along the hit normal when available.
-	FRotator HitRotation = Parameters.Normal.IsZero()
-		? FRotator::ZeroRotator
-		: Parameters.Normal.ToOrientationRotator();
-	HitRotation += EffectiveVFXRotationOffset;
-
-	if (EffectiveVFX)
-	{
-		UNiagaraFunctionLibrary::SpawnSystemAtLocation(
-			World,
-			EffectiveVFX,
-			HitLocation,
-			HitRotation,
-			EffectiveVFXScale,
-			true,
-			true,
-			ENCPoolMethod::None,
-			false);
-	}
 
 	// Camera shake: prefer the per-hit discrete level from the cue payload (heavy = 1,
 	// crit-promoted = CritCameraShakeLevel). When no level is configured, fall back to

@@ -26,6 +26,9 @@ class UGameEffectComponent;
 class UCharacterDataComponent;
 class UBufferComponent;
 class URuneDataAsset;
+class UMontageVFXBindingComponent;
+class UWeaponDefinitionBase;
+class AWeaponInstance;
 
 UENUM(BlueprintType)
 enum class EYogCharacterState : uint8
@@ -139,6 +142,10 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat|Hit Impact")
 	TObjectPtr<UHitImpactVisualComponent> HitImpactVisualComponent;
 
+	/** Resolves and plays montage-driven swing VFX/SFX. Shared by players and enemies. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat|VFX")
+	TObjectPtr<UMontageVFXBindingComponent> MontageVFXBindingComponent;
+
 	/** Keeps character-to-scene and scene-to-character shadows while removing character self-projection. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Rendering|Stylized Character")
 	TObjectPtr<UStylizedCharacterShadowPolicyComponent> StylizedCharacterShadowPolicyComponent;
@@ -158,6 +165,15 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Combat|Hit Impact")
 	void PlayCosmeticHitPushFromLocation(const FVector& SourceLocation, float Strength = 1.0f);
+
+	/**
+	 * Equipped weapon definition, or null when the character has none. Players and enemies hold
+	 * different concrete types, so combat presentation reads them through this shared base.
+	 */
+	virtual const UWeaponDefinitionBase* GetEffectiveWeaponDefinition() const;
+
+	/** Spawned weapon actor, used as the attach parent for weapon-socketed VFX. */
+	virtual AWeaponInstance* GetEquippedWeaponActor() const;
 
 
 	UFUNCTION()

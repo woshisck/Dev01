@@ -18,6 +18,7 @@
 #include "System/YogGameInstanceBase.h"
 #include "Component/GameEffectComponent.h"
 #include "Component/HitImpactVisualComponent.h"
+#include "Component/MontageVFXBindingComponent.h"
 #include "Component/CharacterDataComponent.h"
 #include "GameplayEffect.h"
 #include "Component/BufferComponent.h"
@@ -62,6 +63,7 @@ AYogCharacterBase::AYogCharacterBase(const FObjectInitializer& ObjectInitializer
 
 	WidgetComponent = CreateDefaultSubobject<UWidgetComponent>(TEXT("UIWidgetComponent"));
 	HitImpactVisualComponent = CreateDefaultSubobject<UHitImpactVisualComponent>(TEXT("HitImpactVisualComponent"));
+	MontageVFXBindingComponent = CreateDefaultSubobject<UMontageVFXBindingComponent>(TEXT("MontageVFXBindingComponent"));
 	StylizedCharacterShadowPolicyComponent = CreateDefaultSubobject<UStylizedCharacterShadowPolicyComponent>(TEXT("StylizedCharacterShadowPolicyComponent"));
 
 	BaseAttributeSet = CreateDefaultSubobject<UBaseAttributeSet>(TEXT("BaseAttributeSet"));
@@ -129,6 +131,16 @@ void AYogCharacterBase::PlayCosmeticHitPushFromLocation(const FVector& SourceLoc
 	{
 		HitImpactVisualComponent->PlayHitPushFromLocation(SourceLocation, Strength);
 	}
+}
+
+const UWeaponDefinitionBase* AYogCharacterBase::GetEffectiveWeaponDefinition() const
+{
+	return nullptr;
+}
+
+AWeaponInstance* AYogCharacterBase::GetEquippedWeaponActor() const
+{
+	return nullptr;
 }
 
 
