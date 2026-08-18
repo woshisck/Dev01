@@ -60,6 +60,12 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UAbilityData> OriginalAbilityData;
 
+	// A null OriginalAbilityData is a valid captured base, so capture must be tracked
+	// separately. Without this, GetBaseAbilityData would fall back to the live value,
+	// which ApplyAbilityDataFromWeapon has already overwritten with its own merge output.
+	UPROPERTY()
+	bool bOriginalAbilityDataCaptured = false;
+
 	// UPROPERTY(SaveGame, EditDefaultsOnly, BlueprintReadOnly, Category = "Anathema | CharacterData")
 	// TObjectPtr<UCharacterData> CharacterData;
 

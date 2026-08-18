@@ -22,6 +22,7 @@ void UCharacterDataComponent::InitializeComponent()
 	{
 		OriginalCharacterDataRef = CharacterData;
 		OriginalAbilityData = CharacterData->AbilityData;
+		bOriginalAbilityDataCaptured = true;
 		UE_LOG(LogTemp, Warning, TEXT("[CDC][InitComp] Owner=%s | Ref=%s | AbilityData=%s"),
 			GetOwner() ? *GetOwner()->GetName() : TEXT("?"),
 			*CharacterData->GetName(),
@@ -55,7 +56,12 @@ UCharacterData* UCharacterDataComponent::GetCharacterData() const
 
 UAbilityData* UCharacterDataComponent::GetBaseAbilityData() const
 {
-	return OriginalAbilityData ? OriginalAbilityData.Get() : (CharacterData ? CharacterData->AbilityData.Get() : nullptr);
+	if (bOriginalAbilityDataCaptured)
+	{
+		return OriginalAbilityData.Get();
+	}
+
+	return CharacterData ? CharacterData->AbilityData.Get() : nullptr;
 }
 
 void UCharacterDataComponent::SetCharacterData(UCharacterData* NewCharacterData)
@@ -74,6 +80,7 @@ const UCharacterData* UCharacterDataComponent::InitializeCharacterData()
 			UCharacterData* CDO = CharacterDataClassObject->GetDefaultObject<UCharacterData>();
 			OriginalCharacterDataRef = CDO;
 			OriginalAbilityData = CDO ? CDO->AbilityData : nullptr;
+			bOriginalAbilityDataCaptured = true;
 			UCharacterData* RuntimeCopy = DuplicateObject<UCharacterData>(CDO, this);
 			if (RuntimeCopy)
 			{
@@ -157,4 +164,5 @@ void UCharacterDataComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 	OriginalCharacterDataRef = nullptr;
 	OriginalAbilityData = nullptr;
+	bOriginalAbilityDataCaptured = false;
 }

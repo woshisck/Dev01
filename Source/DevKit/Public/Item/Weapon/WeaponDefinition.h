@@ -45,7 +45,7 @@ struct FBackpackConfig
     FActivationZoneConfig ActivationZoneConfig;
 };
 
-UCLASS(Blueprintable, BlueprintType, Const, DisplayName = "武器定义")
+UCLASS(Blueprintable, BlueprintType, Const)
 class DEVKIT_API UWeaponDefinition : public UWeaponDefinitionBase
 {
 	GENERATED_BODY()
