@@ -37,7 +37,6 @@
 #include "Tools/SActionBalanceWidget.h"
 #include "Tools/SBuffFlowDebugWidget.h"
 #include "Tools/SCharacterBalanceWidget.h"
-#include "Tools/SComboGraphManagerWidget.h"
 #include "Tools/SDataEditorWidget.h"
 #include "Tools/SEnvBatchTaggerWidget.h"
 #include "Tools/SLevelDataWorkbenchWidget.h"
@@ -59,9 +58,7 @@
 #include "Tools/EnemyManager/SEnemyManagerWidget.h"
 #include "Tools/StoryEncounter/SStoryEncounterWorkbenchWidget.h"
 #include "Tools/WeaponManager/SWeaponManagerWidget.h"
-#include "Customization/GameplayAbilityComboGraphNodeDetails.h"
 #include "Customization/DevKitDecalCollectionActorDetails.h"
-#include "Data/GameplayAbilityComboGraph.h"
 #include "System/YogRuntimeGMSubsystem.h"
 #include "UI/CombatLogEditorUtilityWidget.h"
 #include "UObject/StrongObjectPtr.h"
@@ -81,7 +78,6 @@ namespace
 	const FName RuneBalanceTabName(TEXT("DevKitRuneBalance"));
 	const FName RuneEditorTabName(TEXT("DevKitRuneEditor"));
 	const FName CharacterBalanceTabName(TEXT("DevKitCharacterBalance"));
-	const FName ComboManagerTabName(TEXT("DevKitComboManager"));
 	const FName WeaponManagerTabName(TEXT("DevKitWeaponManager"));
 	const FName EnemyManagerTabName(TEXT("DevKitEnemyManager"));
 	const FName LevelDataWorkbenchTabName(TEXT("DevKitLevelDataWorkbench"));
@@ -290,9 +286,6 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			URuneDataAsset::StaticClass()->GetFName(),
 			FOnGetDetailCustomizationInstance::CreateStatic(&FRuneDataAssetDetails::MakeInstance));
 		PropertyModule.RegisterCustomClassLayout(
-			UGameplayAbilityComboGraphNode::StaticClass()->GetFName(),
-			FOnGetDetailCustomizationInstance::CreateStatic(&FGameplayAbilityComboGraphNodeDetails::MakeInstance));
-		PropertyModule.RegisterCustomClassLayout(
 			ADevKitDecalCollectionActor::StaticClass()->GetFName(),
 			FOnGetDetailCustomizationInstance::CreateStatic(&FDevKitDecalCollectionActorDetails::MakeInstance));
 
@@ -315,13 +308,6 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnCharacterBalanceTab))
 			.SetDisplayName(LOCTEXT("CharacterBalanceTabTitle", "Character Data Workbench"))
 			.SetTooltipText(LOCTEXT("CharacterBalanceTabTooltip", "Open the DevKit character, montage, and Act data workbench."))
-			.SetMenuType(ETabSpawnerMenuType::Hidden);
-
-		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
-			ComboManagerTabName,
-			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnComboManagerTab))
-			.SetDisplayName(LOCTEXT("ComboManagerTabTitle", "Combo Manager"))
-			.SetTooltipText(LOCTEXT("ComboManagerTabTooltip", "Open the weapon and independent enemy combo graph manager."))
 			.SetMenuType(ETabSpawnerMenuType::Hidden);
 
 		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
@@ -501,7 +487,6 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(RuneBalanceTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(RuneEditorTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(CharacterBalanceTabName);
-		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(ComboManagerTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(WeaponManagerTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(EnemyManagerTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(LevelDataWorkbenchTabName);
@@ -539,7 +524,6 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			// 必须与 StartupModule() 中 Register 的名字一一对应
 			PropertyEditorModule->UnregisterCustomPropertyTypeLayout(TEXT("ShopEntry"));
 			PropertyEditorModule->UnregisterCustomClassLayout(URuneDataAsset::StaticClass()->GetFName());
-			PropertyEditorModule->UnregisterCustomClassLayout(UGameplayAbilityComboGraphNode::StaticClass()->GetFName());
 			PropertyEditorModule->UnregisterCustomClassLayout(ADevKitDecalCollectionActor::StaticClass()->GetFName());
 			PropertyEditorModule->NotifyCustomizationModuleChanged();
 		}
@@ -588,16 +572,6 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			.Label(LOCTEXT("CharacterBalanceTabLabel", "Character Data Workbench"))
 			[
 				SNew(SCharacterBalanceWidget)
-			];
-	}
-
-	TSharedRef<SDockTab> SpawnComboManagerTab(const FSpawnTabArgs& SpawnTabArgs)
-	{
-		return SNew(SDockTab)
-			.TabRole(ETabRole::NomadTab)
-			.Label(LOCTEXT("ComboManagerTabLabel", "Combo Manager"))
-			[
-				SNew(SComboGraphManagerWidget)
 			];
 	}
 
@@ -1148,12 +1122,6 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenCharacterBalanceTab)));
 		BalanceSection.AddMenuEntry(
-			TEXT("OpenComboManager"),
-			LOCTEXT("OpenComboManagerLabel", "Combo Manager"),
-			LOCTEXT("OpenComboManagerTooltip", "Edit player weapon combo graphs and independent enemy combo graphs."),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenComboManagerTab)));
-		BalanceSection.AddMenuEntry(
 			TEXT("OpenLevelDataWorkbench"),
 			LOCTEXT("OpenLevelDataWorkbenchLabel", "Level Data Workbench"),
 			LOCTEXT("OpenLevelDataWorkbenchTooltip", "Edit RoomData and CampaignData assets in one level data workbench."),
@@ -1393,11 +1361,6 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 	void OpenCharacterBalanceTab()
 	{
 		FGlobalTabmanager::Get()->TryInvokeTab(CharacterBalanceTabName);
-	}
-
-	void OpenComboManagerTab()
-	{
-		FGlobalTabmanager::Get()->TryInvokeTab(ComboManagerTabName);
 	}
 
 	void OpenEnemyManagerTab()
