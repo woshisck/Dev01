@@ -264,19 +264,20 @@ void AYogAIController::OnPossess(APawn* InPawn)
 				return;
 			}
 		}
-
-		if (EnemyData->BehaviorTree)
-		{
-			RunBTWithBlackboard(EnemyData->BehaviorTree, EnemyData->BehaviorTree->BlackboardAsset);
-			return;
-		}
 	}
 
-	// 兜底启动：BT 内部 BlackboardAsset 断链时由 C++ 强制 UseBlackboard + RunBehaviorTree
-	if (bUseFallbackStartup && FallbackBehaviorTree)
-	{
-		RunBTWithBlackboard(FallbackBehaviorTree, FallbackBlackboard);
-	}
+	// StateTree is the active AI runtime path now.
+	// Keep the old BT startup helper around only as deprecated compatibility code.
+	// if (EnemyData->BehaviorTree)
+	// {
+	// 	RunBTWithBlackboard(EnemyData->BehaviorTree, EnemyData->BehaviorTree->BlackboardAsset);
+	// 	return;
+	// }
+	//
+	// if (bUseFallbackStartup && FallbackBehaviorTree)
+	// {
+	// 	RunBTWithBlackboard(FallbackBehaviorTree, FallbackBlackboard);
+	// }
 }
 
 UEnemyData* AYogAIController::GetPossessedEnemyData() const
@@ -388,6 +389,13 @@ void AYogAIController::EnterCombat(AActor* TargetActor, bool bBroadcastAlert)
 	BB->SetValueAsVector(TEXT("LastKnownTargetLocation"), TargetLocation);
 	BB->SetValueAsFloat(TEXT("LastSeenTargetTime"), CurrentTime);
 	BB->SetValueAsFloat(TEXT("AlertExpireTime"), 0.0f);
+	UpdateCombatMoveBlackboard(
+		BB,
+		TEXT("TargetActor"),
+		TEXT("MoveTargetLocation"),
+		TEXT("DistanceToTarget"),
+		TEXT("bInAttackRange"),
+		TEXT("AcceptanceRadius"));
 
 	// Stamp the combat entry time only on the non-Combat -> Combat edge so the
 	// time-in-combat phase gate measures sustained combat, not each re-aggro.
