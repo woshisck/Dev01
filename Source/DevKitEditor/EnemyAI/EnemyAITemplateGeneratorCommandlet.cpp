@@ -988,10 +988,10 @@ namespace EnemyAITemplateGenerator
 		// cooldown, which is the signal to fall through to the chase state.
 		AddAttackState(Phase, TEXT("Heavy Attack"), EEnemyAIAttackRole::CloseMelee);
 
-		// Chase exits to the recheck wait rather than straight back to the phase: MoveTo
-		// returns AlreadyAtGoal in the same frame when the boss is already close, so a
-		// direct loop would spin every frame while the heavy attack is on cooldown.
-		UStateTreeState& ChaseTarget = AddMoveState(Phase, TEXT("Chase Target"), TEXT("MoveTargetLocation"), 120.f);
+		// Chase exits to the recheck wait rather than straight back to the phase: the task
+		// succeeds the instant the pawn is in range, so a direct loop would spin every
+		// frame while the heavy attack is on cooldown.
+		UStateTreeState& ChaseTarget = AddChaseState(Phase, TEXT("Chase Target"));
 		ChaseTarget.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::NextSelectableState);
 
 		UStateTreeState& CombatRecheck = Phase.AddChildState(TEXT("Combat Recheck"));
