@@ -10,6 +10,8 @@
 
 class AAIController;
 class UAbilitySystemComponent;
+class AActor;
+class AEnemyCharacterBase;
 class AYogCharacterBase;
 class UGameplayEffect;
 class USkeletalMesh;
@@ -115,6 +117,52 @@ struct DEVKIT_API FStateTreeTask_UpdateEnemyPatrolTarget : public FStateTreeAITa
 	using FInstanceDataType = FStateTreeTask_UpdateEnemyPatrolTargetInstanceData;
 
 	FStateTreeTask_UpdateEnemyPatrolTarget();
+
+	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
+	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
+};
+
+USTRUCT()
+struct FStateTreeTask_SpawnMobInReachableNavMeshInstanceData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = Context)
+	TObjectPtr<AAIController> AIController = nullptr;
+
+	UPROPERTY(EditAnywhere, Category = Context)
+	TObjectPtr<AActor> SpawnOriginActor = nullptr;
+
+	UPROPERTY(EditAnywhere, Category = Parameter)
+	TSubclassOf<AEnemyCharacterBase> EnemyClass;
+
+	UPROPERTY(EditAnywhere, Category = Parameter, meta = (ClampMin = "0.0"))
+	float SpawnRadius = 1000.0f;
+
+	UPROPERTY(EditAnywhere, Category = Parameter, meta = (ClampMin = "0.0"))
+	float MinSpawnDistance = 300.0f;
+
+	UPROPERTY(EditAnywhere, Category = Parameter, meta = (ClampMin = "0.0"))
+	float SpawnZOffset = 96.0f;
+
+	UPROPERTY(EditAnywhere, Category = Parameter, meta = (ClampMin = "1"))
+	int32 MaxAttempts = 24;
+
+	UPROPERTY(EditAnywhere, Category = Parameter)
+	bool bCountsForLevelClear = true;
+
+	UPROPERTY(EditAnywhere, Category = Output)
+	TObjectPtr<AEnemyCharacterBase> SpawnedEnemy = nullptr;
+};
+
+USTRUCT(meta = (DisplayName = "Spawn Mob In Reachable NavMesh", Category = "Yog|AI"))
+struct DEVKIT_API FStateTreeTask_SpawnMobInReachableNavMesh : public FStateTreeAIActionTaskBase
+{
+	GENERATED_BODY()
+
+	using FInstanceDataType = FStateTreeTask_SpawnMobInReachableNavMeshInstanceData;
+
+	FStateTreeTask_SpawnMobInReachableNavMesh();
 
 	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
 	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
