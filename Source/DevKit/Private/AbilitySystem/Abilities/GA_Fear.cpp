@@ -137,7 +137,7 @@ void UGA_Fear::EndAbility(
 		World->GetTimerManager().ClearTimer(MoveTimerHandle);
 	}
 
-	// 停止 AI Fear 移动，让 BT 恢复控制
+	// 停止 AI Fear 移动，让 StateTree 恢复控制
 	if (ActorInfo && ActorInfo->AvatarActor.IsValid())
 	{
 		if (ACharacter* Character = Cast<ACharacter>(ActorInfo->AvatarActor.Get()))

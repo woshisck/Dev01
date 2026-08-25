@@ -8,7 +8,7 @@
 class AAIController;
 
 // ─── Enemy AI State ─────────────────────────────────────────────────────────
-// Mirrors UBTDecorator_EnemyAIState: passes when the controller's current
+// Passes when the controller's current
 // EEnemyAIState matches RequiredState. Use as an Enter Condition on the
 // Combat / Patrol states.
 
@@ -146,7 +146,7 @@ struct DEVKIT_API FStateTreeCondition_PlayerHealthPercentBelow : public FStateTr
 };
 
 // ─── Enemy Post Attack Reposition ───────────────────────────────────────────
-// Mirrors UBTDecorator_EnemyPostAttackReposition: passes while the controller has
+// Passes while the controller has
 // flagged a reposition request on its blackboard. AYogAIController::NotifyAttackResolved
 // sets the flag on a whiff and clears it on a connect. Use as the Enter Condition on
 // the Reposition attack state so it is only attempted after a miss.

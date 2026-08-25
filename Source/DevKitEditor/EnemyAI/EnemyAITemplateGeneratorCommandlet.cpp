@@ -1,46 +1,23 @@
 #include "DevKitEditor/EnemyAI/EnemyAITemplateGeneratorCommandlet.h"
 
-#include "AI/BTDecorator_EnemyAIState.h"
-#include "AI/BTDecorator_EnemyPostAttackReposition.h"
-#include "AI/BTService_UpdateEnemyAwareness.h"
 #include "AbilitySystem/Abilities/GA_EnemyMeleeAttacks.h"
 #include "AbilitySystem/Abilities/GA_EnemyWeaponSkills.h"
 #include "Commandlets/CommandletReportUtils.h"
-#include "AI/BTService_UpdateEnemyCombatMove.h"
-#include "AI/BTTask_EnemyCombatMove.h"
-#include "AI/BTTask_EnemyAttackByProfile.h"
-#include "AI/BTTask_EnemyPatrolWait.h"
-#include "AI/BTTask_UpdateEnemyPatrolTarget.h"
 #include "AI/StateTree/YogStateTreeConditions.h"
 #include "AI/StateTree/YogStateTreeEvaluators.h"
 #include "AI/StateTree/YogStateTreeTask_EnemyAttackByProfile.h"
 #include "AI/StateTree/YogStateTreeTasks.h"
 #include "AssetRegistry/AssetRegistryModule.h"
-#include "BehaviorTree/BehaviorTree.h"
 #include "BehaviorTree/BlackboardData.h"
 #include "BehaviorTree/Blackboard/BlackboardKeyType_Bool.h"
 #include "BehaviorTree/Blackboard/BlackboardKeyType_Enum.h"
 #include "BehaviorTree/Blackboard/BlackboardKeyType_Float.h"
 #include "BehaviorTree/Blackboard/BlackboardKeyType_Object.h"
 #include "BehaviorTree/Blackboard/BlackboardKeyType_Vector.h"
-#include "BehaviorTree/Composites/BTComposite_Selector.h"
-#include "BehaviorTree/Composites/BTComposite_Sequence.h"
-#include "BehaviorTree/Tasks/BTTask_BlackboardBase.h"
-#include "BehaviorTree/Tasks/BTTask_MoveTo.h"
-#include "BehaviorTree/Tasks/BTTask_Wait.h"
-#include "BehaviorTreeGraph.h"
-#include "BehaviorTreeGraphNode.h"
-#include "BehaviorTreeGraphNode_Composite.h"
-#include "BehaviorTreeGraphNode_Decorator.h"
-#include "BehaviorTreeGraphNode_Root.h"
-#include "BehaviorTreeGraphNode_Service.h"
-#include "BehaviorTreeGraphNode_Task.h"
 #include "Character/EnemyCharacterBase.h"
 #include "Data/AbilityData.h"
 #include "Data/EnemyData.h"
 #include "Data/GasTemplate.h"
-#include "EdGraph/EdGraphPin.h"
-#include "EdGraphSchema_BehaviorTree.h"
 #include "Engine/Blueprint.h"
 #include "FileHelpers.h"
 #include "Misc/FileHelper.h"
@@ -60,7 +37,6 @@
 namespace EnemyAITemplateGenerator
 {
 	const FString BlackboardPath = TEXT("/Game/Code/Enemy/AI/BlackBoard/BB_Enemy_DefaultMelee");
-	const FString BehaviorTreePath = TEXT("/Game/Code/Enemy/AI/Behaviour/BT_Enemy_DefaultMelee");
 	const FString StateTreePath = TEXT("/Game/Code/Enemy/AI/StateTree/ST_Enemy_DefaultMelee");
 	const FString EnemyGASTemplatePath = TEXT("/Game/Docs/Data/Enemy/DA_Enemy_GASTemplate");
 	const FString RatDataPath = TEXT("/Game/Docs/Data/Enemy/Rat/DA_Rat");
@@ -655,221 +631,6 @@ namespace EnemyAITemplateGenerator
 		SyncAttackProfileFromAbilityData(EnemyData);
 	}
 
-	void SetMoveToBlackboardKey(UBTTask_MoveTo& MoveToTask, FName KeyName)
-	{
-		FStructProperty* BlackboardKeyProperty = FindFProperty<FStructProperty>(UBTTask_BlackboardBase::StaticClass(), TEXT("BlackboardKey"));
-		if (!BlackboardKeyProperty)
-		{
-			return;
-		}
-
-		FBlackboardKeySelector* Selector = BlackboardKeyProperty->ContainerPtrToValuePtr<FBlackboardKeySelector>(&MoveToTask);
-		if (Selector)
-		{
-			Selector->SelectedKeyName = KeyName;
-		}
-	}
-
-	template <typename GraphNodeType, typename NodeInstanceType>
-	GraphNodeType* AddNode(UBehaviorTree& BehaviorTree, UBehaviorTreeGraph& Graph, int32 X, int32 Y)
-	{
-		GraphNodeType* GraphNode = NewObject<GraphNodeType>(&Graph);
-		GraphNode->NodeInstance = NewObject<NodeInstanceType>(&BehaviorTree);
-		GraphNode->SetFlags(RF_Transactional);
-		GraphNode->NodeInstance->SetFlags(RF_Transactional);
-		GraphNode->NodePosX = X;
-		GraphNode->NodePosY = Y;
-		GraphNode->CreateNewGuid();
-		GraphNode->UpdateNodeClassData();
-		GraphNode->PostPlacedNewNode();
-		GraphNode->AllocateDefaultPins();
-		Graph.AddNode(GraphNode, false, false);
-		return GraphNode;
-	}
-
-	void Connect(UBehaviorTreeGraphNode* Parent, UBehaviorTreeGraphNode* Child)
-	{
-		if (!Parent || !Child || !Parent->GetOutputPin() || !Child->GetInputPin())
-		{
-			return;
-		}
-
-		Parent->GetOutputPin()->MakeLinkTo(Child->GetInputPin());
-	}
-
-	template <typename ServiceType>
-	void AddService(UBehaviorTree& BehaviorTree, UBehaviorTreeGraph& Graph, UBehaviorTreeGraphNode& Parent)
-	{
-		UBehaviorTreeGraphNode_Service* ServiceNode = NewObject<UBehaviorTreeGraphNode_Service>(&Graph);
-		ServiceNode->NodeInstance = NewObject<ServiceType>(&BehaviorTree);
-		ServiceNode->SetFlags(RF_Transactional);
-		ServiceNode->NodeInstance->SetFlags(RF_Transactional);
-		ServiceNode->CreateNewGuid();
-		ServiceNode->UpdateNodeClassData();
-		Parent.AddSubNode(ServiceNode, &Graph);
-	}
-
-	void AddStateDecorator(UBehaviorTree& BehaviorTree, UBehaviorTreeGraph& Graph, UBehaviorTreeGraphNode& DecoratedNode, EEnemyAIState State)
-	{
-		UBehaviorTreeGraphNode_Decorator* DecoratorNode = NewObject<UBehaviorTreeGraphNode_Decorator>(&Graph);
-		UBTDecorator_EnemyAIState* Decorator = NewObject<UBTDecorator_EnemyAIState>(&BehaviorTree);
-		Decorator->SetRequiredState(State);
-		DecoratorNode->NodeInstance = Decorator;
-		DecoratorNode->SetFlags(RF_Transactional);
-		Decorator->SetFlags(RF_Transactional);
-		DecoratorNode->CreateNewGuid();
-		DecoratorNode->UpdateNodeClassData();
-		DecoratedNode.AddSubNode(DecoratorNode, &Graph);
-	}
-
-	void AddPostAttackRepositionDecorator(UBehaviorTree& BehaviorTree, UBehaviorTreeGraph& Graph, UBehaviorTreeGraphNode& DecoratedNode)
-	{
-		UBehaviorTreeGraphNode_Decorator* DecoratorNode = NewObject<UBehaviorTreeGraphNode_Decorator>(&Graph);
-		UBTDecorator_EnemyPostAttackReposition* Decorator = NewObject<UBTDecorator_EnemyPostAttackReposition>(&BehaviorTree);
-		DecoratorNode->NodeInstance = Decorator;
-		DecoratorNode->SetFlags(RF_Transactional);
-		Decorator->SetFlags(RF_Transactional);
-		DecoratorNode->CreateNewGuid();
-		DecoratorNode->UpdateNodeClassData();
-		DecoratedNode.AddSubNode(DecoratorNode, &Graph);
-	}
-
-	UBehaviorTreeGraphNode_Root* FindOrCreateRootNode(UBehaviorTreeGraph& Graph, UBlackboardData& Blackboard)
-	{
-		for (UEdGraphNode* Node : Graph.Nodes)
-		{
-			if (UBehaviorTreeGraphNode_Root* RootNode = Cast<UBehaviorTreeGraphNode_Root>(Node))
-			{
-				RootNode->BlackboardAsset = &Blackboard;
-				RootNode->UpdateBlackboard();
-				return RootNode;
-			}
-		}
-
-		UBehaviorTreeGraphNode_Root* RootNode = NewObject<UBehaviorTreeGraphNode_Root>(&Graph);
-		RootNode->BlackboardAsset = &Blackboard;
-		RootNode->NodePosX = 0;
-		RootNode->NodePosY = 0;
-		RootNode->CreateNewGuid();
-		RootNode->PostPlacedNewNode();
-		RootNode->AllocateDefaultPins();
-		RootNode->BlackboardAsset = &Blackboard;
-		RootNode->UpdateBlackboard();
-		Graph.AddNode(RootNode, false, false);
-		return RootNode;
-	}
-
-	void RebuildBehaviorTreeGraph(UBehaviorTree& BehaviorTree, UBlackboardData& Blackboard)
-	{
-		BehaviorTree.BlackboardAsset = &Blackboard;
-
-		UBehaviorTreeGraph* Graph = Cast<UBehaviorTreeGraph>(BehaviorTree.BTGraph);
-		if (!Graph)
-		{
-			Graph = NewObject<UBehaviorTreeGraph>(&BehaviorTree, TEXT("BTGraph"), RF_Transactional);
-			BehaviorTree.BTGraph = Graph;
-		}
-
-		Graph->Modify();
-		Graph->Nodes.Reset();
-
-		if (const UEdGraphSchema* Schema = Graph->GetSchema())
-		{
-			Schema->CreateDefaultNodesForGraph(*Graph);
-		}
-
-		UBehaviorTreeGraphNode_Root* RootNode = FindOrCreateRootNode(*Graph, Blackboard);
-		RootNode->BlackboardAsset = &Blackboard;
-		RootNode->UpdateBlackboard();
-
-		UBehaviorTreeGraphNode_Composite* MainSelector = AddNode<UBehaviorTreeGraphNode_Composite, UBTComposite_Selector>(BehaviorTree, *Graph, 0, 160);
-		AddService<UBTService_UpdateEnemyAwareness>(BehaviorTree, *Graph, *MainSelector);
-		AddService<UBTService_UpdateEnemyCombatMove>(BehaviorTree, *Graph, *MainSelector);
-		Connect(RootNode, MainSelector);
-
-		UBehaviorTreeGraphNode_Composite* CombatSelector = AddNode<UBehaviorTreeGraphNode_Composite, UBTComposite_Selector>(BehaviorTree, *Graph, -450, 360);
-		AddStateDecorator(BehaviorTree, *Graph, *CombatSelector, EEnemyAIState::Combat);
-		Connect(MainSelector, CombatSelector);
-
-		UBehaviorTreeGraphNode_Task* RepositionTask = AddNode<UBehaviorTreeGraphNode_Task, UBTTask_EnemyAttackByProfile>(BehaviorTree, *Graph, -1050, 560);
-		if (UBTTask_EnemyAttackByProfile* AttackTask = Cast<UBTTask_EnemyAttackByProfile>(RepositionTask->NodeInstance))
-		{
-			AttackTask->SetRequiredAttackRole(EEnemyAIAttackRole::Reposition);
-		}
-		AddPostAttackRepositionDecorator(BehaviorTree, *Graph, *RepositionTask);
-		Connect(CombatSelector, RepositionTask);
-
-		UBehaviorTreeGraphNode_Task* SkillTask = AddNode<UBehaviorTreeGraphNode_Task, UBTTask_EnemyAttackByProfile>(BehaviorTree, *Graph, -850, 560);
-		if (UBTTask_EnemyAttackByProfile* AttackTask = Cast<UBTTask_EnemyAttackByProfile>(SkillTask->NodeInstance))
-		{
-			AttackTask->SetRequiredAttackRole(EEnemyAIAttackRole::Skill);
-		}
-		Connect(CombatSelector, SkillTask);
-
-		UBehaviorTreeGraphNode_Task* SpecialMovementTask = AddNode<UBehaviorTreeGraphNode_Task, UBTTask_EnemyAttackByProfile>(BehaviorTree, *Graph, -650, 560);
-		if (UBTTask_EnemyAttackByProfile* AttackTask = Cast<UBTTask_EnemyAttackByProfile>(SpecialMovementTask->NodeInstance))
-		{
-			AttackTask->SetRequiredAttackRole(EEnemyAIAttackRole::SpecialMovement);
-		}
-		Connect(CombatSelector, SpecialMovementTask);
-
-		UBehaviorTreeGraphNode_Task* CloseMeleeTask = AddNode<UBehaviorTreeGraphNode_Task, UBTTask_EnemyAttackByProfile>(BehaviorTree, *Graph, -450, 560);
-		if (UBTTask_EnemyAttackByProfile* AttackTask = Cast<UBTTask_EnemyAttackByProfile>(CloseMeleeTask->NodeInstance))
-		{
-			AttackTask->SetRequiredAttackRole(EEnemyAIAttackRole::CloseMelee);
-		}
-		Connect(CombatSelector, CloseMeleeTask);
-
-		UBehaviorTreeGraphNode_Task* CombatMoveTask = AddNode<UBehaviorTreeGraphNode_Task, UBTTask_EnemyCombatMove>(BehaviorTree, *Graph, -250, 560);
-		Connect(CombatSelector, CombatMoveTask);
-
-		UBehaviorTreeGraphNode_Composite* AlertSequence = AddNode<UBehaviorTreeGraphNode_Composite, UBTComposite_Sequence>(BehaviorTree, *Graph, 0, 360);
-		AddStateDecorator(BehaviorTree, *Graph, *AlertSequence, EEnemyAIState::Alert);
-		Connect(MainSelector, AlertSequence);
-
-		UBehaviorTreeGraphNode_Task* AlertMoveTask = AddNode<UBehaviorTreeGraphNode_Task, UBTTask_MoveTo>(BehaviorTree, *Graph, -80, 560);
-		if (UBTTask_MoveTo* MoveTo = Cast<UBTTask_MoveTo>(AlertMoveTask->NodeInstance))
-		{
-			SetMoveToBlackboardKey(*MoveTo, TEXT("LastKnownTargetLocation"));
-			MoveTo->AcceptableRadius = 100.0f;
-			MoveTo->bObserveBlackboardValue = true;
-			MoveTo->bAllowPartialPath = true;
-			MoveTo->bProjectGoalLocation = true;
-		}
-		Connect(AlertSequence, AlertMoveTask);
-
-		UBehaviorTreeGraphNode_Task* AlertWaitTask = AddNode<UBehaviorTreeGraphNode_Task, UBTTask_Wait>(BehaviorTree, *Graph, 120, 560);
-		if (UBTTask_Wait* Wait = Cast<UBTTask_Wait>(AlertWaitTask->NodeInstance))
-		{
-			Wait->WaitTime = 0.3f;
-			Wait->RandomDeviation = 0.15f;
-		}
-		Connect(AlertSequence, AlertWaitTask);
-
-		UBehaviorTreeGraphNode_Composite* PatrolSequence = AddNode<UBehaviorTreeGraphNode_Composite, UBTComposite_Sequence>(BehaviorTree, *Graph, 450, 360);
-		AddStateDecorator(BehaviorTree, *Graph, *PatrolSequence, EEnemyAIState::Patrol);
-		Connect(MainSelector, PatrolSequence);
-
-		UBehaviorTreeGraphNode_Task* PatrolTargetTask = AddNode<UBehaviorTreeGraphNode_Task, UBTTask_UpdateEnemyPatrolTarget>(BehaviorTree, *Graph, 250, 560);
-		Connect(PatrolSequence, PatrolTargetTask);
-
-		UBehaviorTreeGraphNode_Task* PatrolMoveTask = AddNode<UBehaviorTreeGraphNode_Task, UBTTask_MoveTo>(BehaviorTree, *Graph, 450, 560);
-		if (UBTTask_MoveTo* MoveTo = Cast<UBTTask_MoveTo>(PatrolMoveTask->NodeInstance))
-		{
-			SetMoveToBlackboardKey(*MoveTo, TEXT("PatrolTargetLocation"));
-			MoveTo->AcceptableRadius = 120.0f;
-			MoveTo->bAllowPartialPath = true;
-			MoveTo->bProjectGoalLocation = true;
-		}
-		Connect(PatrolSequence, PatrolMoveTask);
-
-		UBehaviorTreeGraphNode_Task* PatrolWaitTask = AddNode<UBehaviorTreeGraphNode_Task, UBTTask_EnemyPatrolWait>(BehaviorTree, *Graph, 650, 560);
-		Connect(PatrolSequence, PatrolWaitTask);
-
-		Graph->UpdateAsset();
-		BehaviorTree.MarkPackageDirty();
-	}
-
 	UStateTree* CreateOrLoadStateTree(const FString& PackagePath, bool bDryRun, TArray<FString>& ReportLines, TArray<UPackage*>& DirtyPackages)
 	{
 		if (UStateTree* Existing = LoadAssetByPackagePath<UStateTree>(PackagePath))
@@ -943,9 +704,9 @@ namespace EnemyAITemplateGenerator
 		return State;
 	}
 
-	// Chase state built on the ported UBTTask_EnemyCombatMove: repaths toward the
-	// combat slot as the player moves and succeeds once in attack range. Distinct
-	// from AddMoveState, which fires a single path request and waits on it.
+	// Chase state: repaths toward the combat slot as the player moves and succeeds
+	// once in attack range. Distinct from AddMoveState, which fires a single path
+	// request and waits on it.
 	UStateTreeState& AddChaseState(UStateTreeState& Parent, const TCHAR* StateName)
 	{
 		UStateTreeState& State = Parent.AddChildState(FName(StateName));
@@ -1236,9 +997,8 @@ namespace EnemyAITemplateGenerator
 		StateTree.MarkPackageDirty();
 	}
 
-	void AssignBehaviorTreeToEnemyData(
+	void AssignAIAssetsToEnemyData(
 		const FString& EnemyDataPath,
-		UBehaviorTree* BehaviorTree,
 		UStateTree* StateTree,
 		UBlackboardData* Blackboard,
 		EDefaultEnemyProfile Profile,
@@ -1249,15 +1009,13 @@ namespace EnemyAITemplateGenerator
 		TArray<FString>& ReportLines,
 		TArray<UPackage*>& DirtyPackages)
 	{
-		const FString BehaviorTreeLabel = BehaviorTree ? BehaviorTree->GetPathName() : TEXT("<none>");
 		const FString StateTreeLabel = StateTree ? StateTree->GetPathName() : TEXT("<none>");
 
 		if (bDryRun)
 		{
-			ReportLines.Add(FString::Printf(TEXT("- %s `%s`.BehaviorTree -> `%s`; StateTree -> `%s`."),
+			ReportLines.Add(FString::Printf(TEXT("- %s `%s`.StateTree -> `%s`."),
 				PackageExists(EnemyDataPath) ? TEXT("Would set") : bCreateIfMissing ? TEXT("Would create enemy DA and set") : TEXT("Missing enemy DA"),
 				*EnemyDataPath,
-				*BehaviorTreeLabel,
 				*StateTreeLabel));
 			return;
 		}
@@ -1272,25 +1030,18 @@ namespace EnemyAITemplateGenerator
 			return;
 		}
 
-		ReportLines.Add(FString::Printf(TEXT("- %s `%s`.BehaviorTree -> `%s`; StateTree -> `%s`."),
+		ReportLines.Add(FString::Printf(TEXT("- %s `%s`.StateTree -> `%s`."),
 			bDryRun ? TEXT("Would set") : TEXT("Set"),
 			*EnemyDataPath,
-			*BehaviorTreeLabel,
 			*StateTreeLabel));
 
-		if (!BehaviorTree && !StateTree)
+		if (!StateTree)
 		{
 			return;
 		}
 
 		EnemyData->Modify();
-		// Assigned unconditionally so passing null actually retires the BehaviorTree.
-		// The BT asset itself is still generated, so reassigning it by hand rolls back.
-		EnemyData->BehaviorTree = BehaviorTree;
-		if (StateTree)
-		{
-			EnemyData->StateTree = StateTree;
-		}
+		EnemyData->StateTree = StateTree;
 		if (Blackboard)
 		{
 			EnemyData->StateTreeBlackboard = Blackboard;
@@ -1361,9 +1112,7 @@ int32 UEnemyAITemplateGeneratorCommandlet::Main(const FString& Params)
 
 		ReportLines.Add(TEXT(""));
 		ReportLines.Add(TEXT("## Enemy Data"));
-		// No BehaviorTree: AYogAIController::OnPossess prefers EnemyData->StateTree, so the
-		// boss runs on the StateTree exclusively.
-		AssignBehaviorTreeToEnemyData(BossDataPath, nullptr, BossStateTree, Blackboard, EDefaultEnemyProfile::Boss, nullptr, nullptr, true, bDryRun, ReportLines, DirtyPackages);
+		AssignAIAssetsToEnemyData(BossDataPath, BossStateTree, Blackboard, EDefaultEnemyProfile::Boss, nullptr, nullptr, true, bDryRun, ReportLines, DirtyPackages);
 	}
 	else if (!bPresetDefaultMelee)
 	{
@@ -1378,17 +1127,6 @@ int32 UEnemyAITemplateGeneratorCommandlet::Main(const FString& Params)
 			ConfigureBlackboard(*Blackboard);
 			DirtyPackages.AddUnique(Blackboard->GetPackage());
 			ReportLines.Add(TEXT("- Ensured default melee blackboard keys."));
-		}
-
-		ReportLines.Add(TEXT(""));
-		ReportLines.Add(TEXT("## Behavior Tree"));
-		ReportLines.Add(TEXT("- Combat branch order: PostAttackReposition -> Skill -> SpecialMovement -> CloseMelee -> MoveToCombatSlot."));
-		UBehaviorTree* BehaviorTree = CreateOrLoadAsset<UBehaviorTree>(BehaviorTreePath, bDryRun, ReportLines, DirtyPackages);
-		if (!bDryRun && BehaviorTree && Blackboard)
-		{
-			RebuildBehaviorTreeGraph(*BehaviorTree, *Blackboard);
-			DirtyPackages.AddUnique(BehaviorTree->GetPackage());
-			ReportLines.Add(TEXT("- Rebuilt visual graph and runtime tree."));
 		}
 
 		ReportLines.Add(TEXT(""));
@@ -1419,12 +1157,10 @@ int32 UEnemyAITemplateGeneratorCommandlet::Main(const FString& Params)
 
 		ReportLines.Add(TEXT(""));
 		ReportLines.Add(TEXT("## Enemy Data"));
-		// No BehaviorTree: these enemies run on the StateTree exclusively. BT_Enemy_DefaultMelee
-		// is still generated above, so reassigning it by hand is the rollback path.
-		AssignBehaviorTreeToEnemyData(RatDataPath, nullptr, StateTree, Blackboard, EDefaultEnemyProfile::Rat, nullptr, nullptr, false, bDryRun, ReportLines, DirtyPackages);
-		AssignBehaviorTreeToEnemyData(RottenGuardDataPath, nullptr, StateTree, Blackboard, EDefaultEnemyProfile::RottenGuard, nullptr, nullptr, false, bDryRun, ReportLines, DirtyPackages);
-		AssignBehaviorTreeToEnemyData(AlarmBellJailerDataPath, nullptr, StateTree, Blackboard, EDefaultEnemyProfile::AlarmBellJailer, AlarmBellAbilityData, EnemyGASTemplate, true, bDryRun, ReportLines, DirtyPackages);
-		AssignBehaviorTreeToEnemyData(GuardCaptainDataPath, nullptr, StateTree, Blackboard, EDefaultEnemyProfile::GuardCaptain, GuardCaptainAbilityData, EnemyGASTemplate, true, bDryRun, ReportLines, DirtyPackages);
+		AssignAIAssetsToEnemyData(RatDataPath, StateTree, Blackboard, EDefaultEnemyProfile::Rat, nullptr, nullptr, false, bDryRun, ReportLines, DirtyPackages);
+		AssignAIAssetsToEnemyData(RottenGuardDataPath, StateTree, Blackboard, EDefaultEnemyProfile::RottenGuard, nullptr, nullptr, false, bDryRun, ReportLines, DirtyPackages);
+		AssignAIAssetsToEnemyData(AlarmBellJailerDataPath, StateTree, Blackboard, EDefaultEnemyProfile::AlarmBellJailer, AlarmBellAbilityData, EnemyGASTemplate, true, bDryRun, ReportLines, DirtyPackages);
+		AssignAIAssetsToEnemyData(GuardCaptainDataPath, StateTree, Blackboard, EDefaultEnemyProfile::GuardCaptain, GuardCaptainAbilityData, EnemyGASTemplate, true, bDryRun, ReportLines, DirtyPackages);
 	}
 
 	if (!bDryRun && DirtyPackages.Num() > 0)

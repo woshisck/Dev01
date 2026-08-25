@@ -31,7 +31,7 @@ void UAN_EnemyComboSection::Notify(USkeletalMeshComponent* MeshComp, UAnimSequen
     else if (BlendOutTime > 0.0f)
     {
         // NextSection 为空 + BlendOutTime>0：平滑结束连招
-        // GA 收到 OnBlendOut → EndAbility → BT Task 返回 Succeeded → BT 决定下一段攻击
+        // GA 收到 OnBlendOut → EndAbility → StateTree Task 返回 Succeeded → StateTree 决定下一段攻击
         AnimInst->Montage_Stop(BlendOutTime);
     }
     // 两者均为空/零：蒙太奇自然播完结束

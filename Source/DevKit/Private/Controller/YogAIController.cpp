@@ -3,7 +3,6 @@
 
 #include "Controller/YogAIController.h"
 
-#include "BehaviorTree/BehaviorTree.h"
 #include "BehaviorTree/BlackboardData.h"
 #include "BehaviorTree/BlackboardComponent.h"
 #include "BrainComponent.h"
@@ -152,41 +151,9 @@ namespace
 AYogAIController::AYogAIController(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UCrowdFollowingComponent>(TEXT("PathFollowingComponent")))
 {
-    BehaviorTreeComponent = CreateDefaultSubobject<UBehaviorTreeComponent>(TEXT("YogBT"));
     BlackboardComponent = CreateDefaultSubobject<UBlackboardComponent>(TEXT("YogBB"));
 	StateTreeComponent = CreateDefaultSubobject<UStateTreeAIComponent>(TEXT("YogStateTree"));
 	StateTreeComponent->SetStartLogicAutomatically(false);
-}
-
-bool AYogAIController::RunBTWithBlackboard(UBehaviorTree* BT, UBlackboardData* BB)
-{
-    if (!BT)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[YogAIController] RunBTWithBlackboard FAIL: BT is null"));
-        return false;
-    }
-	bool bInitializedPatrol = false;
-    // 1) 先绑黑板（绕开 BT 内部 BlackboardAsset 断链）
-    if (BB && BlackboardComponent)
-    {
-        const bool bUsed = UseBlackboard(BB, BlackboardComponent);
-        UE_LOG(LogTemp, Warning, TEXT("[YogAIController] UseBlackboard(%s) -> %d"),
-            *BB->GetName(), bUsed ? 1 : 0);
-		if (bUsed)
-		{
-			InitializePatrolState();
-			bInitializedPatrol = true;
-		}
-    }
-    // 2) 启动 BT（RunBehaviorTree 内部如果发现 BB 已绑会复用，不会覆盖）
-    const bool bRan = RunBehaviorTree(BT);
-    UE_LOG(LogTemp, Warning, TEXT("[YogAIController] RunBehaviorTree(%s) -> %d"),
-        *BT->GetName(), bRan ? 1 : 0);
-	if (!bInitializedPatrol && bRan)
-	{
-		InitializePatrolState();
-	}
-    return bRan;
 }
 
 bool AYogAIController::RunStateTreeWithBlackboard(UStateTree* StateTree, UBlackboardData* BB)
@@ -222,11 +189,6 @@ bool AYogAIController::RunStateTreeWithBlackboard(UStateTree* StateTree, UBlackb
 		}
 	}
 
-	if (BehaviorTreeComponent && BehaviorTreeComponent->IsRunning())
-	{
-		BehaviorTreeComponent->StopTree(EBTStopMode::Safe);
-	}
-
 	StateTreeComponent->SetStateTree(StateTree);
 	BrainComponent = StateTreeComponent;
 	InitializePatrolState();
@@ -249,35 +211,13 @@ void AYogAIController::OnPossess(APawn* InPawn)
 	{
 		if (EnemyData->StateTree)
 		{
-			UBlackboardData* StateTreeBlackboard = EnemyData->StateTreeBlackboard;
-			if (!StateTreeBlackboard && EnemyData->BehaviorTree)
-			{
-				StateTreeBlackboard = EnemyData->BehaviorTree->BlackboardAsset;
-			}
-			if (!StateTreeBlackboard)
-			{
-				StateTreeBlackboard = FallbackBlackboard;
-			}
+			UBlackboardData* StateTreeBlackboard = EnemyData->StateTreeBlackboard
+				? EnemyData->StateTreeBlackboard
+				: FallbackBlackboard;
 
-			if (RunStateTreeWithBlackboard(EnemyData->StateTree, StateTreeBlackboard))
-			{
-				return;
-			}
+			RunStateTreeWithBlackboard(EnemyData->StateTree, StateTreeBlackboard);
 		}
 	}
-
-	// StateTree is the active AI runtime path now.
-	// Keep the old BT startup helper around only as deprecated compatibility code.
-	// if (EnemyData->BehaviorTree)
-	// {
-	// 	RunBTWithBlackboard(EnemyData->BehaviorTree, EnemyData->BehaviorTree->BlackboardAsset);
-	// 	return;
-	// }
-	//
-	// if (bUseFallbackStartup && FallbackBehaviorTree)
-	// {
-	// 	RunBTWithBlackboard(FallbackBehaviorTree, FallbackBlackboard);
-	// }
 }
 
 UEnemyData* AYogAIController::GetPossessedEnemyData() const

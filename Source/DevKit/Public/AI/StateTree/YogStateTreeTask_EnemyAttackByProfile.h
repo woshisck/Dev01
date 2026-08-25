@@ -12,7 +12,7 @@ class UAbilitySystemComponent;
 class AYogCharacterBase;
 
 // ─── Enemy Attack By Profile ────────────────────────────────────────────────
-// Port of UBTTask_EnemyAttackByProfile. Weighted-random-selects an attack from
+// Weighted-random-selects an attack from
 // EnemyData.AttackProfile matching RequiredAttackRole, respecting range / health
 // / cooldown / movement-attack gates, activates the chosen GA, and stays Running
 // until it ends. Reuses AYogAIController's cooldown / combat bookkeeping.

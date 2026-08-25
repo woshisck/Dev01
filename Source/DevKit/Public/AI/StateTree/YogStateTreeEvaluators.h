@@ -9,7 +9,7 @@ class AAIController;
 class AActor;
 
 // ─── Enemy Awareness ────────────────────────────────────────────────────────
-// Mirrors UBTService_UpdateEnemyAwareness. Each tick it drives
+// Each tick it drives
 // AYogAIController::UpdateAwarenessBlackboard (perception, alert timers, state
 // transitions) using the controller's own BlackboardComponent, then re-exposes
 // the resulting state/target as StateTree output properties so conditions and
@@ -66,7 +66,7 @@ private:
 };
 
 // ─── Enemy Combat Move ──────────────────────────────────────────────────────
-// Mirrors UBTService_UpdateEnemyCombatMove. Drives
+// Drives
 // AYogAIController::UpdateCombatMoveBlackboard and re-exposes the move target,
 // distance, in-range flag and acceptance radius as outputs. Bind the built-in
 // "Move To" task's Destination to MoveTargetLocation.

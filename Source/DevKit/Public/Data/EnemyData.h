@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
-#include "BehaviorTree/BehaviorTree.h"
 #include "GameplayTagContainer.h"
 #include "AbilitySystem/Abilities/YogGameplayAbility.h"
 #include "Data/CharacterData.h"
@@ -123,7 +122,7 @@ enum class EEnemyAIAttackRole : uint8
 	Skill           UMETA(DisplayName = "Skill"),
 	// No-damage movement option (e.g. a whiff reposition feint): dashes to a flank
 	// instead of toward the target, never reports a whiff, and clears the whiff flag
-	// when used. Selected by a dedicated BTTask_EnemyAttackByProfile branch.
+	// when used. Selected by a dedicated attack-by-profile branch.
 	Reposition      UMETA(DisplayName = "Reposition"),
 };
 
@@ -305,8 +304,8 @@ struct DEVKIT_API FEnemyAIAttackProfile
 	float RepeatAttackWeightMultiplier = 0.25f;
 
 	// Probability that a whiffed (missed) damaging attack flags a reposition response on
-	// the blackboard. 1 = always reposition on a miss, 0 = never. The BT reads
-	// bLastAttackWhiffed; this keeps the randomness designer-tunable without a BT node.
+	// the blackboard. 1 = always reposition on a miss, 0 = never. The StateTree reads
+	// bLastAttackWhiffed; this keeps the randomness designer-tunable without a dedicated node.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Attack|Selection", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float WhiffRepositionChance = 1.0f;
 };
@@ -397,17 +396,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Weapon")
 	TArray<TObjectPtr<UEnemyWeaponDefinition>> AllowedWeaponDefinitions;
 
-	// 此敌人使用的行为树（留空则使用 AIController 默认行为树）
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|AI")
-	TObjectPtr<UBehaviorTree> BehaviorTree;
-
-	// Optional StateTree AI asset. YogAIController starts this before falling back
-	// to BehaviorTree, so existing enemies keep working while StateTree assets migrate in.
+	// StateTree AI asset this enemy runs. YogAIController starts it on possession.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|AI")
 	TObjectPtr<UStateTree> StateTree;
 
-	// Blackboard used by Yog StateTree evaluators/tasks. Leave empty to reuse the
-	// BehaviorTree blackboard or the AIController fallback blackboard.
+	// Blackboard used by Yog StateTree evaluators/tasks. Leave empty to fall back to
+	// the AIController's FallbackBlackboard.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|AI")
 	TObjectPtr<UBlackboardData> StateTreeBlackboard;
 

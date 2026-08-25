@@ -1,10 +1,6 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Misc/AutomationTest.h"
-#include "AI/BTTask_EnemyAttackByProfile.h"
-#include "AI/BTTask_EnemyCombatMove.h"
-#include "BehaviorTree/BTCompositeNode.h"
-#include "BehaviorTree/BehaviorTree.h"
 #include "BehaviorTree/BlackboardData.h"
 #include "Data/AbilityData.h"
 #include "Data/EnemyData.h"
@@ -35,17 +31,15 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEnemyAIDefaultTemplateTest,
 bool FEnemyAIDefaultTemplateTest::RunTest(const FString& Parameters)
 {
 	UBlackboardData* Blackboard = LoadTestAsset<UBlackboardData>(TEXT("/Game/Code/Enemy/AI/BlackBoard/BB_Enemy_DefaultMelee.BB_Enemy_DefaultMelee"));
-	UBehaviorTree* BehaviorTree = LoadTestAsset<UBehaviorTree>(TEXT("/Game/Code/Enemy/AI/Behaviour/BT_Enemy_DefaultMelee.BT_Enemy_DefaultMelee"));
 	UStateTree* StateTree = LoadTestAsset<UStateTree>(TEXT("/Game/Code/Enemy/AI/StateTree/ST_Enemy_DefaultMelee.ST_Enemy_DefaultMelee"));
 	UEnemyData* RatData = LoadTestAsset<UEnemyData>(TEXT("/Game/Docs/Data/Enemy/Rat/DA_Rat.DA_Rat"));
 	UEnemyData* RottenGuardData = LoadTestAsset<UEnemyData>(TEXT("/Game/Docs/Data/Enemy/RottenGuard/DA_RottenGuard.DA_RottenGuard"));
 
 	TestNotNull(TEXT("Default melee blackboard exists"), Blackboard);
-	TestNotNull(TEXT("Default melee behavior tree exists"), BehaviorTree);
 	TestNotNull(TEXT("Default melee state tree exists"), StateTree);
 	TestNotNull(TEXT("DA_Rat exists"), RatData);
 	TestNotNull(TEXT("DA_RottenGuard exists"), RottenGuardData);
-	if (!Blackboard || !BehaviorTree || !StateTree || !RatData || !RottenGuardData)
+	if (!Blackboard || !StateTree || !RatData || !RottenGuardData)
 	{
 		return false;
 	}
@@ -73,57 +67,10 @@ bool FEnemyAIDefaultTemplateTest::RunTest(const FString& Parameters)
 		TestTrue(FString::Printf(TEXT("Blackboard contains key %s"), *KeyName.ToString()), Blackboard->GetKeyID(KeyName) != FBlackboard::InvalidKey);
 	}
 
-	TestEqual(TEXT("Behavior tree uses generated blackboard"), BehaviorTree->BlackboardAsset.Get(), Blackboard);
-	TestNotNull(TEXT("Behavior tree has root node"), BehaviorTree->RootNode.Get());
-	const UBTCompositeNode* MainSelector = BehaviorTree->RootNode.Get();
-	const UBTCompositeNode* CombatSelector = nullptr;
-	if (MainSelector)
-	{
-		TestTrue(TEXT("Behavior tree main selector has combat child"), MainSelector->Children.Num() >= 1);
-		CombatSelector = MainSelector->Children.IsValidIndex(0) ? MainSelector->Children[0].ChildComposite : nullptr;
-	}
-	TestNotNull(TEXT("Combat branch is a selector child"), CombatSelector);
-	if (CombatSelector)
-	{
-		TestTrue(TEXT("Combat branch has reposition, skill, special, close, and move children"), CombatSelector->Children.Num() >= 5);
-		if (CombatSelector->Children.Num() >= 5)
-		{
-			const UBTTask_EnemyAttackByProfile* RepositionTask = Cast<UBTTask_EnemyAttackByProfile>(CombatSelector->Children[0].ChildTask);
-			const UBTTask_EnemyAttackByProfile* SkillTask = Cast<UBTTask_EnemyAttackByProfile>(CombatSelector->Children[1].ChildTask);
-			const UBTTask_EnemyAttackByProfile* SpecialTask = Cast<UBTTask_EnemyAttackByProfile>(CombatSelector->Children[2].ChildTask);
-			const UBTTask_EnemyAttackByProfile* CloseTask = Cast<UBTTask_EnemyAttackByProfile>(CombatSelector->Children[3].ChildTask);
-			const UBTTask_EnemyCombatMove* MoveTask = Cast<UBTTask_EnemyCombatMove>(CombatSelector->Children[4].ChildTask);
-			TestNotNull(TEXT("Combat child 0 is reposition attack task"), RepositionTask);
-			TestNotNull(TEXT("Combat child 1 is skill attack task"), SkillTask);
-			TestNotNull(TEXT("Combat child 2 is special movement attack task"), SpecialTask);
-			TestNotNull(TEXT("Combat child 3 is close melee attack task"), CloseTask);
-			TestNotNull(TEXT("Combat child 4 is combat move task"), MoveTask);
-			if (RepositionTask)
-			{
-				TestEqual(TEXT("Combat child 0 role is Reposition"), RepositionTask->GetRequiredAttackRole(), EEnemyAIAttackRole::Reposition);
-			}
-			if (SkillTask)
-			{
-				TestEqual(TEXT("Combat child 1 role is Skill"), SkillTask->GetRequiredAttackRole(), EEnemyAIAttackRole::Skill);
-			}
-			if (SpecialTask)
-			{
-				TestEqual(TEXT("Combat child 2 role is SpecialMovement"), SpecialTask->GetRequiredAttackRole(), EEnemyAIAttackRole::SpecialMovement);
-			}
-			if (CloseTask)
-			{
-				TestEqual(TEXT("Combat child 3 role is CloseMelee"), CloseTask->GetRequiredAttackRole(), EEnemyAIAttackRole::CloseMelee);
-			}
-		}
-	}
-	// The enemies run on the StateTree; BehaviorTree is retired but BT_Enemy_DefaultMelee
-	// is still generated above so reassigning it by hand rolls the migration back.
 	TestEqual(TEXT("DA_Rat uses default melee state tree"), RatData->StateTree.Get(), StateTree);
 	TestEqual(TEXT("DA_RottenGuard uses default melee state tree"), RottenGuardData->StateTree.Get(), StateTree);
 	TestEqual(TEXT("DA_Rat uses default melee state tree blackboard"), RatData->StateTreeBlackboard.Get(), Blackboard);
 	TestEqual(TEXT("DA_RottenGuard uses default melee state tree blackboard"), RottenGuardData->StateTreeBlackboard.Get(), Blackboard);
-	TestNull(TEXT("DA_Rat has retired its behavior tree"), RatData->BehaviorTree.Get());
-	TestNull(TEXT("DA_RottenGuard has retired its behavior tree"), RottenGuardData->BehaviorTree.Get());
 	TestEqual(TEXT("DA_Rat starts with swarm flank movement"), RatData->MovementTuning.ApproachStyle, EEnemyAIApproachStyle::SwarmFlank);
 	TestEqual(TEXT("DA_Rat attack range is configured"), RatData->MovementTuning.AttackRange, 150.0f);
 	TestEqual(TEXT("DA_Rat locks combat slot briefly"), RatData->MovementTuning.CombatSlotLockDuration, 1.2f);

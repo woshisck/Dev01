@@ -20,7 +20,6 @@
 #include "Component/MontageVFXBindingComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Item/Weapon/WeaponInstance.h"
-#include "BehaviorTree/BehaviorTreeComponent.h"
 #include "BrainComponent.h"
 
 namespace
@@ -450,8 +449,8 @@ void AEnemyCharacterBase::Die()
 
 	Super::Die();
 
-	// 关闭 AI：停止 BT、停止移动、清除焦点、关掉自动朝向，防止尸体仍然朝玩家转向
-	// Super::Die() 已关闭胶囊碰撞但不会停 AI；BT 仍会下发 MoveTo，CMC.Velocity 不为 0 时
+	// 关闭 AI：停止 StateTree、停止移动、清除焦点、关掉自动朝向，防止尸体仍然朝玩家转向
+	// Super::Die() 已关闭胶囊碰撞但不会停 AI；StateTree 仍会下发 MoveTo，CMC.Velocity 不为 0 时
 	// bOrientRotationToMovement 会把死掉的角色继续旋转去对着玩家。
 	if (AYogAIController* YogAI = Cast<AYogAIController>(GetController()))
 	{

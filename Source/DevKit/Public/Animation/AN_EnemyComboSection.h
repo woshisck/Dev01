@@ -15,7 +15,7 @@
  *   1. 在攻击蒙太奇中创建多个节，如 Atk1、Atk2、Atk3
  *   2. 在 Atk1 快结束时放本 Notify，设 NextSection = Atk2
  *   3. 在 Atk2 快结束时放本 Notify，设 NextSection = Atk3
- *   4. Atk3 末尾不放 Notify → 蒙太奇自然结束 → GA 结束 → BT Task 返回 Succeeded
+ *   4. Atk3 末尾不放 Notify → 蒙太奇自然结束 → GA 结束 → StateTree Task 返回 Succeeded
  *
  * NextSection 留空时 Notify 不执行任何操作（安全降级）。
  */

@@ -18,7 +18,7 @@
 
 namespace
 {
-	// Local candidate mirrors UBTTask_EnemyAttackByProfile::FAttackCandidate.
+	// Candidate attack considered during weighted selection.
 	struct FAttackCandidate
 	{
 		int32 AttackIndex = INDEX_NONE;

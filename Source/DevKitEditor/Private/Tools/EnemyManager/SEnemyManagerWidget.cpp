@@ -22,6 +22,7 @@
 #include "PropertyCustomizationHelpers.h"
 #include "PropertyEditorDelegates.h"
 #include "PropertyEditorModule.h"
+#include "StateTree.h"
 #include "Styling/AppStyle.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Tools/EnemyManager/EnemyDataActorFactory.h"
@@ -869,9 +870,9 @@ TSharedRef<SWidget> SEnemyManagerWidget::BuildValidationPanel()
 			{
 				AddMessage(LOCTEXT("ValidationMissingAbility", "警告：未配置 AbilityData，敌人攻击蒙太奇与动作映射可能缺失。"), WarningColor, false);
 			}
-			if (!Enemy->BehaviorTree && !Enemy->bTestOnly)
+			if (!Enemy->StateTree && !Enemy->bTestOnly)
 			{
-				AddMessage(LOCTEXT("ValidationMissingBehaviorTree", "警告：未配置行为树，敌人可能不会执行战斗逻辑。"), WarningColor, false);
+				AddMessage(LOCTEXT("ValidationMissingStateTree", "警告：未配置 StateTree，敌人可能不会执行战斗逻辑。"), WarningColor, false);
 			}
 			if (!Enemy->DefaultWeaponDefinition && !Enemy->bTestOnly)
 			{
@@ -1383,7 +1384,8 @@ bool SEnemyManagerWidget::IsPropertyVisible(const FPropertyAndParent& PropertyAn
 		});
 	case EEnemyManagerPage::AIAndCombat:
 		return MatchesAny({
-			GET_MEMBER_NAME_CHECKED(UEnemyData, BehaviorTree),
+			GET_MEMBER_NAME_CHECKED(UEnemyData, StateTree),
+			GET_MEMBER_NAME_CHECKED(UEnemyData, StateTreeBlackboard),
 			GET_MEMBER_NAME_CHECKED(UEnemyData, DefaultWeaponDefinition),
 			GET_MEMBER_NAME_CHECKED(UEnemyData, AllowedWeaponDefinitions),
 			GET_MEMBER_NAME_CHECKED(UEnemyData, EnemyBuffPool),
@@ -1999,7 +2001,7 @@ void SEnemyManagerWidget::CountValidationIssues(
 	{
 		++OutWarnings;
 	}
-	if (bStrictGameplayValidation && !Enemy->BehaviorTree)
+	if (bStrictGameplayValidation && !Enemy->StateTree)
 	{
 		++OutWarnings;
 	}
@@ -2146,7 +2148,7 @@ FText SEnemyManagerWidget::GetDependencySummary() const
 	const FString AbilityDataName = Enemy->AbilityData ? Enemy->AbilityData->GetName() : TEXT("未配置");
 	const FString GasTemplateName = Enemy->GasTemplate ? Enemy->GasTemplate->GetName() : TEXT("未配置");
 	const FString WeaponName = Enemy->DefaultWeaponDefinition ? Enemy->DefaultWeaponDefinition->GetName() : TEXT("未配置");
-	const FString BehaviorTreeName = Enemy->BehaviorTree ? Enemy->BehaviorTree->GetName() : TEXT("未配置");
+	const FString StateTreeName = Enemy->StateTree ? Enemy->StateTree->GetName() : TEXT("未配置");
 	const FString AttributeRow = Enemy->YogBaseAttributeDataRow.RowName.IsNone()
 		? TEXT("未配置")
 		: Enemy->YogBaseAttributeDataRow.RowName.ToString();
@@ -2157,14 +2159,14 @@ FText SEnemyManagerWidget::GetDependencySummary() const
 	return FText::Format(
 		LOCTEXT(
 			"DependencySummary",
-			"BP：{0}　属性行：{1}　移动行：{2}\nAbilityData：{3}　GASTemplate：{4}\n武器：{5}　行为树：{6}　击杀奖励条目：{7}"),
+			"BP：{0}　属性行：{1}　移动行：{2}\nAbilityData：{3}　GASTemplate：{4}\n武器：{5}　StateTree：{6}　击杀奖励条目：{7}"),
 		FText::FromString(EnemyClassName),
 		FText::FromString(AttributeRow),
 		FText::FromString(MovementRow),
 		FText::FromString(AbilityDataName),
 		FText::FromString(GasTemplateName),
 		FText::FromString(WeaponName),
-		FText::FromString(BehaviorTreeName),
+		FText::FromString(StateTreeName),
 		FText::AsNumber(Enemy->KillRewards.Num()));
 }
 

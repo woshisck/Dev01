@@ -19,7 +19,7 @@ class UMaterialInterface;
 class UStoryEncounterPointDA;
 
 // ─── Activate Ability By Tag ────────────────────────────────────────────────
-// Mirrors UBTTask_ActivateAbilityByTag. Filters the requested tags down to the
+// Filters the requested tags down to the
 // abilities the pawn's AbilityData actually owns, activates a random matching
 // GA, and stays Running until that GA ends (or completes immediately when the
 // GA has no montage). Optionally drives the pre-attack flash for its duration.
@@ -86,7 +86,7 @@ struct DEVKIT_API FStateTreeTask_PlayDead : public FStateTreeAIActionTaskBase
 };
 
 // ─── Update Enemy Patrol Target ─────────────────────────────────────────────
-// Mirrors UBTTask_UpdateEnemyPatrolTarget. Picks a random reachable point
+// Picks a random reachable point
 // within EnemyData.AwarenessTuning.PatrolRadius of the patrol origin and writes
 // it to the PatrolTargetLocation output (bind the Move To task to it).
 
@@ -169,7 +169,7 @@ struct DEVKIT_API FStateTreeTask_SpawnMobInReachableNavMesh : public FStateTreeA
 };
 
 // ─── Enemy Patrol Wait ──────────────────────────────────────────────────────
-// Mirrors UBTTask_EnemyPatrolWait. Waits a random duration within
+// Waits a random duration within
 // EnemyData.AwarenessTuning PatrolWaitMin/PatrolWaitMax, then succeeds.
 
 USTRUCT()
@@ -284,7 +284,7 @@ struct DEVKIT_API FStateTreeTask_BossDyingReaction : public FStateTreeAIActionTa
 
 // ─── Move To Controller Target ──────────────────────────────────────────────
 // Issues a nav MoveTo toward a location read from the controller's blackboard
-// (DestinationKey). Mirrors the BT "Move To" for patrol / alert without needing
+// (DestinationKey). Move-to for patrol / alert without needing
 // StateTree property bindings: the destination is sourced from the controller,
 // consistent with the other Yog StateTree tasks. Stays Running until the move
 // request finishes, so it can run in parallel with the wait task on a state.
@@ -325,7 +325,7 @@ struct DEVKIT_API FStateTreeTask_MoveToControllerTarget : public FStateTreeAIAct
 };
 
 // ─── Enemy Combat Move ──────────────────────────────────────────────────────
-// Port of UBTTask_EnemyCombatMove. Chases the combat slot that the "Update Enemy
+// Chases the combat slot that the "Update Enemy
 // Combat Move" evaluator writes to the blackboard, repathing as the slot drifts,
 // and succeeds once the pawn is in attack range. Unlike Move To Controller Target
 // this re-issues the move on a timer rather than waiting on a single path request,

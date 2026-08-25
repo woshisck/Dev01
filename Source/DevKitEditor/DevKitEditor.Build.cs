@@ -86,9 +86,7 @@ public class DevKitEditor : ModuleRules
 				"SourceControl",
 				"CommonUI",
 				"Chaos",
-                "AIModule", // Add this line
-				"BehaviorTreeEditor",
-				"AIGraph",
+                "AIModule",
 				// 符文管理器工具依赖
 				"PropertyEditor",
 				"AssetRegistry",

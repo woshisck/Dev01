@@ -5,8 +5,6 @@
 #include "CoreMinimal.h"
 #include "Character/YogCharacterBase.h"
 #include "AbilitySystem/Attribute/EnemyAttributeSet.h"
-#include "BehaviorTree/BlackboardData.h"
-#include "BehaviorTree/BehaviorTree.h"
 
 #include "Data/EnemyData.h"
 #include "EnemyCharacterBase.generated.h"

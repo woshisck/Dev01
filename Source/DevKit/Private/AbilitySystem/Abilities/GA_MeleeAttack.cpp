@@ -835,7 +835,7 @@ void UGA_MeleeAttack::TryStartEnemyRadialLunge()
 	const FEnemyAIAttackOption& AttackOption = ActiveEnemyAttackContext.AttackOption;
 	const bool bReposition = AttackOption.AttackRole == EEnemyAIAttackRole::Reposition;
 	// Reposition options drive the dash through their role rather than a movement mode,
-	// so they bypass the BT movement-attack cooldown machinery.
+	// so they bypass the AI movement-attack cooldown machinery.
 	if (!bReposition && AttackOption.AttackMovementMode != EEnemyAIAttackMovementMode::RadialLunge)
 	{
 		return;
@@ -1490,7 +1490,7 @@ void UGA_MeleeAttack::EndAbility(
 		}
 	}
 
-	// Report whiff/connect outcome for enemy AI profile attacks so the BT can react
+	// Report whiff/connect outcome for enemy AI profile attacks so the StateTree can react
 	// (e.g. reposition on a miss). ActiveEnemyAttackContext is only valid for AI-driven
 	// attacks; bComboHitConnected is reset on activation and set true on any landed hit.
 	if (!bWasCancelled && ActiveEnemyAttackContext.bValid)
