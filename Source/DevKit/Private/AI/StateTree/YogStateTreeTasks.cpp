@@ -14,6 +14,7 @@
 #include "Data/EnemyData.h"
 #include "GameModes/YogGameMode.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Engine/Engine.h"
 #include "Engine/GameInstance.h"
 #include "Mob/MobSpawner.h"
 #include "NavigationSystem.h"
@@ -784,4 +785,31 @@ bool FStateTreeTask_EnemyCombatMove::IssueMove(
 	// A failed MoveTo request must not fail the task. If it does, the combat state
 	// re-selects every attack branch and can starve movement entirely while spamming logs.
 	return true;
+}
+
+// ─── Debug Print ────────────────────────────────────────────────────────────
+
+FStateTreeTask_DebugPrint::FStateTreeTask_DebugPrint()
+{
+	bShouldCallTick = false;
+}
+
+EStateTreeRunStatus FStateTreeTask_DebugPrint::EnterState(
+	FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& /*Transition*/) const
+{
+	const FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+
+	const FString Line = FString::Printf(
+		TEXT("%s | Actor=%s"),
+		*InstanceData.Message,
+		*GetNameSafe(InstanceData.ReferenceActor));
+
+	UE_LOG(LogTemp, Log, TEXT("[StateTree] %s"), *Line);
+
+	if (InstanceData.bPrintToScreen && GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(INDEX_NONE, InstanceData.ScreenDuration, FColor::Cyan, Line);
+	}
+
+	return EStateTreeRunStatus::Succeeded;
 }

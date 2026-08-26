@@ -7,6 +7,8 @@
 #include "BehaviorTree/BlackboardComponent.h"
 #include "Character/YogCharacterBase.h"
 #include "Controller/YogAIController.h"
+#include "GameFramework/Controller.h"
+#include "GameFramework/Pawn.h"
 #include "Kismet/GameplayStatics.h"
 #include "StateTreeExecutionContext.h"
 
@@ -108,4 +110,29 @@ bool FStateTreeCondition_EnemyPostAttackReposition::TestCondition(FStateTreeExec
 	const AAIController* AIC = InstanceData.AIController;
 	const UBlackboardComponent* Blackboard = AIC ? AIC->GetBlackboardComponent() : nullptr;
 	return Blackboard && Blackboard->GetValueAsBool(InstanceData.bPostAttackRepositionKey);
+}
+
+bool FStateTreeCondition_TargetWithin2DDistance::TestCondition(FStateTreeExecutionContext& Context) const
+{
+	const FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+	if (!InstanceData.Actor || !InstanceData.Target)
+	{
+		return false;
+	}
+
+	// Under StateTreeComponentSchema the Actor context resolves to the AIController,
+	// whose own location never follows its pawn. Step down to the pawn so the
+	// measurement is taken from the body rather than the controller's spawn point.
+	const AActor* Self = InstanceData.Actor;
+	if (const AController* SelfController = Cast<AController>(Self))
+	{
+		Self = SelfController->GetPawn();
+	}
+	if (!Self)
+	{
+		return false;
+	}
+
+	const float Distance2D = FVector::Dist2D(Self->GetActorLocation(), InstanceData.Target->GetActorLocation());
+	return Distance2D <= InstanceData.Distance;
 }

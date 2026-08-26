@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "AITypes.h"
+#include "StateTreeTaskBase.h"
 #include "Tasks/StateTreeAITask.h"
 #include "GameplayTagContainer.h"
 #include "GameplayEffectTypes.h"
@@ -381,4 +382,43 @@ struct DEVKIT_API FStateTreeTask_EnemyCombatMove : public FStateTreeAIActionTask
 
 private:
 	bool IssueMove(FInstanceDataType& InstanceData, bool bTargetMoved, float RepathInterval) const;
+};
+
+// ─── Debug Print ────────────────────────────────────────────────────────────
+// Logs a message on state enter and succeeds immediately, so the owning state
+// completes and its OnStateCompleted transition fires. Derives from the common
+// task base rather than FStateTreeAIActionTaskBase so it stays selectable under
+// StateTreeComponentSchema, which rejects FStateTreeAITaskBase structs.
+
+USTRUCT()
+struct FStateTreeTask_DebugPrintInstanceData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = Parameter)
+	FString Message = TEXT("Enter Idle state");
+
+	UPROPERTY(EditAnywhere, Category = Parameter)
+	bool bPrintToScreen = true;
+
+	UPROPERTY(EditAnywhere, Category = Parameter, meta = (ClampMin = "0.0"))
+	float ScreenDuration = 2.0f;
+
+	// Optional: bind to an evaluator output to see whether it actually resolved.
+	// Appended to the message as "Actor=<name>", or "Actor=None" when unbound or null.
+	UPROPERTY(EditAnywhere, Category = Input, meta = (Optional))
+	TObjectPtr<AActor> ReferenceActor = nullptr;
+};
+
+USTRUCT(meta = (DisplayName = "Debug Print", Category = "Yog|AI"))
+struct DEVKIT_API FStateTreeTask_DebugPrint : public FStateTreeTaskCommonBase
+{
+	GENERATED_BODY()
+
+	using FInstanceDataType = FStateTreeTask_DebugPrintInstanceData;
+
+	FStateTreeTask_DebugPrint();
+
+	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
+	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
 };

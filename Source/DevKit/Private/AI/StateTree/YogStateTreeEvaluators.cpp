@@ -3,6 +3,8 @@
 #include "AIController.h"
 #include "BehaviorTree/BlackboardComponent.h"
 #include "Controller/YogAIController.h"
+#include "GameFramework/Pawn.h"
+#include "Kismet/GameplayStatics.h"
 #include "StateTreeExecutionContext.h"
 
 void FStateTreeEvaluator_EnemyAwareness::TreeStart(FStateTreeExecutionContext& Context) const
@@ -69,4 +71,25 @@ void FStateTreeEvaluator_EnemyCombatMove::Tick(FStateTreeExecutionContext& Conte
 	InstanceData.DistanceToTarget = Blackboard->GetValueAsFloat(InstanceData.DistanceToTargetKey);
 	InstanceData.bInAttackRange = Blackboard->GetValueAsBool(InstanceData.bInAttackRangeKey);
 	InstanceData.AcceptanceRadius = Blackboard->GetValueAsFloat(InstanceData.AcceptanceRadiusKey);
+}
+
+void FStateTreeEvaluator_PlayerReference::TreeStart(FStateTreeExecutionContext& Context) const
+{
+	// Populate before the first state selection so enter conditions bound to
+	// PlayerPawn do not see null on the first frame.
+	Refresh(Context);
+}
+
+void FStateTreeEvaluator_PlayerReference::Tick(FStateTreeExecutionContext& Context, const float /*DeltaTime*/) const
+{
+	Refresh(Context);
+}
+
+void FStateTreeEvaluator_PlayerReference::Refresh(FStateTreeExecutionContext& Context) const
+{
+	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+
+	InstanceData.PlayerPawn = InstanceData.Actor
+		? UGameplayStatics::GetPlayerPawn(InstanceData.Actor, InstanceData.PlayerIndex)
+		: nullptr;
 }

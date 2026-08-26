@@ -1,11 +1,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "StateTreeConditionBase.h"
 #include "Conditions/StateTreeAIConditionBase.h"
 #include "Data/EnemyData.h"
 #include "YogStateTreeConditions.generated.h"
 
 class AAIController;
+class AActor;
 
 // ─── Enemy AI State ─────────────────────────────────────────────────────────
 // Passes when the controller's current
@@ -169,6 +171,39 @@ struct DEVKIT_API FStateTreeCondition_EnemyPostAttackReposition : public FStateT
 	GENERATED_BODY()
 
 	using FInstanceDataType = FStateTreeCondition_EnemyPostAttackRepositionInstanceData;
+
+	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
+	virtual bool TestCondition(FStateTreeExecutionContext& Context) const override;
+};
+
+// ─── Target Within 2D Distance ──────────────────────────────────────────────
+// Passes when Target is within Distance of the tree owner, measured on XY only
+// so height difference is ignored. Put it on an OnTick transition to leave a
+// state the moment the player closes in. Derives from the common condition base
+// so it also works under StateTreeComponentSchema.
+
+USTRUCT()
+struct FStateTreeCondition_TargetWithin2DDistanceInstanceData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = Context)
+	TObjectPtr<AActor> Actor = nullptr;
+
+	/** Bind to an evaluator output, e.g. Player Reference -> PlayerPawn. */
+	UPROPERTY(EditAnywhere, Category = Input, meta = (Optional))
+	TObjectPtr<AActor> Target = nullptr;
+
+	UPROPERTY(EditAnywhere, Category = Parameter, meta = (ClampMin = "0.0"))
+	float Distance = 100.0f;
+};
+
+USTRUCT(meta = (DisplayName = "Target Within 2D Distance", Category = "Yog|AI"))
+struct DEVKIT_API FStateTreeCondition_TargetWithin2DDistance : public FStateTreeConditionCommonBase
+{
+	GENERATED_BODY()
+
+	using FInstanceDataType = FStateTreeCondition_TargetWithin2DDistanceInstanceData;
 
 	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
 	virtual bool TestCondition(FStateTreeExecutionContext& Context) const override;

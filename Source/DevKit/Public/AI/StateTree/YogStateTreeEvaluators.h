@@ -7,6 +7,7 @@
 
 class AAIController;
 class AActor;
+class APawn;
 
 // ─── Enemy Awareness ────────────────────────────────────────────────────────
 // Each tick it drives
@@ -117,4 +118,42 @@ struct DEVKIT_API FStateTreeEvaluator_EnemyCombatMove : public FStateTreeEvaluat
 
 	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
 	virtual void Tick(FStateTreeExecutionContext& Context, const float DeltaTime) const override;
+};
+
+// ─── Player Reference ───────────────────────────────────────────────────────
+// Publishes the local player pawn as a StateTree output every tick, with no
+// blackboard involved. Takes the schema's Actor context only as a world handle,
+// so it stays usable under StateTreeComponentSchema as well as the AI schema.
+// This is a raw lookup with no perception gating; use
+// FStateTreeEvaluator_EnemyAwareness when sight and detection radius matter.
+
+USTRUCT()
+struct FStateTreeEvaluator_PlayerReferenceInstanceData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = Context)
+	TObjectPtr<AActor> Actor = nullptr;
+
+	UPROPERTY(EditAnywhere, Category = Parameter, meta = (ClampMin = "0"))
+	int32 PlayerIndex = 0;
+
+	// Output (bind conditions / transitions / tasks to this).
+	UPROPERTY(EditAnywhere, Category = Output)
+	TObjectPtr<APawn> PlayerPawn = nullptr;
+};
+
+USTRUCT(meta = (DisplayName = "Player Reference", Category = "Yog|AI"))
+struct DEVKIT_API FStateTreeEvaluator_PlayerReference : public FStateTreeEvaluatorCommonBase
+{
+	GENERATED_BODY()
+
+	using FInstanceDataType = FStateTreeEvaluator_PlayerReferenceInstanceData;
+
+	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
+	virtual void TreeStart(FStateTreeExecutionContext& Context) const override;
+	virtual void Tick(FStateTreeExecutionContext& Context, const float DeltaTime) const override;
+
+private:
+	void Refresh(FStateTreeExecutionContext& Context) const;
 };
