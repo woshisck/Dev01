@@ -543,10 +543,18 @@ EStateTreeRunStatus FStateTreeTask_ChasePlayerUntilDistance::Tick(
 	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
 	AAIController* Controller = InstanceData.AIController;
 	APawn* Pawn = Controller ? Controller->GetPawn() : nullptr;
-	AActor* Player = Pawn ? UGameplayStatics::GetPlayerPawn(Pawn, 0) : nullptr;
-	if (!Controller || !Pawn || !Player)
+	if (!Controller || !Pawn)
 	{
 		return EStateTreeRunStatus::Failed;
+	}
+
+	// EnterState runs from OnPossess, which for preplaced pawns happens before the player
+	// pawn exists. Keep waiting instead of failing: ST_Debugger has no failure transition,
+	// so a single Failed halts the whole tree for this pawn permanently.
+	AActor* Player = UGameplayStatics::GetPlayerPawn(Pawn, 0);
+	if (!Player)
+	{
+		return EStateTreeRunStatus::Running;
 	}
 
 	const float Distance = FVector::Dist2D(Pawn->GetActorLocation(), Player->GetActorLocation());
@@ -558,15 +566,24 @@ EStateTreeRunStatus FStateTreeTask_ChasePlayerUntilDistance::Tick(
 
 	const UWorld* World = Controller->GetWorld();
 	const float Now = World ? World->GetTimeSeconds() : 0.0f;
-	if (Now - InstanceData.LastRequestTime >= InstanceData.RepathInterval)
+
+	// MoveToActor installs goal-actor observation (AIController::FindPathForMoveRequest), so the
+	// path already repaths itself as the player drifts. Only issue a request once the previous
+	// one has finished: re-issuing on a timer aborts and restarts path following every interval,
+	// which flips the chosen corridor at corners and reads as the pawn wiggling into geometry.
+	// RepathInterval now only throttles retries after a rejected request.
+	if (Controller->GetMoveStatus() == EPathFollowingStatus::Idle
+		&& Now - InstanceData.LastRequestTime >= InstanceData.RepathInterval)
 	{
+		InstanceData.LastRequestTime = Now;
 		const EPathFollowingRequestResult::Type Result = Controller->MoveToActor(
 			Player, InstanceData.AcceptanceRadius, true, true, true, nullptr, true);
 		if (Result == EPathFollowingRequestResult::Failed)
 		{
-			return EStateTreeRunStatus::Failed;
+			UE_LOG(LogTemp, Warning,
+				TEXT("[ChasePlayer] MoveToActor REJECTED for %s at %s (distance %.0f) - retrying"),
+				*GetNameSafe(Pawn), *Pawn->GetActorLocation().ToCompactString(), Distance);
 		}
-		InstanceData.LastRequestTime = Now;
 	}
 
 	return EStateTreeRunStatus::Running;
