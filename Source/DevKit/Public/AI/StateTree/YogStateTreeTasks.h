@@ -20,6 +20,27 @@ class UMaterialInterface;
 class UStoryEncounterPointDA;
 
 USTRUCT()
+struct FStateTreeTask_HoldPositionInstanceData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = Context)
+	TObjectPtr<AAIController> AIController = nullptr;
+};
+
+USTRUCT(meta = (DisplayName = "Hold Position", Category = "Yog|AI"))
+struct DEVKIT_API FStateTreeTask_HoldPosition : public FStateTreeAIActionTaskBase
+{
+	GENERATED_BODY()
+
+	using FInstanceDataType = FStateTreeTask_HoldPositionInstanceData;
+
+	FStateTreeTask_HoldPosition();
+	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
+	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
+};
+
+USTRUCT()
 struct FStateTreeTask_ChasePlayerUntilDistanceInstanceData
 {
 	GENERATED_BODY()

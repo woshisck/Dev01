@@ -500,6 +500,24 @@ EStateTreeRunStatus FStateTreeTask_EnemyPatrolWait::Tick(
 
 // ─── Move To Controller Target ──────────────────────────────────────────────
 
+FStateTreeTask_HoldPosition::FStateTreeTask_HoldPosition()
+{
+	bShouldCallTick = false;
+}
+
+EStateTreeRunStatus FStateTreeTask_HoldPosition::EnterState(
+	FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& /*Transition*/) const
+{
+	const FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+	if (!InstanceData.AIController)
+	{
+		return EStateTreeRunStatus::Failed;
+	}
+
+	InstanceData.AIController->StopMovement();
+	return EStateTreeRunStatus::Running;
+}
+
 FStateTreeTask_MoveToControllerTarget::FStateTreeTask_MoveToControllerTarget()
 {
 	// Completion is delegate-driven off the path-following request; no tick needed.

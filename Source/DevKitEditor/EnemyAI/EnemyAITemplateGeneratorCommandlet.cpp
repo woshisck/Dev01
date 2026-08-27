@@ -1023,9 +1023,13 @@ namespace EnemyAITemplateGenerator
 
 		UStateTreeState& InRange = Root.AddChildState(TEXT("In Range"));
 		InRange.SelectionBehavior = EStateTreeStateSelectionBehavior::TryEnterState;
+		InRange.TasksCompletion = EStateTreeTaskCompletionType::All;
 		TStateTreeEditorNode<FStateTreeCondition_TargetWithin2DDistance>& InRangeCondition =
 			InRange.AddEnterCondition<FStateTreeCondition_TargetWithin2DDistance>();
-		InRangeCondition.GetInstanceData().Distance = 100.0f;
+		InRangeCondition.GetInstanceData().Distance = 1500.0f;
+		TStateTreeEditorNode<FStateTreeTask_HoldPosition>& HoldTask =
+			InRange.AddTask<FStateTreeTask_HoldPosition>();
+		HoldTask.SetNodeName(TEXT("Hold Until Player > 1500"));
 
 		UStateTreeState& Chase = Root.AddChildState(TEXT("Chase Player"));
 		Chase.SelectionBehavior = EStateTreeStateSelectionBehavior::TryEnterState;
@@ -1041,7 +1045,7 @@ namespace EnemyAITemplateGenerator
 			EStateTreeTransitionTrigger::OnTick, EStateTreeTransitionType::GotoState, &Chase);
 		TStateTreeEditorNode<FStateTreeCondition_TargetBeyond2DDistance>& BeyondCondition =
 			LeaveRange.AddConditionWithOuter<FStateTreeCondition_TargetBeyond2DDistance>(&InRange);
-		BeyondCondition.GetInstanceData().Distance = 100.0f;
+		BeyondCondition.GetInstanceData().Distance = 1500.0f;
 
 		EditorData->AddPropertyBinding(
 			FPropertyBindingPath(PlayerReference.ID, GET_MEMBER_NAME_CHECKED(FStateTreeEvaluator_PlayerReferenceInstanceData, PlayerPawn)),
@@ -1062,7 +1066,7 @@ namespace EnemyAITemplateGenerator
 		}
 		else
 		{
-			ReportLines.Add(TEXT("- Rebuilt ST_Debugger as standalone chase-until-100 test tree."));
+			ReportLines.Add(TEXT("- Rebuilt ST_Debugger: hold through 1500, chase beyond 1500, stop at 100."));
 		}
 		StateTree.MarkPackageDirty();
 	}
