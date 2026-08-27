@@ -21,6 +21,7 @@
 #include "Navigation/PathFollowingComponent.h"
 #include "StateTreeAsyncExecutionContext.h"
 #include "StateTreeExecutionContext.h"
+#include "Kismet/GameplayStatics.h"
 #include "Story/Encounter/StoryEncounterPointDataAsset.h"
 #include "Story/Encounter/StoryEncounterRuntimeSubsystem.h"
 
@@ -503,6 +504,64 @@ FStateTreeTask_MoveToControllerTarget::FStateTreeTask_MoveToControllerTarget()
 {
 	// Completion is delegate-driven off the path-following request; no tick needed.
 	bShouldCallTick = false;
+}
+
+FStateTreeTask_ChasePlayerUntilDistance::FStateTreeTask_ChasePlayerUntilDistance()
+{
+	bShouldCallTick = true;
+}
+
+EStateTreeRunStatus FStateTreeTask_ChasePlayerUntilDistance::EnterState(
+	FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& /*Transition*/) const
+{
+	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+	InstanceData.LastRequestTime = -FLT_MAX;
+	return Tick(Context, 0.0f);
+}
+
+EStateTreeRunStatus FStateTreeTask_ChasePlayerUntilDistance::Tick(
+	FStateTreeExecutionContext& Context, const float /*DeltaTime*/) const
+{
+	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+	AAIController* Controller = InstanceData.AIController;
+	APawn* Pawn = Controller ? Controller->GetPawn() : nullptr;
+	AActor* Player = Pawn ? UGameplayStatics::GetPlayerPawn(Pawn, 0) : nullptr;
+	if (!Controller || !Pawn || !Player)
+	{
+		return EStateTreeRunStatus::Failed;
+	}
+
+	const float Distance = FVector::Dist2D(Pawn->GetActorLocation(), Player->GetActorLocation());
+	if (Distance <= InstanceData.StopDistance)
+	{
+		Controller->StopMovement();
+		return EStateTreeRunStatus::Succeeded;
+	}
+
+	const UWorld* World = Controller->GetWorld();
+	const float Now = World ? World->GetTimeSeconds() : 0.0f;
+	if (Now - InstanceData.LastRequestTime >= InstanceData.RepathInterval)
+	{
+		const EPathFollowingRequestResult::Type Result = Controller->MoveToActor(
+			Player, InstanceData.AcceptanceRadius, true, true, true, nullptr, true);
+		if (Result == EPathFollowingRequestResult::Failed)
+		{
+			return EStateTreeRunStatus::Failed;
+		}
+		InstanceData.LastRequestTime = Now;
+	}
+
+	return EStateTreeRunStatus::Running;
+}
+
+void FStateTreeTask_ChasePlayerUntilDistance::ExitState(
+	FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& /*Transition*/) const
+{
+	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+	if (InstanceData.AIController)
+	{
+		InstanceData.AIController->StopMovement();
+	}
 }
 
 EStateTreeRunStatus FStateTreeTask_MoveToControllerTarget::EnterState(

@@ -19,6 +19,40 @@ class USkeletalMesh;
 class UMaterialInterface;
 class UStoryEncounterPointDA;
 
+USTRUCT()
+struct FStateTreeTask_ChasePlayerUntilDistanceInstanceData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = Context)
+	TObjectPtr<AAIController> AIController = nullptr;
+
+	UPROPERTY(EditAnywhere, Category = Parameter, meta = (ClampMin = "0.0"))
+	float StopDistance = 100.0f;
+
+	UPROPERTY(EditAnywhere, Category = Parameter, meta = (ClampMin = "0.0"))
+	float AcceptanceRadius = 35.0f;
+
+	UPROPERTY(EditAnywhere, Category = Parameter, meta = (ClampMin = "0.05"))
+	float RepathInterval = 0.2f;
+
+	float LastRequestTime = -FLT_MAX;
+};
+
+USTRUCT(meta = (DisplayName = "Chase Player Until Distance", Category = "Yog|AI"))
+struct DEVKIT_API FStateTreeTask_ChasePlayerUntilDistance : public FStateTreeAIActionTaskBase
+{
+	GENERATED_BODY()
+
+	using FInstanceDataType = FStateTreeTask_ChasePlayerUntilDistanceInstanceData;
+
+	FStateTreeTask_ChasePlayerUntilDistance();
+	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
+	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
+	virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) const override;
+	virtual void ExitState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
+};
+
 // ─── Activate Ability By Tag ────────────────────────────────────────────────
 // Filters the requested tags down to the
 // abilities the pawn's AbilityData actually owns, activates a random matching

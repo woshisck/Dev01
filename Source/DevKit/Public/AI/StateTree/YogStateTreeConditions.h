@@ -208,3 +208,29 @@ struct DEVKIT_API FStateTreeCondition_TargetWithin2DDistance : public FStateTree
 	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
 	virtual bool TestCondition(FStateTreeExecutionContext& Context) const override;
 };
+
+USTRUCT()
+struct FStateTreeCondition_TargetBeyond2DDistanceInstanceData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = Context)
+	TObjectPtr<AActor> Actor = nullptr;
+
+	UPROPERTY(EditAnywhere, Category = Input, meta = (Optional))
+	TObjectPtr<AActor> Target = nullptr;
+
+	UPROPERTY(EditAnywhere, Category = Parameter, meta = (ClampMin = "0.0"))
+	float Distance = 100.0f;
+};
+
+USTRUCT(meta = (DisplayName = "Target Beyond 2D Distance", Category = "Yog|AI"))
+struct DEVKIT_API FStateTreeCondition_TargetBeyond2DDistance : public FStateTreeConditionCommonBase
+{
+	GENERATED_BODY()
+
+	using FInstanceDataType = FStateTreeCondition_TargetBeyond2DDistanceInstanceData;
+
+	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
+	virtual bool TestCondition(FStateTreeExecutionContext& Context) const override;
+};

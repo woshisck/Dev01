@@ -136,3 +136,24 @@ bool FStateTreeCondition_TargetWithin2DDistance::TestCondition(FStateTreeExecuti
 	const float Distance2D = FVector::Dist2D(Self->GetActorLocation(), InstanceData.Target->GetActorLocation());
 	return Distance2D <= InstanceData.Distance;
 }
+
+bool FStateTreeCondition_TargetBeyond2DDistance::TestCondition(FStateTreeExecutionContext& Context) const
+{
+	const FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+	if (!InstanceData.Actor || !InstanceData.Target)
+	{
+		return false;
+	}
+
+	const AActor* Self = InstanceData.Actor;
+	if (const AController* SelfController = Cast<AController>(Self))
+	{
+		Self = SelfController->GetPawn();
+	}
+	if (!Self)
+	{
+		return false;
+	}
+
+	return FVector::Dist2D(Self->GetActorLocation(), InstanceData.Target->GetActorLocation()) > InstanceData.Distance;
+}

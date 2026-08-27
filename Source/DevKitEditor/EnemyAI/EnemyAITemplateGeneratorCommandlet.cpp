@@ -7,6 +7,7 @@
 #include "AI/StateTree/YogStateTreeEvaluators.h"
 #include "AI/StateTree/YogStateTreeTask_EnemyAttackByProfile.h"
 #include "AI/StateTree/YogStateTreeTasks.h"
+#include "Tasks/StateTreeMoveToTask.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "BehaviorTree/BlackboardData.h"
 #include "BehaviorTree/Blackboard/BlackboardKeyType_Bool.h"
@@ -47,6 +48,7 @@ namespace EnemyAITemplateGenerator
 	const FString GuardCaptainAbilityDataPath = TEXT("/Game/Docs/Data/Enemy/GuardCaptain/DA_AbilityMontage_GuardCaptain_01");
 	const FString BossStateTreePath = TEXT("/Game/Code/Enemy/AI/StateTree/ST_Boss");
 	const FString BossDataPath = TEXT("/Game/Docs/Data/Enemy/Boss/DA_Boss");
+	const FString DebuggerStateTreePath = TEXT("/Game/Code/Enemy/AI/StateTree/ST_Debugger");
 	// Phase 2 stat buff. Authored as a GE asset rather than typed into ST_Boss because
 	// RebuildBossStateTree wipes anything set on the StateTree itself.
 	const FString BossPhase2EffectPath = TEXT("/Game/Code/Enemy/AI/Phase/GE_BossPhase2");
@@ -997,6 +999,74 @@ namespace EnemyAITemplateGenerator
 		StateTree.MarkPackageDirty();
 	}
 
+	void RebuildDebuggerStateTree(UStateTree& StateTree, TArray<FString>& ReportLines)
+	{
+		UStateTreeEditorData* EditorData = Cast<UStateTreeEditorData>(StateTree.EditorData);
+		if (!EditorData)
+		{
+			ReportLines.Add(TEXT("- ST_Debugger missing editor data; rebuild skipped."));
+			return;
+		}
+
+		EditorData->Modify();
+		EditorData->Evaluators.Reset();
+		EditorData->GlobalTasks.Reset();
+		EditorData->SubTrees.Reset();
+
+		TStateTreeEditorNode<FStateTreeEvaluator_PlayerReference>& PlayerReference =
+			EditorData->AddEvaluator<FStateTreeEvaluator_PlayerReference>();
+		PlayerReference.SetNodeName(TEXT("Player Reference"));
+
+		UStateTreeState& Root = EditorData->AddRootState();
+		Root.Name = TEXT("Chase Debug Root");
+		Root.SelectionBehavior = EStateTreeStateSelectionBehavior::TrySelectChildrenInOrder;
+
+		UStateTreeState& InRange = Root.AddChildState(TEXT("In Range"));
+		InRange.SelectionBehavior = EStateTreeStateSelectionBehavior::TryEnterState;
+		TStateTreeEditorNode<FStateTreeCondition_TargetWithin2DDistance>& InRangeCondition =
+			InRange.AddEnterCondition<FStateTreeCondition_TargetWithin2DDistance>();
+		InRangeCondition.GetInstanceData().Distance = 100.0f;
+
+		UStateTreeState& Chase = Root.AddChildState(TEXT("Chase Player"));
+		Chase.SelectionBehavior = EStateTreeStateSelectionBehavior::TryEnterState;
+		TStateTreeEditorNode<FStateTreeTask_ChasePlayerUntilDistance>& ChaseTask =
+			Chase.AddTask<FStateTreeTask_ChasePlayerUntilDistance>();
+		ChaseTask.SetNodeName(TEXT("Chase Player Until < 100"));
+		ChaseTask.GetInstanceData().StopDistance = 100.0f;
+		ChaseTask.GetInstanceData().AcceptanceRadius = 35.0f;
+		ChaseTask.GetInstanceData().RepathInterval = 0.2f;
+		Chase.AddTransition(EStateTreeTransitionTrigger::OnStateSucceeded, EStateTreeTransitionType::GotoState, &InRange);
+
+		FStateTreeTransition& LeaveRange = InRange.AddTransition(
+			EStateTreeTransitionTrigger::OnTick, EStateTreeTransitionType::GotoState, &Chase);
+		TStateTreeEditorNode<FStateTreeCondition_TargetBeyond2DDistance>& BeyondCondition =
+			LeaveRange.AddConditionWithOuter<FStateTreeCondition_TargetBeyond2DDistance>(&InRange);
+		BeyondCondition.GetInstanceData().Distance = 100.0f;
+
+		EditorData->AddPropertyBinding(
+			FPropertyBindingPath(PlayerReference.ID, GET_MEMBER_NAME_CHECKED(FStateTreeEvaluator_PlayerReferenceInstanceData, PlayerPawn)),
+			FPropertyBindingPath(InRangeCondition.ID, GET_MEMBER_NAME_CHECKED(FStateTreeCondition_TargetWithin2DDistanceInstanceData, Target)));
+		EditorData->AddPropertyBinding(
+			FPropertyBindingPath(PlayerReference.ID, GET_MEMBER_NAME_CHECKED(FStateTreeEvaluator_PlayerReferenceInstanceData, PlayerPawn)),
+			FPropertyBindingPath(BeyondCondition.ID, GET_MEMBER_NAME_CHECKED(FStateTreeCondition_TargetBeyond2DDistanceInstanceData, Target)));
+
+		EditorData->ReparentStates();
+		EditorData->FixDuplicateIDs();
+		EditorData->UpdateBindings();
+		UStateTreeEditingSubsystem::MarkAsPubliclyModified(&StateTree);
+		FStateTreeCompilerLog Log;
+		if (!UStateTreeEditingSubsystem::CompileStateTree(&StateTree, Log))
+		{
+			Log.DumpToLog(&StateTree, LogTemp);
+			ReportLines.Add(TEXT("- ST_Debugger compile failed; see editor log."));
+		}
+		else
+		{
+			ReportLines.Add(TEXT("- Rebuilt ST_Debugger as standalone chase-until-100 test tree."));
+		}
+		StateTree.MarkPackageDirty();
+	}
+
 	void AssignAIAssetsToEnemyData(
 		const FString& EnemyDataPath,
 		UStateTree* StateTree,
@@ -1080,16 +1150,27 @@ int32 UEnemyAITemplateGeneratorCommandlet::Main(const FString& Params)
 	const bool bPresetBoss = Params.Contains(TEXT("Preset=Boss"), ESearchCase::IgnoreCase);
 	const bool bPresetDefaultMelee = Params.Contains(TEXT("Preset=DefaultMelee"), ESearchCase::IgnoreCase)
 		|| !Params.Contains(TEXT("Preset="), ESearchCase::IgnoreCase);
+	const bool bPresetDebugger = Params.Contains(TEXT("Preset=Debugger"), ESearchCase::IgnoreCase);
 
 	TArray<FString> ReportLines;
 	TArray<UPackage*> DirtyPackages;
 	ReportLines.Add(TEXT("# Enemy AI Template Generator Report"));
 	ReportLines.Add(FString::Printf(TEXT("- Mode: %s"), bDryRun ? TEXT("DryRun") : TEXT("Apply")));
 	ReportLines.Add(FString::Printf(TEXT("- Preset: %s"),
-		bPresetBoss ? TEXT("Boss") : bPresetDefaultMelee ? TEXT("DefaultMelee") : TEXT("Unsupported")));
+		bPresetBoss ? TEXT("Boss") : bPresetDebugger ? TEXT("Debugger") : bPresetDefaultMelee ? TEXT("DefaultMelee") : TEXT("Unsupported")));
 	ReportLines.Add(TEXT(""));
 
-	if (bPresetBoss)
+	if (bPresetDebugger)
+	{
+		ReportLines.Add(TEXT("## ST_Debugger"));
+		UStateTree* DebuggerStateTree = CreateOrLoadStateTree(DebuggerStateTreePath, bDryRun, ReportLines, DirtyPackages);
+		if (!bDryRun && DebuggerStateTree)
+		{
+			RebuildDebuggerStateTree(*DebuggerStateTree, ReportLines);
+			DirtyPackages.AddUnique(DebuggerStateTree->GetPackage());
+		}
+	}
+	else if (bPresetBoss)
 	{
 		ReportLines.Add(TEXT("## Blackboard"));
 		UBlackboardData* Blackboard = CreateOrLoadAsset<UBlackboardData>(BlackboardPath, bDryRun, ReportLines, DirtyPackages);
@@ -1173,5 +1254,5 @@ int32 UEnemyAITemplateGeneratorCommandlet::Main(const FString& Params)
 	DevKitEditorCommandletReports::SaveReportLines(TEXT("EnemyAITemplateGeneratorReport.md"), ReportLines, ReportPath, SharedReportPath);
 
 	UE_LOG(LogTemp, Display, TEXT("Enemy AI template generator finished. Report: %s Shared: %s"), *ReportPath, *SharedReportPath);
-	return (bPresetBoss || bPresetDefaultMelee) ? 0 : 1;
+	return (bPresetBoss || bPresetDebugger || bPresetDefaultMelee) ? 0 : 1;
 }
