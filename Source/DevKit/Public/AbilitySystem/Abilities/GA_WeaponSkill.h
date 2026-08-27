@@ -6,7 +6,7 @@
 
 class UWeaponSkillDataAsset;
 
-UCLASS(BlueprintType, Blueprintable, DisplayName = "武器战技 GA")
+UCLASS(BlueprintType, Blueprintable)
 class DEVKIT_API UGA_WeaponSkill : public UGA_PlayMontage
 {
 	GENERATED_BODY()

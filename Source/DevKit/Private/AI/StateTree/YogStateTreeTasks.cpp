@@ -12,6 +12,7 @@
 #include "Data/AbilityData.h"
 #include "Data/CharacterData.h"
 #include "Data/EnemyData.h"
+#include "Data/EnemyWeaponDefinition.h"
 #include "GameModes/YogGameMode.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/Engine.h"
@@ -138,21 +139,46 @@ EStateTreeRunStatus FStateTreeTask_ActivateAbilityByTag::EnterState(
 		return EStateTreeRunStatus::Failed;
 	}
 
-	// Only keep tags the pawn's AbilityData actually owns a montage/GA for.
+	// AbilityTags is the StateTree-authored selector. The equipped weapon's
+	// AbilityData is used only to validate that the requested tag is configured;
+	// never broaden the selector to every tag present on the weapon.
 	FGameplayTagContainer ValidTags;
-	if (AYogCharacterBase* Char = Cast<AYogCharacterBase>(Pawn))
+	const UAbilityData* WeaponAbilityData = nullptr;
+	if (const AEnemyCharacterBase* Enemy = Cast<AEnemyCharacterBase>(Pawn))
 	{
-		if (const UCharacterDataComponent* DC = Char->GetCharacterDataComponent())
+		if (const UEnemyWeaponDefinition* WeaponDefinition = Enemy->GetEquippedEnemyWeaponDefinition())
 		{
-			if (const UCharacterData* CD = DC->GetCharacterData())
+			WeaponAbilityData = WeaponDefinition->AbilityData;
+		}
+	}
+
+	if (WeaponAbilityData)
+	{
+		for (const FGameplayTag& Tag : InstanceData.AbilityTags)
+		{
+			if (Tag.IsValid() && WeaponAbilityData->HasAbility(Tag))
 			{
-				if (const UAbilityData* AD = CD->AbilityData)
+				ValidTags.AddTag(Tag);
+			}
+		}
+	}
+	else
+	{
+		// Legacy fallback for pawns that have no equipped weapon definition.
+		if (const AYogCharacterBase* Char = Cast<AYogCharacterBase>(Pawn))
+		{
+			if (const UCharacterDataComponent* DC = Char->GetCharacterDataComponent())
+			{
+				if (const UCharacterData* CD = DC->GetCharacterData())
 				{
-					for (const FGameplayTag& Tag : InstanceData.AbilityTags)
+					if (const UAbilityData* AD = CD->AbilityData)
 					{
-						if (AD->HasAbility(Tag))
+						for (const FGameplayTag& Tag : InstanceData.AbilityTags)
 						{
-							ValidTags.AddTag(Tag);
+							if (Tag.IsValid() && AD->HasAbility(Tag))
+							{
+								ValidTags.AddTag(Tag);
+							}
 						}
 					}
 				}
@@ -174,7 +200,19 @@ EStateTreeRunStatus FStateTreeTask_ActivateAbilityByTag::EnterState(
 		}
 	}
 
-	if (!YogASC->TryActivateRandomAbilitiesByTag(ValidTags, false))
+	// Activate only the authored tag. If multiple tags are authored, try them
+	// in container order until one activates; do not choose from weapon-wide data.
+	FGameplayTag ActivatedTag;
+	for (const FGameplayTag& Tag : ValidTags)
+	{
+		if (YogASC->TryActivateAbilityByExactTag(Tag, false))
+		{
+			ActivatedTag = Tag;
+			break;
+		}
+	}
+
+	if (!ActivatedTag.IsValid())
 	{
 		if (InstanceData.FlashCharacter.IsValid())
 		{
@@ -188,7 +226,7 @@ EStateTreeRunStatus FStateTreeTask_ActivateAbilityByTag::EnterState(
 	bool bStillActive = false;
 	for (const FGameplayAbilitySpec& Spec : ASC->GetActivatableAbilities())
 	{
-		if (Spec.IsActive() && Spec.Ability && Spec.Ability->AbilityTags.HasAny(ValidTags))
+		if (Spec.IsActive() && Spec.Ability && Spec.Ability->AbilityTags.HasTagExact(ActivatedTag))
 		{
 			bStillActive = true;
 			break;
@@ -202,9 +240,9 @@ EStateTreeRunStatus FStateTreeTask_ActivateAbilityByTag::EnterState(
 
 	InstanceData.ActiveASC = ASC;
 	InstanceData.EndHandle = ASC->OnAbilityEnded.AddLambda(
-		[WeakContext = Context.MakeWeakExecutionContext(), ValidTags](const FAbilityEndedData& Data)
+		[WeakContext = Context.MakeWeakExecutionContext(), ActivatedTag](const FAbilityEndedData& Data)
 		{
-			if (Data.AbilityThatEnded && Data.AbilityThatEnded->AbilityTags.HasAny(ValidTags))
+			if (Data.AbilityThatEnded && Data.AbilityThatEnded->AbilityTags.HasTagExact(ActivatedTag))
 			{
 				WeakContext.FinishTask(EStateTreeFinishTaskType::Succeeded);
 			}

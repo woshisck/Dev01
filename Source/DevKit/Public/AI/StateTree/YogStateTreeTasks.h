@@ -75,10 +75,10 @@ struct DEVKIT_API FStateTreeTask_ChasePlayerUntilDistance : public FStateTreeAIA
 };
 
 // ─── Activate Ability By Tag ────────────────────────────────────────────────
-// Filters the requested tags down to the
-// abilities the pawn's AbilityData actually owns, activates a random matching
-// GA, and stays Running until that GA ends (or completes immediately when the
-// GA has no montage). Optionally drives the pre-attack flash for its duration.
+// Uses the StateTree-authored AbilityTags to select an ability, validates those
+// tags against the equipped enemy weapon's AbilityData, and stays Running
+// until the selected GA ends (or completes immediately when it has no montage).
+// Optionally drives the pre-attack flash for its duration.
 
 USTRUCT()
 struct FStateTreeTask_ActivateAbilityByTagInstanceData

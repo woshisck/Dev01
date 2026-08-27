@@ -53,7 +53,7 @@ struct FWeaponSpawnData
  * Not marked Const on purpose — that specifier is inherited, and UEnemyWeaponDefinition is
  * mutable. UWeaponDefinition keeps Const on itself.
  */
-UCLASS(Blueprintable, BlueprintType, DisplayName = "武器定义基类")
+UCLASS(Blueprintable, BlueprintType)
 class DEVKIT_API UWeaponDefinitionBase : public UPrimaryDataAsset
 {
 	GENERATED_BODY()

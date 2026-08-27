@@ -427,7 +427,7 @@ public:
 // ---------------------------------------------------------------
 // 敌人技能数据 — 在内容浏览器创建时自动填入标准 Enemy Tag
 // ---------------------------------------------------------------
-UCLASS(BlueprintType, Blueprintable, DisplayName = "敌人动作蒙太奇数据")
+UCLASS(BlueprintType, Blueprintable)
 class DEVKIT_API UEnemyAbilityMontageData : public UAbilityData
 {
 	GENERATED_BODY()
@@ -438,7 +438,7 @@ class DEVKIT_API UEnemyAbilityMontageData : public UAbilityData
 // ---------------------------------------------------------------
 // 玩家技能数据 — 在内容浏览器创建时自动填入标准 Player Tag
 // ---------------------------------------------------------------
-UCLASS(BlueprintType, Blueprintable, DisplayName = "玩家动作蒙太奇数据")
+UCLASS(BlueprintType, Blueprintable)
 class DEVKIT_API UPlayerAbilityMontageData : public UAbilityData
 {
 	GENERATED_BODY()
@@ -446,7 +446,7 @@ class DEVKIT_API UPlayerAbilityMontageData : public UAbilityData
 	virtual void PostInitProperties() override;
 };
 
-UCLASS(BlueprintType, Blueprintable, DisplayName = "武器普通攻击动作数据", HideCategories = ("被动反应"))
+UCLASS(BlueprintType, Blueprintable, HideCategories = ("被动反应"))
 class DEVKIT_API UWeaponAttackAbilityMontageData : public UAbilityData
 {
 	GENERATED_BODY()
@@ -455,7 +455,7 @@ class DEVKIT_API UWeaponAttackAbilityMontageData : public UAbilityData
 	virtual void PostLoad() override;
 };
 
-UCLASS(BlueprintType, Blueprintable, DisplayName = "武器战技动作数据", HideCategories = ("被动反应"))
+UCLASS(BlueprintType, Blueprintable, HideCategories = ("被动反应"))
 class DEVKIT_API UWeaponSkillAbilityMontageData : public UAbilityData
 {
 	GENERATED_BODY()
@@ -465,7 +465,7 @@ class DEVKIT_API UWeaponSkillAbilityMontageData : public UAbilityData
 
 // Deprecated asset-load compatibility for old DA_Special assets. Active skills
 // and WeaponSkillAbilityData now own the runtime player skill/action rows.
-UCLASS(BlueprintType, Blueprintable, DisplayName = "旧特殊技能动作数据（已弃用）", HideCategories = ("被动反应"))
+UCLASS(BlueprintType, Blueprintable, HideCategories = ("被动反应"))
 class DEVKIT_API USpecialAbilityMontageData : public UAbilityData
 {
 	GENERATED_BODY()
@@ -473,7 +473,7 @@ class DEVKIT_API USpecialAbilityMontageData : public UAbilityData
 	virtual void PostInitProperties() override;
 };
 
-UCLASS(BlueprintType, Blueprintable, DisplayName = "武器被动反应动作数据", HideCategories = ("动作|蒙太奇", "动作|高级条件"))
+UCLASS(BlueprintType, Blueprintable, HideCategories = ("动作|蒙太奇", "动作|高级条件"))
 class DEVKIT_API UWeaponPassiveAbilityMontageData : public UAbilityData
 {
 	GENERATED_BODY()
