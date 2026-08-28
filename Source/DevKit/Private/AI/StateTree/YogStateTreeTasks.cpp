@@ -142,7 +142,7 @@ EStateTreeRunStatus FStateTreeTask_ActivateAbilityByTag::EnterState(
 	// AbilityTags is the StateTree-authored selector. The equipped weapon's
 	// AbilityData is used only to validate that the requested tag is configured;
 	// never broaden the selector to every tag present on the weapon.
-	FGameplayTagContainer ValidTags;
+	TArray<FGameplayTag> ValidTags;
 	const UAbilityData* WeaponAbilityData = nullptr;
 	if (const AEnemyCharacterBase* Enemy = Cast<AEnemyCharacterBase>(Pawn))
 	{
@@ -158,7 +158,7 @@ EStateTreeRunStatus FStateTreeTask_ActivateAbilityByTag::EnterState(
 		{
 			if (Tag.IsValid() && WeaponAbilityData->HasAbility(Tag))
 			{
-				ValidTags.AddTag(Tag);
+				ValidTags.AddUnique(Tag);
 			}
 		}
 	}
@@ -177,7 +177,7 @@ EStateTreeRunStatus FStateTreeTask_ActivateAbilityByTag::EnterState(
 						{
 							if (Tag.IsValid() && AD->HasAbility(Tag))
 							{
-								ValidTags.AddTag(Tag);
+								ValidTags.AddUnique(Tag);
 							}
 						}
 					}
@@ -191,17 +191,30 @@ EStateTreeRunStatus FStateTreeTask_ActivateAbilityByTag::EnterState(
 		return EStateTreeRunStatus::Failed;
 	}
 
-	if (InstanceData.bPreAttackFlash)
+	AYogCharacterBase* YogCharacter = Cast<AYogCharacterBase>(Pawn);
+
+	if (InstanceData.bPreAttackFlash && YogCharacter)
 	{
-		if (AYogCharacterBase* Char = Cast<AYogCharacterBase>(Pawn))
-		{
-			Char->StartPreAttackFlash();
-			InstanceData.FlashCharacter = Char;
-		}
+		YogCharacter->StartPreAttackFlash();
+		InstanceData.FlashCharacter = YogCharacter;
 	}
 
-	// Activate only the authored tag. If multiple tags are authored, try them
-	// in container order until one activates; do not choose from weapon-wide data.
+	// Clear the accumulator before activating so the outcome reflects only this
+	// attack. GA_MeleeAttack also clears it, but montage-only GAs do not.
+	if (InstanceData.bReportAttackOutcome && YogCharacter)
+	{
+		YogCharacter->bAttackHitConnected = false;
+	}
+
+	// Activate only an authored tag; never choose from weapon-wide data. Each
+	// authored tag names one ability, so multiple tags mean "pick one at random".
+	// Shuffle rather than a single random draw so a blocked/cooling-down pick
+	// still falls through to the remaining candidates.
+	for (int32 Index = ValidTags.Num() - 1; Index > 0; --Index)
+	{
+		ValidTags.Swap(Index, FMath::RandRange(0, Index));
+	}
+
 	FGameplayTag ActivatedTag;
 	for (const FGameplayTag& Tag : ValidTags)
 	{
@@ -233,19 +246,39 @@ EStateTreeRunStatus FStateTreeTask_ActivateAbilityByTag::EnterState(
 		}
 	}
 
+	AYogAIController* YogAI = Cast<AYogAIController>(InstanceData.AIController);
+	const bool bReportOutcome = InstanceData.bReportAttackOutcome && YogAI && YogCharacter;
+
 	if (!bStillActive)
 	{
+		if (bReportOutcome)
+		{
+			YogAI->NotifyAttackResolved(!YogCharacter->bAttackHitConnected);
+		}
 		return EStateTreeRunStatus::Succeeded;
 	}
 
 	InstanceData.ActiveASC = ASC;
 	InstanceData.EndHandle = ASC->OnAbilityEnded.AddLambda(
-		[WeakContext = Context.MakeWeakExecutionContext(), ActivatedTag](const FAbilityEndedData& Data)
+		[WeakContext = Context.MakeWeakExecutionContext(),
+		 ActivatedTag,
+		 bReportOutcome,
+		 WeakYogAI = TWeakObjectPtr<AYogAIController>(YogAI),
+		 WeakCharacter = TWeakObjectPtr<AYogCharacterBase>(YogCharacter)](const FAbilityEndedData& Data)
 		{
-			if (Data.AbilityThatEnded && Data.AbilityThatEnded->AbilityTags.HasTagExact(ActivatedTag))
+			if (!Data.AbilityThatEnded || !Data.AbilityThatEnded->AbilityTags.HasTagExact(ActivatedTag))
 			{
-				WeakContext.FinishTask(EStateTreeFinishTaskType::Succeeded);
+				return;
 			}
+
+			// A cancelled ability never got to resolve, so reporting it as a whiff
+			// would punish interrupts (hit reactions, staggers) as if they missed.
+			if (bReportOutcome && !Data.bWasCancelled && WeakYogAI.IsValid() && WeakCharacter.IsValid())
+			{
+				WeakYogAI->NotifyAttackResolved(!WeakCharacter->bAttackHitConnected);
+			}
+
+			WeakContext.FinishTask(EStateTreeFinishTaskType::Succeeded);
 		});
 
 	return EStateTreeRunStatus::Running;

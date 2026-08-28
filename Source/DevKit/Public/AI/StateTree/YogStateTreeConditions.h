@@ -176,6 +176,63 @@ struct DEVKIT_API FStateTreeCondition_EnemyPostAttackReposition : public FStateT
 	virtual bool TestCondition(FStateTreeExecutionContext& Context) const override;
 };
 
+// ─── Last Attack Outcome ────────────────────────────────────────────────────
+// Passes when the most recently resolved attack matches RequiredOutcome. Reads
+// the bLastAttackWhiffed flag written by AYogAIController::NotifyAttackResolved,
+// so it reports whether the attack landed at all, unfiltered by the reposition
+// dice roll that FStateTreeCondition_EnemyPostAttackReposition sees.
+//
+// Use it to branch follow-up behaviour on a connect (press the advantage) or on
+// a whiff (recover / back off). Both outcomes stamp LastAttackResolveTime, so
+// MaxAge can scope the test to the attack that just finished rather than any
+// attack since combat began.
+
+UENUM()
+enum class EYogAttackOutcome : uint8
+{
+	/** The attack landed on at least one target. */
+	Hit,
+	/** The attack resolved without landing on anything. */
+	Whiff,
+};
+
+USTRUCT()
+struct FStateTreeCondition_LastAttackOutcomeInstanceData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = Context)
+	TObjectPtr<AAIController> AIController = nullptr;
+
+	UPROPERTY(EditAnywhere, Category = Parameter)
+	EYogAttackOutcome RequiredOutcome = EYogAttackOutcome::Hit;
+
+	/**
+	 * Only pass if the attack resolved within this many seconds. Zero or below
+	 * disables the check, in which case the flag is treated as latching until the
+	 * next attack resolves.
+	 */
+	UPROPERTY(EditAnywhere, Category = Parameter, meta = (ClampMin = "0.0"))
+	float MaxAge = 0.0f;
+
+	UPROPERTY(EditAnywhere, Category = Parameter)
+	FName bLastAttackWhiffedKey = TEXT("bLastAttackWhiffed");
+
+	UPROPERTY(EditAnywhere, Category = Parameter)
+	FName LastAttackResolveTimeKey = TEXT("LastAttackResolveTime");
+};
+
+USTRUCT(meta = (DisplayName = "Last Attack Outcome Is", Category = "Yog|AI"))
+struct DEVKIT_API FStateTreeCondition_LastAttackOutcome : public FStateTreeAIConditionBase
+{
+	GENERATED_BODY()
+
+	using FInstanceDataType = FStateTreeCondition_LastAttackOutcomeInstanceData;
+
+	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
+	virtual bool TestCondition(FStateTreeExecutionContext& Context) const override;
+};
+
 // ─── Target Within 2D Distance ──────────────────────────────────────────────
 // Passes when Target is within Distance of the tree owner, measured on XY only
 // so height difference is ignored. Put it on an OnTick transition to leave a

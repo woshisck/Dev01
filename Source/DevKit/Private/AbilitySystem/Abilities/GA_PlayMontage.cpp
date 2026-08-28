@@ -351,6 +351,7 @@ void UGA_PlayMontage::OnEventReceived(FGameplayTag EventTag, const FGameplayEven
 	if (Handles.Num() > 0 && Owner)
 	{
 		Owner->bComboHitConnected = true;
+		Owner->bAttackHitConnected = true;
 
 		// AN_MeleeDamage 配置的 HitStop：命中至少一个目标时直接对攻击者蒙太奇生效
 		if (HitActors.Num() > 0)

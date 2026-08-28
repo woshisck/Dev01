@@ -1230,6 +1230,7 @@ void UGA_MeleeAttack::ActivateAbility(
 	if (ActivateOwner)
 	{
 		ActivateOwner->bComboHitConnected = false;
+		ActivateOwner->bAttackHitConnected = false;
 	}
 
 	if (!Montage)
@@ -1492,7 +1493,7 @@ void UGA_MeleeAttack::EndAbility(
 
 	// Report whiff/connect outcome for enemy AI profile attacks so the StateTree can react
 	// (e.g. reposition on a miss). ActiveEnemyAttackContext is only valid for AI-driven
-	// attacks; bComboHitConnected is reset on activation and set true on any landed hit.
+	// attacks; bAttackHitConnected is reset on activation and set true on any landed hit.
 	if (!bWasCancelled && ActiveEnemyAttackContext.bValid)
 	{
 		if (AEnemyCharacterBase* EnemyOwner = Cast<AEnemyCharacterBase>(GetOwningActorFromActorInfo()))
@@ -1503,7 +1504,7 @@ void UGA_MeleeAttack::EndAbility(
 				// whiff) so it clears the flag instead of re-triggering itself endlessly.
 				const bool bRepositionMove =
 					ActiveEnemyAttackContext.AttackOption.AttackRole == EEnemyAIAttackRole::Reposition;
-				const bool bWhiffed = !bRepositionMove && !EnemyOwner->bComboHitConnected;
+				const bool bWhiffed = !bRepositionMove && !EnemyOwner->bAttackHitConnected;
 				const bool bForceReposition = !bRepositionMove
 					&& ActiveEnemyAttackContext.AttackOption.bRequestRepositionOnResolve;
 				YogAI->NotifyAttackResolved(bWhiffed, bForceReposition);
@@ -1672,6 +1673,7 @@ void UGA_MeleeAttack::ApplyHitStop(AYogCharacterBase* Owner, const TArray<AActor
 void UGA_MeleeAttack::ApplyHitReactions(AYogCharacterBase* Owner, const FYogGameplayEffectContainerSpec& ContainerSpec)
 {
 	Owner->bComboHitConnected = true;
+	Owner->bAttackHitConnected = true;
 
 	TArray<AActor*> HitActors;
 	for (const TSharedPtr<FGameplayAbilityTargetData>& Data : ContainerSpec.TargetData.Data)

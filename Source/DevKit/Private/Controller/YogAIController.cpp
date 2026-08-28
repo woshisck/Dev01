@@ -283,6 +283,7 @@ void AYogAIController::InitializePatrolState()
 	BB->SetValueAsFloat(TEXT("LastSeenTargetTime"), 0.0f);
 	BB->SetValueAsBool(TEXT("bLastAttackWhiffed"), false);
 	BB->SetValueAsFloat(TEXT("LastWhiffTime"), 0.0f);
+	BB->SetValueAsFloat(TEXT("LastAttackResolveTime"), 0.0f);
 	BB->SetValueAsBool(TEXT("bPostAttackReposition"), false);
 	BB->SetValueAsFloat(TEXT("LastRepositionRequestTime"), 0.0f);
 
@@ -958,17 +959,20 @@ void AYogAIController::NotifyAttackResolved(bool bWhiffed, bool bForceReposition
 		bFlagWhiffReposition = FMath::FRand() <= Chance;
 	}
 
+	const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
 	const bool bRequestPostAttackReposition = bForceReposition || bFlagWhiffReposition;
 	BB->SetValueAsBool(TEXT("bLastAttackWhiffed"), bWhiffed);
 	BB->SetValueAsBool(TEXT("bPostAttackReposition"), bRequestPostAttackReposition);
+
+	// Stamped on both outcomes so a freshness window can gate a hit as well as a
+	// whiff; LastWhiffTime only advances on a miss and cannot express that.
+	BB->SetValueAsFloat(TEXT("LastAttackResolveTime"), CurrentTime);
 	if (bWhiffed)
 	{
-		const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
 		BB->SetValueAsFloat(TEXT("LastWhiffTime"), CurrentTime);
 	}
 	if (bRequestPostAttackReposition)
 	{
-		const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
 		BB->SetValueAsFloat(TEXT("LastRepositionRequestTime"), CurrentTime);
 	}
 }

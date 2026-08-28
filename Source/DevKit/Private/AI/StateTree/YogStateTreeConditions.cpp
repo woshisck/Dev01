@@ -112,6 +112,45 @@ bool FStateTreeCondition_EnemyPostAttackReposition::TestCondition(FStateTreeExec
 	return Blackboard && Blackboard->GetValueAsBool(InstanceData.bPostAttackRepositionKey);
 }
 
+bool FStateTreeCondition_LastAttackOutcome::TestCondition(FStateTreeExecutionContext& Context) const
+{
+	const FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+	const AAIController* AIC = InstanceData.AIController;
+	const UBlackboardComponent* Blackboard = AIC ? AIC->GetBlackboardComponent() : nullptr;
+	if (!Blackboard)
+	{
+		return false;
+	}
+
+	const bool bWhiffed = Blackboard->GetValueAsBool(InstanceData.bLastAttackWhiffedKey);
+	const bool bOutcomeMatches = (InstanceData.RequiredOutcome == EYogAttackOutcome::Whiff) == bWhiffed;
+	if (!bOutcomeMatches)
+	{
+		return false;
+	}
+
+	if (InstanceData.MaxAge <= 0.0f)
+	{
+		return true;
+	}
+
+	const UWorld* World = AIC->GetWorld();
+	if (!World)
+	{
+		return false;
+	}
+
+	// A resolve time of zero means nothing has resolved yet this combat, which must
+	// not read as a fresh hit just because the whiff flag defaults to false.
+	const float ResolveTime = Blackboard->GetValueAsFloat(InstanceData.LastAttackResolveTimeKey);
+	if (ResolveTime <= 0.0f)
+	{
+		return false;
+	}
+
+	return (World->GetTimeSeconds() - ResolveTime) <= InstanceData.MaxAge;
+}
+
 bool FStateTreeCondition_TargetWithin2DDistance::TestCondition(FStateTreeExecutionContext& Context) const
 {
 	const FInstanceDataType& InstanceData = Context.GetInstanceData(*this);

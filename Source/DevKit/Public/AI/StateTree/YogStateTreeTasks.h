@@ -78,7 +78,9 @@ struct DEVKIT_API FStateTreeTask_ChasePlayerUntilDistance : public FStateTreeAIA
 // Uses the StateTree-authored AbilityTags to select an ability, validates those
 // tags against the equipped enemy weapon's AbilityData, and stays Running
 // until the selected GA ends (or completes immediately when it has no montage).
-// Optionally drives the pre-attack flash for its duration.
+// Each authored tag names one ability, so authoring several means "pick one at
+// random". Optionally drives the pre-attack flash for its duration and reports
+// the hit/whiff outcome for the "Last Attack Outcome Is" condition.
 
 USTRUCT()
 struct FStateTreeTask_ActivateAbilityByTagInstanceData
@@ -94,6 +96,15 @@ struct FStateTreeTask_ActivateAbilityByTagInstanceData
 	/** Trigger the pre-attack red flash while the ability runs. */
 	UPROPERTY(EditAnywhere, Category = Parameter)
 	bool bPreAttackFlash = true;
+
+	/**
+	 * Report hit/whiff to the controller when the ability ends, feeding the
+	 * "Last Attack Outcome Is" condition. Leave off for non-damaging abilities:
+	 * they can never connect, so they would always resolve as a whiff and
+	 * spuriously request a post-attack reposition.
+	 */
+	UPROPERTY(EditAnywhere, Category = Parameter)
+	bool bReportAttackOutcome = false;
 
 	// Runtime state (not reflected; persists for the active state's lifetime).
 	TWeakObjectPtr<UAbilitySystemComponent> ActiveASC;

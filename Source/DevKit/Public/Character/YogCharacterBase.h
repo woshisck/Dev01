@@ -315,6 +315,11 @@ public:
 	// 当前连击节是否命中了目标（GA_MeleeAttack::OnEventReceived 设置，AN_EnemyComboSection 读取后重置）
 	bool bComboHitConnected = false;
 
+	// Whole-attack version of bComboHitConnected: stays true once any section of the
+	// current attack connects, so whiff detection is not fooled by AN_EnemyComboSection
+	// resetting the per-section flag mid-montage. Reset when an attack starts.
+	bool bAttackHitConnected = false;
+
 	// AN_MeleeDamage notify 存入的附加命中 Rune，GA_MeleeAttack::OnEventReceived 触发到命中目标后清空
 	TArray<TObjectPtr<URuneDataAsset>> PendingAdditionalHitRunes;
 

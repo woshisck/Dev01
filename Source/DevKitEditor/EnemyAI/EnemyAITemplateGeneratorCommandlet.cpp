@@ -153,6 +153,7 @@ namespace EnemyAITemplateGenerator
 		EnsureBlackboardKey<UBlackboardKeyType_Float>(Blackboard, TEXT("LastSeenTargetTime"));
 		EnsureBlackboardKey<UBlackboardKeyType_Bool>(Blackboard, TEXT("bLastAttackWhiffed"));
 		EnsureBlackboardKey<UBlackboardKeyType_Float>(Blackboard, TEXT("LastWhiffTime"));
+		EnsureBlackboardKey<UBlackboardKeyType_Float>(Blackboard, TEXT("LastAttackResolveTime"));
 		EnsureBlackboardKey<UBlackboardKeyType_Bool>(Blackboard, TEXT("bPostAttackReposition"));
 		EnsureBlackboardKey<UBlackboardKeyType_Float>(Blackboard, TEXT("LastRepositionRequestTime"));
 
@@ -919,6 +920,19 @@ namespace EnemyAITemplateGenerator
 		CombatCondition.SetNodeName(TEXT("Enemy AI State Is Combat"));
 		CombatCondition.GetInstanceData().RequiredState = EEnemyAIState::Combat;
 
+		// Press the advantage: after a connect, retry close melee ahead of the skill
+		// and special-movement branches so landed hits chain into pressure instead of
+		// cycling back out through approach range. Added first because Combat selects
+		// children in order. MaxAge scopes it to the attack that just resolved --
+		// bLastAttackWhiffed latches until the next attack, so without it a single
+		// early hit would keep this branch selected for the rest of the fight.
+		UStateTreeState& PressAdvantage = AddAttackState(Combat, TEXT("Press Advantage"), EEnemyAIAttackRole::CloseMelee);
+		TStateTreeEditorNode<FStateTreeCondition_LastAttackOutcome>& PressAdvantageCondition =
+			PressAdvantage.AddEnterCondition<FStateTreeCondition_LastAttackOutcome>();
+		PressAdvantageCondition.SetNodeName(TEXT("Last Attack Outcome Is Hit"));
+		PressAdvantageCondition.GetInstanceData().RequiredOutcome = EYogAttackOutcome::Hit;
+		PressAdvantageCondition.GetInstanceData().MaxAge = 1.5f;
+
 		// Reposition is gated on the whiff flag the controller sets in
 		// NotifyAttackResolved; without it this branch is attempted on every
 		// combat re-selection, which reads as reposition spam.
@@ -1216,7 +1230,7 @@ int32 UEnemyAITemplateGeneratorCommandlet::Main(const FString& Params)
 
 		ReportLines.Add(TEXT(""));
 		ReportLines.Add(TEXT("## StateTree"));
-		ReportLines.Add(TEXT("- State order: Dead -> Combat (Post Attack Reposition -> Skill -> Special Movement -> Close Melee -> Chase Target -> Combat Recheck) -> Alert (wait + approach) -> Patrol (pick + wait + move)."));
+		ReportLines.Add(TEXT("- State order: Dead -> Combat (Press Advantage [last attack hit] -> Post Attack Reposition [last attack whiffed] -> Skill -> Special Movement -> Close Melee -> Chase Target -> Combat Recheck) -> Alert (wait + approach) -> Patrol (pick + wait + move)."));
 		UStateTree* StateTree = CreateOrLoadStateTree(StateTreePath, bDryRun, ReportLines, DirtyPackages);
 		if (!bDryRun && StateTree)
 		{

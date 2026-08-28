@@ -58,6 +58,7 @@ bool FEnemyAIDefaultTemplateTest::RunTest(const FString& Parameters)
 		TEXT("LastSeenTargetTime"),
 		TEXT("bLastAttackWhiffed"),
 		TEXT("LastWhiffTime"),
+		TEXT("LastAttackResolveTime"),
 		TEXT("bPostAttackReposition"),
 		TEXT("LastRepositionRequestTime"),
 	};
