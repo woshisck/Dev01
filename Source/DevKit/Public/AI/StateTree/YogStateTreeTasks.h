@@ -57,7 +57,25 @@ struct FStateTreeTask_ChasePlayerUntilDistanceInstanceData
 	UPROPERTY(EditAnywhere, Category = Parameter, meta = (ClampMin = "0.05"))
 	float RepathInterval = 0.2f;
 
+	/**
+	 * Lateral weave either side of the direct line, in cm. Zero keeps the original
+	 * straight MoveToActor chase, so existing content is unaffected.
+	 */
+	UPROPERTY(EditAnywhere, Category = Parameter, meta = (ClampMin = "0.0"))
+	float SnakeAmplitude = 0.0f;
+
+	/** Ground covered toward the player per weave leg. Shorter legs weave tighter. */
+	UPROPERTY(EditAnywhere, Category = Parameter, meta = (ClampMin = "50.0", EditCondition = "SnakeAmplitude > 0.0"))
+	float SnakeSegmentLength = 300.0f;
+
+	/** Inside this range the weave stops and the pawn closes straight in. */
+	UPROPERTY(EditAnywhere, Category = Parameter, meta = (ClampMin = "0.0", EditCondition = "SnakeAmplitude > 0.0"))
+	float SnakeStraightenDistance = 250.0f;
+
 	float LastRequestTime = -FLT_MAX;
+
+	// Which side the current weave leg is offset to; flipped once per leg.
+	bool bSnakeToRight = false;
 };
 
 USTRUCT(meta = (DisplayName = "Chase Player Until Distance", Category = "Yog|AI"))

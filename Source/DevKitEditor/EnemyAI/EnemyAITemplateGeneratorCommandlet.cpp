@@ -48,7 +48,9 @@ namespace EnemyAITemplateGenerator
 	const FString GuardCaptainAbilityDataPath = TEXT("/Game/Docs/Data/Enemy/GuardCaptain/DA_AbilityMontage_GuardCaptain_01");
 	const FString BossStateTreePath = TEXT("/Game/Code/Enemy/AI/StateTree/ST_Boss");
 	const FString BossDataPath = TEXT("/Game/Docs/Data/Enemy/Boss/DA_Boss");
-	const FString DebuggerStateTreePath = TEXT("/Game/Code/Enemy/AI/StateTree/ST_Debugger");
+	// Deliberately NOT ST_Debugger: that asset is hand-authored and diverged from this
+	// generator (it runs Chase -> Cast Ability). Regenerating over it would delete that work.
+	const FString DebuggerStateTreePath = TEXT("/Game/Code/Enemy/AI/StateTree/ST_Debugger_Default");
 	// Phase 2 stat buff. Authored as a GE asset rather than typed into ST_Boss because
 	// RebuildBossStateTree wipes anything set on the StateTree itself.
 	const FString BossPhase2EffectPath = TEXT("/Game/Code/Enemy/AI/Phase/GE_BossPhase2");
@@ -1018,7 +1020,7 @@ namespace EnemyAITemplateGenerator
 		UStateTreeEditorData* EditorData = Cast<UStateTreeEditorData>(StateTree.EditorData);
 		if (!EditorData)
 		{
-			ReportLines.Add(TEXT("- ST_Debugger missing editor data; rebuild skipped."));
+			ReportLines.Add(TEXT("- ST_Debugger_Default missing editor data; rebuild skipped."));
 			return;
 		}
 
@@ -1076,11 +1078,11 @@ namespace EnemyAITemplateGenerator
 		if (!UStateTreeEditingSubsystem::CompileStateTree(&StateTree, Log))
 		{
 			Log.DumpToLog(&StateTree, LogTemp);
-			ReportLines.Add(TEXT("- ST_Debugger compile failed; see editor log."));
+			ReportLines.Add(TEXT("- ST_Debugger_Default compile failed; see editor log."));
 		}
 		else
 		{
-			ReportLines.Add(TEXT("- Rebuilt ST_Debugger: hold through 1500, chase beyond 1500, stop at 100."));
+			ReportLines.Add(TEXT("- Rebuilt ST_Debugger_Default: hold through 1500, chase beyond 1500, stop at 100."));
 		}
 		StateTree.MarkPackageDirty();
 	}
@@ -1180,7 +1182,7 @@ int32 UEnemyAITemplateGeneratorCommandlet::Main(const FString& Params)
 
 	if (bPresetDebugger)
 	{
-		ReportLines.Add(TEXT("## ST_Debugger"));
+		ReportLines.Add(TEXT("## ST_Debugger_Default"));
 		UStateTree* DebuggerStateTree = CreateOrLoadStateTree(DebuggerStateTreePath, bDryRun, ReportLines, DirtyPackages);
 		if (!bDryRun && DebuggerStateTree)
 		{

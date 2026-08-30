@@ -595,6 +595,39 @@ FStateTreeTask_MoveToControllerTarget::FStateTreeTask_MoveToControllerTarget()
 	bShouldCallTick = false;
 }
 
+namespace
+{
+	// One leg of the zig-zag: advance SnakeSegmentLength toward the player, offset sideways
+	// by SnakeAmplitude. Caller flips bSnakeToRight per leg, which is what produces the weave.
+	FVector YogStateTree_ComputeSnakeWaypoint(
+		const APawn& Pawn,
+		const AActor& Player,
+		const FStateTreeTask_ChasePlayerUntilDistanceInstanceData& InstanceData)
+	{
+		const FVector PawnLocation = Pawn.GetActorLocation();
+		FVector ToPlayer = Player.GetActorLocation() - PawnLocation;
+		ToPlayer.Z = 0.0f;
+
+		const float DistanceToPlayer = ToPlayer.Size();
+		if (DistanceToPlayer <= KINDA_SMALL_NUMBER)
+		{
+			return PawnLocation;
+		}
+		ToPlayer /= DistanceToPlayer;
+
+		// Never place a leg past the stop distance, otherwise the weave would carry the pawn
+		// through the player and it would orbit instead of closing.
+		const float LegLength = FMath::Min(
+			InstanceData.SnakeSegmentLength,
+			FMath::Max(DistanceToPlayer - InstanceData.StopDistance, 0.0f));
+
+		const FVector Lateral = FVector::CrossProduct(FVector::UpVector, ToPlayer)
+			* (InstanceData.bSnakeToRight ? InstanceData.SnakeAmplitude : -InstanceData.SnakeAmplitude);
+
+		return PawnLocation + ToPlayer * LegLength + Lateral;
+	}
+}
+
 FStateTreeTask_ChasePlayerUntilDistance::FStateTreeTask_ChasePlayerUntilDistance()
 {
 	bShouldCallTick = true;
@@ -647,12 +680,38 @@ EStateTreeRunStatus FStateTreeTask_ChasePlayerUntilDistance::Tick(
 		&& Now - InstanceData.LastRequestTime >= InstanceData.RepathInterval)
 	{
 		InstanceData.LastRequestTime = Now;
-		const EPathFollowingRequestResult::Type Result = Controller->MoveToActor(
-			Player, InstanceData.AcceptanceRadius, true, true, true, nullptr, true);
+
+		// Weaving has to abandon MoveToActor: goal-actor observation re-solves the path straight
+		// at the player every frame, which would erase the lateral offset. One MoveToLocation per
+		// leg keeps the repath count identical to the straight chase, so path following stays put.
+		// The StopDistance + amplitude floor holds even if SnakeStraightenDistance is authored
+		// lower: once the remaining leg is shorter than the sideways offset the waypoint is mostly
+		// lateral, and the pawn orbits the player instead of closing on it.
+		const float StraightenDistance = FMath::Max(
+			InstanceData.SnakeStraightenDistance,
+			InstanceData.StopDistance + InstanceData.SnakeAmplitude);
+		const bool bSnake = InstanceData.SnakeAmplitude > KINDA_SMALL_NUMBER
+			&& Distance > StraightenDistance;
+
+		EPathFollowingRequestResult::Type Result;
+		if (bSnake)
+		{
+			InstanceData.bSnakeToRight = !InstanceData.bSnakeToRight;
+			const FVector Waypoint = YogStateTree_ComputeSnakeWaypoint(*Pawn, *Player, InstanceData);
+			Result = Controller->MoveToLocation(
+				Waypoint, InstanceData.AcceptanceRadius, true, true, true, true, nullptr, true);
+		}
+		else
+		{
+			Result = Controller->MoveToActor(
+				Player, InstanceData.AcceptanceRadius, true, true, true, nullptr, true);
+		}
+
 		if (Result == EPathFollowingRequestResult::Failed)
 		{
 			UE_LOG(LogTemp, Warning,
-				TEXT("[ChasePlayer] MoveToActor REJECTED for %s at %s (distance %.0f) - retrying"),
+				TEXT("[ChasePlayer] %s REJECTED for %s at %s (distance %.0f) - retrying"),
+				bSnake ? TEXT("MoveToLocation") : TEXT("MoveToActor"),
 				*GetNameSafe(Pawn), *Pawn->GetActorLocation().ToCompactString(), Distance);
 		}
 	}
