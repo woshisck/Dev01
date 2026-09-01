@@ -7,6 +7,7 @@
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "AbilitySystem/GameplayCue/HitCueData.h"
 #include "AbilitySystem/GameplayEffect/GE_MeleeAttackFrame.h"
+#include "AbilitySystem/GameplayEffect/YogGameplayEffect.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "Abilities/Tasks/AbilityTask_ApplyRootMotionMoveToForce.h"
 #include "Animation/AN_MeleeDamage.h"
@@ -54,7 +55,6 @@ namespace
 	};
 
 	TMap<TObjectKey<UAbilitySystemComponent>, FStatBeforeAttackSharedSnapshot> GStatBeforeAttackSnapshots;
-	TSet<TObjectKey<UAbilitySystemComponent>> GPendingJustComboSpeedBonus;
 	TMap<TObjectKey<UAbilitySystemComponent>, FBroadAttackComboRuntimeState> GBroadAttackComboStates;
 
 	FGameplayTag GetComboWindowTag()
@@ -65,6 +65,11 @@ namespace
 	FGameplayTag GetJustComboWindowTag()
 	{
 		return FGameplayTag::RequestGameplayTag(TEXT("Character.State.Window.JustCombo"), false);
+	}
+
+	FGameplayTag GetJustComboTriggerCueTag()
+	{
+		return FGameplayTag::RequestGameplayTag(TEXT("GameplayCue.Character.JustCombo.Trigger"), false);
 	}
 
 	bool IsAttackComboWindowOpen(UAbilitySystemComponent* ASC)
@@ -78,6 +83,52 @@ namespace
 		const FGameplayTag JustComboWindowTag = GetJustComboWindowTag();
 		return (ComboWindowTag.IsValid() && ASC->GetTagCount(ComboWindowTag) > 0)
 			|| (JustComboWindowTag.IsValid() && ASC->GetTagCount(JustComboWindowTag) > 0);
+	}
+
+	// Splits the equipped weapon's Just Combo payload by lifetime: Duration entries land now and
+	// live by their own duration, NextAttackOnly entries are captured here so they survive a
+	// weapon switch and still carry the effect authored on the weapon that earned them.
+	void JustCombo_ApplyEarnedWeaponEffects(UYogAbilitySystemComponent* ASC)
+	{
+		APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(ASC->GetAvatarActor());
+		if (!Player)
+		{
+			return;
+		}
+
+		const UWeaponDefinition* WeaponDef = Player->GetEffectiveEquippedWeaponDefinition();
+		if (!WeaponDef)
+		{
+			return;
+		}
+
+		TArray<TSubclassOf<UYogGameplayEffect>> NextAttackEffects;
+		for (const FJustComboEffectEntry& Entry : WeaponDef->JustComboEffects)
+		{
+			if (!Entry.Effect)
+			{
+				continue;
+			}
+
+			if (Entry.Lifetime == EJustComboEffectLifetime::NextAttackOnly)
+			{
+				NextAttackEffects.Add(Entry.Effect);
+				continue;
+			}
+
+			FGameplayEffectContextHandle Ctx = ASC->MakeEffectContext();
+			Ctx.AddSourceObject(Player);
+			const FGameplayEffectSpecHandle Spec = ASC->MakeOutgoingSpec(Entry.Effect, 1.f, Ctx);
+			if (Spec.IsValid())
+			{
+				ASC->ApplyGameplayEffectSpecToSelf(*Spec.Data);
+			}
+		}
+
+		if (!NextAttackEffects.IsEmpty())
+		{
+			ASC->QueueJustComboNextAttackEffects(NextAttackEffects);
+		}
 	}
 
 	constexpr float AttackSpeedDefaultStat = 100.f;
@@ -372,8 +423,35 @@ bool UGA_MeleeAttack::TryQueueJustComboSpeedBonus(UAbilitySystemComponent* ASC)
 		return false;
 	}
 
-	GPendingJustComboSpeedBonus.Add(TObjectKey<UAbilitySystemComponent>(ASC));
+	UYogAbilitySystemComponent* YogASC = Cast<UYogAbilitySystemComponent>(ASC);
+	if (!YogASC)
+	{
+		return false;
+	}
+
+	const bool bAlreadyQueued = YogASC->HasPendingJustComboSpeedBonus();
+	YogASC->SetPendingJustComboSpeedBonus();
 	UE_LOG(LogTemp, Verbose, TEXT("[JustCombo] Queued next attack speed bonus for ASC=%s"), *GetNameSafe(ASC));
+
+	// Everything past this point must run exactly once per window. Mashing inside the window
+	// re-enters here on every press, so an unguarded body would stack the weapon's effects and
+	// fire the cue burst repeatedly off what the player experiences as a single proc.
+	if (bAlreadyQueued)
+	{
+		return true;
+	}
+
+	JustCombo_ApplyEarnedWeaponEffects(YogASC);
+
+	const FGameplayTag TriggerCueTag = GetJustComboTriggerCueTag();
+	if (TriggerCueTag.IsValid())
+	{
+		FGameplayCueParameters CueParams;
+		CueParams.Instigator = ASC->GetAvatarActor();
+		CueParams.EffectCauser = ASC->GetAvatarActor();
+		ASC->ExecuteGameplayCue(TriggerCueTag, CueParams);
+	}
+
 	return true;
 }
 
@@ -384,13 +462,12 @@ bool UGA_MeleeAttack::TryConsumeJustComboBonus(UAbilitySystemComponent* ASC)
 		return false;
 	}
 
-	const TObjectKey<UAbilitySystemComponent> ASCKey(ASC);
-	if (!GPendingJustComboSpeedBonus.Contains(ASCKey))
+	UYogAbilitySystemComponent* YogASC = Cast<UYogAbilitySystemComponent>(ASC);
+	if (!YogASC || !YogASC->ConsumePendingJustComboSpeedBonus())
 	{
 		return false;
 	}
 
-	GPendingJustComboSpeedBonus.Remove(ASCKey);
 	UE_LOG(LogTemp, Verbose, TEXT("[JustCombo] Consumed pending JustCombo bonus for ASC=%s"), *GetNameSafe(ASC));
 	return true;
 }
@@ -1273,7 +1350,7 @@ void UGA_MeleeAttack::ActivateAbility(
 		{
 			AttackSpeedStat *= JustComboNextAttackSpeedMultiplier;
 			bConsumedJustComboSpeedBonus = true;
-			ApplyJustComboGE(ActorInfo);
+			ApplyPendingJustComboEffects(ActorInfo);
 		}
 	}
 

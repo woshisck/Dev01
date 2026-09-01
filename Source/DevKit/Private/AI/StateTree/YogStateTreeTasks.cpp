@@ -597,12 +597,18 @@ FStateTreeTask_MoveToControllerTarget::FStateTreeTask_MoveToControllerTarget()
 
 namespace
 {
-	// One leg of the zig-zag: advance SnakeSegmentLength toward the player, offset sideways
-	// by SnakeAmplitude. Caller flips bSnakeToRight per leg, which is what produces the weave.
+	// Slack on top of the move request's reach test before a weave leg counts as issuable. The reach
+	// test uses the movement component's nav agent radius, which GetSimpleCollisionRadius only
+	// approximates, so leave room for the two to disagree.
+	constexpr float YogStateTree_SnakeLegMargin = 50.0f;
+
+	// One leg of the weave: advance toward the player, offset sideways onto whichever side the
+	// caller has already chosen in bSnakeToRight. SnakeRandomness jitters both distances here.
 	FVector YogStateTree_ComputeSnakeWaypoint(
 		const APawn& Pawn,
 		const AActor& Player,
-		const FStateTreeTask_ChasePlayerUntilDistanceInstanceData& InstanceData)
+		const FStateTreeTask_ChasePlayerUntilDistanceInstanceData& InstanceData,
+		float MinLegLength)
 	{
 		const FVector PawnLocation = Pawn.GetActorLocation();
 		FVector ToPlayer = Player.GetActorLocation() - PawnLocation;
@@ -615,14 +621,31 @@ namespace
 		}
 		ToPlayer /= DistanceToPlayer;
 
-		// Never place a leg past the stop distance, otherwise the weave would carry the pawn
-		// through the player and it would orbit instead of closing.
+		const float Randomness = FMath::Clamp(InstanceData.SnakeRandomness, 0.0f, 1.0f);
+
+		// Never place a leg past the stop distance, otherwise the weave carries the pawn through
+		// the player.
+		const float ForwardRoom = FMath::Max(DistanceToPlayer - InstanceData.StopDistance, 0.0f);
+		const float LegScale = 1.0f + FMath::FRandRange(-0.6f, 0.6f) * Randomness;
+
+		// A leg shorter than the move request's reach test is answered with AlreadyAtGoal, which
+		// finishes the request without moving the pawn -- so randomness must not be able to shrink a
+		// leg below it. ForwardRoom still wins: overshooting it would weave the pawn past the player.
 		const float LegLength = FMath::Min(
-			InstanceData.SnakeSegmentLength,
-			FMath::Max(DistanceToPlayer - InstanceData.StopDistance, 0.0f));
+			FMath::Max(InstanceData.SnakeSegmentLength * LegScale, MinLegLength),
+			ForwardRoom);
+
+		// Randomness only ever narrows the offset, never widens it, so the 45-degree cap below
+		// still holds at full randomness.
+		const float AmplitudeScale = 1.0f - FMath::FRandRange(0.0f, 0.7f) * Randomness;
+
+		// Clamping the sideways offset to the forward progress caps the weave at 45 degrees, which
+		// is what keeps the pawn closing rather than orbiting. It also lets the weave taper off on
+		// its own as the gap shrinks, so a short re-approach still weaves instead of being cut off.
+		const float Amplitude = FMath::Min(InstanceData.SnakeAmplitude * AmplitudeScale, LegLength);
 
 		const FVector Lateral = FVector::CrossProduct(FVector::UpVector, ToPlayer)
-			* (InstanceData.bSnakeToRight ? InstanceData.SnakeAmplitude : -InstanceData.SnakeAmplitude);
+			* (InstanceData.bSnakeToRight ? Amplitude : -Amplitude);
 
 		return PawnLocation + ToPlayer * LegLength + Lateral;
 	}
@@ -638,6 +661,7 @@ EStateTreeRunStatus FStateTreeTask_ChasePlayerUntilDistance::EnterState(
 {
 	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
 	InstanceData.LastRequestTime = -FLT_MAX;
+	InstanceData.bHasSnakeWaypoint = false;
 	return Tick(Context, 0.0f);
 }
 
@@ -671,33 +695,76 @@ EStateTreeRunStatus FStateTreeTask_ChasePlayerUntilDistance::Tick(
 	const UWorld* World = Controller->GetWorld();
 	const float Now = World ? World->GetTimeSeconds() : 0.0f;
 
-	// MoveToActor installs goal-actor observation (AIController::FindPathForMoveRequest), so the
-	// path already repaths itself as the player drifts. Only issue a request once the previous
-	// one has finished: re-issuing on a timer aborts and restarts path following every interval,
-	// which flips the chosen corridor at corners and reads as the pawn wiggling into geometry.
-	// RepathInterval now only throttles retries after a rejected request.
-	if (Controller->GetMoveStatus() == EPathFollowingStatus::Idle
-		&& Now - InstanceData.LastRequestTime >= InstanceData.RepathInterval)
+	// Legs are clamped to the room left in front of the player, so they shrink as the pawn closes in.
+	// MoveToLocation is issued with bStopOnOverlap, making its reach test AcceptanceRadius plus the
+	// agent radius, and a leg inside that is answered with AlreadyAtGoal: the request finishes
+	// immediately without moving the pawn, the status returns to Idle, and the next tick issues an
+	// equally short leg on the flipped side. That never resolves, so the pawn holds short of
+	// StopDistance and the task never succeeds. Weaving must stop while the legs are still longer.
+	const float MinLegLength = InstanceData.AcceptanceRadius
+		+ Pawn->GetSimpleCollisionRadius()
+		+ YogStateTree_SnakeLegMargin;
+
+	// Weaving has to abandon MoveToActor: goal-actor observation re-solves the path straight at the
+	// player every frame, which would erase the lateral offset.
+	const bool bSnake = InstanceData.SnakeAmplitude > KINDA_SMALL_NUMBER
+		&& Distance > InstanceData.SnakeStraightenDistance
+		&& Distance > InstanceData.StopDistance + MinLegLength;
+
+	// Straightening out mid-leg leaves the pawn walking at a lateral corner with no snake waypoint
+	// to hand over from, and the Idle gate below would not re-issue until it brakes there. Treat the
+	// switch as a handoff so the pawn turns onto the player immediately.
+	const bool bStraightenedThisTick = !bSnake && InstanceData.bHasSnakeWaypoint;
+	if (!bSnake)
+	{
+		InstanceData.bHasSnakeWaypoint = false;
+	}
+
+	// Hand the next leg over before the pawn reaches the corner. Letting the move run to completion
+	// makes path following brake onto the corner, and the pawn then stands there until the tree
+	// ticks again — that pause, not the turn angle, is what reads as a shuttle run.
+	//
+	// Capping the trigger at half the leg matters near the player: the forward-room clamp shortens
+	// legs there, and a leg that starts shorter than SnakeCornerLookAhead would satisfy the handoff
+	// the moment it is issued. The move then re-issues every RepathInterval, and because the side
+	// flips each time the commanded direction oscillates faster than the pawn can act on it, so the
+	// lateral components cancel and it crawls forward. Requiring half a leg of travel first commits
+	// each direction long enough to cover ground.
+	const float HandoffDistance = FMath::Min(
+		InstanceData.SnakeCornerLookAhead,
+		InstanceData.SnakeLegStartDistance * 0.5f);
+	const bool bCornerHandoff = InstanceData.bHasSnakeWaypoint
+		&& FVector::Dist2D(Pawn->GetActorLocation(), InstanceData.SnakeWaypoint) <= HandoffDistance;
+
+	// The straight chase keeps its original Idle gate: MoveToActor installs goal-actor observation
+	// (AIController::FindPathForMoveRequest) so it repaths itself as the player drifts, and
+	// re-issuing it on a timer flips the chosen corridor at corners and wiggles into geometry.
+	const bool bWantsRequest = Controller->GetMoveStatus() == EPathFollowingStatus::Idle
+		|| (bSnake && !InstanceData.bHasSnakeWaypoint);
+
+	// A corner handoff is a planned leg change rather than a retry, so RepathInterval must not gate
+	// it. Throttling it would let the pawn run onto the corner and brake, which is what we are
+	// avoiding. The half-leg cap above is what bounds how often it can happen.
+	if (bCornerHandoff || bStraightenedThisTick
+		|| (bWantsRequest && Now - InstanceData.LastRequestTime >= InstanceData.RepathInterval))
 	{
 		InstanceData.LastRequestTime = Now;
-
-		// Weaving has to abandon MoveToActor: goal-actor observation re-solves the path straight
-		// at the player every frame, which would erase the lateral offset. One MoveToLocation per
-		// leg keeps the repath count identical to the straight chase, so path following stays put.
-		// The StopDistance + amplitude floor holds even if SnakeStraightenDistance is authored
-		// lower: once the remaining leg is shorter than the sideways offset the waypoint is mostly
-		// lateral, and the pawn orbits the player instead of closing on it.
-		const float StraightenDistance = FMath::Max(
-			InstanceData.SnakeStraightenDistance,
-			InstanceData.StopDistance + InstanceData.SnakeAmplitude);
-		const bool bSnake = InstanceData.SnakeAmplitude > KINDA_SMALL_NUMBER
-			&& Distance > StraightenDistance;
 
 		EPathFollowingRequestResult::Type Result;
 		if (bSnake)
 		{
-			InstanceData.bSnakeToRight = !InstanceData.bSnakeToRight;
-			const FVector Waypoint = YogStateTree_ComputeSnakeWaypoint(*Pawn, *Player, InstanceData);
+			// Strict alternation is what makes the weave read as a pattern, so let randomness
+			// occasionally hold the same side for a second leg and break the rhythm.
+			const float RepeatSideChance = 0.35f * FMath::Clamp(InstanceData.SnakeRandomness, 0.0f, 1.0f);
+			if (FMath::FRand() >= RepeatSideChance)
+			{
+				InstanceData.bSnakeToRight = !InstanceData.bSnakeToRight;
+			}
+
+			const FVector Waypoint = YogStateTree_ComputeSnakeWaypoint(*Pawn, *Player, InstanceData, MinLegLength);
+			InstanceData.SnakeWaypoint = Waypoint;
+			InstanceData.bHasSnakeWaypoint = true;
+			InstanceData.SnakeLegStartDistance = FVector::Dist2D(Pawn->GetActorLocation(), Waypoint);
 			Result = Controller->MoveToLocation(
 				Waypoint, InstanceData.AcceptanceRadius, true, true, true, true, nullptr, true);
 		}

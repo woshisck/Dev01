@@ -7,15 +7,19 @@
 #include "ANS_AutoTarget.generated.h"
 
 /**
- * AnimNotifyState：在攻击窗口内自动索敌并旋转面向最近敌人
+ * AnimNotifyState：在攻击窗口内自动索敌并旋转面向最近目标
+ *
+ * 索敌阵营由 Owner 类型自动判定，无需配置：
+ *   AEnemyCharacterBase  → 索敌 APlayerCharacterBase
+ *   其他（玩家）          → 索敌 AEnemyCharacterBase
  *
  * 用法：
  *   在蒙太奇攻击帧区间上挂此 NotifyState
- *   Begin → 球形搜索+锥角过滤 → 立即旋转朝向最近敌人
+ *   Begin → 球形搜索+锥角过滤 → 立即旋转朝向最近目标
  *   Tick  → 若开启 bContinuousTracking，持续追踪目标朝向
  *   End   → 清除缓存目标
  */
-UCLASS(meta = (DisplayName = "Auto Target Enemy"))
+UCLASS(meta = (DisplayName = "Auto Target"))
 class DEVKIT_API UANS_AutoTarget : public UAnimNotifyState
 {
 	GENERATED_BODY()
@@ -52,7 +56,7 @@ public:
 	virtual FString GetNotifyName_Implementation() const override;
 
 private:
-	/** 在搜索范围+锥角内找最优目标（最近的存活敌人） */
+	/** 在搜索范围+锥角内找最优目标（最近的存活敌对角色） */
 	AActor* FindBestTarget(ACharacter* Character) const;
 
 	/** 立即旋转角色面向目标（只修改 Yaw） */

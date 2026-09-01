@@ -6,6 +6,7 @@
 #include "Character/YogCharacterBase.h"
 #include "Character/PlayerCharacterBase.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
+#include "AbilitySystem/GameplayEffect/YogGameplayEffect.h"
 #include "Data/AbilityData.h"
 #include "AbilitySystemComponent.h"
 #include "Item/Weapon/WeaponDefinition.h"
@@ -345,11 +346,14 @@ void UYogGameplayAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, co
 			ASC->RemoveActiveGameplayEffect(StatBeforeATKHandle);
 			StatBeforeATKHandle = FActiveGameplayEffectHandle();
 		}
-		if (JustComboGEHandle.IsValid())
+		for (const FActiveGameplayEffectHandle& Handle : JustComboNextAttackHandles)
 		{
-			ASC->RemoveActiveGameplayEffect(JustComboGEHandle);
-			JustComboGEHandle = FActiveGameplayEffectHandle();
+			if (Handle.IsValid())
+			{
+				ASC->RemoveActiveGameplayEffect(Handle);
+			}
 		}
+		JustComboNextAttackHandles.Reset();
 	}
 
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
@@ -422,29 +426,36 @@ void UYogGameplayAbility::ApplyStatAfterATKGE(const FGameplayAbilityActorInfo* A
 	ASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
 }
 
-void UYogGameplayAbility::ApplyJustComboGE(const FGameplayAbilityActorInfo* ActorInfo)
+void UYogGameplayAbility::ApplyPendingJustComboEffects(const FGameplayAbilityActorInfo* ActorInfo)
 {
 	if (!ActorInfo)
 	{
 		return;
 	}
 	const APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(ActorInfo->AvatarActor.Get());
-	if (!Player || !Player->EquippedWeaponDef || !Player->EquippedWeaponDef->JustComboEffect)
+	UYogAbilitySystemComponent* ASC = Cast<UYogAbilitySystemComponent>(ActorInfo->AbilitySystemComponent.Get());
+	if (!Player || !ASC)
 	{
 		return;
 	}
-	UAbilitySystemComponent* ASC = ActorInfo->AbilitySystemComponent.Get();
-	if (!ASC)
+
+	// Sourced from the queue rather than the equipped weapon so a mid-combo weapon switch still
+	// spends the effect authored on the weapon that earned it.
+	const TArray<TSubclassOf<UYogGameplayEffect>> PendingEffects = ASC->ConsumeJustComboNextAttackEffects();
+	for (const TSubclassOf<UYogGameplayEffect>& Effect : PendingEffects)
 	{
-		return;
-	}
-	FGameplayEffectContextHandle Ctx = ASC->MakeEffectContext();
-	Ctx.AddSourceObject(Player);
-	const FGameplayEffectSpecHandle Spec = ASC->MakeOutgoingSpec(
-		Player->EquippedWeaponDef->JustComboEffect, GetAbilityLevel(), Ctx);
-	if (Spec.IsValid())
-	{
-		JustComboGEHandle = ASC->ApplyGameplayEffectSpecToSelf(*Spec.Data);
+		if (!Effect)
+		{
+			continue;
+		}
+
+		FGameplayEffectContextHandle Ctx = ASC->MakeEffectContext();
+		Ctx.AddSourceObject(Player);
+		const FGameplayEffectSpecHandle Spec = ASC->MakeOutgoingSpec(Effect, GetAbilityLevel(), Ctx);
+		if (Spec.IsValid())
+		{
+			JustComboNextAttackHandles.Add(ASC->ApplyGameplayEffectSpecToSelf(*Spec.Data));
+		}
 	}
 }
 

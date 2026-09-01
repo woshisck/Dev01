@@ -263,6 +263,13 @@ void APlayerCharacterBase::Die()
 {
 	Super::Die();
 
+	// ReviveFromDeath keeps this character and its ASC alive, so an unspent Just Combo bonus
+	// would otherwise carry over and fire on the first attack after the revive.
+	if (UYogAbilitySystemComponent* ASC = GetASC())
+	{
+		ASC->ClearPendingJustComboState();
+	}
+
 	if (AYogGameMode* GM = Cast<AYogGameMode>(GetWorld()->GetAuthGameMode()))
 	{
 		GM->HandlePlayerDeath(this);

@@ -8,6 +8,16 @@
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetMathLibrary.h"
 
+namespace
+{
+	UClass* AutoTarget_ResolveTargetClass(const ACharacter* Character)
+	{
+		return Character->IsA<AEnemyCharacterBase>()
+			? APlayerCharacterBase::StaticClass()
+			: AEnemyCharacterBase::StaticClass();
+	}
+}
+
 void UANS_AutoTarget::NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation,
 	float TotalDuration, const FAnimNotifyEventReference& EventReference)
 {
@@ -78,9 +88,9 @@ AActor* UANS_AutoTarget::FindBestTarget(ACharacter* Character) const
 
 	const float CosHalfAngle = FMath::Cos(FMath::DegreesToRadians(SearchHalfAngleDeg));
 
-	// 球形范围内的所有 Pawn
+	// 球形范围内的所有 Pawn（敌人索敌玩家，玩家索敌敌人）
 	TArray<AActor*> FoundActors;
-	UGameplayStatics::GetAllActorsOfClass(Character->GetWorld(), AEnemyCharacterBase::StaticClass(), FoundActors);
+	UGameplayStatics::GetAllActorsOfClass(Character->GetWorld(), AutoTarget_ResolveTargetClass(Character), FoundActors);
 
 	AActor* BestTarget = nullptr;
 	float BestDistSq = FLT_MAX;

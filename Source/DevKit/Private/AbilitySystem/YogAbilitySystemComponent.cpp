@@ -768,6 +768,38 @@ void UYogAbilitySystemComponent::ApplyWeaponTypeTag(EWeaponType Type)
 		*NewTag.ToString(), *GetNameSafe(GetAvatarActor()));
 }
 
+void UYogAbilitySystemComponent::QueueJustComboNextAttackEffects(const TArray<TSubclassOf<UYogGameplayEffect>>& Effects)
+{
+	PendingJustComboNextAttackEffects.Append(Effects);
+}
+
+TArray<TSubclassOf<UYogGameplayEffect>> UYogAbilitySystemComponent::ConsumeJustComboNextAttackEffects()
+{
+	return MoveTemp(PendingJustComboNextAttackEffects);
+}
+
+void UYogAbilitySystemComponent::SetPendingJustComboSpeedBonus()
+{
+	bPendingJustComboSpeedBonus = true;
+}
+
+bool UYogAbilitySystemComponent::ConsumePendingJustComboSpeedBonus()
+{
+	if (!bPendingJustComboSpeedBonus)
+	{
+		return false;
+	}
+
+	bPendingJustComboSpeedBonus = false;
+	return true;
+}
+
+void UYogAbilitySystemComponent::ClearPendingJustComboState()
+{
+	PendingJustComboNextAttackEffects.Reset();
+	bPendingJustComboSpeedBonus = false;
+}
+
 void UYogAbilitySystemComponent::SuppressNextDamageFeedback()
 {
 	bSuppressNextDamageFeedback = true;

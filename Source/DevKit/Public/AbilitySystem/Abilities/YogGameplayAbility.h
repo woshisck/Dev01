@@ -204,10 +204,10 @@ protected:
 	FActiveGameplayEffectHandle StatBeforeATKHandle;
 
 	/**
-	 * Active handle for the weapon's JustComboEffect; auto-removed in EndAbility.
-	 * Set by ApplyJustComboGE when the activating attack consumed a pending JustCombo bonus.
+	 * Active handles for the NextAttackOnly Just Combo effects this activation spent;
+	 * all auto-removed in EndAbility.
 	 */
-	FActiveGameplayEffectHandle JustComboGEHandle;
+	TArray<FActiveGameplayEffectHandle> JustComboNextAttackHandles;
 
 	/**
 	 * Applies StatBeforeATKEffect to Self with SetByCaller magnitudes from GetAbilityActionData().
@@ -222,10 +222,11 @@ protected:
 	void ApplyStatAfterATKGE(const FGameplayAbilityActorInfo* ActorInfo, bool bWasCancelled, const FActionData& ActionData);
 
 	/**
-	 * Reads the equipped weapon's JustComboEffect and applies it to Self.
-	 * Stores the handle in JustComboGEHandle; EndAbility removes it automatically.
+	 * Drains the NextAttackOnly effects queued on the ASC when the Just Combo window was procced
+	 * and applies them to Self. Stores the handles in JustComboNextAttackHandles; EndAbility
+	 * removes them automatically.
 	 * Call only when a JustCombo bonus was confirmed (TryConsumeJustComboBonus returned true).
 	 */
-	void ApplyJustComboGE(const FGameplayAbilityActorInfo* ActorInfo);
+	void ApplyPendingJustComboEffects(const FGameplayAbilityActorInfo* ActorInfo);
 
 };

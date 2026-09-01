@@ -56,7 +56,7 @@ void UGA_RangeAttack::ActivateAbility(
 			constexpr float JustComboSpeedMultiplier = 1.2f;
 			AttackSpeedRate *= JustComboSpeedMultiplier;
 			UE_LOG(LogTemp, Verbose, TEXT("[JustCombo] Range attack consumed JustCombo bonus. Rate=%.2f"), AttackSpeedRate);
-			ApplyJustComboGE(ActorInfo);
+			ApplyPendingJustComboEffects(ActorInfo);
 		}
 	}
 

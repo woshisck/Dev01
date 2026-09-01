@@ -68,14 +68,43 @@ struct FStateTreeTask_ChasePlayerUntilDistanceInstanceData
 	UPROPERTY(EditAnywhere, Category = Parameter, meta = (ClampMin = "50.0", EditCondition = "SnakeAmplitude > 0.0"))
 	float SnakeSegmentLength = 300.0f;
 
-	/** Inside this range the weave stops and the pawn closes straight in. */
+	/**
+	 * How irregular the weave is. 0 is a metronomic left-right zig-zag; 1 varies the length and
+	 * width of every leg and will sometimes break rhythm by weaving the same way twice. Each pawn
+	 * rolls independently, so a group stops moving in lockstep.
+	 */
+	UPROPERTY(EditAnywhere, Category = Parameter, meta = (ClampMin = "0.0", ClampMax = "1.0", EditCondition = "SnakeAmplitude > 0.0"))
+	float SnakeRandomness = 0.0f;
+
+	/**
+	 * Optional hard cutoff: inside this range the pawn closes straight in. Zero is usually what you
+	 * want — the weave already tapers off on its own and then straightens for the final approach,
+	 * because a leg has to stay long enough for the nav reach test to accept it as a real move.
+	 */
 	UPROPERTY(EditAnywhere, Category = Parameter, meta = (ClampMin = "0.0", EditCondition = "SnakeAmplitude > 0.0"))
-	float SnakeStraightenDistance = 250.0f;
+	float SnakeStraightenDistance = 0.0f;
+
+	/**
+	 * How far short of a weave corner the next leg is issued, which is what rounds the corner off.
+	 * Zero makes the pawn run all the way onto each corner and brake there, giving a shuttle-run
+	 * stutter. Keep this above the distance the pawn covers in one tick of the tree.
+	 */
+	UPROPERTY(EditAnywhere, Category = Parameter, meta = (ClampMin = "0.0", EditCondition = "SnakeAmplitude > 0.0"))
+	float SnakeCornerLookAhead = 150.0f;
 
 	float LastRequestTime = -FLT_MAX;
 
 	// Which side the current weave leg is offset to; flipped once per leg.
 	bool bSnakeToRight = false;
+
+	// Corner the active weave leg is heading for, used to hand over before the pawn arrives.
+	FVector SnakeWaypoint = FVector::ZeroVector;
+	bool bHasSnakeWaypoint = false;
+
+	// Distance to SnakeWaypoint when the leg was issued. The handoff is capped at half of this so
+	// it cannot fire on a leg that starts shorter than SnakeCornerLookAhead, which would re-issue
+	// the move every tick and stall the pawn.
+	float SnakeLegStartDistance = 0.0f;
 };
 
 USTRUCT(meta = (DisplayName = "Chase Player Until Distance", Category = "Yog|AI"))

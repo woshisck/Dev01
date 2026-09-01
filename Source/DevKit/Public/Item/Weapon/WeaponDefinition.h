@@ -22,7 +22,7 @@ class UYogAbilitySet;
 class AWeaponInstance;
 class APlayerCharacterBase;
 class UMaterialInterface;
-class UGameplayEffect;
+class UYogGameplayEffect;
 class URuneDataAsset;
 class USoundBase;
 class UNiagaraSystem;
@@ -43,6 +43,31 @@ struct FBackpackConfig
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "背包", meta = (DisplayName = "激活区配置"))
     FActivationZoneConfig ActivationZoneConfig;
+};
+
+UENUM(BlueprintType)
+enum class EJustComboEffectLifetime : uint8
+{
+	// Applied the moment the Just Combo input lands. Behaves like any other GE:
+	// stacks across procs and expires on its own duration. Never removed by an ability.
+	Duration       UMETA(DisplayName = "持续时间"),
+
+	// Applied at the start of the next attack and removed when that ability ends.
+	// Captured at proc time, so it survives a weapon switch and keeps the effect
+	// authored on the weapon that earned it.
+	NextAttackOnly UMETA(DisplayName = "仅下次攻击"),
+};
+
+USTRUCT(BlueprintType)
+struct DEVKIT_API FJustComboEffectEntry
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "战斗|精准连击", meta = (DisplayName = "效果"))
+	TSubclassOf<UYogGameplayEffect> Effect;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "战斗|精准连击", meta = (DisplayName = "生效方式"))
+	EJustComboEffectLifetime Lifetime = EJustComboEffectLifetime::Duration;
 };
 
 UCLASS(Blueprintable, BlueprintType, Const)
@@ -149,12 +174,14 @@ public:
 	TArray<TObjectPtr<URuneDataAsset>> InitialCombatDeck;
 
 	/**
-	 * Applied to the player's ASC at the start of any attack that successfully consumed a Just Combo
-	 * input (attack pressed during Character.State.Window.JustCombo). Removed in EndAbility.
-	 * Must be Infinite or Has Duration — the GA always removes it by handle on ability end.
+	 * Effects awarded when the player presses attack during Character.State.Window.JustCombo.
+	 * Each entry picks its own lifetime; see EJustComboEffectLifetime.
+	 *
+	 * NextAttackOnly entries must be Infinite or Has Duration — the consuming ability always
+	 * removes them by handle on ability end.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "战斗|精准连击", meta = (DisplayName = "精准连击效果"))
-	TSubclassOf<UGameplayEffect> JustComboEffect;
+	TArray<FJustComboEffectEntry> JustComboEffects;
 
 	// Deprecated compatibility data. Current cards loop in sequence without shuffle downtime.
 	UPROPERTY()

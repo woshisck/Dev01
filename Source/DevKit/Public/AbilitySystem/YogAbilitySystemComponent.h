@@ -12,6 +12,7 @@
 #include "YogAbilitySystemComponent.generated.h"
 
 class UYogAbilitySystemComponent;
+class UYogGameplayEffect;
 
 
 // =========================================================
@@ -264,6 +265,12 @@ private:
 	void OnPoiseResetTimerEnd();
 	void OnSuperArmorTimerEnd();
 
+	// ── Just Combo pending state ──────────────────────────────────────
+	UPROPERTY(Transient)
+	TArray<TSubclassOf<UYogGameplayEffect>> PendingJustComboNextAttackEffects;
+
+	bool bPendingJustComboSpeedBonus = false;
+
 	// ── Deprecated DashSave compatibility state ─────────────────────────
 	/** Deprecated combo-tag cache kept for old tests/assets; current Dash no longer writes it. */
 	FGameplayTagContainer DashSaveComboTags;
@@ -299,6 +306,27 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
 	void ClearWeaponTypeTags();
+
+	// ── Just Combo pending state ──────────────────────────────────────
+	// Owned here rather than by the weapon or the attack ability so it survives a
+	// weapon switch: the effects a player earns are captured from the weapon that
+	// earned them and spent on whatever attack comes next.
+
+	/** Queues NextAttackOnly effects to be applied by the next attack that consumes the bonus. */
+	void QueueJustComboNextAttackEffects(const TArray<TSubclassOf<UYogGameplayEffect>>& Effects);
+
+	/** Returns and clears the queued NextAttackOnly effects. */
+	TArray<TSubclassOf<UYogGameplayEffect>> ConsumeJustComboNextAttackEffects();
+
+	void SetPendingJustComboSpeedBonus();
+
+	/** Returns true and clears the flag when a speed bonus was owed. */
+	bool ConsumePendingJustComboSpeedBonus();
+
+	bool HasPendingJustComboSpeedBonus() const { return bPendingJustComboSpeedBonus; }
+
+	/** Drops every unspent Just Combo bonus. Called on death so a revive starts clean. */
+	void ClearPendingJustComboState();
 
 	////////////////////////////////////////////////////////////////////////////////
 
