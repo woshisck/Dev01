@@ -282,6 +282,76 @@ struct DEVKIT_API FStateTreeTask_SpawnMobInReachableNavMesh : public FStateTreeA
 	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
 };
 
+// ─── Spawn Mob ──────────────────────────────────────────────────────────────
+// Spawns TotalCount mobs one at a time at random reachable NavMesh points
+// around the origin, waiting SpawnInterval seconds between each. Succeeds once
+// the last mob is spawned.
+
+USTRUCT()
+struct FStateTreeTask_SpawnMobInstanceData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = Context)
+	TObjectPtr<AAIController> AIController = nullptr;
+
+	UPROPERTY(EditAnywhere, Category = Context)
+	TObjectPtr<AActor> SpawnOriginActor = nullptr;
+
+	UPROPERTY(EditAnywhere, Category = Parameter)
+	TSubclassOf<AEnemyCharacterBase> EnemyClass;
+
+	UPROPERTY(EditAnywhere, Category = Parameter, meta = (ClampMin = "1"))
+	int32 TotalCount = 3;
+
+	UPROPERTY(EditAnywhere, Category = Parameter, meta = (ClampMin = "0.0"))
+	float SpawnInterval = 1.0f;
+
+	UPROPERTY(EditAnywhere, Category = Parameter, meta = (ClampMin = "0.0"))
+	float SpawnRadius = 1000.0f;
+
+	UPROPERTY(EditAnywhere, Category = Parameter, meta = (ClampMin = "0.0"))
+	float MinSpawnDistance = 300.0f;
+
+	UPROPERTY(EditAnywhere, Category = Parameter, meta = (ClampMin = "0.0"))
+	float SpawnZOffset = 96.0f;
+
+	UPROPERTY(EditAnywhere, Category = Parameter, meta = (ClampMin = "1"))
+	int32 MaxAttempts = 24;
+
+	UPROPERTY(EditAnywhere, Category = Parameter)
+	bool bCountsForLevelClear = true;
+
+	// When false, a spawn that finds no reachable point is skipped and the
+	// sequence continues; when true it aborts the whole task.
+	UPROPERTY(EditAnywhere, Category = Parameter)
+	bool bFailOnSpawnFailure = false;
+
+	UPROPERTY(EditAnywhere, Category = Output)
+	TArray<TObjectPtr<AEnemyCharacterBase>> SpawnedEnemies;
+
+	int32 SpawnedCount = 0;
+	int32 ConsecutiveFailures = 0;
+	float TimeUntilNextSpawn = 0.f;
+};
+
+USTRUCT(meta = (DisplayName = "Spawn Mob", Category = "Yog|AI"))
+struct DEVKIT_API FStateTreeTask_SpawnMob : public FStateTreeAIActionTaskBase
+{
+	GENERATED_BODY()
+
+	using FInstanceDataType = FStateTreeTask_SpawnMobInstanceData;
+
+	FStateTreeTask_SpawnMob();
+
+	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
+	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
+	virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) const override;
+
+private:
+	EStateTreeRunStatus AdvanceSpawn(FInstanceDataType& InstanceData) const;
+};
+
 // ─── Enemy Patrol Wait ──────────────────────────────────────────────────────
 // Waits a random duration within
 // EnemyData.AwarenessTuning PatrolWaitMin/PatrolWaitMax, then succeeds.

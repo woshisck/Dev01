@@ -23,6 +23,16 @@
 4. `../../GeneratedReports/GameplayTagContentAssetScan.md`：Content 资产旧 tag 扫描结果。
 5. `../../99_归档/GameplayTags_Analysis.md`：旧 LOTF/LOTF2 外部参考归档。
 
+## Tag 驱动的子系统
+
+两者都以「Tag 是否存在于 ASC 上」为键，都从 `UYogAbilitySystemComponent::OnTagUpdated` 派发，语义相反，冲突阻断先于反应执行。
+
+| 文档 | 作用 |
+|------|------|
+| [StateConflict_Technical](StateConflict/StateConflict_Technical.md) | Tag 存在期间**禁止**什么：阻断 / 取消 GA、停止移动、暂停 AI |
+| [StateConflict_TagBlock](StateConflict/StateConflict_TagBlock.md) | 阻断分类表（`Block.Movement`、`Block.AI`）配置说明 |
+| [TagReaction_Technical](TagReaction/TagReaction_Technical.md) | Tag 变化时**触发**什么：启动 BuffFlow、施加 GE、激活 GA |
+
 ## 资产迁移流程
 
 1. 先运行 `GameplayTagAssetMigrationCommandlet` dry-run，生成 `Docs/GeneratedReports/CommandletReports/GameplayTagAssetMigrationReport.md`。

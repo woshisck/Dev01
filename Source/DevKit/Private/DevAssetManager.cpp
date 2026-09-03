@@ -5,6 +5,7 @@
 #include "AbilitySystemGlobals.h"
 #include "Data/GameplayTagRelation.h"
 #include "Data/StateConflictDataAsset.h"
+#include "Data/TagReactionDataAsset.h"
 #include "UI/YogUIRegistry.h"
 #include "UI/PlayerUIStyleDataAsset.h"
 #include "UI/YogCursorStyleDataAsset.h"
@@ -39,6 +40,11 @@ const UGameplayTagRelation& UDevAssetManager::GetGameplayTagRelation()
 UStateConflictDataAsset* UDevAssetManager::GetStateConflictData()
 {
 	return GetAsset<UStateConflictDataAsset>(StateConflictData);
+}
+
+UTagReactionDataAsset* UDevAssetManager::GetTagReactionData()
+{
+	return GetAsset<UTagReactionDataAsset>(TagReactionData);
 }
 
 UYogUIRegistry* UDevAssetManager::GetUIRegistry()

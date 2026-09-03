@@ -7,6 +7,7 @@
 #include "Data/AbilityData.h"
 #include "Data/RuneDataAsset.h"
 #include "Data/StateConflictDataAsset.h"
+#include "Data/TagReactionDataAsset.h"
 #include "GameplayEffectTypes.h"
 #include "Item/Weapon/WeaponTypes.h"
 #include "YogAbilitySystemComponent.generated.h"
@@ -136,6 +137,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FDashExecutedDelegate);
 /** 击杀目标时在 Source ASC 广播，携带目Actor 和死亡位*/
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FKilledTargetDelegate, AActor*, Target, FVector, DeathLocation);
 
+/** Tag 计数跨越 0 边界时广播，bAdded 为 true 表示新增 */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FGameplayTagChangedDelegate, FGameplayTag, Tag, bool, bAdded);
+
 
 
 
@@ -215,6 +219,29 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "StateConflict")
 	void SetConflictTable(UStateConflictDataAsset* NewTable);
 
+	// =========================================================
+	// 标签反应系统
+	// =========================================================
+
+	/**
+	 * 角色级标签反应表（可选）
+	 * 留空时使用 DevAssetManager 的全局表；两者都存在时按 TriggerTag + ReactionType 覆盖全局条目
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "TagReaction")
+	TObjectPtr<UTagReactionDataAsset> TagReactionTable;
+
+	/** 构建 O(1) 查找用的 ReactionMap（在 InitAbilityActorInfo 之后调用） */
+	UFUNCTION(BlueprintCallable, Category = "TagReaction")
+	void InitTagReactionTable();
+
+	/** 运行时替换反应表并重新初始化（热更新用） */
+	UFUNCTION(BlueprintCallable, Category = "TagReaction")
+	void SetTagReactionTable(UTagReactionDataAsset* NewTable);
+
+	/** Tag 计数跨越 0 边界时广播，供蓝图直接绑定而无需配表 */
+	UPROPERTY(BlueprintAssignable, Category = "TagReaction")
+	FGameplayTagChangedDelegate OnGameplayTagChanged;
+
 	UFUNCTION(BlueprintPure, Category = "Status VFX")
 	bool HasActiveStatusNiagaraForTag(FGameplayTag Tag) const;
 
@@ -225,9 +252,37 @@ protected:
 	// OnTagUpdated override：tag 变化时自动查表执block / cancel
 	virtual void OnTagUpdated(const FGameplayTag& Tag, bool TagExists) override;
 
+	// Tears down tag reactions so death / level transition cannot leak flows or infinite GEs.
+	virtual void OnUnregister() override;
+
 private:
 	// 预处理后的查找表（ActiveTag Rule），InitConflictTable() 构建
 	TMap<FGameplayTag, FStateConflictRule> ConflictMap;
+
+	// ── 标签反应系统 ─────────────────────────────────────────────────
+	// TriggerTag → 规则列表（按 Priority 降序），InitTagReactionTable() 构建
+	TMap<FGameplayTag, TArray<FTagReactionRule>> ReactionMap;
+
+	// One applied reaction, kept so the matching tag removal can undo it.
+	struct FActiveTagReaction
+	{
+		FGuid FlowGuid;
+		FActiveGameplayEffectHandle EffectHandle;
+		FGameplayAbilitySpecHandle AbilityHandle;
+		ETagReactionUndo UndoPolicy = ETagReactionUndo::Auto;
+	};
+
+	TMap<FGameplayTag, TArray<FActiveTagReaction>> ActiveTagReactions;
+
+	// Applying a GE or starting a flow grants tags, which re-enters OnTagUpdated.
+	bool bProcessingTagReaction = false;
+
+	void ProcessStateConflict(const FGameplayTag& Tag, bool TagExists);
+	void ProcessTagReactions(const FGameplayTag& Tag, bool TagExists);
+	bool ApplyTagReaction(const FTagReactionRule& Rule, FActiveTagReaction& OutRecord);
+	void UndoTagReaction(const FActiveTagReaction& Record);
+	void UndoTagReactions(const FGameplayTag& Tag);
+	void ClearAllTagReactions();
 
 	// 阻断分类表（BlockCategory 触发该阻断的 State Tags），DA 复制
 	TMap<FGameplayTag, FGameplayTagContainer> BlockCategoryMap;

@@ -14,6 +14,9 @@
 #include "SaveGame/YogSaveGame.h"
 #include "Data/YogGameData.h"
 #include "Data/StateConflictDataAsset.h"
+#include "Data/TagReactionDataAsset.h"
+#include "BuffFlow/BuffFlowComponent.h"
+#include "FlowAsset.h"
 #include "DevAssetManager.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "NiagaraComponent.h"
@@ -293,6 +296,132 @@ void UYogAbilitySystemComponent::SetConflictTable(UStateConflictDataAsset* NewTa
 {
 	ConflictTable = NewTable;
 	InitConflictTable();
+}
+
+// =========================================================
+// 标签反应系统
+// =========================================================
+
+namespace
+{
+	bool TagReaction_IsRuleValid(const FTagReactionRule& Rule, const UObject* SourceTable)
+	{
+		if (!Rule.TriggerTag.IsValid())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[TagReaction] Rule with invalid TriggerTag found in %s, skipped."),
+				*GetNameSafe(SourceTable));
+			return false;
+		}
+
+		switch (Rule.ReactionType)
+		{
+		case ETagReactionType::StartBuffFlow:
+			if (!Rule.FlowAsset)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[TagReaction] Tag=%s StartBuffFlow rule has no FlowAsset in %s, skipped."),
+					*Rule.TriggerTag.ToString(), *GetNameSafe(SourceTable));
+				return false;
+			}
+			return true;
+
+		case ETagReactionType::ApplyGameplayEffect:
+			if (!Rule.EffectClass)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[TagReaction] Tag=%s ApplyGameplayEffect rule has no EffectClass in %s, skipped."),
+					*Rule.TriggerTag.ToString(), *GetNameSafe(SourceTable));
+				return false;
+			}
+			return true;
+
+		case ETagReactionType::ActivateAbility:
+			if (!Rule.AbilityClass)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[TagReaction] Tag=%s ActivateAbility rule has no AbilityClass in %s, skipped."),
+					*Rule.TriggerTag.ToString(), *GetNameSafe(SourceTable));
+				return false;
+			}
+			return true;
+		}
+
+		return false;
+	}
+}
+
+void UYogAbilitySystemComponent::InitTagReactionTable()
+{
+	ClearAllTagReactions();
+	ReactionMap.Reset();
+
+	// Global table first, then the per-character override layered on top.
+	UTagReactionDataAsset* GlobalTable = UDevAssetManager::Get().GetTagReactionData();
+
+	auto MergeTable = [this](const UTagReactionDataAsset* Table, bool bOverrideExisting)
+	{
+		if (!Table)
+		{
+			return;
+		}
+
+		for (const FTagReactionRule& Rule : Table->Reactions)
+		{
+			if (!TagReaction_IsRuleValid(Rule, Table))
+			{
+				continue;
+			}
+
+			TArray<FTagReactionRule>& Bucket = ReactionMap.FindOrAdd(Rule.TriggerTag);
+			if (bOverrideExisting)
+			{
+				const int32 ExistingIndex = Bucket.IndexOfByPredicate([&Rule](const FTagReactionRule& Existing)
+				{
+					return Existing.ReactionType == Rule.ReactionType;
+				});
+
+				if (ExistingIndex != INDEX_NONE)
+				{
+					Bucket[ExistingIndex] = Rule;
+					continue;
+				}
+			}
+
+			Bucket.Add(Rule);
+		}
+	};
+
+	MergeTable(GlobalTable, false);
+	MergeTable(TagReactionTable, true);
+
+	if (ReactionMap.IsEmpty())
+	{
+		UE_LOG(LogTemp, Log, TEXT("[TagReaction] Initialized 0 rules on %s."), *GetNameSafe(GetOwner()));
+		return;
+	}
+
+	int32 RuleCount = 0;
+	for (TPair<FGameplayTag, TArray<FTagReactionRule>>& Pair : ReactionMap)
+	{
+		Pair.Value.Sort([](const FTagReactionRule& A, const FTagReactionRule& B)
+		{
+			return A.Priority > B.Priority;
+		});
+		RuleCount += Pair.Value.Num();
+
+		// Legal to configure both, but the conflict phase runs first and wins.
+		if (ConflictMap.Contains(Pair.Key) || StateToBlockCategories.Contains(Pair.Key))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[TagReaction] Tag=%s appears in both the conflict table and the reaction table on %s; blocking takes precedence."),
+				*Pair.Key.ToString(), *GetNameSafe(GetOwner()));
+		}
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[TagReaction] Initialized %d rules across %d tags on %s."),
+		RuleCount, ReactionMap.Num(), *GetNameSafe(GetOwner()));
+}
+
+void UYogAbilitySystemComponent::SetTagReactionTable(UTagReactionDataAsset* NewTable)
+{
+	TagReactionTable = NewTable;
+	InitTagReactionTable();
 }
 
 bool UYogAbilitySystemComponent::HasActiveStatusNiagaraForTag(FGameplayTag Tag) const
@@ -582,6 +711,16 @@ void UYogAbilitySystemComponent::OnTagUpdated(const FGameplayTag& Tag, bool TagE
 		}
 	}
 
+	// Conflict/blocking must resolve before reactions, so a reaction can never
+	// activate an ability the same tag is meant to block.
+	ProcessStateConflict(Tag, TagExists);
+	ProcessTagReactions(Tag, TagExists);
+
+	OnGameplayTagChanged.Broadcast(Tag, TagExists);
+}
+
+void UYogAbilitySystemComponent::ProcessStateConflict(const FGameplayTag& Tag, bool TagExists)
+{
 	// =========================================================
 	// ״̬��ͻ�����ݹ飬BlockAbilitiesWithTags �ڲ�Ҳ�ᴥ�� OnTagUpdated
 	// =========================================================
@@ -609,6 +748,207 @@ void UYogAbilitySystemComponent::OnTagUpdated(const FGameplayTag& Tag, bool TagE
 		if (!Rule->BlockTags.IsEmpty())
 			UnBlockAbilitiesWithTags(Rule->BlockTags);
 	}
+}
+
+void UYogAbilitySystemComponent::ProcessTagReactions(const FGameplayTag& Tag, bool TagExists)
+{
+	if (bProcessingTagReaction)
+		return;
+
+	if (!TagExists)
+	{
+		TGuardValue<bool> Guard(bProcessingTagReaction, true);
+		UndoTagReactions(Tag);
+		return;
+	}
+
+	const TArray<FTagReactionRule>* Rules = ReactionMap.Find(Tag);
+	if (!Rules)
+		return;
+
+	UE_LOG(LogTemp, Log, TEXT("[TagReaction] Tag=%s dispatching %d rule(s) on %s."),
+		*Tag.ToString(), Rules->Num(), *GetNameSafe(GetOwner()));
+
+	TGuardValue<bool> Guard(bProcessingTagReaction, true);
+
+	// Re-entrancy is guarded, so a tag that somehow fires twice without an
+	// intervening removal must not stack a second set of reactions.
+	if (ActiveTagReactions.Contains(Tag))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[TagReaction] Tag=%s already has active reactions on %s, skipping re-apply."),
+			*Tag.ToString(), *GetNameSafe(GetOwner()));
+		return;
+	}
+
+	TArray<FActiveTagReaction> Records;
+	for (const FTagReactionRule& Rule : *Rules)
+	{
+		FActiveTagReaction Record;
+		if (ApplyTagReaction(Rule, Record))
+		{
+			Records.Add(Record);
+		}
+	}
+
+	if (!Records.IsEmpty())
+	{
+		ActiveTagReactions.Add(Tag, MoveTemp(Records));
+	}
+}
+
+bool UYogAbilitySystemComponent::ApplyTagReaction(const FTagReactionRule& Rule, FActiveTagReaction& OutRecord)
+{
+	OutRecord.UndoPolicy = Rule.UndoPolicy;
+
+	// OnTagUpdated can fire during InitAbilityActorInfo, before the avatar and its
+	// components exist. Never assume they are ready.
+	AActor* Avatar = GetAvatarActor();
+	if (!IsValid(Avatar))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[TagReaction] Tag=%s skipped: avatar actor is not valid yet on %s."),
+			*Rule.TriggerTag.ToString(), *GetNameSafe(GetOwner()));
+		return false;
+	}
+
+	switch (Rule.ReactionType)
+	{
+	case ETagReactionType::StartBuffFlow:
+	{
+		UBuffFlowComponent* BuffFlowComponent = Avatar->FindComponentByClass<UBuffFlowComponent>();
+		if (!BuffFlowComponent)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[TagReaction] Tag=%s StartBuffFlow skipped: no UBuffFlowComponent on %s."),
+				*Rule.TriggerTag.ToString(), *GetNameSafe(Avatar));
+			return false;
+		}
+
+		// A fresh GUID per rule keeps several rules on one tag from colliding.
+		OutRecord.FlowGuid = FGuid::NewGuid();
+		BuffFlowComponent->StartBuffFlow(Rule.FlowAsset, OutRecord.FlowGuid, Avatar, false);
+
+		UE_LOG(LogTemp, Log, TEXT("[TagReaction] Tag=%s started flow %s on %s."),
+			*Rule.TriggerTag.ToString(), *GetNameSafe(Rule.FlowAsset), *GetNameSafe(Avatar));
+		return true;
+	}
+
+	case ETagReactionType::ApplyGameplayEffect:
+	{
+		FGameplayEffectContextHandle ContextHandle = MakeEffectContext();
+		ContextHandle.AddSourceObject(this);
+
+		const FGameplayEffectSpecHandle SpecHandle = MakeOutgoingSpec(Rule.EffectClass, 1.f, ContextHandle);
+		if (!SpecHandle.IsValid())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[TagReaction] Tag=%s ApplyGameplayEffect skipped: invalid spec for %s."),
+				*Rule.TriggerTag.ToString(), *GetNameSafe(Rule.EffectClass));
+			return false;
+		}
+
+		OutRecord.EffectHandle = ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+		if (!OutRecord.EffectHandle.IsValid())
+		{
+			// Instant GEs never produce a handle, so Auto undo cannot work for them.
+			UE_LOG(LogTemp, Warning, TEXT("[TagReaction] Tag=%s applied %s but got no active handle back; use a duration/infinite GE if Auto undo is required."),
+				*Rule.TriggerTag.ToString(), *GetNameSafe(Rule.EffectClass));
+			return false;
+		}
+
+		UE_LOG(LogTemp, Log, TEXT("[TagReaction] Tag=%s applied effect %s on %s."),
+			*Rule.TriggerTag.ToString(), *GetNameSafe(Rule.EffectClass), *GetNameSafe(Avatar));
+		return true;
+	}
+
+	case ETagReactionType::ActivateAbility:
+	{
+		if (!TryActivateAbilityByClass(Rule.AbilityClass))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[TagReaction] Tag=%s failed to activate %s on %s."),
+				*Rule.TriggerTag.ToString(), *GetNameSafe(Rule.AbilityClass), *GetNameSafe(Avatar));
+			return false;
+		}
+
+		if (const FGameplayAbilitySpec* Spec = FindAbilitySpecFromClass(Rule.AbilityClass))
+		{
+			OutRecord.AbilityHandle = Spec->Handle;
+		}
+
+		UE_LOG(LogTemp, Log, TEXT("[TagReaction] Tag=%s activated ability %s on %s."),
+			*Rule.TriggerTag.ToString(), *GetNameSafe(Rule.AbilityClass), *GetNameSafe(Avatar));
+		return true;
+	}
+	}
+
+	return false;
+}
+
+void UYogAbilitySystemComponent::UndoTagReaction(const FActiveTagReaction& Record)
+{
+	if (Record.UndoPolicy != ETagReactionUndo::Auto)
+	{
+		return;
+	}
+
+	if (Record.FlowGuid.IsValid())
+	{
+		if (AActor* Avatar = GetAvatarActor())
+		{
+			if (UBuffFlowComponent* BuffFlowComponent = Avatar->FindComponentByClass<UBuffFlowComponent>())
+			{
+				BuffFlowComponent->StopBuffFlow(Record.FlowGuid);
+			}
+		}
+	}
+
+	if (Record.EffectHandle.IsValid())
+	{
+		RemoveActiveGameplayEffect(Record.EffectHandle);
+	}
+
+	if (Record.AbilityHandle.IsValid())
+	{
+		CancelAbilityHandle(Record.AbilityHandle);
+	}
+}
+
+void UYogAbilitySystemComponent::UndoTagReactions(const FGameplayTag& Tag)
+{
+	TArray<FActiveTagReaction> Records;
+	if (!ActiveTagReactions.RemoveAndCopyValue(Tag, Records))
+	{
+		return;
+	}
+
+	for (const FActiveTagReaction& Record : Records)
+	{
+		UndoTagReaction(Record);
+	}
+}
+
+void UYogAbilitySystemComponent::ClearAllTagReactions()
+{
+	if (ActiveTagReactions.IsEmpty())
+	{
+		return;
+	}
+
+	TMap<FGameplayTag, TArray<FActiveTagReaction>> Pending = MoveTemp(ActiveTagReactions);
+	ActiveTagReactions.Reset();
+
+	TGuardValue<bool> Guard(bProcessingTagReaction, true);
+	for (const TPair<FGameplayTag, TArray<FActiveTagReaction>>& Pair : Pending)
+	{
+		for (const FActiveTagReaction& Record : Pair.Value)
+		{
+			UndoTagReaction(Record);
+		}
+	}
+}
+
+void UYogAbilitySystemComponent::OnUnregister()
+{
+	ClearAllTagReactions();
+
+	Super::OnUnregister();
 }
 
 // =========================================================

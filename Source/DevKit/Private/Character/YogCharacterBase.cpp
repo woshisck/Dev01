@@ -202,6 +202,7 @@ void AYogCharacterBase::PostInitializeComponents()
 	EnsureCoreAttributeSetsRegistered();
 	AbilitySystemComponent->InitAbilityActorInfo(this, this);
 	AbilitySystemComponent->InitConflictTable();
+	AbilitySystemComponent->InitTagReactionTable();
 }
 
 void AYogCharacterBase::EnsureCoreAttributeSetsRegistered()

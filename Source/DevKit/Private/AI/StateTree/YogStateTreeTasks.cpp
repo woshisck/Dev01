@@ -112,6 +112,36 @@ namespace
 
 		return Spawned;
 	}
+
+	bool SpawnMobStep(FStateTreeTask_SpawnMobInstanceData& InstanceData, AActor* OriginActor, APawn* InstigatorPawn)
+	{
+		UWorld* World = OriginActor->GetWorld();
+
+		FVector SpawnLocation = FVector::ZeroVector;
+		if (!FindReachableSpawnLocation(
+				World,
+				OriginActor->GetActorLocation(),
+				InstanceData.SpawnRadius,
+				InstanceData.MinSpawnDistance,
+				InstanceData.MaxAttempts,
+				SpawnLocation))
+		{
+			return false;
+		}
+
+		SpawnLocation.Z += InstanceData.SpawnZOffset;
+
+		AEnemyCharacterBase* Spawned = SpawnEnemyAtLocation(
+			World, OriginActor, InstigatorPawn, InstanceData.EnemyClass, SpawnLocation);
+		if (!Spawned)
+		{
+			return false;
+		}
+
+		Spawned->bCountsForLevelClear = InstanceData.bCountsForLevelClear;
+		InstanceData.SpawnedEnemies.Add(Spawned);
+		return true;
+	}
 }
 
 FStateTreeTask_ActivateAbilityByTag::FStateTreeTask_ActivateAbilityByTag()
@@ -536,6 +566,110 @@ EStateTreeRunStatus FStateTreeTask_SpawnMobInReachableNavMesh::EnterState(
 	SpawnedEnemy->bCountsForLevelClear = InstanceData.bCountsForLevelClear;
 	InstanceData.SpawnedEnemy = SpawnedEnemy;
 	return EStateTreeRunStatus::Succeeded;
+}
+
+// ─── Spawn Mob ──────────────────────────────────────────────────────────────
+
+namespace
+{
+	constexpr int32 SpawnMob_MaxConsecutiveFailures = 10;
+}
+
+FStateTreeTask_SpawnMob::FStateTreeTask_SpawnMob()
+{
+	bShouldCallTick = true;
+}
+
+EStateTreeRunStatus FStateTreeTask_SpawnMob::AdvanceSpawn(FInstanceDataType& InstanceData) const
+{
+	AActor* OriginActor = InstanceData.SpawnOriginActor ? InstanceData.SpawnOriginActor.Get() : nullptr;
+	if (!OriginActor && InstanceData.AIController)
+	{
+		OriginActor = InstanceData.AIController->GetPawn();
+	}
+
+	if (!OriginActor)
+	{
+		return EStateTreeRunStatus::Failed;
+	}
+
+	APawn* InstigatorPawn = InstanceData.AIController ? InstanceData.AIController->GetPawn() : nullptr;
+	if (!SpawnMobStep(InstanceData, OriginActor, InstigatorPawn))
+	{
+		if (InstanceData.bFailOnSpawnFailure)
+		{
+			return EStateTreeRunStatus::Failed;
+		}
+
+		UE_LOG(LogTemp, Warning,
+			TEXT("[SpawnMob] No reachable spawn point for %s around %s (Radius=%.0f Min=%.0f Attempts=%d); retrying"),
+			*GetNameSafe(InstanceData.EnemyClass),
+			*GetNameSafe(OriginActor),
+			InstanceData.SpawnRadius,
+			InstanceData.MinSpawnDistance,
+			InstanceData.MaxAttempts);
+
+		// A failed placement must not consume one of TotalCount, or the group
+		// silently comes out short. But an origin that can never place anything
+		// must not retry forever either.
+		if (++InstanceData.ConsecutiveFailures >= SpawnMob_MaxConsecutiveFailures)
+		{
+			return EStateTreeRunStatus::Failed;
+		}
+
+		InstanceData.TimeUntilNextSpawn = InstanceData.SpawnInterval;
+		return EStateTreeRunStatus::Running;
+	}
+
+	InstanceData.ConsecutiveFailures = 0;
+	++InstanceData.SpawnedCount;
+	if (InstanceData.SpawnedCount >= InstanceData.TotalCount)
+	{
+		return EStateTreeRunStatus::Succeeded;
+	}
+
+	InstanceData.TimeUntilNextSpawn = InstanceData.SpawnInterval;
+	return EStateTreeRunStatus::Running;
+}
+
+EStateTreeRunStatus FStateTreeTask_SpawnMob::EnterState(
+	FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& /*Transition*/) const
+{
+	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+
+	if (!InstanceData.EnemyClass || InstanceData.TotalCount <= 0)
+	{
+		return EStateTreeRunStatus::Failed;
+	}
+
+	InstanceData.SpawnedEnemies.Reset();
+	InstanceData.SpawnedCount = 0;
+	InstanceData.ConsecutiveFailures = 0;
+	InstanceData.TimeUntilNextSpawn = 0.f;
+
+	// A zero interval means "spawn the whole group at once" — Tick would
+	// otherwise stretch it over one frame per mob.
+	EStateTreeRunStatus Status = AdvanceSpawn(InstanceData);
+	while (Status == EStateTreeRunStatus::Running && InstanceData.SpawnInterval <= 0.f)
+	{
+		Status = AdvanceSpawn(InstanceData);
+	}
+
+	return Status;
+}
+
+EStateTreeRunStatus FStateTreeTask_SpawnMob::Tick(
+	FStateTreeExecutionContext& Context, const float DeltaTime) const
+{
+	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+
+	InstanceData.TimeUntilNextSpawn -= DeltaTime;
+	if (InstanceData.TimeUntilNextSpawn > 0.f)
+	{
+		return EStateTreeRunStatus::Running;
+	}
+
+	return AdvanceSpawn(InstanceData);
 }
 
 EStateTreeRunStatus FStateTreeTask_EnemyPatrolWait::EnterState(
