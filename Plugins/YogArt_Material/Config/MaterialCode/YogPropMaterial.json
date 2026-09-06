@@ -1,0 +1,233 @@
+{
+  "schema": "DevKit.YogArt.CodeMaterial.v1",
+  "materialKind": "Prop",
+  "assetPath": "/YogArt_Material/MasterMaterial/Env/M_Yog_Prop_Source",
+  "shaderInclude": "/Project/YogArt/Env/YogPropMaterial.ush",
+  "entryPoint": "YogEvaluatePropMaterial",
+  "packing": {
+    "baseColor": "RGB",
+    "normal": "TangentSpaceRG_LightMaskB",
+    "mrah": {
+      "r": "Metallic",
+      "g": "Roughness",
+      "b": "AmbientOcclusion",
+      "a": "Height"
+    }
+  },
+  "inputs": [
+    {
+      "name": "BaseColorTexture",
+      "type": "Texture2D",
+      "customInput": true,
+      "defaultAsset": "/Game/Environment/CommonTexture/T_Yog_CommonBrick_01_BaseColor.T_Yog_CommonBrick_01_BaseColor",
+      "sampler": "BaseColorTextureSampler",
+      "samplerType": "Color",
+      "group": "Surface|Fallback Textures",
+      "sortPriority": 0
+    },
+    {
+      "name": "MRAHTexture",
+      "type": "Texture2D",
+      "customInput": true,
+      "defaultAsset": "/Game/Environment/CommonTexture/T_Yog_CommonBrick_01_MRAH.T_Yog_CommonBrick_01_MRAH",
+      "sampler": "MRAHTextureSampler",
+      "samplerType": "Masks",
+      "group": "Surface|Fallback Textures",
+      "sortPriority": 1
+    },
+    {
+      "name": "NormalTexture",
+      "type": "Texture2D",
+      "customInput": true,
+      "defaultAsset": "/Game/Environment/CommonTexture/T_Yog_CommonBrick_01_NormalLight.T_Yog_CommonBrick_01_NormalLight",
+      "sampler": "NormalTextureSampler",
+      "samplerType": "LinearColor",
+      "group": "Surface|Fallback Textures",
+      "sortPriority": 2
+    },
+    {
+      "name": "MaterialIndex",
+      "type": "Scalar",
+      "customInput": true,
+      "default": 0,
+      "group": "Instance Data",
+      "sortPriority": 0,
+      "min": 0,
+      "max": 4095,
+      "perInstanceDataIndex": 0
+    },
+    {
+      "name": "UVScale",
+      "type": "Scalar",
+      "customInput": true,
+      "default": 1.0,
+      "group": "UV",
+      "sortPriority": 0,
+      "min": 0.001,
+      "max": 100.0
+    },
+    {
+      "name": "EmissiveColor",
+      "type": "Vector",
+      "customInput": true,
+      "default": [0.0, 0.0, 0.0, 0.0],
+      "group": "Emissive",
+      "sortPriority": 0
+    },
+    {
+      "name": "EmissiveIntensity",
+      "type": "Scalar",
+      "customInput": true,
+      "default": 0.0,
+      "group": "Emissive",
+      "sortPriority": 1,
+      "min": 0.0,
+      "max": 100.0
+    },
+    {
+      "name": "GroundBlendWidth",
+      "type": "Scalar",
+      "customInput": true,
+      "default": 25.0,
+      "group": "Instance Data",
+      "sortPriority": 1,
+      "min": 1.0,
+      "max": 500.0,
+      "perInstanceDataIndex": 1
+    },
+    {
+      "name": "GroundBlendOffset",
+      "type": "Scalar",
+      "customInput": true,
+      "default": 0.0,
+      "group": "Instance Data",
+      "sortPriority": 2,
+      "min": -500.0,
+      "max": 500.0,
+      "perInstanceDataIndex": 2
+    }
+  ],
+  "outputs": {
+    "main": {
+      "name": "BaseColor",
+      "type": "float3",
+      "materialProperty": "BaseColor"
+    },
+    "additional": [
+      {
+        "name": "NormalTS",
+        "type": "float3",
+        "materialProperty": "Normal"
+      },
+      {
+        "name": "AmbientOcclusion",
+        "type": "float1",
+        "materialProperty": "AmbientOcclusion"
+      },
+      {
+        "name": "Roughness",
+        "type": "float1",
+        "materialProperty": "Roughness"
+      },
+      {
+        "name": "Metallic",
+        "type": "float1",
+        "materialProperty": "Metallic"
+      },
+      {
+        "name": "Emissive",
+        "type": "float3",
+        "materialProperty": "EmissiveColor"
+      },
+      {
+        "name": "MaterialLightMask",
+        "type": "float1",
+        "materialProperty": "Specular"
+      }
+    ]
+  },
+  "textureBackend": {
+    "staticSwitch": "UseTextureCollection",
+    "default": true,
+    "collections": [
+      {
+        "parameter": "TC_Env_BaseColor",
+        "role": "BaseColor",
+        "defaultAsset": "/Game/Environment/CommonTexture/TC_Env_BaseColor.TC_Env_BaseColor",
+        "sampler": "TC_Env_BaseColorSampler",
+        "bindings": [
+          {
+            "textureParameter": "BaseColorTexture",
+            "indexParameter": "MaterialIndex"
+          }
+        ]
+      },
+      {
+        "parameter": "TC_Env_MRAH",
+        "role": "MRAH",
+        "defaultAsset": "/Game/Environment/CommonTexture/TC_Env_MRAH.TC_Env_MRAH",
+        "sampler": "TC_Env_MRAHSampler",
+        "bindings": [
+          {
+            "textureParameter": "MRAHTexture",
+            "indexParameter": "MaterialIndex"
+          }
+        ]
+      },
+      {
+        "parameter": "TC_Env_Normal",
+        "role": "NormalLight",
+        "defaultAsset": "/Game/Environment/CommonTexture/TC_Env_Normal.TC_Env_Normal",
+        "sampler": "TC_Env_NormalSampler",
+        "bindings": [
+          {
+            "textureParameter": "NormalTexture",
+            "indexParameter": "MaterialIndex"
+          }
+        ]
+      }
+    ]
+  },
+  "qualityInputs": [],
+  "groundRVT": {
+    "staticSwitch": "UseGroundRVT",
+    "default": false,
+    "surfaceParameter": "RVT_GroundSurface",
+    "surfaceDefaultAsset": "/YogArt_Material/Data/RVT_Default_Base.RVT_Default_Base",
+    "heightParameter": "RVT_GroundHeight",
+    "heightDefaultAsset": "/YogArt_Material/Data/RVT_Default_WorldHeight.RVT_Default_WorldHeight",
+    "quality": {
+      "low": false,
+      "medium": true,
+      "high": true,
+      "epic": true
+    }
+  },
+  "features": {
+    "normalLight": {
+      "packing": "RG=TangentNormalXY,B=MaterialLightMask,A=Reserved",
+      "normalZ": "reconstructed from RG",
+      "compression": "sRGB=false, BC7 or another RGB-preserving linear format; never BC5/TC_Normalmap",
+      "materialOutput": "Specular",
+      "status": "implemented"
+    },
+    "legacyArdColorVariation": {
+      "status": "removed",
+      "note": "Old ARD.R color variation is not part of the MRAH code material contract."
+    },
+    "groundRVTBlend": {
+      "surface": "BaseColor,Normal,Roughness,Specular",
+      "height": "WorldHeight",
+      "quality": "Low=Off,Medium=On,High=On,Epic=On",
+      "status": "implemented"
+    },
+    "perInstanceCustomData": {
+      "floatCount": 3,
+      "layout": "0=MaterialIndex,1=GroundBlendWidth,2=GroundBlendOffset",
+      "zeroEncoding": "slot1=0 uses the 25cm material default; zero is valid for every other slot"
+    },
+    "ssdo": {
+      "status": "renderer-only"
+    }
+  }
+}

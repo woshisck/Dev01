@@ -729,54 +729,7 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			.TabRole(ETabRole::NomadTab)
 			.Label(LOCTEXT("RVTMaterialManagerTabLabel", "材质与贴图工作台"))
 			[
-				SNew(SBorder)
-				.Padding(16.0f)
-				[
-					SNew(SVerticalBox)
-					+ SVerticalBox::Slot()
-					.AutoHeight()
-					.Padding(0.0f, 0.0f, 0.0f, 12.0f)
-					[
-						SNew(STextBlock)
-						.Text(LOCTEXT("RVTMaterialManagerDescription", "Open a material or texture authoring tool:"))
-					]
-					+ SVerticalBox::Slot()
-					.AutoHeight()
-					.Padding(0.0f, 4.0f)
-					[
-						SNew(SButton)
-						.Text(LOCTEXT("OpenMaterialTextureRulesButton", "Material compliance"))
-						.OnClicked_Lambda([this]()
-						{
-							OpenMaterialTextureRulesTab();
-							return FReply::Handled();
-						})
-					]
-					+ SVerticalBox::Slot()
-					.AutoHeight()
-					.Padding(0.0f, 4.0f)
-					[
-						SNew(SButton)
-						.Text(LOCTEXT("OpenTextureVTAuditButton", "Texture NoVT audit"))
-						.OnClicked_Lambda([this]()
-						{
-							OpenTextureVTAuditTab();
-							return FReply::Handled();
-						})
-					]
-					+ SVerticalBox::Slot()
-					.AutoHeight()
-					.Padding(0.0f, 4.0f)
-					[
-						SNew(SButton)
-						.Text(LOCTEXT("OpenVirtualTextureCollectionManagerButton", "Texture Collection manager"))
-						.OnClicked_Lambda([this]()
-						{
-							OpenVirtualTextureCollectionManagerTab();
-							return FReply::Handled();
-						})
-					]
-				]
+				SNew(SMaterialTextureWorkbenchWidget)
 			];
 	}
 

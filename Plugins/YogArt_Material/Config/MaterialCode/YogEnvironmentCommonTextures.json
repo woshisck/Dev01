@@ -1,0 +1,408 @@
+{
+  "schema": "DevKit.YogArt.EnvironmentCommonTextures.v3",
+  "textureRoot": "/Game/Art/Texture/CommonTex",
+  "collectionRoot": "/Game/Environment/CommonTexture",
+  "compatibilityFallbackRoot": "/Game/Environment/CommonTexture",
+  "requiredTextureSize": [
+    1024,
+    1024
+  ],
+  "materialLayers": {
+    "root": "/Game/Art/Texture/CommonTex",
+    "parent": "/YogArt_Material/MaterialInstance/RVT_Ground/BaseMI/MLI_BasicMat_Base",
+    "textureParameters": {
+      "baseColor": "T BaseColor",
+      "mrah": "T MRAH",
+      "normalLight": "T Normal"
+    }
+  },
+  "indexContract": {
+    "runtimeBase": 0,
+    "legacyArraySliceBase": 0,
+    "entryCount": 22,
+    "displayRule": "displayIndex=runtimeIndex+1",
+    "note": "TextureCollection, shader, and PerInstanceCustomData indices are explicit contiguous values 0..21. Legacy Texture2DArray assets are excluded because their slices are not aligned."
+  },
+  "legacyEvidence": {
+    "materialFunction": "/Game/Art/Material/EnvMaterial/MaterialFunction/MF_ArrayMatSet",
+    "packedConnections": "Legacy packed R drove BaseColor tint variation, G drove Roughness, and B drove Displacement/Height.",
+    "conversionRule": "Discard legacy packed R completely. Do not reproduce the old R-driven BaseColor tint branch. Write target AO as 255."
+  },
+  "sourcePacking": {
+    "baseColor": "RGB",
+    "legacyPacked": "R=ColorTint(discard),G=Roughness,B=Height",
+    "normalLight": "R=TangentNormalX,G=TangentNormalY,B=MaterialLightMask"
+  },
+  "targetPacking": {
+    "baseColor": "RGB",
+    "mrah": "R=Metallic,G=Roughness,B=AmbientOcclusion(255),A=Height",
+    "normalLight": "R=TangentNormalX,G=TangentNormalY,B=MaterialLightMask,A=Reserved(255)"
+  },
+  "collections": {
+    "baseColor": "TC_Env_BaseColor",
+    "mrah": "TC_Env_MRAH",
+    "normalLight": "TC_Env_Normal"
+  },
+  "compatibilityFallback": {
+    "index": 0,
+    "name": "CommonBrick_01",
+    "assets": {
+      "baseColor": "/Game/Environment/CommonTexture/T_Yog_CommonBrick_01_BaseColor",
+      "mrah": "/Game/Environment/CommonTexture/T_Yog_CommonBrick_01_MRAH",
+      "normalLight": "/Game/Environment/CommonTexture/T_Yog_CommonBrick_01_NormalLight"
+    },
+    "note": "Only index 0 is mirrored at the legacy runtime root so the already-generated Building/Prop material fallback references and fingerprints remain valid."
+  },
+  "auxiliaryAssets": [
+    {
+      "category": "HDRI",
+      "assetClass": "TextureCube",
+      "sourceAsset": "/Game/Art/EnvironmentAsset/Texture/HDRI/T_HDRI_01",
+      "destinationAsset": "/Game/Art/Texture/HDRI/T_HDRI_01"
+    },
+    {
+      "category": "HDRI",
+      "assetClass": "TextureCube",
+      "sourceAsset": "/Game/Art/EnvironmentAsset/Texture/HDRI/T_HDRI_02",
+      "destinationAsset": "/Game/Art/Texture/HDRI/T_HDRI_02"
+    },
+    {
+      "category": "HDRI",
+      "assetClass": "TextureCube",
+      "sourceAsset": "/Game/Art/EnvironmentAsset/Texture/HDRI/T_StylizedPrison_HDRI_01",
+      "destinationAsset": "/Game/Art/Texture/HDRI/T_StylizedPrison_HDRI_01"
+    },
+    {
+      "category": "HDRI",
+      "assetClass": "TextureCube",
+      "sourceAsset": "/Game/Art/EnvironmentAsset/Texture/HDRI/T_StylizedPrison_HDRI_02",
+      "destinationAsset": "/Game/Art/Texture/HDRI/T_StylizedPrison_HDRI_02"
+    },
+    {
+      "category": "Matcap",
+      "assetClass": "Texture2D",
+      "sourceAsset": "/Game/Art/EnvironmentAsset/Texture/Matcap/T_MC_Metal_01",
+      "destinationAsset": "/Game/Art/Texture/Matcap/T_MC_Metal_01"
+    },
+    {
+      "category": "Matcap",
+      "assetClass": "Texture2D",
+      "sourceAsset": "/Game/Art/EnvironmentAsset/Texture/Matcap/T_MC_Metal_02",
+      "destinationAsset": "/Game/Art/Texture/Matcap/T_MC_Metal_02"
+    }
+  ],
+  "textures": [
+    {
+      "index": 0,
+      "legacyArraySlice": 0,
+      "category": "Brick",
+      "name": "CommonBrick_01",
+      "assetStem": "T_Yog_CommonBrick_01",
+      "destinationFolder": "/Game/Art/Texture/CommonTex/Brick",
+      "materialLayerName": "MLI_CommonBrick_Floor_01",
+      "baseColor": "D:/Game_Dev_01/ArtSource/T_L1_CommonBrick_02/T_Yog_CommonBrick_01_A.png",
+      "legacyPacked": "D:/Game_Dev_01/ArtSource/T_L1_CommonBrick_02/T_Yog_CommonBrick_01_M.png",
+      "normalLight": "D:/Game_Dev_01/ArtSource/T_L1_CommonBrick_02/T_Yog_CommonBrick_01_N.png",
+      "metallic": 0,
+      "normalXYMode": "source"
+    },
+    {
+      "index": 1,
+      "legacyArraySlice": 1,
+      "category": "Brick",
+      "name": "CommonBrick_02",
+      "assetStem": "T_Yog_CommonBrick_02",
+      "destinationFolder": "/Game/Art/Texture/CommonTex/Brick",
+      "materialLayerName": "MLI_CommonBrick_Floor_02",
+      "baseColor": "D:/Game_Dev_01/ArtSource/T_L1_CommonBrick_02/T_Yog_CommonBrick_02_A.png",
+      "legacyPacked": "D:/Game_Dev_01/ArtSource/T_L1_CommonBrick_02/T_Yog_CommonBrick_02_M.png",
+      "normalLight": "D:/Game_Dev_01/ArtSource/T_L1_CommonBrick_02/T_Yog_CommonBrick_02_N.png",
+      "metallic": 0,
+      "normalXYMode": "source"
+    },
+    {
+      "index": 2,
+      "legacyArraySlice": 2,
+      "category": "Brick",
+      "name": "CommonBrick_02a",
+      "assetStem": "T_Yog_CommonBrick_02a",
+      "destinationFolder": "/Game/Art/Texture/CommonTex/Brick",
+      "materialLayerName": "MLI_CommonBrick_Floor_02a",
+      "baseColor": "D:/Game_Dev_01/ArtSource/T_L1_CommonBrick_02/T_Yog_CommonBrick_02a_A.png",
+      "legacyPacked": "D:/Game_Dev_01/ArtSource/T_L1_CommonBrick_02/T_Yog_CommonBrick_02a_M.png",
+      "normalLight": "D:/Game_Dev_01/ArtSource/T_L1_CommonBrick_02/T_Yog_CommonBrick_02a_N.png",
+      "metallic": 0,
+      "normalXYMode": "source"
+    },
+    {
+      "index": 3,
+      "legacyArraySlice": 3,
+      "category": "Brick",
+      "name": "CommonBrick_03",
+      "assetStem": "T_Yog_CommonBrick_03",
+      "destinationFolder": "/Game/Art/Texture/CommonTex/Brick",
+      "materialLayerName": "MLI_CommonBrick_Floor_03",
+      "baseColor": "D:/Game_Dev_01/ArtSource/T_L1_CommonBrick_02/T_Yog_CommonBrick_03_A.png",
+      "legacyPacked": "D:/Game_Dev_01/ArtSource/T_L1_CommonBrick_02/T_Yog_CommonBrick_03_M.png",
+      "normalLight": "D:/Game_Dev_01/ArtSource/T_L1_CommonBrick_02/T_Yog_CommonBrick_03_N.png",
+      "metallic": 0,
+      "normalXYMode": "source"
+    },
+    {
+      "index": 4,
+      "legacyArraySlice": 4,
+      "category": "Brick",
+      "name": "CommonBrick_03a",
+      "assetStem": "T_Yog_CommonBrick_03a",
+      "destinationFolder": "/Game/Art/Texture/CommonTex/Brick",
+      "materialLayerName": "MLI_CommonBrick_Floor_03a",
+      "baseColor": "D:/Game_Dev_01/ArtSource/T_L1_CommonBrick_02/T_Yog_CommonBrick_03a_A.png",
+      "legacyPacked": "D:/Game_Dev_01/ArtSource/T_L1_CommonBrick_02/T_Yog_CommonBrick_03a_M.png",
+      "normalLight": "D:/Game_Dev_01/ArtSource/T_L1_CommonBrick_02/T_Yog_CommonBrick_03a_N.png",
+      "metallic": 0,
+      "normalXYMode": "source"
+    },
+    {
+      "index": 5,
+      "legacyArraySlice": 5,
+      "category": "Brick",
+      "name": "CommonBrick_04",
+      "assetStem": "T_Yog_CommonBrick_04",
+      "destinationFolder": "/Game/Art/Texture/CommonTex/Brick",
+      "materialLayerName": "MLI_CommonBrick_Floor_04",
+      "baseColor": "D:/Game_Dev_01/ArtSource/T_L1_CommonBrick_02/T_Yog_CommonBrick_04_A.png",
+      "legacyPacked": "D:/Game_Dev_01/ArtSource/T_L1_CommonBrick_02/T_Yog_CommonBrick_04_M.png",
+      "normalLight": "D:/Game_Dev_01/ArtSource/T_L1_CommonBrick_04/T_Yog_CommonBrick_04_N.png",
+      "metallic": 0,
+      "normalXYMode": "source"
+    },
+    {
+      "index": 6,
+      "legacyArraySlice": 6,
+      "category": "Brick",
+      "name": "CommonBrick_05",
+      "assetStem": "T_Yog_CommonBrick_05",
+      "destinationFolder": "/Game/Art/Texture/CommonTex/Brick",
+      "materialLayerName": "MLI_CommonBrick_Floor_05",
+      "baseColor": "D:/Game_Dev_01/ArtSource/T_L1_CommonBrick_02/T_Yog_CommonBrick_05_A.png",
+      "legacyPacked": "D:/Game_Dev_01/ArtSource/T_L1_CommonBrick_02/T_Yog_CommonBrick_05_M.png",
+      "normalLight": "D:/Game_Dev_01/ArtSource/T_L1_CommonBrick_02/T_Yog_CommonBrick_05_N.png",
+      "metallic": 0,
+      "normalXYMode": "source"
+    },
+    {
+      "index": 7,
+      "legacyArraySlice": 7,
+      "category": "Brick",
+      "name": "CommonBrick_06",
+      "assetStem": "T_Yog_CommonBrick_06",
+      "destinationFolder": "/Game/Art/Texture/CommonTex/Brick",
+      "materialLayerName": "MLI_CommonBrick_Floor_06",
+      "baseColor": "D:/Game_Dev_01/ArtSource/T_L1_CommonBrick_06/T_Yog_CommonBrick_06_A.png",
+      "legacyPacked": "D:/Game_Dev_01/ArtSource/T_L1_CommonBrick_06/T_Yog_CommonBrick_06_M.png",
+      "normalLight": "D:/Game_Dev_01/ArtSource/T_L1_CommonBrick_06/T_Yog_CommonBrick_06_N.png",
+      "metallic": 0,
+      "normalXYMode": "source"
+    },
+    {
+      "index": 8,
+      "legacyArraySlice": 8,
+      "category": "Brick",
+      "name": "CommonBrick_06a",
+      "assetStem": "T_Yog_CommonBrick_06a",
+      "destinationFolder": "/Game/Art/Texture/CommonTex/Brick",
+      "materialLayerName": "MLI_CommonBrick_Floor_06a",
+      "baseColor": "D:/Game_Dev_01/ArtSource/T_L1_CommonBrick_06/T_Yog_CommonBrick_06a_A.png",
+      "legacyPacked": "D:/Game_Dev_01/ArtSource/T_L1_CommonBrick_06/T_Yog_CommonBrick_06a_M.png",
+      "normalLight": "D:/Game_Dev_01/ArtSource/T_L1_CommonBrick_06/T_Yog_CommonBrick_06a_N.png",
+      "metallic": 0,
+      "normalXYMode": "source"
+    },
+    {
+      "index": 9,
+      "legacyArraySlice": 9,
+      "category": "Brick",
+      "name": "WallBrick_01",
+      "assetStem": "T_Yog_WallBrick_01",
+      "destinationFolder": "/Game/Art/Texture/CommonTex/Brick",
+      "materialLayerName": "MLI_WallBrick_Floor_01",
+      "baseColor": "D:/Game_Dev_01/ArtSource/WallBrick_01/T_Yog_WallBrick_01_A.png",
+      "legacyPacked": "D:/Game_Dev_01/ArtSource/WallBrick_01/T_Yog_WallBrick_01_M.png",
+      "normalLight": "D:/Game_Dev_01/ArtSource/WallBrick_01/T_Yog_WallBrick_01_N.png",
+      "metallic": 0,
+      "normalXYMode": "source",
+      "note": "Legacy BaseColor is uniform mid-gray because the removed packed-R tint workflow supplied variation; it remains gray until art provides a final BaseColor."
+    },
+    {
+      "index": 10,
+      "legacyArraySlice": 10,
+      "category": "Brick",
+      "name": "WallBrick_02",
+      "assetStem": "T_Yog_WallBrick_02",
+      "destinationFolder": "/Game/Art/Texture/CommonTex/Brick",
+      "materialLayerName": "MLI_WallBrick_Floor_02",
+      "baseColor": "D:/Game_Dev_01/ArtSource/WallBrick_01/T_Yog_WallBrick_02_A.png",
+      "legacyPacked": "D:/Game_Dev_01/ArtSource/WallBrick_01/T_Yog_WallBrick_02_M.png",
+      "normalLight": "D:/Game_Dev_01/ArtSource/WallBrick_01/T_Yog_WallBrick_02_N.png",
+      "metallic": 0,
+      "normalXYMode": "source"
+    },
+    {
+      "index": 11,
+      "legacyArraySlice": 11,
+      "category": "TrimBrick",
+      "name": "TrimBrick_01",
+      "assetStem": "T_Yog_TrimBrick_01",
+      "destinationFolder": "/Game/Art/Texture/CommonTex/TrimBrick",
+      "materialLayerName": "MLI_TrimBrick_Floor_01",
+      "baseColor": "D:/Game_Dev_01/ArtSource/TrimBrick/T_Yog_TrimBrick_01_A.png",
+      "legacyPacked": "D:/Game_Dev_01/ArtSource/TrimBrick/T_Yog_TrimBrick_01_M.png",
+      "normalLight": "D:/Game_Dev_01/ArtSource/TrimBrick/T_Yog_TrimBrick_01_N.png",
+      "metallic": 0,
+      "normalXYMode": "source"
+    },
+    {
+      "index": 12,
+      "legacyArraySlice": null,
+      "category": "TrimBrick",
+      "name": "TrimBrick_01a",
+      "assetStem": "T_Yog_TrimBrick_01a",
+      "destinationFolder": "/Game/Art/Texture/CommonTex/TrimBrick",
+      "materialLayerName": "MLI_TrimBrick_Floor_01a",
+      "baseColor": "D:/Game_Dev_01/ArtSource/TrimBrick/T_Yog_TrimBrick_01a_A.png",
+      "legacyPacked": "D:/Game_Dev_01/ArtSource/TrimBrick/T_Yog_TrimBrick_01a_M.png",
+      "normalLight": "D:/Game_Dev_01/ArtSource/TrimBrick/T_Yog_TrimBrick_01a_N.png",
+      "metallic": 0,
+      "normalXYMode": "source"
+    },
+    {
+      "index": 13,
+      "legacyArraySlice": null,
+      "category": "Fabric",
+      "name": "Fabric_FlaxRough_01",
+      "assetStem": "T_Yog_Fabric_FlaxRough_01",
+      "destinationFolder": "/Game/Art/Texture/CommonTex/Fabric",
+      "materialLayerName": "MLI_Fabric_FlaxRough_Floor_01",
+      "baseColor": "D:/Game_Dev_01/ArtSource/Fabric/FlaxRough/T_Yog_Fabric_FlaxRough_01_A.png",
+      "legacyPacked": "D:/Game_Dev_01/ArtSource/Fabric/FlaxRough/T_Yog_Fabric_FlaxRough_01_M.png",
+      "normalLight": "D:/Game_Dev_01/ArtSource/Fabric/FlaxRough/T_Yog_Fabric_FlaxRough_01_N.png",
+      "metallic": 0,
+      "normalXYMode": "source"
+    },
+    {
+      "index": 14,
+      "legacyArraySlice": null,
+      "category": "Ground",
+      "name": "CommonDust_01",
+      "assetStem": "T_Yog_CommonDust_01",
+      "destinationFolder": "/Game/Art/Texture/CommonTex/Ground",
+      "materialLayerName": "MLI_CommonDust_Floor_01",
+      "baseColor": "D:/Game_Dev_01/ArtSource/CommonGround/T_Yog_CommonDust_01_A.png",
+      "legacyPacked": "D:/Game_Dev_01/ArtSource/CommonGround/T_Yog_CommonDust_01_M.png",
+      "normalLight": "D:/Game_Dev_01/ArtSource/CommonGround/T_Yog_CommonDust_01_N.png",
+      "metallic": 0,
+      "normalXYMode": "source"
+    },
+    {
+      "index": 15,
+      "legacyArraySlice": null,
+      "category": "Ground",
+      "name": "CommonGround_01",
+      "assetStem": "T_Yog_CommonGround_01",
+      "destinationFolder": "/Game/Art/Texture/CommonTex/Ground",
+      "materialLayerName": "MLI_CommonGround_Floor_01",
+      "baseColor": "D:/Game_Dev_01/ArtSource/CommonGround/T_Yog_CommonGround_01_A.png",
+      "legacyPacked": "D:/Game_Dev_01/ArtSource/CommonGround/T_Yog_CommonGround_01_M.png",
+      "normalLight": "D:/Game_Dev_01/ArtSource/CommonGround/T_Yog_CommonGround_01_N.png",
+      "metallic": 0,
+      "normalXYMode": "source"
+    },
+    {
+      "index": 16,
+      "legacyArraySlice": null,
+      "category": "Metal",
+      "name": "CommonBrass_01",
+      "assetStem": "T_Yog_CommonBrass_01",
+      "destinationFolder": "/Game/Art/Texture/CommonTex/Metal",
+      "materialLayerName": "MLI_CommonBrass_Floor_01",
+      "baseColor": "D:/Game_Dev_01/ArtSource/Metal/T_Yog_CommonBarss_01_A.png",
+      "legacyPacked": "D:/Game_Dev_01/ArtSource/Metal/T_Yog_CommonBarss_01_M.png",
+      "normalLight": "D:/Game_Dev_01/ArtSource/Metal/T_Yog_CommonBarss_01_N.png",
+      "metallic": 255,
+      "normalXYMode": "flat128",
+      "note": "Canonical target spelling fixes legacy Barss. Legacy normal RGB is invalid as tangent data, so target RG is forced to flat (128,128) while B remains the source light mask."
+    },
+    {
+      "index": 17,
+      "legacyArraySlice": null,
+      "category": "Mud",
+      "name": "CommonMud_01",
+      "assetStem": "T_Yog_CommonMud_01",
+      "destinationFolder": "/Game/Art/Texture/CommonTex/Mud",
+      "materialLayerName": "MLI_CommonMud_Floor_01",
+      "baseColor": "D:/Game_Dev_01/ArtSource/T_L1_CommonMud_01/Yog_CommonMud_01_BC.png",
+      "legacyPacked": "D:/Game_Dev_01/ArtSource/T_L1_CommonMud_01/Yog_CommonMud_01_ARD.png",
+      "normalLight": "D:/Game_Dev_01/ArtSource/T_L1_CommonMud_01/Yog_CommonMud_01_N.png",
+      "metallic": 0,
+      "normalXYMode": "source",
+      "note": "Legacy normal B is zero, so this set has no authored material light mask."
+    },
+    {
+      "index": 18,
+      "legacyArraySlice": null,
+      "category": "Wood",
+      "name": "FloorWood_01",
+      "assetStem": "T_Yog_FloorWood_01",
+      "destinationFolder": "/Game/Art/Texture/CommonTex/Wood",
+      "materialLayerName": "MLI_FloorWood_01",
+      "baseColor": "D:/Game_Dev_01/ArtSource/FloorWood_01/T_Yog_FloorWood_01_A.png",
+      "legacyPacked": "D:/Game_Dev_01/ArtSource/FloorWood_01/T_Yog_FloorWood_01_M.png",
+      "normalLight": "D:/Game_Dev_01/ArtSource/FloorWood_01/T_Yog_FloorWood_01_N.png",
+      "metallic": 0,
+      "normalXYMode": "source",
+      "note": "Legacy BaseColor is uniform mid-gray because the removed packed-R tint workflow supplied variation; it remains gray until art provides a final BaseColor."
+    },
+    {
+      "index": 19,
+      "legacyArraySlice": null,
+      "category": "Wood",
+      "name": "WoodenMat_01",
+      "assetStem": "T_Yog_WoodenMat_01",
+      "destinationFolder": "/Game/Art/Texture/CommonTex/Wood",
+      "materialLayerName": "MLI_WoodenMat_Floor_01",
+      "baseColor": "D:/Game_Dev_01/ArtSource/Wooden/T_Yog_WoodenMat_01_A.png",
+      "legacyPacked": "D:/Game_Dev_01/ArtSource/Wooden/T_Yog_WoodenMat_01_M.png",
+      "normalLight": "D:/Game_Dev_01/ArtSource/Wooden/T_Yog_WoodenMat_01_N.png",
+      "metallic": 0,
+      "normalXYMode": "source"
+    },
+    {
+      "index": 20,
+      "legacyArraySlice": null,
+      "category": "Wood",
+      "name": "WoodenMat_02",
+      "assetStem": "T_Yog_WoodenMat_02",
+      "destinationFolder": "/Game/Art/Texture/CommonTex/Wood",
+      "materialLayerName": "MLI_WoodenMat_Floor_02",
+      "baseColor": "D:/Game_Dev_01/ArtSource/Wooden/T_Yog_WoodenMat_02_A.png",
+      "legacyPacked": "D:/Game_Dev_01/ArtSource/Wooden/T_Yog_WoodenMat_02_M.png",
+      "normalLight": "D:/Game_Dev_01/ArtSource/Wooden/T_Yog_WoodenMat_02_N.png",
+      "metallic": 0,
+      "normalXYMode": "source"
+    },
+    {
+      "index": 21,
+      "legacyArraySlice": null,
+      "category": "Wood",
+      "name": "WoodenMat_03",
+      "assetStem": "T_Yog_WoodenMat_03",
+      "destinationFolder": "/Game/Art/Texture/CommonTex/Wood",
+      "materialLayerName": "MLI_WoodenMat_Floor_03",
+      "baseColor": "D:/Game_Dev_01/ArtSource/Wooden/T_Yog_WoodenMat_03_A.png",
+      "legacyPacked": "D:/Game_Dev_01/ArtSource/Wooden/T_Yog_WoodenMat_03_M.png",
+      "normalLight": "D:/Game_Dev_01/ArtSource/Wooden/T_Yog_WoodenMat_03_N.png",
+      "metallic": 0,
+      "normalXYMode": "source"
+    }
+  ]
+}

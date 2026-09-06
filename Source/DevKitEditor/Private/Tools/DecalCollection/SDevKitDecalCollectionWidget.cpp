@@ -28,74 +28,190 @@
 #include "Tools/DecalCollection/DevKitDecalCollectionEdMode.h"
 #include "Selection.h"
 #include "Styling/AppStyle.h"
+#include "Styling/SlateStyle.h"
+#include "Styling/SlateTypes.h"
+#include "Styling/StyleColors.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SSearchBox.h"
+#include "Widgets/Input/SSegmentedControl.h"
 #include "Widgets/Input/SSlider.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
-#include "Widgets/Layout/SSeparator.h"
+#include "Widgets/Layout/SExpandableArea.h"
+#include "Widgets/Layout/SHeader.h"
+#include "Widgets/Layout/SScrollBar.h"
+#include "Widgets/SNullWidget.h"
 #include "Widgets/SOverlay.h"
 #include "Widgets/Layout/SWrapBox.h"
 #include "Widgets/SBoxPanel.h"
+#include "Widgets/Text/SRichTextBlock.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Widgets/Views/STableRow.h"
 
 #define LOCTEXT_NAMESPACE "DevKitDecalCollectionWidget"
 
+struct FDevKitDecalPaletteItem
+{
+	explicit FDevKitDecalPaletteItem(TWeakObjectPtr<UDevKitDecalAsset> InAsset)
+		: Asset(InAsset)
+	{
+	}
+
+	TWeakObjectPtr<UDevKitDecalAsset> Asset;
+};
+
 namespace
 {
-	// Keep the authoring surface visually quiet.  The accent is reserved for the
-	// active workspace and the current placement asset, so an artist can read
-	// the state without decoding a row of default Slate buttons.
-	const FLinearColor DecalWorkspaceBackground(0.019f, 0.024f, 0.035f, 1.f);
-	const FLinearColor DecalPanelBackground(0.035f, 0.047f, 0.070f, 1.f);
-	const FLinearColor DecalActiveAccent(0.075f, 0.360f, 0.650f, 1.f);
-	const FLinearColor DecalInactiveTab(0.055f, 0.070f, 0.100f, 1.f);
-	const FLinearColor DecalStatusBackground(0.040f, 0.100f, 0.155f, 1.f);
-
-	DECLARE_DELEGATE_RetVal(FReply, FOnPaletteRowDragDetected);
-	DECLARE_DELEGATE_RetVal_FourParams(bool, FOnPaletteAssetDragDropped, TWeakObjectPtr<UDevKitDecalAsset>, FLevelEditorViewportClient*, int32, int32);
-
-	/**
-	 * A small row wrapper is used instead of making the material picker itself
-	 * draggable.  Buttons and the object picker keep their normal Slate input;
-	 * dragging from the row background starts a palette-to-viewport placement.
-	 */
-	class SDevKitDecalPaletteRow final : public SCompoundWidget
+	FString EscapeDecalRichText(const FString& Value)
 	{
-	public:
-		SLATE_BEGIN_ARGS(SDevKitDecalPaletteRow) {}
-			SLATE_EVENT(FSimpleDelegate, OnSelected)
-			SLATE_EVENT(FOnPaletteRowDragDetected, OnDragged)
-			SLATE_DEFAULT_SLOT(FArguments, Content)
-		SLATE_END_ARGS()
+		FString Result = Value;
+		Result.ReplaceInline(TEXT("&"), TEXT("&amp;"));
+		Result.ReplaceInline(TEXT("<"), TEXT("&lt;"));
+		Result.ReplaceInline(TEXT(">"), TEXT("&gt;"));
+		return Result;
+	}
 
-		void Construct(const FArguments& InArgs)
+	const FSlateStyleSet& GetDecalRichTextStyle()
+	{
+		static TSharedPtr<FSlateStyleSet> StyleSet;
+		if (!StyleSet.IsValid())
 		{
-			OnSelected = InArgs._OnSelected;
-			OnDragged = InArgs._OnDragged;
-			ChildSlot[InArgs._Content.Widget];
-		}
+			StyleSet = MakeShared<FSlateStyleSet>(TEXT("DevKitDecalCollectionRichTextStyle"));
+			const FTextBlockStyle Base = FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>(TEXT("NormalText"));
 
-		virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override
+			FTextBlockStyle DefaultStyle(Base);
+			DefaultStyle.SetColorAndOpacity(FStyleColors::Foreground);
+			StyleSet->Set(TEXT("Default"), DefaultStyle);
+			StyleSet->Set(TEXT("text"), DefaultStyle);
+
+			FTextBlockStyle TitleStyle(DefaultStyle);
+			TitleStyle.SetFont(FAppStyle::GetFontStyle(TEXT("HeadingSmall")));
+			TitleStyle.SetColorAndOpacity(FStyleColors::ForegroundHeader);
+			StyleSet->Set(TEXT("title"), TitleStyle);
+
+			FTextBlockStyle LabelStyle(DefaultStyle);
+			LabelStyle.SetFont(FAppStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")));
+			LabelStyle.SetColorAndOpacity(FStyleColors::ForegroundHeader);
+			StyleSet->Set(TEXT("label"), LabelStyle);
+
+			FTextBlockStyle GoodStyle(DefaultStyle);
+			GoodStyle.SetColorAndOpacity(FStyleColors::Success);
+			StyleSet->Set(TEXT("good"), GoodStyle);
+
+			FTextBlockStyle WarnStyle(DefaultStyle);
+			WarnStyle.SetColorAndOpacity(FStyleColors::Warning);
+			StyleSet->Set(TEXT("warn"), WarnStyle);
+
+			FTextBlockStyle BadStyle(DefaultStyle);
+			BadStyle.SetColorAndOpacity(FStyleColors::Error);
+			StyleSet->Set(TEXT("bad"), BadStyle);
+
+			FTextBlockStyle InfoStyle(DefaultStyle);
+			InfoStyle.SetColorAndOpacity(FStyleColors::Secondary);
+			StyleSet->Set(TEXT("info"), InfoStyle);
+
+			FTextBlockStyle MutedStyle(DefaultStyle);
+			MutedStyle.SetColorAndOpacity(FStyleColors::Secondary);
+			StyleSet->Set(TEXT("muted"), MutedStyle);
+
+			FTextBlockStyle KeyStyle(DefaultStyle);
+			KeyStyle.SetFont(FAppStyle::GetFontStyle(TEXT("SmallFontBold")));
+			KeyStyle.SetColorAndOpacity(FStyleColors::ForegroundHeader);
+			StyleSet->Set(TEXT("key"), KeyStyle);
+		}
+		return *StyleSet;
+	}
+
+	const FSliderStyle& GetDecalSlimSliderStyle()
+	{
+		static const FSliderStyle SliderStyle = []
 		{
-			if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
-			{
-				OnSelected.ExecuteIfBound();
-				return FReply::Handled().DetectDrag(SharedThis(this), EKeys::LeftMouseButton);
-			}
-			return FReply::Unhandled();
-		}
+			FSliderStyle Style = FAppStyle::Get().GetWidgetStyle<FSliderStyle>(TEXT("Slider"));
+			FSlateBrush NormalThumb = Style.NormalThumbImage;
+			FSlateBrush HoveredThumb = Style.HoveredThumbImage;
+			FSlateBrush DisabledThumb = Style.DisabledThumbImage;
+			NormalThumb.ImageSize = FVector2D(8.f, 8.f);
+			HoveredThumb.ImageSize = FVector2D(10.f, 10.f);
+			DisabledThumb.ImageSize = FVector2D(8.f, 8.f);
+			Style.SetNormalThumbImage(NormalThumb)
+				.SetHoveredThumbImage(HoveredThumb)
+				.SetDisabledThumbImage(DisabledThumb)
+				.SetBarThickness(2.f);
+			return Style;
+		}();
+		return SliderStyle;
+	}
 
-		virtual FReply OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override
-		{
-			return OnDragged.IsBound() ? OnDragged.Execute() : FReply::Unhandled();
-		}
+	TSharedRef<SWidget> MakeDecalSectionHeader(const FText& Title, const FText& Description)
+	{
+		return SNew(SVerticalBox)
+			+ SVerticalBox::Slot().AutoHeight()
+			[
+				SNew(SHeader)
+				[
+					SNew(STextBlock)
+					.Text(Title)
+					.Font(FAppStyle::GetFontStyle(TEXT("SmallFontBold")))
+				]
+			]
+			+ SVerticalBox::Slot().AutoHeight().Padding(2.f, 3.f, 2.f, 0.f)
+			[
+				SNew(STextBlock)
+				.Text(Description)
+				.AutoWrapText(true)
+				.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+			];
+	}
 
-	private:
-		FSimpleDelegate OnSelected;
-		FOnPaletteRowDragDetected OnDragged;
-	};
+	TSharedRef<SWidget> MakeDecalSquareIconButton(
+		const FName IconName,
+		const FText& ToolTip,
+		FOnClicked OnClicked)
+	{
+		return SNew(SBox)
+			.WidthOverride(36.f)
+			.HeightOverride(36.f)
+			[
+				SNew(SButton)
+				.ButtonStyle(FAppStyle::Get(), TEXT("EditorUtilityButton"))
+				.ToolTipText(ToolTip)
+				.OnClicked(OnClicked)
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				[
+					SNew(SImage)
+					.Image(FAppStyle::GetBrush(IconName))
+					.DesiredSizeOverride(FVector2D(16.f, 16.f))
+				]
+			];
+	}
+
+	TSharedRef<SWidget> MakeDecalFilterChip(
+		const FText& Label,
+		TAttribute<ECheckBoxState> CheckState,
+		FOnCheckStateChanged OnCheckStateChanged,
+		const float MinWidth = 76.f)
+	{
+		return SNew(SBox)
+			.MinDesiredWidth(MinWidth)
+			[
+				SNew(SCheckBox)
+				.Style(FAppStyle::Get(), TEXT("FilterBar.BasicFilterButton"))
+				.IsChecked(CheckState)
+				.OnCheckStateChanged(OnCheckStateChanged)
+				.Padding(FMargin(7.f, 3.f))
+				[
+					SNew(STextBlock)
+					.Text(Label)
+					.Justification(ETextJustify::Center)
+				]
+			];
+	}
+
+	DECLARE_DELEGATE_RetVal_FourParams(bool, FOnPaletteAssetDragDropped, TWeakObjectPtr<UDevKitDecalAsset>, FLevelEditorViewportClient*, int32, int32);
 
 	/** Drag operation shared by the Mode palette and the Level Editor viewport. */
 	class FDevKitDecalAssetDragDropOp final : public FDecoratedDragDropOp
@@ -153,91 +269,112 @@ namespace
 void SDevKitDecalCollectionWidget::Construct(const FArguments& InArgs)
 {
 	ThumbnailPool = MakeShared<FAssetThumbnailPool>(256);
+	SelectedPaletteThumbnail = MakeShared<FAssetThumbnail>(static_cast<UObject*>(nullptr), 120, 120, ThumbnailPool);
+	FAssetThumbnailConfig SelectedThumbnailConfig;
+	SelectedThumbnailConfig.ThumbnailLabel = EThumbnailLabel::NoLabel;
+	SelectedThumbnailConfig.bAllowHintText = false;
+	SelectedThumbnailConfig.bAllowRealTimeOnHovered = false;
+	SelectedThumbnailConfig.ShowAssetBorder = false;
 	RefreshCollections();
-	ActionStatus = TEXT("从左侧选择资产后，可拖入视口、在中心单点放置，或开启画笔。选中实例后直接使用 W/E/R；所有改动会回写到当前 Collection。\n");
+	const FSlateStyleSet& RichTextStyle = GetDecalRichTextStyle();
+	const TSharedRef<SScrollBar> PaletteScrollBar = SNew(SScrollBar)
+		.AlwaysShowScrollbar(false)
+		.AlwaysShowScrollbarTrack(false)
+		.HideWhenNotInUse(true)
+		.Orientation(Orient_Vertical)
+		.Thickness(FVector2D(6.f, 6.f));
+	ActionStatus.Reset();
 	ChildSlot
 	[
 		SNew(SBorder)
-		.BorderBackgroundColor(DecalWorkspaceBackground)
-		.Padding(12.f)
+		.BorderImage(FAppStyle::GetBrush(TEXT("Brushes.Background")))
+		.Padding(FMargin(6.f, 4.f))
 		[
 			SNew(SVerticalBox)
-			+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 10)
+			+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 8)
 			[
 				SNew(SBorder)
-				.BorderImage(FAppStyle::GetBrush(TEXT("ToolPanel.GroupBorder")))
-				.BorderBackgroundColor(DecalPanelBackground)
-				.Padding(FMargin(12.f, 10.f))
+				.BorderImage(FAppStyle::GetBrush(TEXT("NoBorder")))
+				.Padding(FMargin(10.f, 8.f))
 				[
-					SNew(SVerticalBox)
-					+ SVerticalBox::Slot().AutoHeight()
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)
 					[
-						SNew(STextBlock)
-						.Text(LOCTEXT("Title", "贴花与地表物件"))
-						.Font(FAppStyle::GetFontStyle("HeadingExtraSmall"))
+						SNew(SVerticalBox)
+						+ SVerticalBox::Slot().AutoHeight()
+						[
+							SNew(STextBlock)
+							.Text(LOCTEXT("Title", "贴花与地表物件"))
+							.Font(FAppStyle::GetFontStyle(TEXT("HeadingSmall")))
+							.ColorAndOpacity(FStyleColors::ForegroundHeader)
+						]
+						+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 3.f, 8.f, 0.f)
+						[
+							SNew(STextBlock)
+							.Text(LOCTEXT("TitleDescription", "管理 RVT 网格贴花、场景网格贴花、地表物件与延迟投射。"))
+							.AutoWrapText(true)
+							.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+						]
 					]
-					+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 3.f, 0.f, 0.f)
+					+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(4.f, 0.f)
 					[
-						SNew(STextBlock)
-						.Text(LOCTEXT("Description", "统一管理 RVT 网格贴花、场景网格贴花、地表物件与延迟投射。打开后默认进入放置工作区。"))
-						.AutoWrapText(true)
-						.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+						MakeDecalSquareIconButton(
+							TEXT("Icons.Plus"),
+							LOCTEXT("HeaderCreateCollectionTip", "新建当前 Level 的 Collection"),
+							FOnClicked::CreateSP(this, &SDevKitDecalCollectionWidget::CreateCollection))
+					]
+					+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(4.f, 0.f, 0.f, 0.f)
+					[
+						MakeDecalSquareIconButton(
+							TEXT("Icons.Edit"),
+							LOCTEXT("HeaderEditCollectionTip", "编辑当前 Collection"),
+							FOnClicked::CreateSP(this, &SDevKitDecalCollectionWidget::EnterSelectedCollection))
+					]
+					+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(4.f, 0.f, 0.f, 0.f)
+					[
+						MakeDecalSquareIconButton(
+							TEXT("Icons.BrowseContent"),
+							LOCTEXT("HeaderLegacyLibraryTip", "打开兼容 RVT 地表物件库"),
+							FOnClicked::CreateSP(this, &SDevKitDecalCollectionWidget::OpenLegacyRVTLibrary))
 					]
 				]
 			]
 			+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 8)
 			[
-				SNew(SBorder)
-				.BorderImage(FAppStyle::GetBrush(TEXT("ToolPanel.GroupBorder")))
-				.BorderBackgroundColor(DecalStatusBackground)
-				.Padding(FMargin(9.f, 6.f))
-				[
-					SNew(STextBlock)
-					.Text_Lambda([this] { return GetCollectionSummary(); })
-					.AutoWrapText(true)
-				]
-			]
-			+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 5)
-			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot().FillWidth(1.f).Padding(0, 0, 4, 0)
-				[
-					SNew(SButton)
-					.ButtonColorAndOpacity_Lambda([this] { return ActiveSection == 0 ? DecalActiveAccent : DecalInactiveTab; })
-					.ContentPadding(FMargin(9.f, 6.f))
-					.Text_Lambda([this] { return ActiveSection == 0 ? LOCTEXT("ManageTabActive", "● 管理") : LOCTEXT("ManageTab", "管理"); })
-					.OnClicked_Lambda([this] { return SelectSection(0); })
-				]
-				+ SHorizontalBox::Slot().FillWidth(1.f).Padding(0, 0, 4, 0)
-				[
-					SNew(SButton)
-					.ButtonColorAndOpacity_Lambda([this] { return ActiveSection == 1 ? DecalActiveAccent : DecalInactiveTab; })
-					.ContentPadding(FMargin(9.f, 6.f))
-					.Text_Lambda([this] { return ActiveSection == 1 ? LOCTEXT("PlaceTabActive", "● 放置") : LOCTEXT("PlaceTab", "放置"); })
-					.OnClicked_Lambda([this] { return SelectSection(1); })
-				]
-				+ SHorizontalBox::Slot().FillWidth(1.f).Padding(0, 0, 4, 0)
-				[
-					SNew(SButton)
-					.ButtonColorAndOpacity_Lambda([this] { return ActiveSection == 2 ? DecalActiveAccent : DecalInactiveTab; })
-					.ContentPadding(FMargin(9.f, 6.f))
-					.Text_Lambda([this] { return ActiveSection == 2 ? LOCTEXT("AssetTabActive", "● 资产") : LOCTEXT("AssetTab", "资产"); })
-					.OnClicked_Lambda([this] { return SelectSection(2); })
-				]
-				+ SHorizontalBox::Slot().FillWidth(1.f)
-				[
-					SNew(SButton)
-					.ButtonColorAndOpacity_Lambda([this] { return ActiveSection == 3 ? DecalActiveAccent : DecalInactiveTab; })
-					.ContentPadding(FMargin(9.f, 6.f))
-					.Text_Lambda([this] { return ActiveSection == 3 ? LOCTEXT("AuditTabActive", "● 审计") : LOCTEXT("AuditTab", "审计"); })
-					.OnClicked_Lambda([this] { return SelectSection(3); })
-				]
+				SNew(SSegmentedControl<int32>)
+				.Value_Lambda([this] { return ActiveSection; })
+				.OnValueChanged_Lambda([this](int32 SectionIndex) { SelectSection(SectionIndex); })
+				+ SSegmentedControl<int32>::Slot(0)
+				.Text(LOCTEXT("ManageTab", "管理"))
+				+ SSegmentedControl<int32>::Slot(1)
+				.Text(LOCTEXT("PlaceTab", "放置"))
+				+ SSegmentedControl<int32>::Slot(2)
+				.Text(LOCTEXT("AssetTab", "资产"))
+				+ SSegmentedControl<int32>::Slot(3)
+				.Text(LOCTEXT("AuditTab", "审计"))
 			]
 			+ SVerticalBox::Slot().AutoHeight().Padding(0, 4, 0, 0)
 			[
-				SNew(STextBlock)
-				.Text_Lambda([this] { return GetSectionHelp(); })
-				.AutoWrapText(true)
+				SNew(SBorder)
+				.BorderImage(FAppStyle::GetBrush(TEXT("Brushes.Recessed")))
+				.Padding(FMargin(8.f, 6.f))
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Top).Padding(0.f, 2.f, 7.f, 0.f)
+					[
+						SNew(SImage)
+						.Image(FAppStyle::GetBrush(TEXT("Icons.Info.Small")))
+						.DesiredSizeOverride(FVector2D(14.f, 14.f))
+					]
+					+ SHorizontalBox::Slot().FillWidth(1.f)
+					[
+						SNew(SRichTextBlock)
+						.Text_Lambda([this] { return GetSectionHelp(); })
+						.TextStyle(&RichTextStyle.GetWidgetStyle<FTextBlockStyle>(TEXT("Default")))
+						.DecoratorStyleSet(&RichTextStyle)
+						.AutoWrapText(true)
+					]
+				]
 			]
 			+ SVerticalBox::Slot().AutoHeight().Padding(0, 8, 0, 0)
 			[
@@ -248,33 +385,31 @@ void SDevKitDecalCollectionWidget::Construct(const FArguments& InArgs)
 					SNew(SVerticalBox)
 					+ SVerticalBox::Slot().AutoHeight()
 					[
-						SNew(STextBlock)
-						.Text(LOCTEXT("CollectionsTitle", "当前关卡的 Collection"))
-						.Font(FAppStyle::GetFontStyle("SmallFontBold"))
+						MakeDecalSectionHeader(
+							LOCTEXT("CollectionsTitle", "当前关卡的 Collection"),
+							LOCTEXT("CollectionsHelp", "每个 Level 或逻辑区域使用一个 Collection；编辑结果统一回写 Placement Record。"))
 					]
-					+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 4.f, 0.f, 5.f)
-					[
-						SNew(STextBlock)
-						.Text(LOCTEXT("CollectionsHelp", "每个 Level 或逻辑区域使用一个 Collection。选择后点击 Edit，所有编辑均回写 Placement Record。"))
-						.AutoWrapText(true)
-						.ColorAndOpacity(FSlateColor::UseSubduedForeground())
-					]
-					+ SVerticalBox::Slot().AutoHeight()
+					+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 6.f, 0.f, 0.f)
 					[
 						SAssignNew(CollectionRows, SVerticalBox)
 					]
-					+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 5.f, 0.f, 0.f)
+					+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 6.f, 0.f, 0.f)
 					[
 						SNew(SHorizontalBox)
-						+ SHorizontalBox::Slot().AutoWidth().Padding(0.f, 0.f, 4.f, 0.f)
+						+ SHorizontalBox::Slot().FillWidth(1.f).Padding(0.f, 0.f, 4.f, 0.f)
 						[
-							SNew(SButton).Text(LOCTEXT("Create", "+ 新建 Collection"))
-							.OnClicked(this, &SDevKitDecalCollectionWidget::CreateCollection)
-						]
-						+ SHorizontalBox::Slot().AutoWidth()
-						[
-							SNew(SButton).Text(LOCTEXT("Edit", "Edit 当前 Collection"))
+							SNew(SButton)
+							.ButtonStyle(FAppStyle::Get(), TEXT("PrimaryButton"))
+							.Text(LOCTEXT("Edit", "编辑当前 Collection"))
+							.HAlign(HAlign_Center)
 							.OnClicked(this, &SDevKitDecalCollectionWidget::EnterSelectedCollection)
+						]
+						+ SHorizontalBox::Slot().FillWidth(1.f)
+						[
+							SNew(SButton)
+							.Text(LOCTEXT("Create", "新建 Collection"))
+							.HAlign(HAlign_Center)
+							.OnClicked(this, &SDevKitDecalCollectionWidget::CreateCollection)
 						]
 						]
 					]
@@ -282,19 +417,23 @@ void SDevKitDecalCollectionWidget::Construct(const FArguments& InArgs)
 			+ SVerticalBox::Slot().AutoHeight().Padding(0, 8, 0, 0)
 			[
 				SNew(SBorder)
+				.Visibility_Lambda([this] { return ActionStatus.TrimStartAndEnd().IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible; })
+				.BorderImage(FAppStyle::GetBrush(TEXT("Brushes.Recessed")))
 				.Padding(FMargin(8.f, 6.f))
 				[
-					SNew(SVerticalBox)
-					+ SVerticalBox::Slot().AutoHeight()
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Top).Padding(0.f, 2.f, 7.f, 0.f)
 					[
-						SNew(STextBlock)
-						.Text_Lambda([this] { return GetSectionTitle(); })
-						.Font(FAppStyle::GetFontStyle("SmallFontBold"))
+						SNew(SImage)
+						.Image(FAppStyle::GetBrush(TEXT("Icons.Edit")))
+						.DesiredSizeOverride(FVector2D(14.f, 14.f))
 					]
-					+ SVerticalBox::Slot().AutoHeight().Padding(0, 3, 0, 0)
+					+ SHorizontalBox::Slot().FillWidth(1.f)
 					[
-						SNew(STextBlock)
+						SNew(SRichTextBlock)
 						.Text_Lambda([this] { return GetActionStatus(); })
+						.TextStyle(&RichTextStyle.GetWidgetStyle<FTextBlockStyle>(TEXT("Default")))
+						.DecoratorStyleSet(&RichTextStyle)
 						.AutoWrapText(true)
 					]
 				]
@@ -315,8 +454,10 @@ void SDevKitDecalCollectionWidget::Construct(const FArguments& InArgs)
 					]
 					+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 4.f, 0.f, 5.f)
 					[
-						SNew(STextBlock)
+						SNew(SRichTextBlock)
 						.Text_Lambda([this] { return GetAuditSummary(); })
+						.TextStyle(&RichTextStyle.GetWidgetStyle<FTextBlockStyle>(TEXT("Default")))
+						.DecoratorStyleSet(&RichTextStyle)
 						.AutoWrapText(true)
 					]
 					+ SVerticalBox::Slot().AutoHeight()
@@ -375,75 +516,72 @@ void SDevKitDecalCollectionWidget::Construct(const FArguments& InArgs)
 					SNew(SVerticalBox)
 					+ SVerticalBox::Slot().AutoHeight()
 					[
-						SNew(STextBlock)
-						.Text(LOCTEXT("PaletteTitle", "贴花资产库 / 放置"))
-						.Font(FAppStyle::GetFontStyle("SmallFontBold"))
-					]
-					+ SVerticalBox::Slot().AutoHeight().Padding(0, 3, 0, 5)
-					[
-						SNew(STextBlock)
-						.Text(LOCTEXT("PaletteHelp", "先选择类型和资产，再拖入视口、单点放置或使用画笔。网格类会按 Mesh+材质合批；延迟贴花保持独立投射，仍可单独移动和调整。"))
-						.AutoWrapText(true)
-						.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+						MakeDecalSectionHeader(
+							LOCTEXT("PaletteTitle", "贴花资产库 / 放置"),
+							LOCTEXT("PaletteHelp", "选择类型与状态后，从卡片拖入视口、单点放置或使用画笔。网格类按 Mesh+材质合批；Deferred 保持独立投射。"))
 					]
 					+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 0.f, 0.f, 5.f)
 					[
 						SNew(SBorder)
-						.BorderImage(FAppStyle::GetBrush(TEXT("ToolPanel.GroupBorder")))
-						.BorderBackgroundColor(FLinearColor(0.025f, 0.034f, 0.052f, 1.f))
+						.BorderImage(FAppStyle::GetBrush(TEXT("Brushes.Recessed")))
 						.Padding(FMargin(6.f, 5.f))
 						[
 							SNew(SVerticalBox)
+							+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 0.f, 0.f, 4.f)
+							[
+								SNew(SHeader)
+								[
+									SNew(STextBlock).Text(LOCTEXT("BackendFilterLabel", "类型与状态筛选"))
+								]
+							]
 							+ SVerticalBox::Slot().AutoHeight()
 							[
-								SNew(STextBlock)
-								.Text_Lambda([this] { return GetSelectedPaletteSummary(); })
+								SNew(SWrapBox)
+								.UseAllottedSize(true)
+								.InnerSlotPadding(FVector2D(4.f, 4.f))
+								+ SWrapBox::Slot()[MakeDecalFilterChip(LOCTEXT("BackendAll", "全部类型"), TAttribute<ECheckBoxState>::CreateLambda([this] { return PaletteBackendFilter == -1 ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; }), FOnCheckStateChanged::CreateLambda([this](ECheckBoxState) { SelectPaletteBackendFilter(-1); }), 88.f)]
+								+ SWrapBox::Slot()[MakeDecalFilterChip(LOCTEXT("PaletteBackendRVTPlane", "RVT 平面"), TAttribute<ECheckBoxState>::CreateLambda([this] { return PaletteBackendFilter == static_cast<int32>(EDevKitDecalBackend::RVTPlane) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; }), FOnCheckStateChanged::CreateLambda([this](ECheckBoxState) { SelectPaletteBackendFilter(static_cast<int32>(EDevKitDecalBackend::RVTPlane)); }))]
+								+ SWrapBox::Slot()[MakeDecalFilterChip(LOCTEXT("PaletteBackendRVTObject", "RVT 物件"), TAttribute<ECheckBoxState>::CreateLambda([this] { return PaletteBackendFilter == static_cast<int32>(EDevKitDecalBackend::RVTVisibleMesh) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; }), FOnCheckStateChanged::CreateLambda([this](ECheckBoxState) { SelectPaletteBackendFilter(static_cast<int32>(EDevKitDecalBackend::RVTVisibleMesh)); }))]
+								+ SWrapBox::Slot()[MakeDecalFilterChip(LOCTEXT("PaletteBackendMesh", "网格贴花"), TAttribute<ECheckBoxState>::CreateLambda([this] { return PaletteBackendFilter == static_cast<int32>(EDevKitDecalBackend::MeshDecal) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; }), FOnCheckStateChanged::CreateLambda([this](ECheckBoxState) { SelectPaletteBackendFilter(static_cast<int32>(EDevKitDecalBackend::MeshDecal)); }))]
+								+ SWrapBox::Slot()[MakeDecalFilterChip(LOCTEXT("PaletteBackendOverlay", "地表物件"), TAttribute<ECheckBoxState>::CreateLambda([this] { return PaletteBackendFilter == static_cast<int32>(EDevKitDecalBackend::StaticMeshOverlay) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; }), FOnCheckStateChanged::CreateLambda([this](ECheckBoxState) { SelectPaletteBackendFilter(static_cast<int32>(EDevKitDecalBackend::StaticMeshOverlay)); }))]
+								+ SWrapBox::Slot()[MakeDecalFilterChip(LOCTEXT("PaletteBackendDeferred", "延迟投射"), TAttribute<ECheckBoxState>::CreateLambda([this] { return PaletteBackendFilter == static_cast<int32>(EDevKitDecalBackend::DeferredProjection) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; }), FOnCheckStateChanged::CreateLambda([this](ECheckBoxState) { SelectPaletteBackendFilter(static_cast<int32>(EDevKitDecalBackend::DeferredProjection)); }))]
+							]
+							+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 4.f, 0.f, 0.f)
+							[
+								SNew(SWrapBox)
+								.UseAllottedSize(true)
+								.InnerSlotPadding(FVector2D(4.f, 4.f))
+								+ SWrapBox::Slot()[MakeDecalFilterChip(LOCTEXT("ValidityAll", "全部状态"), TAttribute<ECheckBoxState>::CreateLambda([this] { return PaletteValidityFilter == -1 ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; }), FOnCheckStateChanged::CreateLambda([this](ECheckBoxState) { SelectPaletteValidityFilter(-1); }), 88.f)]
+								+ SWrapBox::Slot()[MakeDecalFilterChip(LOCTEXT("ValidityReady", "可放置"), TAttribute<ECheckBoxState>::CreateLambda([this] { return PaletteValidityFilter == 1 ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; }), FOnCheckStateChanged::CreateLambda([this](ECheckBoxState) { SelectPaletteValidityFilter(1); }))]
+								+ SWrapBox::Slot()[MakeDecalFilterChip(LOCTEXT("ValidityIncomplete", "配置不完整"), TAttribute<ECheckBoxState>::CreateLambda([this] { return PaletteValidityFilter == 0 ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; }), FOnCheckStateChanged::CreateLambda([this](ECheckBoxState) { SelectPaletteValidityFilter(0); }), 96.f)]
+								+ SWrapBox::Slot()[MakeDecalFilterChip(LOCTEXT("UsageAll", "全部批次"), TAttribute<ECheckBoxState>::CreateLambda([this] { return PaletteUsageFilter == -1 ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; }), FOnCheckStateChanged::CreateLambda([this](ECheckBoxState) { SelectPaletteUsageFilter(-1); }), 88.f)]
+								+ SWrapBox::Slot()[MakeDecalFilterChip(LOCTEXT("UsageUsed", "场景使用中"), TAttribute<ECheckBoxState>::CreateLambda([this] { return PaletteUsageFilter == 1 ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; }), FOnCheckStateChanged::CreateLambda([this](ECheckBoxState) { SelectPaletteUsageFilter(1); }), 88.f)]
+								+ SWrapBox::Slot()[MakeDecalFilterChip(LOCTEXT("UsageEmpty", "空批次"), TAttribute<ECheckBoxState>::CreateLambda([this] { return PaletteUsageFilter == 0 ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; }), FOnCheckStateChanged::CreateLambda([this](ECheckBoxState) { SelectPaletteUsageFilter(0); }))]
+							]
+							+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 4.f, 0.f, 0.f)
+							[
+								SNew(SWrapBox)
+								.UseAllottedSize(true)
+								.InnerSlotPadding(FVector2D(4.f, 4.f))
+								+ SWrapBox::Slot()[MakeDecalFilterChip(LOCTEXT("SortCollection", "库顺序"), TAttribute<ECheckBoxState>::CreateLambda([this] { return PaletteSortMode == 0 ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; }), FOnCheckStateChanged::CreateLambda([this](ECheckBoxState) { SelectPaletteSortMode(0); }))]
+								+ SWrapBox::Slot()[MakeDecalFilterChip(LOCTEXT("SortName", "按名称"), TAttribute<ECheckBoxState>::CreateLambda([this] { return PaletteSortMode == 1 ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; }), FOnCheckStateChanged::CreateLambda([this](ECheckBoxState) { SelectPaletteSortMode(1); }))]
+								+ SWrapBox::Slot()[MakeDecalFilterChip(LOCTEXT("SortInstances", "按实例数"), TAttribute<ECheckBoxState>::CreateLambda([this] { return PaletteSortMode == 2 ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; }), FOnCheckStateChanged::CreateLambda([this](ECheckBoxState) { SelectPaletteSortMode(2); }), 88.f)]
+							]
+							+ SVerticalBox::Slot().AutoHeight().Padding(2.f, 5.f, 0.f, 0.f)
+							[
+								SNew(SRichTextBlock)
+								.Text_Lambda([this] { return GetPaletteFilterSummary(); })
+								.TextStyle(&RichTextStyle.GetWidgetStyle<FTextBlockStyle>(TEXT("Default")))
+								.DecoratorStyleSet(&RichTextStyle)
 								.AutoWrapText(true)
 							]
-							+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 5.f, 0.f, 0.f)
-							[
-								SNew(SHorizontalBox)
-								+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, 6.f, 0.f)
-								[
-									SNew(STextBlock).Text(LOCTEXT("BackendFilterLabel", "类型筛选"))
-								]
-								+ SHorizontalBox::Slot().AutoWidth().Padding(0.f, 0.f, 3.f, 0.f)
-								[
-									SNew(SButton).Text(LOCTEXT("BackendAll", "全部"))
-									.ButtonColorAndOpacity_Lambda([this] { return PaletteBackendFilter == -1 ? DecalActiveAccent : DecalInactiveTab; })
-									.OnClicked_Lambda([this] { return SelectPaletteBackendFilter(-1); })
-								]
-								+ SHorizontalBox::Slot().AutoWidth().Padding(0.f, 0.f, 3.f, 0.f)
-								[
-									SNew(SButton).Text(LOCTEXT("PaletteBackendRVTPlane", "RVT 平面"))
-									.ButtonColorAndOpacity_Lambda([this] { return PaletteBackendFilter == static_cast<int32>(EDevKitDecalBackend::RVTPlane) ? DecalActiveAccent : DecalInactiveTab; })
-									.OnClicked_Lambda([this] { return SelectPaletteBackendFilter(static_cast<int32>(EDevKitDecalBackend::RVTPlane)); })
-								]
-								+ SHorizontalBox::Slot().AutoWidth().Padding(0.f, 0.f, 3.f, 0.f)
-								[
-									SNew(SButton).Text(LOCTEXT("PaletteBackendRVTObject", "RVT 物件"))
-									.ButtonColorAndOpacity_Lambda([this] { return PaletteBackendFilter == static_cast<int32>(EDevKitDecalBackend::RVTVisibleMesh) ? DecalActiveAccent : DecalInactiveTab; })
-									.OnClicked_Lambda([this] { return SelectPaletteBackendFilter(static_cast<int32>(EDevKitDecalBackend::RVTVisibleMesh)); })
-								]
-								+ SHorizontalBox::Slot().AutoWidth().Padding(0.f, 0.f, 3.f, 0.f)
-								[
-									SNew(SButton).Text(LOCTEXT("PaletteBackendMesh", "网格贴花"))
-									.ButtonColorAndOpacity_Lambda([this] { return PaletteBackendFilter == static_cast<int32>(EDevKitDecalBackend::MeshDecal) ? DecalActiveAccent : DecalInactiveTab; })
-									.OnClicked_Lambda([this] { return SelectPaletteBackendFilter(static_cast<int32>(EDevKitDecalBackend::MeshDecal)); })
-								]
-								+ SHorizontalBox::Slot().AutoWidth().Padding(0.f, 0.f, 3.f, 0.f)
-								[
-									SNew(SButton).Text(LOCTEXT("PaletteBackendOverlay", "地表物件"))
-									.ButtonColorAndOpacity_Lambda([this] { return PaletteBackendFilter == static_cast<int32>(EDevKitDecalBackend::StaticMeshOverlay) ? DecalActiveAccent : DecalInactiveTab; })
-									.OnClicked_Lambda([this] { return SelectPaletteBackendFilter(static_cast<int32>(EDevKitDecalBackend::StaticMeshOverlay)); })
-								]
-								+ SHorizontalBox::Slot().AutoWidth()
-								[
-									SNew(SButton).Text(LOCTEXT("PaletteBackendDeferred", "延迟投射"))
-									.ButtonColorAndOpacity_Lambda([this] { return PaletteBackendFilter == static_cast<int32>(EDevKitDecalBackend::DeferredProjection) ? DecalActiveAccent : DecalInactiveTab; })
-									.OnClicked_Lambda([this] { return SelectPaletteBackendFilter(static_cast<int32>(EDevKitDecalBackend::DeferredProjection)); })
-								]
-							]
+						]
+					]
+					+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 3.f, 0.f, 3.f)
+					[
+						SNew(SHeader)
+						[
+							SNew(STextBlock).Text(LOCTEXT("PlacementSettingsHeader", "放置参数"))
 						]
 					]
 					+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 2.f, 0.f, 5.f)
@@ -456,6 +594,8 @@ void SDevKitDecalCollectionWidget::Construct(const FArguments& InArgs)
 						+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)
 						[
 							SNew(SSlider)
+							.Style(&GetDecalSlimSliderStyle())
+							.IndentHandle(false)
 							.Value_Lambda([]
 							{
 								if (UDevKitDecalCollectionEdMode* Mode = Cast<UDevKitDecalCollectionEdMode>(GLevelEditorModeTools().GetActiveScriptableMode(UDevKitDecalCollectionEdMode::EM_DevKitDecalCollection)))
@@ -487,125 +627,296 @@ void SDevKitDecalCollectionWidget::Construct(const FArguments& InArgs)
 					]
 					+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 0.f, 0.f, 5.f)
 					[
-						SNew(SHorizontalBox)
-						+ SHorizontalBox::Slot().AutoWidth().Padding(0.f, 0.f, 4.f, 0.f)
+						SNew(SVerticalBox)
+						+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 0.f, 0.f, 4.f)
 						[
-							SNew(SButton)
-							.Text(LOCTEXT("NewDecalAsset", "+ RVT 贴花"))
-							.ToolTipText(LOCTEXT("NewDecalAssetTip", "创建一个新的 RVT Plane 贴花资产，随后选择模型和材质。"))
-							.OnClicked(this, &SDevKitDecalCollectionWidget::CreateNewDecalAsset)
+							SNew(SHeader)
+							[
+								SNew(STextBlock).Text(LOCTEXT("PaletteCreateHeader", "新建与搜索"))
+							]
 						]
-						+ SHorizontalBox::Slot().AutoWidth().Padding(0.f, 0.f, 4.f, 0.f)
+						+ SVerticalBox::Slot().AutoHeight()
 						[
-							SNew(SButton)
-							.Text(LOCTEXT("NewModelAsset", "+ 模型 ISM"))
-							.ToolTipText(LOCTEXT("NewModelAssetTip", "创建一个新的 RVT Ground Object 资产，并作为独立 ISM 批次加入当前 Collection。"))
-							.OnClicked(this, &SDevKitDecalCollectionWidget::CreateNewModelAsset)
+							SNew(SWrapBox)
+							.UseAllottedSize(true)
+							.InnerSlotPadding(FVector2D(4.f, 4.f))
+							+ SWrapBox::Slot()
+							[
+								SNew(SButton)
+								.Text(LOCTEXT("NewDecalAsset", "+ RVT 贴花"))
+								.ToolTipText(LOCTEXT("NewDecalAssetTip", "创建一个新的 RVT Plane 贴花资产，随后选择模型和材质。"))
+								.OnClicked(this, &SDevKitDecalCollectionWidget::CreateNewDecalAsset)
+							]
+							+ SWrapBox::Slot()
+							[
+								SNew(SButton)
+								.Text(LOCTEXT("NewModelAsset", "+ 模型 ISM"))
+								.ToolTipText(LOCTEXT("NewModelAssetTip", "创建一个新的 RVT Ground Object 资产，并作为独立 ISM 批次加入当前 Collection。"))
+								.OnClicked(this, &SDevKitDecalCollectionWidget::CreateNewModelAsset)
+							]
+							+ SWrapBox::Slot()
+							[
+								SNew(SButton)
+								.Text(LOCTEXT("NewMeshDecalAsset", "+ 网格贴花"))
+								.ToolTipText(LOCTEXT("NewMeshDecalAssetTip", "创建基于 Static Mesh 的普通网格贴花资产；它使用 ISM 合批，但不会写入 RVT。"))
+								.OnClicked_Lambda([this] { return CreateNewAssetDefinition(EDevKitDecalBackend::MeshDecal); })
+							]
+							+ SWrapBox::Slot()
+							[
+								SNew(SButton)
+								.Text(LOCTEXT("NewOverlayAsset", "+ 地表物件"))
+								.ToolTipText(LOCTEXT("NewOverlayAssetTip", "创建保留模型的静态地表物件资产；可用于有 Z 轴起伏或遮挡的结构。"))
+								.OnClicked_Lambda([this] { return CreateNewAssetDefinition(EDevKitDecalBackend::StaticMeshOverlay); })
+							]
+							+ SWrapBox::Slot()
+							[
+								SNew(SButton)
+								.Text(LOCTEXT("NewDeferredAsset", "+ 延迟贴花"))
+								.ToolTipText(LOCTEXT("NewDeferredAssetTip", "创建 Deferred Decal 资产；每条记录保留一个真实的投射代理，不伪装成 ISM 合批。"))
+								.OnClicked_Lambda([this] { return CreateNewAssetDefinition(EDevKitDecalBackend::DeferredProjection); })
+							]
 						]
-						+ SHorizontalBox::Slot().AutoWidth().Padding(0.f, 0.f, 4.f, 0.f)
+						+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 4.f, 0.f, 0.f)
 						[
-							SNew(SButton)
-							.Text(LOCTEXT("NewMeshDecalAsset", "+ 网格贴花"))
-							.ToolTipText(LOCTEXT("NewMeshDecalAssetTip", "创建基于 Static Mesh 的普通网格贴花资产；它使用 ISM 合批，但不会写入 RVT。"))
-							.OnClicked_Lambda([this] { return CreateNewAssetDefinition(EDevKitDecalBackend::MeshDecal); })
+							SNew(SHorizontalBox)
+							+ SHorizontalBox::Slot().FillWidth(1.f).Padding(0.f, 0.f, 6.f, 0.f)
+							[
+								SNew(SSearchBox)
+								.HintText(LOCTEXT("PaletteSearchHint", "搜索名称、模型、材质或贴花资产"))
+								.OnTextChanged(this, &SDevKitDecalCollectionWidget::OnPaletteSearchChanged)
+							]
+							+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
+							[
+								SNew(STextBlock)
+								.Text_Lambda([this] { return GetPaletteCountText(); })
+								.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+							]
 						]
-						+ SHorizontalBox::Slot().AutoWidth().Padding(0.f, 0.f, 4.f, 0.f)
+					]
+					+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 2.f, 0.f, 3.f)
+					[
+						SNew(SHeader)
 						[
-							SNew(SButton)
-							.Text(LOCTEXT("NewOverlayAsset", "+ 地表物件"))
-							.ToolTipText(LOCTEXT("NewOverlayAssetTip", "创建保留模型的静态地表物件资产；可用于有 Z 轴起伏或遮挡的结构。"))
-							.OnClicked_Lambda([this] { return CreateNewAssetDefinition(EDevKitDecalBackend::StaticMeshOverlay); })
-						]
-						+ SHorizontalBox::Slot().AutoWidth().Padding(0.f, 0.f, 4.f, 0.f)
-						[
-							SNew(SButton)
-							.Text(LOCTEXT("NewDeferredAsset", "+ 延迟贴花"))
-							.ToolTipText(LOCTEXT("NewDeferredAssetTip", "创建 Deferred Decal 资产；每条记录保留一个真实的投射代理，不伪装成 ISM 合批。"))
-							.OnClicked_Lambda([this] { return CreateNewAssetDefinition(EDevKitDecalBackend::DeferredProjection); })
-						]
-						+ SHorizontalBox::Slot().FillWidth(1.f).Padding(0.f, 0.f, 6.f, 0.f)
-						[
-							SNew(SSearchBox)
-							.HintText(LOCTEXT("PaletteSearchHint", "搜索模型、材质或贴花资产"))
-							.OnTextChanged(this, &SDevKitDecalCollectionWidget::OnPaletteSearchChanged)
-						]
-						+ SHorizontalBox::Slot().AutoWidth()
-						[
-							SNew(STextBlock)
-							.Text_Lambda([this] { return GetPaletteCountText(); })
-							.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+							SNew(STextBlock).Text(LOCTEXT("PaletteTileHeader", "资源缩略图"))
 						]
 					]
 					+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 0.f, 0.f, 6.f)
 					[
-						SNew(SHorizontalBox)
-						+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, 8.f, 0.f)
+						SNew(SBox)
+						.HeightOverride(248.f)
 						[
-							SNew(STextBlock)
-							.Text(LOCTEXT("PaletteDisplayLimitLabel", "显示数量"))
-						]
-						+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)
-						[
-							SNew(SSlider)
-							.Value_Lambda([this] { return GetPaletteDisplayLimitSliderValue(); })
-							.OnValueChanged(this, &SDevKitDecalCollectionWidget::OnPaletteDisplayLimitChanged)
-							.ToolTipText(LOCTEXT("PaletteDisplayLimitTip", "限制当前面板生成的资源卡片数量，避免一次性加载过多缩略图。搜索后仍会应用此上限。"))
-						]
-						+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(8.f, 0.f, 0.f, 0.f)
-						[
-							SNew(STextBlock)
-							.Text_Lambda([this] { return GetPaletteDisplayLimitText(); })
-							.ColorAndOpacity(FSlateColor::UseSubduedForeground())
-						]
-					]
-					+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 0.f, 0.f, 6.f)
-					[
-						SNew(SHorizontalBox)
-						+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, 8.f, 0.f)
-						[
-							SNew(STextBlock)
-							.Text(LOCTEXT("PaletteBrowseLabel", "浏览资源"))
-						]
-						+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)
-						[
-							SNew(SSlider)
-							.Value_Lambda([this] { return GetPaletteBrowseSliderValue(); })
-							.OnValueChanged(this, &SDevKitDecalCollectionWidget::OnPaletteBrowseOffsetChanged)
-							.ToolTipText(LOCTEXT("PaletteBrowseTip", "在当前显示数量上限内浏览后续资源卡片。"))
-						]
-						+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(8.f, 0.f, 0.f, 0.f)
-						[
-							SNew(STextBlock)
-							.Text_Lambda([this] { return GetPaletteBrowseRangeText(); })
-							.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+							SNew(SBorder)
+							.BorderImage(FAppStyle::GetBrush(TEXT("Brushes.Recessed")))
+							.Padding(3.f)
+							[
+								SNew(SHorizontalBox)
+							+ SHorizontalBox::Slot().FillWidth(1.f)
+							[
+								SNew(SOverlay)
+								+ SOverlay::Slot()
+								[
+									SAssignNew(PaletteTileView, STileView<FDevKitDecalPaletteItemPtr>)
+									.ListItemsSource(&FilteredPaletteItems)
+									.SelectionMode(ESelectionMode::Single)
+									.OnGenerateTile(this, &SDevKitDecalCollectionWidget::GeneratePaletteTile)
+									.OnSelectionChanged(this, &SDevKitDecalCollectionWidget::OnPaletteTileSelectionChanged)
+									.ItemWidth(116.f)
+									.ItemHeight(124.f)
+									.ItemAlignment(EListItemAlignment::LeftAligned)
+									.Orientation(Orient_Vertical)
+									.AllowOverscroll(EAllowOverscroll::No)
+									.ExternalScrollbar(PaletteScrollBar)
+								]
+								+ SOverlay::Slot()
+								.HAlign(HAlign_Center)
+								.VAlign(VAlign_Center)
+								.Padding(FMargin(18.f))
+								[
+									SNew(STextBlock)
+									.Text_Lambda([this] { return PaletteEmptyMessage; })
+									.AutoWrapText(true)
+									.Justification(ETextJustify::Center)
+									.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+									.Visibility_Lambda([this] { return FilteredPaletteItems.IsEmpty() ? EVisibility::Visible : EVisibility::Collapsed; })
+								]
+							]
+							+ SHorizontalBox::Slot().AutoWidth().Padding(3.f, 0.f, 0.f, 0.f)
+							[
+								PaletteScrollBar
+							]
+							]
 						]
 					]
 					+ SVerticalBox::Slot().AutoHeight()
 					[
-						SAssignNew(PaletteRows, SWrapBox)
-						.UseAllottedSize(true)
-						.InnerSlotPadding(FVector2D(4.f, 4.f))
+						SNew(SBorder)
+						.BorderImage(FAppStyle::GetBrush(TEXT("Brushes.Recessed")))
+						.Padding(FMargin(7.f, 6.f))
+						[
+							SNew(SVerticalBox)
+							+ SVerticalBox::Slot().AutoHeight()
+							[
+								SNew(SHeader)
+								[
+									SNew(STextBlock)
+									.Text(LOCTEXT("SelectedPaletteHeader", "已选择资源"))
+									.Font(FAppStyle::GetFontStyle(TEXT("SmallFontBold")))
+								]
+							]
+							+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 5.f, 0.f, 0.f)
+							[
+								SNew(SHorizontalBox)
+								+ SHorizontalBox::Slot().AutoWidth().Padding(0.f, 0.f, 8.f, 0.f)
+								[
+									SNew(SBox)
+									.WidthOverride(120.f)
+									.HeightOverride(120.f)
+									[
+										SNew(SBorder)
+										.BorderImage(FAppStyle::GetBrush(TEXT("ContentBrowser.ThumbnailShadow")))
+										.Padding(2.f)
+										[
+											SelectedPaletteThumbnail->MakeThumbnailWidget(SelectedThumbnailConfig)
+										]
+									]
+								]
+								+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Top)
+								[
+									SNew(SRichTextBlock)
+									.Text_Lambda([this] { return GetSelectedPaletteSummary(); })
+									.TextStyle(&RichTextStyle.GetWidgetStyle<FTextBlockStyle>(TEXT("Default")))
+									.DecoratorStyleSet(&RichTextStyle)
+									.AutoWrapText(true)
+								]
+							]
+							+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 6.f, 0.f, 3.f)
+							[
+								SNew(SWrapBox)
+								.UseAllottedSize(true)
+								.InnerSlotPadding(FVector2D(4.f, 4.f))
+								+ SWrapBox::Slot()
+								[
+									SNew(SButton)
+									.ButtonStyle(FAppStyle::Get(), TEXT("PrimaryButton"))
+									.Text(LOCTEXT("SelectedPalettePlace", "视口中心放置"))
+									.IsEnabled_Lambda([this] { return SelectedPaletteAsset.IsValid(); })
+									.OnClicked_Lambda([this] { return PlacePaletteAssetAtViewportCenter(SelectedPaletteAsset); })
+								]
+								+ SWrapBox::Slot()
+								[
+									SNew(SButton)
+									.Text(LOCTEXT("SelectedPaletteVariant", "复制材质变体"))
+									.IsEnabled_Lambda([this] { return SelectedPaletteAsset.IsValid(); })
+									.OnClicked_Lambda([this] { return CreateMaterialVariant(SelectedPaletteAsset); })
+								]
+								+ SWrapBox::Slot()
+								[
+									SNew(SButton)
+									.Text(LOCTEXT("SelectedPaletteISMVariant", "新增 ISM 批次"))
+									.IsEnabled_Lambda([this] { return SelectedPaletteAsset.IsValid(); })
+									.OnClicked_Lambda([this] { return CreateISMVariant(SelectedPaletteAsset); })
+								]
+								+ SWrapBox::Slot()
+								[
+									SNew(SButton)
+									.Text_Lambda([this]
+									{
+										if (UDevKitDecalCollectionEdMode* Mode = Cast<UDevKitDecalCollectionEdMode>(GLevelEditorModeTools().GetActiveScriptableMode(UDevKitDecalCollectionEdMode::EM_DevKitDecalCollection)))
+										{
+											return Mode->IsBrushPlacementActiveFor(SelectedPaletteAsset.Get()) ? LOCTEXT("SelectedPaletteBrushActive", "● 画笔放置") : LOCTEXT("SelectedPaletteBrush", "画笔放置");
+										}
+										return LOCTEXT("SelectedPaletteBrush", "画笔放置");
+									})
+									.IsEnabled_Lambda([this] { return SelectedPaletteAsset.IsValid(); })
+									.OnClicked_Lambda([this] { return TogglePaletteBrush(SelectedPaletteAsset); })
+								]
+							]
+							+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 3.f, 0.f, 0.f)
+							[
+								SNew(SHorizontalBox)
+								+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, 6.f, 0.f)
+								[
+									SNew(STextBlock).Text(LOCTEXT("SelectedPaletteMeshLabel", "模型"))
+								]
+								+ SHorizontalBox::Slot().FillWidth(1.f)
+								[
+									SNew(SObjectPropertyEntryBox)
+									.AllowedClass(UStaticMesh::StaticClass())
+									.ObjectPath_Lambda([this]
+									{
+										const UDevKitDecalAsset* Asset = SelectedPaletteAsset.Get();
+										UStaticMesh* Mesh = Asset ? (Asset->Mesh ? Asset->Mesh : (Asset->LegacyRVTAsset ? Asset->LegacyRVTAsset->Mesh : nullptr)) : nullptr;
+										return Mesh ? Mesh->GetPathName() : FString();
+									})
+									.AllowClear(true)
+									.DisplayBrowse(true)
+									.IsEnabled_Lambda([this] { return SelectedPaletteAsset.IsValid(); })
+									.OnObjectChanged_Lambda([this](const FAssetData& AssetData) { OnPaletteMeshChanged(AssetData, SelectedPaletteAsset); })
+								]
+							]
+							+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 3.f, 0.f, 0.f)
+							[
+								SNew(SHorizontalBox)
+								+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, 6.f, 0.f)
+								[
+									SNew(STextBlock).Text(LOCTEXT("SelectedPaletteMaterialLabel", "材质"))
+								]
+								+ SHorizontalBox::Slot().FillWidth(1.f)
+								[
+									SNew(SObjectPropertyEntryBox)
+									.AllowedClass(UMaterialInterface::StaticClass())
+									.ObjectPath_Lambda([this]
+									{
+										const UDevKitDecalAsset* Asset = SelectedPaletteAsset.Get();
+										UMaterialInterface* Material = Asset ? (Asset->Material ? Asset->Material : (Asset->LegacyRVTAsset ? Asset->LegacyRVTAsset->Material : nullptr)) : nullptr;
+										return Material ? Material->GetPathName() : FString();
+									})
+									.AllowClear(true)
+									.DisplayBrowse(true)
+									.IsEnabled_Lambda([this] { return SelectedPaletteAsset.IsValid(); })
+									.OnObjectChanged_Lambda([this](const FAssetData& AssetData) { OnPaletteMaterialChanged(AssetData, SelectedPaletteAsset); })
+								]
+							]
+						]
 					]
 				]
 			]
 			+ SVerticalBox::Slot().AutoHeight().Padding(0, 8, 0, 0)
 			[
-				SNew(SBorder)
+				SNew(SExpandableArea)
 				.Visibility_Lambda([this] { return ActiveSection == 0 || ActiveSection == 1 ? EVisibility::Visible : EVisibility::Collapsed; })
-				.Padding(FMargin(8.f, 6.f))
 				.BorderImage(FAppStyle::GetBrush(TEXT("ToolPanel.GroupBorder")))
+				.InitiallyCollapsed(false)
+				.Padding(FMargin(8.f, 6.f))
+				.HeaderContent()
 				[
-					SNew(SVerticalBox)
-					+ SVerticalBox::Slot().AutoHeight()
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("SelectedInstanceTitle", "当前实例 / 直接调整"))
-						.Font(FAppStyle::GetFontStyle("SmallFontBold"))
+						.Font(FAppStyle::GetFontStyle(TEXT("SmallFontBold")))
 					]
-					+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 3.f, 0.f, 3.f)
+					+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
 					[
 						SNew(STextBlock)
+						.Text_Lambda([this]
+						{
+							FDevKitDecalPlacementRecord Record;
+							return GetSelectedInstanceRecord(Record) ? LOCTEXT("SelectedInstanceReady", "1 个实例") : LOCTEXT("SelectedInstanceEmpty", "0 个实例");
+						})
+						.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+					]
+				]
+				.BodyContent()
+				[
+					SNew(SVerticalBox)
+					+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 2.f, 0.f, 6.f)
+					[
+						SNew(SRichTextBlock)
 						.Text_Lambda([this] { return GetSelectedInstanceSummary(); })
+						.TextStyle(&RichTextStyle.GetWidgetStyle<FTextBlockStyle>(TEXT("Default")))
+						.DecoratorStyleSet(&RichTextStyle)
 						.AutoWrapText(true)
 					]
 					+ SVerticalBox::Slot().AutoHeight()
@@ -626,6 +937,7 @@ void SDevKitDecalCollectionWidget::Construct(const FArguments& InArgs)
 						+ SHorizontalBox::Slot().AutoWidth()
 						[
 							SNew(SButton)
+							.ButtonStyle(FAppStyle::Get(), TEXT("PrimaryButton"))
 							.Text(LOCTEXT("BakeSelectedInstance", "Bake 为独立批次"))
 							.ToolTipText(LOCTEXT("BakeSelectedInstanceTip", "将当前单个 ISM 实例的材质预览固化为新的贴花资产和独立 ISM 批次。W/E/R 调整会立即回写实例记录。"))
 							.OnClicked(this, &SDevKitDecalCollectionWidget::BakeSelectedInstance)
@@ -708,7 +1020,7 @@ FText SDevKitDecalCollectionWidget::GetSelectedInstanceSummary() const
 	FDevKitDecalPlacementRecord Record;
 	if (!GetSelectedInstanceRecord(Record) || !Record.Asset)
 	{
-		return LOCTEXT("NoSelectedInstance", "未选中当前 Collection 的实例。进入 Edit 后点击单个网格，或点击一个 Deferred 投射范围；可用 W/E/R 调整，材质预览只影响当前记录。");
+		return LOCTEXT("NoSelectedInstance", "<muted>未选中当前 Collection 的实例。</> 进入 Edit 后点击单个网格或 Deferred 投射范围；使用 <key>W/E/R</> 调整，材质预览只影响当前记录。");
 	}
 
 	UStaticMesh* Mesh = Record.Asset->Mesh ? Record.Asset->Mesh : (Record.Asset->LegacyRVTAsset ? Record.Asset->LegacyRVTAsset->Mesh : nullptr);
@@ -725,12 +1037,12 @@ FText SDevKitDecalCollectionWidget::GetSelectedInstanceSummary() const
 	case EDevKitDecalBackend::DeferredProjection: BackendLabel = LOCTEXT("BackendDeferred", "Deferred 投射贴花"); break;
 	default: BackendLabel = LOCTEXT("BackendUnknown", "未识别后端"); break;
 	}
-	return FText::Format(
-		LOCTEXT("SelectedInstanceSummary", "实例 {0}\n类型：{1}\n模型：{2}\n当前材质：{3}\n材质预览不会改动其他记录；Mesh 类记录可 Bake 为独立批次，Deferred 保持独立投射代理。"),
-		FText::FromString(Record.InstanceGuid.ToString(EGuidFormats::DigitsWithHyphensInBraces)),
-		BackendLabel,
-		Mesh ? FText::FromString(Mesh->GetName()) : LOCTEXT("SelectedNoMesh", "未配置模型"),
-		Material ? FText::FromString(Material->GetName()) : LOCTEXT("SelectedNoMaterial", "未配置材质"));
+	return FText::FromString(FString::Printf(
+		TEXT("<label>当前实例</> <muted>%s</>\n<label>类型</> %s  ·  <label>模型</> %s\n<label>材质</> %s\n<muted>材质预览不会改动其他记录；Mesh 类可 Bake 为独立批次，Deferred 保持独立投射代理。</>"),
+		*EscapeDecalRichText(Record.InstanceGuid.ToString(EGuidFormats::DigitsWithHyphensInBraces)),
+		*EscapeDecalRichText(BackendLabel.ToString()),
+		*EscapeDecalRichText(Mesh ? Mesh->GetName() : TEXT("未配置模型")),
+		*EscapeDecalRichText(Material ? Material->GetName() : TEXT("未配置材质"))));
 }
 
 FString SDevKitDecalCollectionWidget::GetSelectedInstanceMaterialPath() const
@@ -761,6 +1073,14 @@ bool SDevKitDecalCollectionWidget::MatchesPaletteFilter(const UDevKitDecalAsset*
 	{
 		return false;
 	}
+	if (PaletteValidityFilter >= 0 && (Asset->IsValidDefinition() ? 1 : 0) != PaletteValidityFilter)
+	{
+		return false;
+	}
+	if (PaletteUsageFilter >= 0 && (GetPaletteAssetInstanceCount(Asset) > 0 ? 1 : 0) != PaletteUsageFilter)
+	{
+		return false;
+	}
 
 	if (PaletteSearchText.IsEmpty())
 	{
@@ -784,6 +1104,19 @@ bool SDevKitDecalCollectionWidget::MatchesPaletteFilter(const UDevKitDecalAsset*
 		|| Asset->DisplayName.ToString().Contains(Filter, ESearchCase::IgnoreCase)
 		|| (Mesh && Mesh->GetName().Contains(Filter, ESearchCase::IgnoreCase))
 		|| (Material && Material->GetName().Contains(Filter, ESearchCase::IgnoreCase));
+}
+
+int32 SDevKitDecalCollectionWidget::GetPaletteAssetInstanceCount(const UDevKitDecalAsset* Asset) const
+{
+	if (!Asset)
+	{
+		return 0;
+	}
+	if (const int32* Count = PaletteInstanceCounts.Find(Asset))
+	{
+		return *Count;
+	}
+	return 0;
 }
 
 FText SDevKitDecalCollectionWidget::GetPaletteBackendFilterLabel() const
@@ -819,15 +1152,48 @@ FText SDevKitDecalCollectionWidget::GetSelectedPaletteSummary() const
 		case EDevKitDecalBackend::DeferredProjection: BackendLabel = LOCTEXT("SelectedPaletteDeferred", "延迟投射"); break;
 		default: BackendLabel = LOCTEXT("SelectedPaletteUnknown", "未识别"); break;
 		}
-		return FText::Format(
-			LOCTEXT("SelectedPaletteSummary", "当前放置资产：{0}  ·  类型：{1}。拖入视口可按落点放置；画笔用于连续铺设。"),
-			Asset->DisplayName.IsEmpty() ? FText::FromString(Asset->GetName()) : Asset->DisplayName,
-			BackendLabel);
+		const FString DisplayName = Asset->DisplayName.IsEmpty() ? Asset->GetName() : Asset->DisplayName.ToString();
+		return FText::FromString(FString::Printf(
+			TEXT("<label>当前放置</> %s  ·  <muted>%s</>\n<key>拖入视口</> 按落点放置；<key>画笔</> 连续铺设；选中实例后使用 <key>W/E/R</>。"),
+			*EscapeDecalRichText(DisplayName),
+			*EscapeDecalRichText(BackendLabel.ToString())));
 	}
 
-	return FText::Format(
-		LOCTEXT("NoSelectedPaletteSummary", "尚未选择放置资产。当前筛选：{0}。从下方资源卡点击“选择放置”。"),
-		GetPaletteBackendFilterLabel());
+	return FText::FromString(FString::Printf(
+		TEXT("<warn>尚未选择放置资产。</> 当前类型：<label>%s</>。从下方资源卡选择，或直接拖动卡片到视口。"),
+		*EscapeDecalRichText(GetPaletteBackendFilterLabel().ToString())));
+}
+
+FText SDevKitDecalCollectionWidget::GetPaletteFilterSummary() const
+{
+	FString StatusLabel = TEXT("全部状态");
+	if (PaletteValidityFilter == 1)
+	{
+		StatusLabel = TEXT("可放置");
+	}
+	else if (PaletteValidityFilter == 0)
+	{
+		StatusLabel = TEXT("配置不完整");
+	}
+
+	FString UsageLabel = TEXT("全部批次");
+	if (PaletteUsageFilter == 1)
+	{
+		UsageLabel = TEXT("场景使用中");
+	}
+	else if (PaletteUsageFilter == 0)
+	{
+		UsageLabel = TEXT("空批次");
+	}
+
+	const TCHAR* SortLabel = PaletteSortMode == 1 ? TEXT("名称") : (PaletteSortMode == 2 ? TEXT("实例数") : TEXT("库顺序"));
+	return FText::FromString(FString::Printf(
+		TEXT("<label>筛选</> %s  ·  %s  ·  %s  <muted>| 排序：%s | 结果：%d</>"),
+		*EscapeDecalRichText(GetPaletteBackendFilterLabel().ToString()),
+		*EscapeDecalRichText(StatusLabel),
+		*EscapeDecalRichText(UsageLabel),
+		SortLabel,
+		GetFilteredPaletteCount()));
 }
 
 int32 SDevKitDecalCollectionWidget::GetFilteredPaletteCount() const
@@ -843,101 +1209,14 @@ int32 SDevKitDecalCollectionWidget::GetFilteredPaletteCount() const
 	return Count;
 }
 
-int32 SDevKitDecalCollectionWidget::GetPaletteDisplayLimitUpperBound() const
-{
-	return FMath::Max(4, PaletteAssets.Num());
-}
-
-float SDevKitDecalCollectionWidget::GetPaletteDisplayLimitSliderValue() const
-{
-	const int32 MinCount = 4;
-	const int32 MaxCount = GetPaletteDisplayLimitUpperBound();
-	if (MaxCount <= MinCount)
-	{
-		return 1.f;
-	}
-
-	return FMath::Clamp(
-		static_cast<float>(PaletteDisplayLimit - MinCount) / static_cast<float>(MaxCount - MinCount),
-		0.f,
-		1.f);
-}
-
-int32 SDevKitDecalCollectionWidget::GetPaletteBrowseOffsetUpperBound() const
-{
-	const int32 FilteredCount = GetFilteredPaletteCount();
-	return FMath::Max(0, FilteredCount - FMath::Min(PaletteDisplayLimit, FilteredCount));
-}
-
-float SDevKitDecalCollectionWidget::GetPaletteBrowseSliderValue() const
-{
-	const int32 MaxOffset = GetPaletteBrowseOffsetUpperBound();
-	if (MaxOffset <= 0)
-	{
-		return 0.f;
-	}
-
-	return FMath::Clamp(static_cast<float>(PaletteBrowseOffset) / static_cast<float>(MaxOffset), 0.f, 1.f);
-}
-
-FText SDevKitDecalCollectionWidget::GetPaletteBrowseRangeText() const
-{
-	const int32 FilteredCount = GetFilteredPaletteCount();
-	if (FilteredCount <= 0)
-	{
-		return LOCTEXT("PaletteBrowseEmpty", "0 / 0");
-	}
-
-	const int32 DisplayCount = FMath::Min(PaletteDisplayLimit, FilteredCount);
-	const int32 MaxOffset = FMath::Max(0, FilteredCount - DisplayCount);
-	const int32 Offset = FMath::Clamp(PaletteBrowseOffset, 0, MaxOffset);
-	return FText::Format(
-		LOCTEXT("PaletteBrowseRange", "{0}–{1} / {2}"),
-		FText::AsNumber(Offset + 1),
-		FText::AsNumber(Offset + DisplayCount),
-		FText::AsNumber(FilteredCount));
-}
-
-FText SDevKitDecalCollectionWidget::GetPaletteDisplayLimitText() const
-{
-	return FText::Format(LOCTEXT("PaletteDisplayLimitValue", "上限 {0}"), FText::AsNumber(PaletteDisplayLimit));
-}
-
 FText SDevKitDecalCollectionWidget::GetPaletteCountText() const
 {
-	const int32 FilteredCount = GetFilteredPaletteCount();
-	const int32 DisplayedCount = FMath::Min(PaletteDisplayLimit, FilteredCount);
-	return FText::Format(
-		LOCTEXT("PaletteCountValue", "{0}/{1}"),
-		FText::AsNumber(DisplayedCount),
-		FText::AsNumber(FilteredCount));
+	return FText::Format(LOCTEXT("PaletteCountValue", "{0} 个资产"), FText::AsNumber(GetFilteredPaletteCount()));
 }
 
 void SDevKitDecalCollectionWidget::OnPaletteSearchChanged(const FText& SearchText)
 {
 	PaletteSearchText = SearchText.ToString();
-	PaletteBrowseOffset = 0;
-	RefreshPaletteRows();
-	Invalidate(EInvalidateWidget::LayoutAndVolatility);
-}
-
-void SDevKitDecalCollectionWidget::OnPaletteDisplayLimitChanged(float SliderValue)
-{
-	const int32 MinCount = 4;
-	const int32 MaxCount = GetPaletteDisplayLimitUpperBound();
-	PaletteDisplayLimit = FMath::Clamp(
-		FMath::RoundToInt(FMath::Lerp(static_cast<float>(MinCount), static_cast<float>(MaxCount), SliderValue)),
-		MinCount,
-		MaxCount);
-	PaletteBrowseOffset = FMath::Clamp(PaletteBrowseOffset, 0, GetPaletteBrowseOffsetUpperBound());
-	RefreshPaletteRows();
-	Invalidate(EInvalidateWidget::LayoutAndVolatility);
-}
-
-void SDevKitDecalCollectionWidget::OnPaletteBrowseOffsetChanged(float SliderValue)
-{
-	const int32 MaxOffset = GetPaletteBrowseOffsetUpperBound();
-	PaletteBrowseOffset = FMath::Clamp(FMath::RoundToInt(SliderValue * static_cast<float>(MaxOffset)), 0, MaxOffset);
 	RefreshPaletteRows();
 	Invalidate(EInvalidateWidget::LayoutAndVolatility);
 }
@@ -1091,16 +1370,47 @@ void SDevKitDecalCollectionWidget::RefreshCollectionRows()
 			continue;
 		}
 
-		const FText Label = FText::Format(
-			LOCTEXT("CollectionRowLabel", "{0}  ·  {1} 条记录{2}"),
-			FText::FromName(Collection->CollectionName),
-			FText::AsNumber(Collection->Collection ? Collection->Collection->GetRecordCount() : 0),
-			Collection == ActiveCollection ? LOCTEXT("CollectionRowActive", "  当前") : FText::GetEmpty());
+		const bool bIsActive = Collection == ActiveCollection;
+		const FText RecordCount = FText::Format(
+			LOCTEXT("CollectionRecordCount", "{0} 条 Placement Record"),
+			FText::AsNumber(Collection->Collection ? Collection->Collection->GetRecordCount() : 0));
 		CollectionRows->AddSlot().AutoHeight().Padding(0.f, 0.f, 0.f, 3.f)
 		[
 			SNew(SButton)
-			.Text(Label)
+			.ButtonStyle(FAppStyle::Get(), TEXT("SimpleButton"))
+			.ContentPadding(0.f)
 			.OnClicked_Lambda([this, WeakCollection]() { return SelectCollection(WeakCollection); })
+			[
+				SNew(SBorder)
+				.BorderImage(FAppStyle::GetBrush(TEXT("Brushes.Recessed")))
+				.Padding(FMargin(8.f, 6.f))
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)
+					[
+						SNew(SVerticalBox)
+						+ SVerticalBox::Slot().AutoHeight()
+						[
+							SNew(STextBlock)
+							.Text(FText::FromName(Collection->CollectionName))
+							.Font(FAppStyle::GetFontStyle(TEXT("SmallFontBold")))
+						]
+						+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 2.f, 0.f, 0.f)
+						[
+							SNew(STextBlock)
+							.Text(RecordCount)
+							.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+						]
+					]
+					+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(8.f, 0.f, 0.f, 0.f)
+					[
+						SNew(STextBlock)
+						.Text(bIsActive ? LOCTEXT("CollectionRowActive", "当前") : FText::GetEmpty())
+						.Font(FAppStyle::GetFontStyle(TEXT("SmallFontBold")))
+						.ColorAndOpacity(FStyleColors::Primary)
+					]
+				]
+			]
 		];
 	}
 }
@@ -1166,9 +1476,206 @@ ADevKitDecalCollectionActor* SDevKitDecalCollectionWidget::GetTargetCollection()
 	return Collections.Num() == 1 ? Collections[0].Get() : nullptr;
 }
 
+TSharedRef<ITableRow> SDevKitDecalCollectionWidget::GeneratePaletteTile(
+	FDevKitDecalPaletteItemPtr Item,
+	const TSharedRef<STableViewBase>& OwnerTable)
+{
+	const TWeakObjectPtr<UDevKitDecalAsset> WeakAsset = Item.IsValid() ? Item->Asset : nullptr;
+	UDevKitDecalAsset* Asset = WeakAsset.Get();
+	if (!Asset)
+	{
+		return SNew(STableRow<FDevKitDecalPaletteItemPtr>, OwnerTable)
+			[
+				SNew(STextBlock).Text(LOCTEXT("InvalidPaletteTile", "失效"))
+			];
+	}
+
+	UStaticMesh* PaletteMesh = Asset->Mesh ? Asset->Mesh : (Asset->LegacyRVTAsset ? Asset->LegacyRVTAsset->Mesh : nullptr);
+	UMaterialInterface* PaletteMaterial = Asset->Material ? Asset->Material : (Asset->LegacyRVTAsset ? Asset->LegacyRVTAsset->Material : nullptr);
+	UObject* PreviewAsset = PaletteMesh;
+	if (!PreviewAsset)
+	{
+		PreviewAsset = PaletteMaterial;
+	}
+
+	FAssetThumbnailConfig ThumbnailConfig;
+	ThumbnailConfig.ThumbnailLabel = EThumbnailLabel::NoLabel;
+	ThumbnailConfig.bAllowHintText = false;
+	ThumbnailConfig.bAllowRealTimeOnHovered = false;
+	ThumbnailConfig.ShowAssetBorder = false;
+
+	TSharedRef<SWidget> PrimaryThumbnail = SNew(SBorder)
+		.BorderImage(FAppStyle::GetBrush(TEXT("ContentBrowser.AssetTileItem.ThumbnailAreaBackground")))
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("PaletteTileNoPreview", "无预览"))
+			.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+		];
+	if (PreviewAsset && ThumbnailPool.IsValid())
+	{
+		PrimaryThumbnail = MakeShared<FAssetThumbnail>(PreviewAsset, 104, 92, ThumbnailPool)->MakeThumbnailWidget(ThumbnailConfig);
+	}
+
+	TSharedRef<SWidget> MaterialBadge = SNullWidget::NullWidget;
+	if (PaletteMesh && PaletteMaterial && ThumbnailPool.IsValid())
+	{
+		MaterialBadge = SNew(SBorder)
+			.BorderImage(FAppStyle::GetBrush(TEXT("ContentBrowser.AssetTileItem.AssetThumbnailOverlayBorder")))
+			.Padding(1.f)
+			[
+				SNew(SBox)
+				.WidthOverride(26.f)
+				.HeightOverride(26.f)
+				[
+					MakeShared<FAssetThumbnail>(PaletteMaterial, 26, 26, ThumbnailPool)->MakeThumbnailWidget(ThumbnailConfig)
+				]
+			];
+	}
+
+	FText BackendBadgeText;
+	switch (Asset->Backend)
+	{
+	case EDevKitDecalBackend::RVTPlane: BackendBadgeText = LOCTEXT("TileBadgeRVT", "RVT"); break;
+	case EDevKitDecalBackend::RVTVisibleMesh: BackendBadgeText = LOCTEXT("TileBadgeRVTObject", "物件"); break;
+	case EDevKitDecalBackend::MeshDecal: BackendBadgeText = LOCTEXT("TileBadgeMesh", "网格"); break;
+	case EDevKitDecalBackend::StaticMeshOverlay: BackendBadgeText = LOCTEXT("TileBadgeOverlay", "地表"); break;
+	case EDevKitDecalBackend::DeferredProjection: BackendBadgeText = LOCTEXT("TileBadgeDeferred", "投射"); break;
+	default: BackendBadgeText = LOCTEXT("TileBadgeUnknown", "?"); break;
+	}
+
+	const int32 InstanceCount = GetPaletteAssetInstanceCount(Asset);
+	const FText AssetDisplayName = Asset->DisplayName.IsEmpty() ? FText::FromString(Asset->GetName()) : Asset->DisplayName;
+	const FText TileToolTip = FText::Format(
+		LOCTEXT("PaletteTileToolTip", "{0}\n类型：{1}\n模型：{2}\n材质：{3}\n启用实例：{4}\n状态：{5}\n\n单击选择；拖入视口放置。"),
+		AssetDisplayName,
+		BackendBadgeText,
+		PaletteMesh ? FText::FromString(PaletteMesh->GetPathName()) : LOCTEXT("TileNoMesh", "未配置"),
+		PaletteMaterial ? FText::FromString(PaletteMaterial->GetPathName()) : LOCTEXT("TileNoMaterial", "未配置"),
+		FText::AsNumber(InstanceCount),
+		Asset->IsValidDefinition() ? LOCTEXT("TileReady", "可放置") : LOCTEXT("TileIncomplete", "配置不完整"));
+
+	return SNew(STableRow<FDevKitDecalPaletteItemPtr>, OwnerTable)
+		.Style(FAppStyle::Get(), TEXT("ContentBrowser.AssetListView.ColumnListTableRow"))
+		.Padding(1.f)
+		.OnDragDetected_Lambda([this, WeakAsset](const FGeometry&, const FPointerEvent& PointerEvent)
+		{
+			return PointerEvent.IsMouseButtonDown(EKeys::LeftMouseButton) && WeakAsset.IsValid()
+				? BeginPaletteAssetDrag(WeakAsset)
+				: FReply::Unhandled();
+		})
+		[
+			SNew(SBox)
+				.WidthOverride(112.f)
+				.HeightOverride(120.f)
+				.ToolTipText(TileToolTip)
+				[
+					SNew(SVerticalBox)
+					+ SVerticalBox::Slot().FillHeight(1.f)
+					[
+						SNew(SBorder)
+						.BorderImage(FAppStyle::GetBrush(TEXT("ContentBrowser.ThumbnailShadow")))
+						.Padding(2.f)
+						[
+							SNew(SOverlay)
+							+ SOverlay::Slot()
+							[
+								PrimaryThumbnail
+							]
+							+ SOverlay::Slot()
+							.HAlign(HAlign_Left)
+							.VAlign(VAlign_Top)
+							.Padding(4.f)
+							[
+								SNew(SBorder)
+								.BorderImage(FAppStyle::GetBrush(TEXT("ContentBrowser.AssetTileItem.AssetThumbnailOverlayBorder")))
+								.Padding(FMargin(4.f, 1.f))
+								[
+									SNew(STextBlock)
+									.Text(BackendBadgeText)
+									.Font(FAppStyle::GetFontStyle(TEXT("SmallFont")))
+									.ShadowOffset(FVector2D(1.f, 1.f))
+									.ColorAndOpacity(Asset->IsValidDefinition() ? FStyleColors::Foreground : FStyleColors::Warning)
+								]
+							]
+							+ SOverlay::Slot()
+							.HAlign(HAlign_Right)
+							.VAlign(VAlign_Top)
+							.Padding(4.f)
+							[
+								MaterialBadge
+							]
+							+ SOverlay::Slot()
+							.HAlign(HAlign_Right)
+							.VAlign(VAlign_Bottom)
+							.Padding(FMargin(5.f, 5.f))
+							[
+								SNew(SBorder)
+								.BorderImage(FAppStyle::GetBrush(TEXT("ContentBrowser.AssetTileItem.AssetThumbnailOverlayBorder")))
+								.Padding(FMargin(4.f, 1.f))
+								[
+									SNew(STextBlock)
+									.Text(FText::AsNumber(InstanceCount))
+									.Font(FAppStyle::GetFontStyle(TEXT("SmallFontBold")))
+									.ShadowOffset(FVector2D(1.f, 1.f))
+									.ColorAndOpacity(FStyleColors::Foreground)
+								]
+							]
+						]
+					]
+					+ SVerticalBox::Slot().AutoHeight().Padding(3.f, 2.f, 3.f, 1.f)
+					[
+						SNew(STextBlock)
+						.Text(AssetDisplayName)
+						.Font(FAppStyle::GetFontStyle(TEXT("SmallFont")))
+						.OverflowPolicy(ETextOverflowPolicy::Ellipsis)
+					]
+				]
+			];
+}
+
+void SDevKitDecalCollectionWidget::OnPaletteTileSelectionChanged(
+	FDevKitDecalPaletteItemPtr Item,
+	ESelectInfo::Type SelectInfo)
+{
+	const TWeakObjectPtr<UDevKitDecalAsset> Asset = Item.IsValid()
+		? Item->Asset
+		: TWeakObjectPtr<UDevKitDecalAsset>();
+
+	// RefreshPaletteRows restores selection with ESelectInfo::Direct. Avoid
+	// overwriting a more useful status message when the asset did not change.
+	if (SelectedPaletteAsset != Asset)
+	{
+		SelectPaletteAsset(Asset);
+	}
+}
+
+void SDevKitDecalCollectionWidget::UpdateSelectedPaletteThumbnail()
+{
+	UObject* PreviewAsset = nullptr;
+	if (const UDevKitDecalAsset* Asset = SelectedPaletteAsset.Get())
+	{
+		PreviewAsset = Asset->Mesh ? Asset->Mesh.Get() : (Asset->LegacyRVTAsset ? Asset->LegacyRVTAsset->Mesh.Get() : nullptr);
+		if (!PreviewAsset)
+		{
+			PreviewAsset = Asset->Material ? Asset->Material.Get() : (Asset->LegacyRVTAsset ? Asset->LegacyRVTAsset->Material.Get() : nullptr);
+		}
+	}
+	if (SelectedPaletteThumbnail.IsValid())
+	{
+		SelectedPaletteThumbnail->SetAsset(PreviewAsset);
+	}
+}
+
 void SDevKitDecalCollectionWidget::RefreshPaletteRows()
 {
 	PaletteAssets.Reset();
+	PaletteInstanceCounts.Reset();
+	FilteredPaletteItems.Reset();
+	PaletteEmptyMessage = FText::GetEmpty();
+	UpdateSelectedPaletteThumbnail();
+
 	ADevKitDecalCollectionActor* Collection = GetTargetCollection();
 	if (Collection && Collection->Collection)
 	{
@@ -1184,258 +1691,91 @@ void SDevKitDecalCollectionWidget::RefreshPaletteRows()
 			if (Record.Asset)
 			{
 				PaletteAssets.AddUnique(Record.Asset);
+				if (Record.bEnabled)
+				{
+					PaletteInstanceCounts.FindOrAdd(Record.Asset)++;
+				}
 			}
 		}
 	}
 
-	if (!PaletteRows.IsValid())
-	{
-		return;
-	}
-
-	PaletteRows->ClearChildren();
 	if (!Collection)
 	{
-		PaletteRows->AddSlot()
-		[
-			SNew(STextBlock).Text(LOCTEXT("PaletteNoCollection", "请先选择并 Edit 一个 Collection。"))
-		];
-		return;
+		PaletteEmptyMessage = LOCTEXT("PaletteNoCollection", "请先选择并 Edit 一个 Collection。");
 	}
-	if (PaletteAssets.Num() == 0)
+	else if (PaletteAssets.IsEmpty())
 	{
-		PaletteRows->AddSlot()
-		[
-			SNew(STextBlock).Text(LOCTEXT("PaletteEmpty", "当前 Collection 还没有模型批次。可从兼容库接管，或使用下方资产入口。"))
-		];
-		return;
+		PaletteEmptyMessage = LOCTEXT("PaletteEmpty", "当前 Collection 还没有贴花资产。请使用上方“新建”按钮，或从兼容库接管。");
 	}
-
-	TArray<TWeakObjectPtr<UDevKitDecalAsset>> FilteredPaletteAssets;
-	FilteredPaletteAssets.Reserve(PaletteAssets.Num());
-	for (const TWeakObjectPtr<UDevKitDecalAsset>& WeakAsset : PaletteAssets)
+	else
 	{
-		if (MatchesPaletteFilter(WeakAsset.Get()))
+		TArray<TWeakObjectPtr<UDevKitDecalAsset>> FilteredAssets;
+		FilteredAssets.Reserve(PaletteAssets.Num());
+		for (const TWeakObjectPtr<UDevKitDecalAsset>& WeakAsset : PaletteAssets)
 		{
-			FilteredPaletteAssets.Add(WeakAsset);
-		}
-	}
-
-	if (FilteredPaletteAssets.Num() == 0)
-	{
-		PaletteRows->AddSlot()
-		[
-			SNew(STextBlock).Text(LOCTEXT("PaletteNoSearchResult", "没有匹配的模型、材质或贴花资产。"))
-		];
-		return;
-	}
-
-	const int32 DisplayCount = FMath::Min(PaletteDisplayLimit, FilteredPaletteAssets.Num());
-	const int32 BrowseMax = FMath::Max(0, FilteredPaletteAssets.Num() - DisplayCount);
-	PaletteBrowseOffset = FMath::Clamp(PaletteBrowseOffset, 0, BrowseMax);
-	for (int32 AssetIndex = PaletteBrowseOffset; AssetIndex < PaletteBrowseOffset + DisplayCount; ++AssetIndex)
-	{
-		const TWeakObjectPtr<UDevKitDecalAsset>& WeakAsset = FilteredPaletteAssets[AssetIndex];
-		UDevKitDecalAsset* Asset = WeakAsset.Get();
-		if (!Asset)
-		{
-			continue;
-		}
-
-		int32 InstanceCount = 0;
-		for (const FDevKitDecalPlacementRecord& Record : Collection->Collection->Records)
-		{
-			InstanceCount += Record.Asset == Asset && Record.bEnabled ? 1 : 0;
-		}
-
-		UStaticMesh* PaletteMesh = Asset->Mesh ? Asset->Mesh : (Asset->LegacyRVTAsset ? Asset->LegacyRVTAsset->Mesh : nullptr);
-		UMaterialInterface* PaletteMaterial = Asset->Material ? Asset->Material : (Asset->LegacyRVTAsset ? Asset->LegacyRVTAsset->Material : nullptr);
-		FAssetThumbnailConfig ThumbnailConfig;
-		ThumbnailConfig.ThumbnailLabel = EThumbnailLabel::NoLabel;
-		ThumbnailConfig.bAllowHintText = false;
-		ThumbnailConfig.bAllowRealTimeOnHovered = false;
-		ThumbnailConfig.ShowAssetBorder = true;
-		TSharedRef<SWidget> MeshThumbnailWidget = SNew(STextBlock).Text(LOCTEXT("NoMeshThumbnail", "无模型"));
-		TSharedRef<SWidget> MaterialThumbnailWidget = SNew(STextBlock).Text(LOCTEXT("NoMaterialThumbnail", "无材质"));
-		if (PaletteMesh && ThumbnailPool.IsValid())
-		{
-			MeshThumbnailWidget = MakeShared<FAssetThumbnail>(PaletteMesh, 72, 72, ThumbnailPool)->MakeThumbnailWidget(ThumbnailConfig);
-		}
-		if (PaletteMaterial && ThumbnailPool.IsValid())
-		{
-			MaterialThumbnailWidget = MakeShared<FAssetThumbnail>(PaletteMaterial, 72, 72, ThumbnailPool)->MakeThumbnailWidget(ThumbnailConfig);
-		}
-
-		PaletteRows->AddSlot().Padding(0.f, 0.f, 0.f, 4.f)
-		[
-			SNew(SBox)
-			.WidthOverride(380.f)
-			[
-			SNew(SDevKitDecalPaletteRow)
-			.OnSelected(FSimpleDelegate::CreateLambda([this, WeakAsset]()
+			if (MatchesPaletteFilter(WeakAsset.Get()))
 			{
-				SelectPaletteAsset(WeakAsset);
-			}))
-			.OnDragged(FOnPaletteRowDragDetected::CreateLambda([this, WeakAsset]()
+				FilteredAssets.Add(WeakAsset);
+			}
+		}
+
+		if (PaletteSortMode == 1)
+		{
+			FilteredAssets.StableSort([](const TWeakObjectPtr<UDevKitDecalAsset>& Left, const TWeakObjectPtr<UDevKitDecalAsset>& Right)
 			{
-				return BeginPaletteAssetDrag(WeakAsset);
-			}))
-			[
-				SNew(SBorder)
-				.Padding(FMargin(6.f, 4.f))
-				[
-				SNew(SVerticalBox)
-				+ SVerticalBox::Slot().AutoHeight()
-				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot().AutoWidth().Padding(0.f, 0.f, 5.f, 0.f)
-					[
-						SNew(SBox).WidthOverride(72.f).HeightOverride(72.f)
-						[
-							SNew(SOverlay)
-							+ SOverlay::Slot()
-							[
-								MeshThumbnailWidget
-							]
-							+ SOverlay::Slot()
-							.HAlign(HAlign_Right)
-							.VAlign(VAlign_Bottom)
-							.Padding(FMargin(2.f))
-							[
-								SNew(SBorder)
-								.Padding(FMargin(4.f, 1.f))
-								.BorderImage(FAppStyle::GetBrush(TEXT("ToolPanel.GroupBorder")))
-								[
-									SNew(STextBlock)
-									.Text(FText::AsNumber(InstanceCount))
-									.Justification(ETextJustify::Center)
-								]
-							]
-						]
-					]
-					+ SHorizontalBox::Slot().AutoWidth().Padding(0.f, 0.f, 7.f, 0.f)
-					[
-						SNew(SBox).WidthOverride(72.f).HeightOverride(72.f)
-						[
-							MaterialThumbnailWidget
-						]
-					]
-					+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Fill).Padding(4.f, 0.f, 0.f, 0.f)
-					[
-						SNew(SVerticalBox)
-						+ SVerticalBox::Slot().FillHeight(1.f).VAlign(VAlign_Center)
-						[
-							SNew(SHorizontalBox)
-							+ SHorizontalBox::Slot().FillWidth(1.f).Padding(0.f, 0.f, 4.f, 0.f)
-							[
-								SNew(SButton)
-								.Text(LOCTEXT("PaletteSelect", "选择放置"))
-								.OnClicked_Lambda([this, WeakAsset]() { return SelectPaletteAsset(WeakAsset); })
-							]
-							+ SHorizontalBox::Slot().FillWidth(1.f)
-							[
-								SNew(SButton)
-								.Text(LOCTEXT("PalettePlace", "视口中心放置"))
-								.OnClicked_Lambda([this, WeakAsset]() { return PlacePaletteAssetAtViewportCenter(WeakAsset); })
-							]
-						]
-						+ SVerticalBox::Slot().FillHeight(1.f).VAlign(VAlign_Center).Padding(0.f, 3.f, 0.f, 0.f)
-						[
-							SNew(SHorizontalBox)
-							+ SHorizontalBox::Slot().FillWidth(1.f).Padding(0.f, 0.f, 4.f, 0.f)
-							[
-								SNew(SButton)
-								.Text(LOCTEXT("PaletteVariant", "复制材质变体"))
-								.OnClicked_Lambda([this, WeakAsset]() { return CreateMaterialVariant(WeakAsset); })
-							]
-							+ SHorizontalBox::Slot().FillWidth(1.f)
-							[
-								SNew(SButton)
-								.Text(LOCTEXT("PaletteISMVariant", "新增 ISM 批次"))
-								.ToolTipText(LOCTEXT("PaletteISMVariantTip", "复制当前模型和材质定义，创建一个可以独立放置/编辑的 ISM 批次。"))
-								.OnClicked_Lambda([this, WeakAsset]() { return CreateISMVariant(WeakAsset); })
-							]
-						]
-						+ SVerticalBox::Slot().FillHeight(1.f).VAlign(VAlign_Center).Padding(0.f, 3.f, 0.f, 0.f)
-						[
-							SNew(SButton)
-							.Text_Lambda([this, WeakAsset]
-							{
-								if (UDevKitDecalCollectionEdMode* Mode = Cast<UDevKitDecalCollectionEdMode>(GLevelEditorModeTools().GetActiveScriptableMode(UDevKitDecalCollectionEdMode::EM_DevKitDecalCollection)))
-								{
-									return Mode->IsBrushPlacementActiveFor(WeakAsset.Get()) ? LOCTEXT("PaletteBrushActive", "● 画笔放置：开") : LOCTEXT("PaletteBrush", "画笔放置");
-								}
-								return LOCTEXT("PaletteBrush", "画笔放置");
-							})
-							.ToolTipText(LOCTEXT("PaletteBrushTip", "开启后在视口用左键拖动，按上方画笔间距放置当前资产；一整笔画可撤销。再次点击关闭。"))
-							.OnClicked_Lambda([this, WeakAsset]() { return TogglePaletteBrush(WeakAsset); })
-						]
-					]
-				]
-				+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 3.f, 0.f, 0.f)
-				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, 5.f, 0.f)
-					[
-						SNew(STextBlock).Text(LOCTEXT("PaletteMeshLabel", "模型"))
-					]
-					+ SHorizontalBox::Slot().FillWidth(1.f)
-					[
-						SNew(SObjectPropertyEntryBox)
-						.AllowedClass(UStaticMesh::StaticClass())
-						.ObjectPath_Lambda([WeakAsset]()
-						{
-							UStaticMesh* Mesh = WeakAsset.IsValid()
-								? (WeakAsset->Mesh ? WeakAsset->Mesh : (WeakAsset->LegacyRVTAsset ? WeakAsset->LegacyRVTAsset->Mesh : nullptr))
-								: nullptr;
-							return Mesh ? Mesh->GetPathName() : FString();
-						})
-						.AllowClear(true)
-						.DisplayBrowse(true)
-						.OnObjectChanged_Lambda([this, WeakAsset](const FAssetData& AssetData)
-						{
-							OnPaletteMeshChanged(AssetData, WeakAsset);
-						})
-					]
-				]
-				+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 3.f, 0.f, 0.f)
-				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, 5.f, 0.f)
-					[
-						SNew(STextBlock).Text(LOCTEXT("PaletteMaterialLabel", "材质"))
-					]
-					+ SHorizontalBox::Slot().FillWidth(1.f)
-					[
-						SNew(SObjectPropertyEntryBox)
-						.AllowedClass(UMaterialInterface::StaticClass())
-						.ObjectPath_Lambda([WeakAsset]()
-						{
-							UMaterialInterface* Material = WeakAsset.IsValid()
-								? (WeakAsset->Material ? WeakAsset->Material : (WeakAsset->LegacyRVTAsset ? WeakAsset->LegacyRVTAsset->Material : nullptr))
-								: nullptr;
-							return Material
-								? Material->GetPathName()
-								: FString();
-						})
-						.AllowClear(true)
-						.DisplayBrowse(true)
-						.OnObjectChanged_Lambda([this, WeakAsset](const FAssetData& AssetData)
-						{
-							OnPaletteMaterialChanged(AssetData, WeakAsset);
-						})
-					]
-				]
-				]
-			]
-			]
-		];
+				const UDevKitDecalAsset* LeftAsset = Left.Get();
+				const UDevKitDecalAsset* RightAsset = Right.Get();
+				const FString LeftName = LeftAsset && !LeftAsset->DisplayName.IsEmpty() ? LeftAsset->DisplayName.ToString() : (LeftAsset ? LeftAsset->GetName() : FString());
+				const FString RightName = RightAsset && !RightAsset->DisplayName.IsEmpty() ? RightAsset->DisplayName.ToString() : (RightAsset ? RightAsset->GetName() : FString());
+				return LeftName.Compare(RightName, ESearchCase::IgnoreCase) < 0;
+			});
+		}
+		else if (PaletteSortMode == 2)
+		{
+			FilteredAssets.StableSort([this](const TWeakObjectPtr<UDevKitDecalAsset>& Left, const TWeakObjectPtr<UDevKitDecalAsset>& Right)
+			{
+				return GetPaletteAssetInstanceCount(Left.Get()) > GetPaletteAssetInstanceCount(Right.Get());
+			});
+		}
+
+		for (const TWeakObjectPtr<UDevKitDecalAsset>& WeakAsset : FilteredAssets)
+		{
+			FilteredPaletteItems.Add(MakeShared<FDevKitDecalPaletteItem>(WeakAsset));
+		}
+
+		if (FilteredPaletteItems.IsEmpty())
+		{
+			PaletteEmptyMessage = LOCTEXT("PaletteNoSearchResult", "没有匹配当前类型、状态或搜索条件的资产。");
+		}
+	}
+
+	if (PaletteTileView.IsValid())
+	{
+		FDevKitDecalPaletteItemPtr SelectedItem;
+		for (const FDevKitDecalPaletteItemPtr& Item : FilteredPaletteItems)
+		{
+			if (Item.IsValid() && Item->Asset == SelectedPaletteAsset)
+			{
+				SelectedItem = Item;
+				break;
+			}
+		}
+
+		PaletteTileView->RequestListRefresh();
+		if (SelectedItem.IsValid())
+		{
+			PaletteTileView->SetSelection(SelectedItem, ESelectInfo::Direct);
+		}
+		else
+		{
+			PaletteTileView->ClearSelection();
+		}
 	}
 }
-
 FReply SDevKitDecalCollectionWidget::SelectPaletteAsset(TWeakObjectPtr<UDevKitDecalAsset> Asset)
 {
 	SelectedPaletteAsset = Asset;
+	UpdateSelectedPaletteThumbnail();
 	ActionStatus = Asset.IsValid()
 		? FString::Printf(TEXT("已选择批次：%s。可点击“视口中心放置”，或在视口中继续选择实例后使用 W/E/R。"), *Asset->GetName())
 		: TEXT("选择的批次已失效。");
@@ -1767,9 +2107,41 @@ FReply SDevKitDecalCollectionWidget::SelectSection(int32 SectionIndex)
 FReply SDevKitDecalCollectionWidget::SelectPaletteBackendFilter(int32 BackendFilter)
 {
 	PaletteBackendFilter = BackendFilter;
-	PaletteBrowseOffset = 0;
 	RefreshPaletteRows();
 	ActionStatus = FString::Printf(TEXT("已筛选“%s”资产。选择资源卡后可直接放置、拖放或刷地面。"), *GetPaletteBackendFilterLabel().ToString());
+	Invalidate(EInvalidateWidget::LayoutAndVolatility);
+	return FReply::Handled();
+}
+
+FReply SDevKitDecalCollectionWidget::SelectPaletteValidityFilter(int32 ValidityFilter)
+{
+	PaletteValidityFilter = ValidityFilter;
+	RefreshPaletteRows();
+	ActionStatus = ValidityFilter == 1
+		? TEXT("已只显示配置完整、可直接放置的资产。")
+		: (ValidityFilter == 0 ? TEXT("已只显示配置不完整的资产，可直接补齐模型或材质。") : TEXT("已显示全部资产状态。"));
+	Invalidate(EInvalidateWidget::LayoutAndVolatility);
+	return FReply::Handled();
+}
+
+FReply SDevKitDecalCollectionWidget::SelectPaletteUsageFilter(int32 UsageFilter)
+{
+	PaletteUsageFilter = UsageFilter;
+	RefreshPaletteRows();
+	ActionStatus = UsageFilter == 1
+		? TEXT("已只显示当前 Collection 中存在启用实例的批次。")
+		: (UsageFilter == 0 ? TEXT("已只显示尚未放置实例的空批次。") : TEXT("已显示全部使用状态。"));
+	Invalidate(EInvalidateWidget::LayoutAndVolatility);
+	return FReply::Handled();
+}
+
+FReply SDevKitDecalCollectionWidget::SelectPaletteSortMode(int32 SortMode)
+{
+	PaletteSortMode = FMath::Clamp(SortMode, 0, 2);
+	RefreshPaletteRows();
+	ActionStatus = PaletteSortMode == 1
+		? TEXT("资产已按名称排序。")
+		: (PaletteSortMode == 2 ? TEXT("资产已按启用实例数量排序。") : TEXT("资产已恢复 Collection 库顺序。"));
 	Invalidate(EInvalidateWidget::LayoutAndVolatility);
 	return FReply::Handled();
 }
@@ -1794,19 +2166,32 @@ FText SDevKitDecalCollectionWidget::GetSectionHelp() const
 	switch (ActiveSection)
 	{
 	case 1:
-		return LOCTEXT("PlaceHelp", "放置：先选择或新建 Active Collection，再从资产库拖放、刷地面、单点放置或使用拖动预览。没有 Active Collection 时不会创建匿名实例。按钮点击后会切换本页内容。 ");
+		return LOCTEXT("PlaceHelp", "<label>放置</> 选择 Active Collection 后，可从资产库拖放、刷地面或单点放置。<warn>没有 Active Collection 时不会创建匿名实例。</>");
 	case 2:
-		return LOCTEXT("AssetHelp", "资产：统一资产记录 Mesh、Material、Backend、Placement Profile、Quality/Platform Representation 和 RVT 校验。现有 RVT Surface Library 只作为兼容资产入口。 ");
+		return LOCTEXT("AssetHelp", "<label>资产</> 统一记录 Mesh、Material、Backend、Placement、Quality/Platform Representation 与 RVT 校验；旧 RVT Surface Library 只作为兼容入口。");
 	case 3:
-		return LOCTEXT("AuditHelp", "审计：检查当前 Level 的 Collection、记录数量、派生批次和遗漏的旧贴花。PCG 可作为刷点/批量生成输入，接管后再逐个编辑。 ");
+		return LOCTEXT("AuditHelp", "<label>审计</> 检查当前 Level 的 Collection、记录、派生批次与遗漏旧贴花。<info>PCG 可作为批量生成输入，接管后仍可逐个编辑。</>");
 	default:
-		return LOCTEXT("ManageHelp", "管理：Collection 是轻量的 Placement Record 容器；进入 Mode 后点击单个网格即可用 W/E/R 编辑，变换会回写到记录。 ");
+		return LOCTEXT("ManageHelp", "<label>管理</> Collection 是轻量 Placement Record 容器；进入 Edit 后点击单个网格，使用 <key>W/E/R</> 编辑，变换会回写到记录。");
 	}
 }
 
 FText SDevKitDecalCollectionWidget::GetActionStatus() const
 {
-	return FText::FromString(ActionStatus);
+	FString StatusTag = TEXT("text");
+	if (ActionStatus.Contains(TEXT("失败")) || ActionStatus.Contains(TEXT("失效")) || ActionStatus.Contains(TEXT("拒绝")))
+	{
+		StatusTag = TEXT("bad");
+	}
+	else if (ActionStatus.Contains(TEXT("没有")) || ActionStatus.Contains(TEXT("未")) || ActionStatus.Contains(TEXT("不完整")))
+	{
+		StatusTag = TEXT("warn");
+	}
+	else if (ActionStatus.Contains(TEXT("成功")) || ActionStatus.Contains(TEXT("通过")) || ActionStatus.Contains(TEXT("完成")))
+	{
+		StatusTag = TEXT("good");
+	}
+	return FText::FromString(FString::Printf(TEXT("<%s>%s</>"), *StatusTag, *EscapeDecalRichText(ActionStatus.TrimStartAndEnd())));
 }
 
 FText SDevKitDecalCollectionWidget::GetAuditSummary() const
@@ -1852,8 +2237,9 @@ FText SDevKitDecalCollectionWidget::GetAuditSummary() const
 	const ADevKitDecalCollectionActor* Collection = GetTargetCollection();
 	if (!Collection || !Collection->Collection)
 	{
-		return FText::Format(LOCTEXT("AuditNoTarget", "当前 Level：{0} 个 Collection。未接管候选：Deferred {1}，网格/RVT {2}。请选择一个后可校验记录和派生代理。"),
-			FText::AsNumber(Collections.Num()), FText::AsNumber(UnownedDeferredDecals), FText::AsNumber(LegacyMeshDecalCandidates));
+		return FText::FromString(FString::Printf(
+			TEXT("<label>当前 Level</> %d 个 Collection  ·  <warn>未接管 Deferred %d</>  ·  <warn>网格/RVT %d</>\n<muted>选择 Collection 后可校验记录和派生代理。</>"),
+			Collections.Num(), UnownedDeferredDecals, LegacyMeshDecalCandidates));
 	}
 
 	int32 DisabledRecords = 0;
@@ -1863,23 +2249,25 @@ FText SDevKitDecalCollectionWidget::GetAuditSummary() const
 		DisabledRecords += Record.bEnabled ? 0 : 1;
 		InvalidRecords += Record.IsValid() && Record.Asset && Record.Asset->IsValidDefinition() ? 0 : 1;
 	}
-	return FText::Format(
-		LOCTEXT("AuditSummary", "Collection：{0}\n记录：{1}（禁用 {2}，无效 {3}）\n派生：ISM 批次 {4}，Deferred 投射 {5}\n未接管候选：Deferred {6}，网格/RVT {7}\n来源记录保持为唯一真值；派生组件可随时重建。"),
-		FText::FromName(Collection->CollectionName),
-		FText::AsNumber(Collection->Collection->GetRecordCount()),
-		FText::AsNumber(DisabledRecords),
-		FText::AsNumber(InvalidRecords),
-		FText::AsNumber(Collection->DerivedRVTComponents.Num()),
-		FText::AsNumber(Collection->DerivedDeferredComponents.Num()),
-		FText::AsNumber(UnownedDeferredDecals),
-		FText::AsNumber(LegacyMeshDecalCandidates));
+	const TCHAR* IntegrityTag = InvalidRecords > 0 ? TEXT("bad") : (DisabledRecords > 0 ? TEXT("warn") : TEXT("good"));
+	return FText::FromString(FString::Printf(
+		TEXT("<label>Collection</> %s\n<label>记录</> %d  ·  <%s>禁用 %d / 无效 %d</>\n<label>派生</> ISM %d  ·  Deferred %d\n<label>未接管候选</> Deferred %d  ·  网格/RVT %d\n<muted>Placement Record 保持为唯一真值；派生组件可随时重建。</>"),
+		*EscapeDecalRichText(Collection->CollectionName.ToString()),
+		Collection->Collection->GetRecordCount(),
+		IntegrityTag,
+		DisabledRecords,
+		InvalidRecords,
+		Collection->DerivedRVTComponents.Num(),
+		Collection->DerivedDeferredComponents.Num(),
+		UnownedDeferredDecals,
+		LegacyMeshDecalCandidates));
 }
 
 FText SDevKitDecalCollectionWidget::GetCollectionSummary() const
 {
 	if (!GEditor)
 	{
-		return LOCTEXT("NoEditor", "当前没有编辑器世界。");
+		return LOCTEXT("NoEditor", "<bad>当前没有编辑器世界。</>");
 	}
 	const ADevKitDecalCollectionActor* ActiveCollection = nullptr;
 	if (GLevelEditorModeTools().IsModeActive(UDevKitDecalCollectionEdMode::EM_DevKitDecalCollection))
@@ -1896,9 +2284,15 @@ FText SDevKitDecalCollectionWidget::GetCollectionSummary() const
 	}
 	if (const ADevKitDecalCollectionActor* Collection = ActiveCollection)
 	{
-		return FText::Format(LOCTEXT("SelectedSummary", "当前选中：{0} | 记录：{1} | 状态：{2}"), FText::FromName(Collection->CollectionName), FText::AsNumber(Collection->Collection ? Collection->Collection->GetRecordCount() : 0), Collection->bEditSessionActive ? LOCTEXT("Editing", "编辑中") : LOCTEXT("Closed", "已关闭"));
+		return FText::FromString(FString::Printf(
+			TEXT("<label>当前 Collection</> %s  ·  <label>记录</> %d  ·  %s"),
+			*EscapeDecalRichText(Collection->CollectionName.ToString()),
+			Collection->Collection ? Collection->Collection->GetRecordCount() : 0,
+			Collection->bEditSessionActive ? TEXT("<good>编辑中</>") : TEXT("<muted>未进入编辑</>")));
 	}
-	return FText::Format(LOCTEXT("Summary", "已发现 {0} 个 Collection Actor。请选择一个，或新建当前 Level 的 Default Collection。"), FText::AsNumber(Collections.Num()));
+	return FText::FromString(FString::Printf(
+		TEXT("<warn>尚未选择 Collection。</> 已发现 <label>%d</> 个；请选择一个，或新建当前 Level 的 Default Collection。"),
+		Collections.Num()));
 }
 
 FReply SDevKitDecalCollectionWidget::CreateCollection()

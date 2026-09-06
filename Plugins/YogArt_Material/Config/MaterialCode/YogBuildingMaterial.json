@@ -1,0 +1,401 @@
+{
+  "schema": "DevKit.YogArt.CodeMaterial.v1",
+  "materialKind": "Building",
+  "assetPath": "/YogArt_Material/MasterMaterial/Env/M_Yog_Building_Source",
+  "shaderInclude": "/Project/YogArt/Env/YogBuildingMaterial.ush",
+  "entryPoint": "YogEvaluateBuildingMaterial",
+  "packing": {
+    "baseColor": "RGB",
+    "normal": "TangentSpaceRG_LightMaskB",
+    "mrah": {
+      "r": "Metallic",
+      "g": "Roughness",
+      "b": "AmbientOcclusion",
+      "a": "Height"
+    }
+  },
+  "inputs": [
+    {
+      "name": "Layer0BaseColor",
+      "type": "Texture2D",
+      "customInput": true,
+      "defaultAsset": "/Game/Environment/CommonTexture/T_Yog_CommonBrick_01_BaseColor.T_Yog_CommonBrick_01_BaseColor",
+      "sampler": "Layer0BaseColorSampler",
+      "samplerType": "Color",
+      "group": "Layer 0|Fallback Textures",
+      "sortPriority": 0
+    },
+    {
+      "name": "Layer0MRAH",
+      "type": "Texture2D",
+      "customInput": true,
+      "defaultAsset": "/Game/Environment/CommonTexture/T_Yog_CommonBrick_01_MRAH.T_Yog_CommonBrick_01_MRAH",
+      "sampler": "Layer0MRAHSampler",
+      "samplerType": "Masks",
+      "group": "Layer 0|Fallback Textures",
+      "sortPriority": 1
+    },
+    {
+      "name": "Layer0Normal",
+      "type": "Texture2D",
+      "customInput": true,
+      "defaultAsset": "/Game/Environment/CommonTexture/T_Yog_CommonBrick_01_NormalLight.T_Yog_CommonBrick_01_NormalLight",
+      "sampler": "Layer0NormalSampler",
+      "samplerType": "LinearColor",
+      "group": "Layer 0|Fallback Textures",
+      "sortPriority": 2
+    },
+    {
+      "name": "Layer0TextureIndex",
+      "type": "Scalar",
+      "customInput": true,
+      "default": 0,
+      "group": "Instance Data",
+      "sortPriority": 0,
+      "min": 0,
+      "max": 4095,
+      "perInstanceDataIndex": 0
+    },
+    {
+      "name": "Layer1BaseColor",
+      "type": "Texture2D",
+      "customInput": true,
+      "defaultAsset": "/Game/Environment/CommonTexture/T_Yog_CommonBrick_01_BaseColor.T_Yog_CommonBrick_01_BaseColor",
+      "sampler": "Layer1BaseColorSampler",
+      "samplerType": "Color",
+      "group": "Layer 1|Fallback Textures",
+      "sortPriority": 0
+    },
+    {
+      "name": "Layer1MRAH",
+      "type": "Texture2D",
+      "customInput": true,
+      "defaultAsset": "/Game/Environment/CommonTexture/T_Yog_CommonBrick_01_MRAH.T_Yog_CommonBrick_01_MRAH",
+      "sampler": "Layer1MRAHSampler",
+      "samplerType": "Masks",
+      "group": "Layer 1|Fallback Textures",
+      "sortPriority": 1
+    },
+    {
+      "name": "Layer1Normal",
+      "type": "Texture2D",
+      "customInput": true,
+      "defaultAsset": "/Game/Environment/CommonTexture/T_Yog_CommonBrick_01_NormalLight.T_Yog_CommonBrick_01_NormalLight",
+      "sampler": "Layer1NormalSampler",
+      "samplerType": "LinearColor",
+      "group": "Layer 1|Fallback Textures",
+      "sortPriority": 2
+    },
+    {
+      "name": "Layer1TextureIndex",
+      "type": "Scalar",
+      "customInput": true,
+      "default": 0,
+      "group": "Instance Data",
+      "sortPriority": 1,
+      "min": 0,
+      "max": 4095,
+      "perInstanceDataIndex": 1
+    },
+    {
+      "name": "Dirt0Color",
+      "type": "Texture2D",
+      "customInput": true,
+      "defaultAsset": "/YogArt_Material/Texture/T_Replace_A_01.T_Replace_A_01",
+      "sampler": "Dirt0ColorSampler",
+      "samplerType": "Color",
+      "group": "Dirt 0|Fallback Texture",
+      "sortPriority": 0
+    },
+    {
+      "name": "Dirt0TextureIndex",
+      "type": "Scalar",
+      "customInput": true,
+      "default": 0,
+      "group": "Instance Data",
+      "sortPriority": 2,
+      "min": 0,
+      "max": 4095,
+      "perInstanceDataIndex": 2
+    },
+    {
+      "name": "Dirt1Color",
+      "type": "Texture2D",
+      "customInput": true,
+      "defaultAsset": "/YogArt_Material/Texture/T_Replace_A_01.T_Replace_A_01",
+      "sampler": "Dirt1ColorSampler",
+      "samplerType": "Color",
+      "group": "Dirt 1|Fallback Texture",
+      "sortPriority": 0
+    },
+    {
+      "name": "Dirt1TextureIndex",
+      "type": "Scalar",
+      "customInput": true,
+      "default": 0,
+      "group": "Instance Data",
+      "sortPriority": 3,
+      "min": 0,
+      "max": 4095,
+      "perInstanceDataIndex": 3
+    },
+    {
+      "name": "BaseUVScales",
+      "type": "Vector",
+      "customInput": true,
+      "default": [1.0, 1.0, 0.0, 0.0],
+      "group": "UV",
+      "sortPriority": 0
+    },
+    {
+      "name": "DirtUVScales",
+      "type": "Vector",
+      "customInput": true,
+      "default": [1.0, 1.0, 0.0, 0.0],
+      "group": "UV",
+      "sortPriority": 1
+    },
+    {
+      "name": "HeightBlendContrast",
+      "type": "Scalar",
+      "customInput": true,
+      "default": 0.9,
+      "group": "Height Blend",
+      "sortPriority": 0,
+      "min": 0.0,
+      "max": 0.99
+    },
+    {
+      "name": "Dirt0Control",
+      "type": "Vector",
+      "customInput": true,
+      "default": [0.0, 0.0, 0.0, 0.8],
+      "group": "Dirt 0",
+      "sortPriority": 0
+    },
+    {
+      "name": "Dirt0Opacity",
+      "type": "Scalar",
+      "customInput": true,
+      "default": 0.0,
+      "group": "Instance Data",
+      "sortPriority": 4,
+      "min": 0.0,
+      "max": 1.0,
+      "perInstanceDataIndex": 4
+    },
+    {
+      "name": "Dirt1Control",
+      "type": "Vector",
+      "customInput": true,
+      "default": [0.0, 0.0, 0.0, 0.8],
+      "group": "Dirt 1",
+      "sortPriority": 0
+    },
+    {
+      "name": "Dirt1Opacity",
+      "type": "Scalar",
+      "customInput": true,
+      "default": 0.0,
+      "group": "Instance Data",
+      "sortPriority": 5,
+      "min": 0.0,
+      "max": 1.0,
+      "perInstanceDataIndex": 5
+    },
+    {
+      "name": "GroundBlendWidth",
+      "type": "Scalar",
+      "customInput": true,
+      "default": 50.0,
+      "group": "Instance Data",
+      "sortPriority": 6,
+      "min": 1.0,
+      "max": 500.0,
+      "perInstanceDataIndex": 6
+    },
+    {
+      "name": "GroundBlendOffset",
+      "type": "Scalar",
+      "customInput": true,
+      "default": 0.0,
+      "group": "Instance Data",
+      "sortPriority": 7,
+      "min": -500.0,
+      "max": 500.0,
+      "perInstanceDataIndex": 7
+    }
+  ],
+  "outputs": {
+    "main": {
+      "name": "BaseColor",
+      "type": "float3",
+      "materialProperty": "BaseColor"
+    },
+    "additional": [
+      {
+        "name": "NormalTS",
+        "type": "float3",
+        "materialProperty": "Normal"
+      },
+      {
+        "name": "AmbientOcclusion",
+        "type": "float1",
+        "materialProperty": "AmbientOcclusion"
+      },
+      {
+        "name": "Roughness",
+        "type": "float1",
+        "materialProperty": "Roughness"
+      },
+      {
+        "name": "Metallic",
+        "type": "float1",
+        "materialProperty": "Metallic"
+      },
+      {
+        "name": "MaterialLightMask",
+        "type": "float1",
+        "materialProperty": "Specular"
+      }
+    ]
+  },
+  "textureBackend": {
+    "staticSwitch": "UseTextureCollection",
+    "default": true,
+    "collections": [
+      {
+        "parameter": "TC_Env_BaseColor",
+        "role": "BaseColor",
+        "defaultAsset": "/Game/Environment/CommonTexture/TC_Env_BaseColor.TC_Env_BaseColor",
+        "sampler": "TC_Env_BaseColorSampler",
+        "bindings": [
+          {
+            "textureParameter": "Layer0BaseColor",
+            "indexParameter": "Layer0TextureIndex"
+          },
+          {
+            "textureParameter": "Layer1BaseColor",
+            "indexParameter": "Layer1TextureIndex"
+          },
+          {
+            "textureParameter": "Dirt0Color",
+            "indexParameter": "Dirt0TextureIndex"
+          },
+          {
+            "textureParameter": "Dirt1Color",
+            "indexParameter": "Dirt1TextureIndex"
+          }
+        ]
+      },
+      {
+        "parameter": "TC_Env_MRAH",
+        "role": "MRAH",
+        "defaultAsset": "/Game/Environment/CommonTexture/TC_Env_MRAH.TC_Env_MRAH",
+        "sampler": "TC_Env_MRAHSampler",
+        "bindings": [
+          {
+            "textureParameter": "Layer0MRAH",
+            "indexParameter": "Layer0TextureIndex"
+          },
+          {
+            "textureParameter": "Layer1MRAH",
+            "indexParameter": "Layer1TextureIndex"
+          }
+        ]
+      },
+      {
+        "parameter": "TC_Env_Normal",
+        "role": "NormalLight",
+        "defaultAsset": "/Game/Environment/CommonTexture/TC_Env_Normal.TC_Env_Normal",
+        "sampler": "TC_Env_NormalSampler",
+        "bindings": [
+          {
+            "textureParameter": "Layer0Normal",
+            "indexParameter": "Layer0TextureIndex"
+          },
+          {
+            "textureParameter": "Layer1Normal",
+            "indexParameter": "Layer1TextureIndex"
+          }
+        ]
+      }
+    ]
+  },
+  "qualityInputs": [
+    {
+      "name": "POMSteps",
+      "default": 0.0,
+      "low": 0.0,
+      "medium": 0.0,
+      "high": 6.0,
+      "epic": 8.0
+    }
+  ],
+  "groundRVT": {
+    "staticSwitch": "UseGroundRVT",
+    "default": false,
+    "surfaceParameter": "RVT_GroundSurface",
+    "surfaceDefaultAsset": "/YogArt_Material/Data/RVT_Default_Base.RVT_Default_Base",
+    "heightParameter": "RVT_GroundHeight",
+    "heightDefaultAsset": "/YogArt_Material/Data/RVT_Default_WorldHeight.RVT_Default_WorldHeight",
+    "quality": {
+      "low": false,
+      "medium": true,
+      "high": true,
+      "epic": true
+    }
+  },
+  "features": {
+    "heightBlend": {
+      "vertexColorChannel": "R",
+      "status": "implemented"
+    },
+    "normalLight": {
+      "packing": "RG=TangentNormalXY,B=MaterialLightMask,A=Reserved",
+      "normalZ": "reconstructed from RG",
+      "compression": "sRGB=false, BC7 or another RGB-preserving linear format; never BC5/TC_Normalmap",
+      "materialOutput": "Specular",
+      "status": "implemented"
+    },
+    "legacyArdColorVariation": {
+      "status": "removed",
+      "note": "Old ARD.R color variation is not part of the MRAH code material contract."
+    },
+    "dirt0": {
+      "vertexColorChannel": "G",
+      "opacitySource": "Dirt0Color.a * Dirt0Opacity",
+      "default": "off",
+      "controlPacking": "R=MaskContrast,G=ColorMultiplyWeight,B=RoughnessMultiplyWeight,A=RoughnessValue",
+      "status": "implemented"
+    },
+    "dirt1": {
+      "vertexColorChannel": "B",
+      "opacitySource": "Dirt1Color.a * Dirt1Opacity",
+      "default": "off",
+      "controlPacking": "R=MaskContrast,G=ColorMultiplyWeight,B=RoughnessMultiplyWeight,A=RoughnessValue",
+      "status": "implemented"
+    },
+    "pom": {
+      "fixedHeightScale": 0.04,
+      "fixedFadeStartCm": 1500.0,
+      "fixedFadeEndCm": 3000.0,
+      "qualitySteps": "Low=0,Medium=0,High=6,Epic=8",
+      "status": "implemented"
+    },
+    "groundRVTBlend": {
+      "surface": "BaseColor,Normal,Roughness,Specular",
+      "height": "WorldHeight",
+      "quality": "Low=Off,Medium=On,High=On,Epic=On",
+      "status": "implemented"
+    },
+    "perInstanceCustomData": {
+      "floatCount": 8,
+      "layout": "0=Layer0Index,1=Layer1Index,2=Dirt0Index,3=Dirt1Index,4=Dirt0Opacity,5=Dirt1Opacity,6=GroundBlendWidth,7=GroundBlendOffset",
+      "zeroEncoding": "slot6=0 uses the 50cm material default; zero is valid for every other slot"
+    },
+    "ssdo": {
+      "status": "renderer-only"
+    }
+  }
+}
