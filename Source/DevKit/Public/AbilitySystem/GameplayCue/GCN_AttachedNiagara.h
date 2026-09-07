@@ -172,6 +172,23 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "WeaponMaterial|Parameters")
 	TArray<FGCNMaterialParamOverride> WeaponMaterialParameterOverrides;
 
+	// ── Target Actor Material ──────────────────────────────────────────────────
+
+	/**
+	 * Scalar/Vector parameters set on the target mesh's own materials while the cue is active.
+	 * Unlike WeaponMaterialOverride this swaps in no new material, so the target keeps its authored
+	 * look and only the named parameters move. Empty leaves the target's materials untouched.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "TargetMaterial|Parameters")
+	TArray<FGCNMaterialParamOverride> TargetMaterialParameterOverrides;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "TargetMaterial")
+	bool bAffectAllTargetMaterialSlots = true;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "TargetMaterial",
+		meta = (EditCondition = "!bAffectAllTargetMaterialSlots", EditConditionHides))
+	TArray<int32> TargetMaterialSlots;
+
 private:
 	UPROPERTY(Transient)
 	TObjectPtr<UNiagaraComponent> ActiveNiagaraComponent;
@@ -187,12 +204,19 @@ private:
 	// Weak ref to the mesh we patched — avoids holding a strong ref to the weapon.
 	TWeakObjectPtr<UMeshComponent> CachedWeaponMesh;
 
+	// Slot index -> material present on the target before this cue patched it. Non-empty means applied.
+	UPROPERTY(Transient)
+	TMap<int32, TObjectPtr<UMaterialInterface>> OriginalTargetMaterials;
+
+	TWeakObjectPtr<UMeshComponent> CachedTargetMesh;
+
 	UNiagaraComponent* SpawnNiagara(AActor* Target, bool bAutoDestroy);
 	void StopNiagara();
 	void ApplyNiagaraParameterOverrides(UNiagaraComponent* Component) const;
 	void ApplyWeaponMaterial(AActor* Target);
 	void RestoreWeaponMaterial();
-	void ApplyWeaponMaterialParameters(UMaterialInstanceDynamic* DynMat) const;
+	void ApplyTargetMaterialParameters(AActor* Target);
+	void RestoreTargetMaterials();
 	USceneComponent* ResolveAttachComponent(AActor* Target, FName& OutSocketName) const;
 	USceneComponent* ResolveTargetActorAttachComponent(AActor* Target, FName& OutSocketName) const;
 	USceneComponent* ResolveWeaponAttachComponent(AActor* Target, FName& OutSocketName) const;

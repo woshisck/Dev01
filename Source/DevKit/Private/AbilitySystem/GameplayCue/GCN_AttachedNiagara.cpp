@@ -9,6 +9,36 @@
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
 
+namespace
+{
+	void GCNAttachedNiagara_ApplyParams(UMaterialInstanceDynamic* DynMat,
+		const TArray<FGCNMaterialParamOverride>& Overrides)
+	{
+		if (!DynMat)
+		{
+			return;
+		}
+
+		for (const FGCNMaterialParamOverride& Override : Overrides)
+		{
+			if (Override.ParameterName.IsNone())
+			{
+				continue;
+			}
+
+			switch (Override.ParamType)
+			{
+			case EGCNMaterialParamType::Scalar:
+				DynMat->SetScalarParameterValue(Override.ParameterName, Override.ScalarValue);
+				break;
+			case EGCNMaterialParamType::Vector:
+				DynMat->SetVectorParameterValue(Override.ParameterName, Override.VectorValue);
+				break;
+			}
+		}
+	}
+}
+
 AGCN_AttachedNiagara::AGCN_AttachedNiagara()
 {
 	bAutoDestroyOnRemove = true;
@@ -21,6 +51,7 @@ bool AGCN_AttachedNiagara::OnActive_Implementation(AActor* Target, const FGamepl
 	Super::OnActive_Implementation(Target, Parameters);
 	SpawnNiagara(Target, false);
 	ApplyWeaponMaterial(Target);
+	ApplyTargetMaterialParameters(Target);
 	return true;
 }
 
@@ -45,6 +76,7 @@ bool AGCN_AttachedNiagara::OnRemove_Implementation(AActor* Target, const FGamepl
 {
 	StopNiagara();
 	RestoreWeaponMaterial();
+	RestoreTargetMaterials();
 	return Super::OnRemove_Implementation(Target, Parameters);
 }
 
@@ -52,6 +84,7 @@ void AGCN_AttachedNiagara::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	StopNiagara();
 	RestoreWeaponMaterial();
+	RestoreTargetMaterials();
 	Super::EndPlay(EndPlayReason);
 }
 
@@ -214,7 +247,7 @@ void AGCN_AttachedNiagara::ApplyWeaponMaterial(AActor* Target)
 		return;
 	}
 
-	ApplyWeaponMaterialParameters(ActiveWeaponMaterialDynamic);
+	GCNAttachedNiagara_ApplyParams(ActiveWeaponMaterialDynamic, WeaponMaterialParameterOverrides);
 	WeaponMesh->SetMaterial(0, ActiveWeaponMaterialDynamic);
 }
 
@@ -230,30 +263,68 @@ void AGCN_AttachedNiagara::RestoreWeaponMaterial()
 	ActiveWeaponMaterialDynamic = nullptr;
 }
 
-void AGCN_AttachedNiagara::ApplyWeaponMaterialParameters(UMaterialInstanceDynamic* DynMat) const
+void AGCN_AttachedNiagara::ApplyTargetMaterialParameters(AActor* Target)
 {
-	if (!DynMat)
+	if (TargetMaterialParameterOverrides.IsEmpty() || !Target)
 	{
 		return;
 	}
 
-	for (const FGCNMaterialParamOverride& Override : WeaponMaterialParameterOverrides)
+	// Re-entering would cache our own MIDs as the originals and turn restore into a no-op.
+	if (!OriginalTargetMaterials.IsEmpty())
 	{
-		if (Override.ParameterName.IsNone())
+		return;
+	}
+
+	UMeshComponent* TargetMesh = Target->FindComponentByClass<USkeletalMeshComponent>();
+	if (!TargetMesh)
+	{
+		return;
+	}
+
+	CachedTargetMesh = TargetMesh;
+
+	const int32 NumSlots = TargetMesh->GetNumMaterials();
+	for (int32 SlotIndex = 0; SlotIndex < NumSlots; ++SlotIndex)
+	{
+		if (!bAffectAllTargetMaterialSlots && !TargetMaterialSlots.Contains(SlotIndex))
 		{
 			continue;
 		}
 
-		switch (Override.ParamType)
+		UMaterialInterface* OriginalMaterial = TargetMesh->GetMaterial(SlotIndex);
+		if (!OriginalMaterial)
 		{
-		case EGCNMaterialParamType::Scalar:
-			DynMat->SetScalarParameterValue(Override.ParameterName, Override.ScalarValue);
-			break;
-		case EGCNMaterialParamType::Vector:
-			DynMat->SetVectorParameterValue(Override.ParameterName, Override.VectorValue);
-			break;
+			continue;
+		}
+
+		// Always parent a fresh MID off whatever is on the slot rather than reusing an existing one.
+		// Reusing would mutate a MID another system owns (the heat glow makes its own), and restoring
+		// that same object afterwards would leave our parameter values behind.
+		UMaterialInstanceDynamic* DynMat = UMaterialInstanceDynamic::Create(OriginalMaterial, this);
+		if (!DynMat)
+		{
+			continue;
+		}
+
+		GCNAttachedNiagara_ApplyParams(DynMat, TargetMaterialParameterOverrides);
+		TargetMesh->SetMaterial(SlotIndex, DynMat);
+		OriginalTargetMaterials.Add(SlotIndex, OriginalMaterial);
+	}
+}
+
+void AGCN_AttachedNiagara::RestoreTargetMaterials()
+{
+	if (UMeshComponent* TargetMesh = CachedTargetMesh.Get())
+	{
+		for (const TPair<int32, TObjectPtr<UMaterialInterface>>& Pair : OriginalTargetMaterials)
+		{
+			TargetMesh->SetMaterial(Pair.Key, Pair.Value);
 		}
 	}
+
+	OriginalTargetMaterials.Reset();
+	CachedTargetMesh = nullptr;
 }
 
 USceneComponent* AGCN_AttachedNiagara::ResolveAttachComponent(AActor* Target, FName& OutSocketName) const
