@@ -3,6 +3,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'dev01_release_contract.ps1')
 $agentRoot = 'C:\BuildAgent\Dev01'
 $logRoot = Join-Path $agentRoot 'logs'
 $stateRoot = Join-Path $agentRoot 'state'
@@ -142,7 +143,7 @@ try {
   }
 
   Write-Output "BUILD_START_CODE_CL=$codeChange"
-  & $buildScript -Force
+  & $buildScript -Force -ProjectChange $projectChange -CodeChange $codeChange -PipelineLease $lockStream
   if ($LASTEXITCODE -ne 0) {
     throw "Cloud DevKitEditor build failed with exit code $LASTEXITCODE."
   }
@@ -153,7 +154,7 @@ try {
   }
 
   Write-Output "PUBLISH_START_CODE_CL=$codeChange"
-  & $publishScript -Submit
+  & $publishScript -Submit -ProjectChange $projectChange -CodeChange $codeChange -PipelineLease $lockStream
   if ($LASTEXITCODE -ne 0) {
     throw "UGS PCB publishing failed with exit code $LASTEXITCODE."
   }

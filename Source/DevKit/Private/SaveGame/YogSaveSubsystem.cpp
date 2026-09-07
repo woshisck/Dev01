@@ -5,6 +5,11 @@
 #include "System/YogPerformanceSettingsLibrary.h"
 #include "SaveGame/YogSaveGame.h"
 #include "SaveGame/YogSaveGameArchive.h"
+#include "SaveGame/YogWeaponSaveSupport.h"
+#include "Async/Async.h"
+#include "Misc/CoreDelegates.h"
+#include "Misc/ScopeExit.h"
+#include "UObject/StrongObjectPtr.h"
 #include "GameFramework/PlayerState.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameModes/YogGameMode.h"
@@ -31,6 +36,10 @@ static const int32 GFirstRunTutorialStageCompleted = 8;
 void UYogSaveSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
+	EnsureSaveQueue();
+	SaveTickerHandle = FTSTicker::GetCoreTicker().AddTicker(
+		FTickerDelegate::CreateUObject(this, &UYogSaveSubsystem::TickSaveQueue));
+	FCoreDelegates::OnEnginePreExit.AddUObject(this, &UYogSaveSubsystem::HandleEnginePreExit);
 
 	if (!CurrentSaveGame)
 	{
@@ -56,6 +65,32 @@ void UYogSaveSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 			GameMode->OnFinishLevelEvent().AddUObject(this, &UYogSaveSubsystem::WriteSaveGame);
 		}
 	}
+}
+
+void UYogSaveSubsystem::HandleEnginePreExit()
+{
+	if (bDeinitializing) return;
+	bDeinitializing = true;
+	if (SaveQueue)
+	{
+		const bool bSaved = SaveQueue->DrainForShutdown();
+		DispatchSaveResults();
+		if (!bSaved)
+		{
+			UE_LOG(LogTemp, Error, TEXT("[SaveSubsystem] Shutdown save FAILED after one final retry. Unsaved snapshots cannot be recovered after this process exits."));
+		}
+	}
+}
+
+void UYogSaveSubsystem::Deinitialize()
+{
+	HandleEnginePreExit(); // Same once-only drain whether or not the engine exit hook ran.
+	FTSTicker::GetCoreTicker().RemoveTicker(SaveTickerHandle);
+	SaveTickerHandle.Reset();
+	FCoreDelegates::OnEnginePreExit.RemoveAll(this);
+	FCoreUObjectDelegates::PostLoadMapWithWorld.RemoveAll(this);
+	SaveQueue.Reset();
+	Super::Deinitialize();
 }
 
 // =========================================================
@@ -136,10 +171,23 @@ void UYogSaveSubsystem::EnsureReservedNormalGameSlot()
 {
 	const int32 SlotIndex = GNumSaveSlots - 1;
 	const FString SlotName = GetSlotName(SlotIndex);
+	FlushPendingSaves();
+	TArray<uint8> UnsavedBytes;
+	if (WriteProtectedSlots.Contains(SlotIndex)
+		|| (SaveQueue && SaveQueue->GetUnsavedBytes(SlotName, UnsavedBytes)))
+	{
+		return; // Never replace an unsaved session snapshot with an empty reserved slot.
+	}
 	if (UGameplayStatics::DoesSaveGameExist(SlotName, 0))
 	{
 		if (UYogSaveGame* ExistingSave = Cast<UYogSaveGame>(UGameplayStatics::LoadGameFromSlot(SlotName, 0)))
 		{
+			if (ExistingSave->SaveFormatVersion > GCurrentSaveFormatVersion)
+			{
+				WriteProtectedSlots.Add(SlotIndex);
+				ReportSaveFailure(SlotName, TEXT("Load"), TEXT("Newer save format; original file preserved."));
+				return;
+			}
 			bool bChanged = false;
 			if (ExistingSave->TutorialState != ETutorialState::Completed)
 			{
@@ -170,8 +218,13 @@ void UYogSaveSubsystem::EnsureReservedNormalGameSlot()
 			}
 			if (bChanged)
 			{
-				UGameplayStatics::SaveGameToSlot(ExistingSave, SlotName, 0);
+				EnqueueSave(ExistingSave, SlotIndex);
 			}
+		}
+		else
+		{
+			WriteProtectedSlots.Add(SlotIndex);
+			ReportSaveFailure(SlotName, TEXT("Load"), TEXT("Unreadable save; original file preserved."));
 		}
 		return;
 	}
@@ -179,24 +232,61 @@ void UYogSaveSubsystem::EnsureReservedNormalGameSlot()
 	UYogSaveGame* NormalSave = Cast<UYogSaveGame>(
 		UGameplayStatics::CreateSaveGameObject(UYogSaveGame::StaticClass()));
 	InitializeSaveForNewGame(NormalSave, false);
-	UGameplayStatics::SaveGameToSlot(NormalSave, SlotName, 0);
+	EnqueueSave(NormalSave, SlotIndex);
 }
 
 void UYogSaveSubsystem::SelectSlot(int32 SlotIndex)
 {
-	CurrentSlotIndex = FMath::Clamp(SlotIndex, 0, GNumSaveSlots - 1);
-	const FString SlotName = GetSlotName(CurrentSlotIndex);
+	if (!SlotState.TryBeginMutation())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[SaveSubsystem] Ignored reentrant SelectSlot(%d)."), SlotIndex);
+		return;
+	}
+	ON_SCOPE_EXIT { SlotState.EndMutation(); };
+	SelectSlotInternal(SlotIndex);
+}
 
-	if (UGameplayStatics::DoesSaveGameExist(SlotName, 0))
+UYogSaveGame* UYogSaveSubsystem::SelectSlotInternal(int32 SlotIndex)
+{
+	if (SlotIndex < 0 || SlotIndex >= GNumSaveSlots)
+	{
+		ReportSaveFailure(FString::FromInt(SlotIndex), TEXT("Select"), TEXT("Invalid slot index."));
+		return nullptr;
+	}
+	FlushPendingSaves();
+	CurrentSlotIndex = SlotIndex;
+	const FString SlotName = GetSlotName(CurrentSlotIndex);
+	TArray<uint8> UnsavedBytes;
+
+	if (SaveQueue && SaveQueue->GetUnsavedBytes(SlotName, UnsavedBytes))
+	{
+		CurrentSaveGame = Cast<UYogSaveGame>(UGameplayStatics::LoadGameFromMemory(UnsavedBytes));
+	}
+	else if (UGameplayStatics::DoesSaveGameExist(SlotName, 0))
 	{
 		CurrentSaveGame = Cast<UYogSaveGame>(
 			UGameplayStatics::LoadGameFromSlot(SlotName, 0));
+		if (!CurrentSaveGame)
+		{
+			WriteProtectedSlots.Add(SlotIndex);
+			ReportSaveFailure(SlotName, TEXT("Load"), TEXT("Unreadable save; automatic overwrite disabled. Explicit reset/delete is required."));
+		}
 	}
 	else
 	{
 		CurrentSaveGame = Cast<UYogSaveGame>(
 			UGameplayStatics::CreateSaveGameObject(UYogSaveGame::StaticClass()));
 		InitializeSaveForNewGame(CurrentSaveGame, !IsNormalGameSlot(CurrentSlotIndex));
+	}
+	if (!CurrentSaveGame)
+	{
+		CurrentSaveGame = Cast<UYogSaveGame>(UGameplayStatics::CreateSaveGameObject(UYogSaveGame::StaticClass()));
+		InitializeSaveForNewGame(CurrentSaveGame, !IsNormalGameSlot(CurrentSlotIndex));
+	}
+	if (CurrentSaveGame->SaveFormatVersion > GCurrentSaveFormatVersion)
+	{
+		WriteProtectedSlots.Add(SlotIndex);
+		ReportSaveFailure(SlotName, TEXT("Load"), TEXT("Newer save format; automatic overwrite disabled."));
 	}
 
 	if (CurrentSaveGame && CurrentSaveGame->SaveFormatVersion < GCurrentSaveFormatVersion)
@@ -242,13 +332,36 @@ void UYogSaveSubsystem::SelectSlot(int32 SlotIndex)
 		SaveSettings();
 	}
 
-	OnSaveGameLoaded.Broadcast(CurrentSaveGame);
+	TStrongObjectPtr<UYogSaveGame> SelectedSave(CurrentSaveGame.Get());
+	OnSaveGameLoaded.Broadcast(SelectedSave.Get());
+	return SelectedSave.Get();
 }
 
 void UYogSaveSubsystem::DeleteSlot(int32 SlotIndex)
 {
+	if (!SlotState.TryBeginMutation())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[SaveSubsystem] Ignored reentrant DeleteSlot(%d)."), SlotIndex);
+		return;
+	}
+	ON_SCOPE_EXIT { SlotState.EndMutation(); };
+	if (SlotIndex < 0 || SlotIndex >= GNumSaveSlots)
+	{
+		ReportSaveFailure(FString::FromInt(SlotIndex), TEXT("Delete"), TEXT("Invalid slot index."));
+		return;
+	}
+	EnsureSaveQueue();
+	SlotState.AdvancePreviewRevision(SlotIndex);
 	const FString SlotName = GetSlotName(SlotIndex);
-	UGameplayStatics::DeleteGameInSlot(SlotName, 0);
+	SaveQueue->Delete(SlotName);
+	SaveQueue->Flush(); // Delete follows the in-flight write; never races it.
+	const bool bStillExists = UGameplayStatics::DoesSaveGameExist(SlotName, 0);
+	if (bStillExists)
+	{
+		DispatchSaveResults();
+		return;
+	}
+	WriteProtectedSlots.Remove(SlotIndex);
 
 	if (SlotIndex == CurrentSlotIndex)
 	{
@@ -256,6 +369,7 @@ void UYogSaveSubsystem::DeleteSlot(int32 SlotIndex)
 			UGameplayStatics::CreateSaveGameObject(UYogSaveGame::StaticClass()));
 		InitializeSaveForNewGame(CurrentSaveGame, !IsNormalGameSlot(CurrentSlotIndex));
 	}
+	DispatchSaveResults();
 
 	if (IsNormalGameSlot(SlotIndex))
 	{
@@ -265,11 +379,26 @@ void UYogSaveSubsystem::DeleteSlot(int32 SlotIndex)
 
 void UYogSaveSubsystem::ResetSlotForNewGame(int32 SlotIndex)
 {
-	SelectSlot(SlotIndex);
+	if (!SlotState.TryBeginMutation())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[SaveSubsystem] Ignored reentrant ResetSlotForNewGame(%d)."), SlotIndex);
+		return;
+	}
+	ON_SCOPE_EXIT { SlotState.EndMutation(); };
+	if (SlotIndex < 0 || SlotIndex >= GNumSaveSlots) return;
+	SlotState.AdvancePreviewRevision(SlotIndex);
+	TStrongObjectPtr<UYogSaveGame> RequestedSave(SelectSlotInternal(SlotIndex));
+	if (!FYogSaveSlotState::IsSameSelection(SlotIndex, RequestedSave.Get(), CurrentSlotIndex, CurrentSaveGame.Get()))
+	{
+		// Do not broadcast another failure from a callback-induced identity mismatch.
+		UE_LOG(LogTemp, Error, TEXT("[SaveSubsystem] ResetSlotForNewGame(%d) rejected: selected slot/object changed during notification."), SlotIndex);
+		return;
+	}
+	WriteProtectedSlots.Remove(SlotIndex); // Explicit user reset, not automatic repair.
 
 	// 保留 Statistics，清空其余局外数据和存档点
-	InitializeSaveForNewGame(CurrentSaveGame, !IsNormalGameSlot(CurrentSlotIndex));
-	DoAsyncSave();
+	InitializeSaveForNewGame(RequestedSave.Get(), !IsNormalGameSlot(SlotIndex));
+	EnqueueSave(RequestedSave.Get(), SlotIndex);
 }
 
 bool UYogSaveSubsystem::IsFirstRunTutorialActive() const
@@ -340,24 +469,28 @@ int32 UYogSaveSubsystem::GetFirstRunTutorialStage() const
 
 void UYogSaveSubsystem::RequestSlotPreview(int32 SlotIndex, FOnSlotPreviewReady Callback)
 {
+	if (SlotIndex < 0 || SlotIndex >= GNumSaveSlots)
+	{
+		Callback.ExecuteIfBound(FSlotPreviewData{});
+		return;
+	}
 	if (IsNormalGameSlot(SlotIndex))
 	{
 		EnsureReservedNormalGameSlot();
 	}
+	FlushPendingSaves();
 
 	const FString SlotName = GetSlotName(SlotIndex);
-
-	if (!UGameplayStatics::DoesSaveGameExist(SlotName, 0))
-	{
-		FSlotPreviewData Empty;
-		Callback.ExecuteIfBound(Empty);
-		return;
-	}
+	const uint64 PreviewRevision = SlotState.GetPreviewRevision(SlotIndex);
+	TWeakObjectPtr<UYogSaveSubsystem> WeakThis(this);
 
 	// 异步加载，避免主线程卡顿
 	FAsyncLoadGameFromSlotDelegate LoadDelegate;
-	LoadDelegate.BindLambda([Callback](const FString&, const int32, USaveGame* LoadedGame)
+	LoadDelegate.BindLambda([WeakThis, SlotIndex, PreviewRevision, Callback](const FString&, const int32, USaveGame* LoadedGame)
 	{
+		UYogSaveSubsystem* SaveSubsystem = WeakThis.Get();
+		if (!SaveSubsystem || SaveSubsystem->bDeinitializing
+			|| !SaveSubsystem->SlotState.IsPreviewCurrent(SlotIndex, PreviewRevision)) return;
 		FSlotPreviewData Preview;
 		if (UYogSaveGame* Save = Cast<UYogSaveGame>(LoadedGame))
 		{
@@ -377,6 +510,17 @@ void UYogSaveSubsystem::RequestSlotPreview(int32 SlotIndex, FOnSlotPreviewReady 
 		Callback.ExecuteIfBound(Preview);
 	});
 
+	TArray<uint8> UnsavedBytes;
+	if (SaveQueue && SaveQueue->GetUnsavedBytes(SlotName, UnsavedBytes))
+	{
+		LoadDelegate.Execute(SlotName, 0, UGameplayStatics::LoadGameFromMemory(UnsavedBytes));
+		return;
+	}
+	if (!UGameplayStatics::DoesSaveGameExist(SlotName, 0))
+	{
+		Callback.ExecuteIfBound(FSlotPreviewData{});
+		return;
+	}
 	UGameplayStatics::AsyncLoadGameFromSlot(SlotName, 0, LoadDelegate);
 }
 
@@ -563,12 +707,20 @@ void UYogSaveSubsystem::RestoreRunStateFromCheckpoint(const FRunCheckpointData& 
 
 void UYogSaveSubsystem::SaveSettings()
 {
+	if (bSettingsWriteProtected)
+	{
+		ReportSaveFailure(GSettingsSlot, TEXT("Write"), TEXT("Unreadable settings file preserved; automatic overwrite disabled."));
+		return;
+	}
 	if (!CurrentSettings)
 	{
 		CurrentSettings = Cast<UYogSettingsSave>(
 			UGameplayStatics::CreateSaveGameObject(UYogSettingsSave::StaticClass()));
 	}
-	UGameplayStatics::SaveGameToSlot(CurrentSettings, GSettingsSlot, GSettingsUserIdx);
+	if (!UGameplayStatics::SaveGameToSlot(CurrentSettings, GSettingsSlot, GSettingsUserIdx))
+	{
+		ReportSaveFailure(GSettingsSlot, TEXT("Write"), TEXT("Settings write failed."));
+	}
 }
 
 void UYogSaveSubsystem::LoadSettings()
@@ -577,6 +729,11 @@ void UYogSaveSubsystem::LoadSettings()
 	{
 		CurrentSettings = Cast<UYogSettingsSave>(
 			UGameplayStatics::LoadGameFromSlot(GSettingsSlot, GSettingsUserIdx));
+		bSettingsWriteProtected = CurrentSettings == nullptr;
+		if (bSettingsWriteProtected)
+		{
+			ReportSaveFailure(GSettingsSlot, TEXT("Load"), TEXT("Unreadable settings file preserved."));
+		}
 	}
 
 	if (!CurrentSettings)
@@ -592,44 +749,100 @@ void UYogSaveSubsystem::LoadSettings()
 
 void UYogSaveSubsystem::DoAsyncSave()
 {
-	if (!CurrentSaveGame)
-	{
-		return;
-	}
-
-	if (bAsyncSavePending)
-	{
-		bAsyncSaveQueued = true;
-		return;
-	}
-
-	bAsyncSavePending = true;
-
-	const FString SlotName = GetSlotName(CurrentSlotIndex);
-	FAsyncSaveGameToSlotDelegate SaveDelegate;
-	SaveDelegate.BindUObject(this, &UYogSaveSubsystem::OnAsyncSaveComplete);
-
-	UGameplayStatics::AsyncSaveGameToSlot(CurrentSaveGame, SlotName, 0, SaveDelegate);
+	EnqueueSave(CurrentSaveGame, CurrentSlotIndex);
 }
 
-void UYogSaveSubsystem::OnAsyncSaveComplete(const FString& SlotName, const int32 UserIndex, bool bSuccess)
+void UYogSaveSubsystem::EnsureSaveQueue()
 {
-	bAsyncSavePending = false;
-
-	if (bSuccess)
+	if (!SaveQueue)
 	{
-		OnSaveGameWritten.Broadcast(CurrentSaveGame);
-		UE_LOG(LogTemp, Log, TEXT("[SaveSubsystem] Async save succeeded: %s"), *SlotName);
+		SaveQueue = MakeUnique<FYogSaveOperationQueue>([](const FYogSaveOperation& Operation)
+		{
+			// UE's generic async save also calls these synchronous storage APIs on a worker.
+			// Own the future so shutdown can wait without needing a game-thread callback.
+			return Async(EAsyncExecution::ThreadPool, [Request = Operation]()
+			{
+				if (Request.Kind == EYogSaveOperation::Delete)
+				{
+					return !UGameplayStatics::DoesSaveGameExist(Request.SlotName, 0)
+						|| UGameplayStatics::DeleteGameInSlot(Request.SlotName, 0);
+				}
+				return UGameplayStatics::SaveDataToSlot(Request.Bytes, Request.SlotName, 0);
+			});
+		});
 	}
-	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("[SaveSubsystem] Async save FAILED: %s"), *SlotName);
-	}
+}
 
-	if (bAsyncSaveQueued)
+void UYogSaveSubsystem::EnqueueSave(UYogSaveGame* Save, int32 SlotIndex)
+{
+	check(IsInGameThread());
+	if (!Save || bDeinitializing) return;
+	if (SlotIndex < 0 || SlotIndex >= GNumSaveSlots || WriteProtectedSlots.Contains(SlotIndex))
 	{
-		bAsyncSaveQueued = false;
-		DoAsyncSave();
+		ReportSaveFailure(FString::FromInt(SlotIndex), TEXT("Write"), TEXT("Slot is invalid or write-protected."));
+		return;
+	}
+	TArray<uint8> Bytes;
+	if (!UGameplayStatics::SaveGameToMemory(Save, Bytes) || Bytes.IsEmpty())
+	{
+		ReportSaveFailure(GetSlotName(SlotIndex), TEXT("Serialize"), TEXT("Could not capture save snapshot."));
+		return;
+	}
+	EnsureSaveQueue();
+	SlotState.AdvancePreviewRevision(SlotIndex);
+	SaveQueue->Write(GetSlotName(SlotIndex), MoveTemp(Bytes));
+}
+
+bool UYogSaveSubsystem::TickSaveQueue(float DeltaTime)
+{
+	if (SaveQueue)
+	{
+		SaveQueue->Poll();
+		DispatchSaveResults();
+	}
+	return true;
+}
+
+bool UYogSaveSubsystem::FlushPendingSaves()
+{
+	if (!SaveQueue) return true;
+	const bool bSuccess = SaveQueue->Flush();
+	DispatchSaveResults();
+	return bSuccess;
+}
+
+void UYogSaveSubsystem::RetryFailedSaves()
+{
+	if (SaveQueue && !bDeinitializing) SaveQueue->RetryFailures();
+}
+
+void UYogSaveSubsystem::ReportSaveFailure(const FString& SlotName, const FString& Operation, const FString& Reason)
+{
+	UE_LOG(LogTemp, Error, TEXT("[SaveSubsystem] %s FAILED for %s: %s"), *Operation, *SlotName, *Reason);
+	if (!bDeinitializing) OnSaveOperationFailed.Broadcast(SlotName, Operation, Reason);
+}
+
+void UYogSaveSubsystem::DispatchSaveResults()
+{
+	if (!SaveQueue || bDispatchingSaveResults) return;
+	TGuardValue<bool> Guard(bDispatchingSaveResults, true);
+	for (const FYogSaveOperationResult& Result : SaveQueue->TakeResults())
+	{
+		const FYogSaveOperation& Op = Result.Operation;
+		if (!Result.bSuccess)
+		{
+			ReportSaveFailure(Op.SlotName, Op.Kind == EYogSaveOperation::Write ? TEXT("Write") : TEXT("Delete"),
+				TEXT("Storage operation failed; request retained for explicit retry."));
+			continue;
+		}
+		UE_LOG(LogTemp, Log, TEXT("[SaveSubsystem] %s succeeded: %s"),
+			Op.Kind == EYogSaveOperation::Write ? TEXT("Write") : TEXT("Delete"), *Op.SlotName);
+		if (Op.Kind == EYogSaveOperation::Write && !bDeinitializing)
+		{
+			// The listener receives the completed immutable snapshot, not another slot's live object.
+			TStrongObjectPtr<UYogSaveGame> Snapshot(Cast<UYogSaveGame>(UGameplayStatics::LoadGameFromMemory(Op.Bytes)));
+			OnSaveGameWritten.Broadcast(Snapshot.Get());
+		}
 	}
 }
 
@@ -688,6 +901,7 @@ void UYogSaveSubsystem::LoadSaveGame(UYogSaveGame* SaveGame)
 void UYogSaveSubsystem::SaveData(UObject* Object, UPARAM(ref) TArray<uint8>& Data)
 {
 	if (!Object) return;
+	Data.Reset();
 	FMemoryWriter MemoryWriter(Data, true);
 	FYogSaveGameArchive MyArchive(MemoryWriter);
 	Object->Serialize(MyArchive);
@@ -695,7 +909,7 @@ void UYogSaveSubsystem::SaveData(UObject* Object, UPARAM(ref) TArray<uint8>& Dat
 
 void UYogSaveSubsystem::LoadData(UObject* Object, UPARAM(ref) TArray<uint8>& Data)
 {
-	if (!Object) return;
+	if (!Object || Data.IsEmpty()) return;
 	FMemoryReader MemoryReader(Data, true);
 	FYogSaveGameArchive Ar(MemoryReader);
 	Object->Serialize(Ar);
@@ -703,12 +917,14 @@ void UYogSaveSubsystem::LoadData(UObject* Object, UPARAM(ref) TArray<uint8>& Dat
 
 void UYogSaveSubsystem::SavePlayer(UYogSaveGame* SaveGame)
 {
-	SaveGame->WeaponInstanceItems.Empty();
-	SaveGame->PlayerStateData.Abilities.Empty();
-
+	if (!SaveGame) return;
 	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(
 		UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
-	if (!Player) return;
+	if (!Player || !Player->BaseAttributeSet || !Player->GetASC()) return;
+
+	SaveGame->WeaponInstanceItems.Empty();
+	SaveGame->PlayerStateData.Abilities.Empty();
+	SaveGame->PlayerStateData.PlayerOwnedTags.Empty();
 
 	SaveGame->PlayerStateData.SetupAttribute(*Player->BaseAttributeSet);
 
@@ -740,8 +956,7 @@ void UYogSaveSubsystem::SavePlayer(UYogSaveGame* SaveGame)
 		Data.ActorClassPath       = WeaponInst->GetClass()->GetPathName();
 		Data.AttachSocket         = WeaponInst->AttachSocket;
 		Data.Transform            = WeaponInst->AttachTransform;
-		Data.WeaponLayer          = WeaponInst->WeaponLayer->GetClass();
-		Data.WeaponLayerClassPath = WeaponInst->WeaponLayer->GetClass()->GetPathName();
+		YogWeaponSaveSupport::CaptureLayer(WeaponInst->WeaponLayer, Data);
 		SaveData(WeaponInst, Data.ByteData);
 		SaveGame->WeaponInstanceItems.Add(Data);
 	}
@@ -749,6 +964,7 @@ void UYogSaveSubsystem::SavePlayer(UYogSaveGame* SaveGame)
 
 void UYogSaveSubsystem::LoadPlayer(UYogSaveGame* SaveGame)
 {
+	if (!SaveGame) return;
 	UWorld* World = GetWorld();
 	if (!World) return;
 
@@ -773,23 +989,27 @@ void UYogSaveSubsystem::LoadPlayer(UYogSaveGame* SaveGame)
 	for (FWeaponInstanceData& WeaponData : SaveGame->WeaponInstanceItems)
 	{
 		UClass* WeaponClass = StaticLoadClass(AActor::StaticClass(), nullptr, *WeaponData.ActorClassPath);
-		if (!WeaponClass) continue;
-
-		UBlueprint* LayerBP = LoadObject<UBlueprint>(nullptr, *WeaponData.WeaponLayerClassPath);
-		if (!LayerBP) continue;
+		if (!WeaponClass || !WeaponClass->IsChildOf(AWeaponInstance::StaticClass())
+			|| WeaponClass->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists)) continue;
+		const AWeaponInstance* WeaponDefaults = WeaponClass->GetDefaultObject<AWeaponInstance>();
 
 		FWeaponSpawnData SpawnData;
-		SpawnData.WeaponLayer  = LayerBP->GeneratedClass;
+		SpawnData.WeaponLayer  = YogWeaponSaveSupport::ResolveLayer(WeaponData,
+			WeaponDefaults ? WeaponDefaults->WeaponLayer : TSubclassOf<UYogAnimInstance>());
 		SpawnData.ActorToSpawn = WeaponClass;
 		SpawnData.AttachSocket = WeaponData.AttachSocket;
 		SpawnData.AttachTransform  = WeaponData.Transform;
 		SpawnData.bShouldSaveToGame = true;
 
 		AWeaponInstance* WeaponActor = UYogBlueprintFunctionLibrary::SpawnWeaponOnCharacter(
-			Player, Player->GetTransform(), SpawnData);
+			Player, Player->GetTransform(), SpawnData, false);
 		if (WeaponActor)
 		{
 			LoadData(WeaponActor, WeaponData.ByteData);
+			if (WeaponActor->WeaponLayer && Player->GetMesh() && Player->GetMesh()->GetAnimInstance())
+			{
+				Player->GetMesh()->GetAnimInstance()->LinkAnimClassLayers(WeaponActor->WeaponLayer);
+			}
 		}
 	}
 

@@ -3,10 +3,17 @@ param(
   [string]$ReleaseRoot = 'C:\BuildAgent\Dev01\release',
   [string]$ReleaseClient = 'Dev01BuildAgentRelease',
   [string]$ArchiveDepotPath = '//Dev01Binaries/UGS/++Dev01+main-Editor.zip',
+  [int]$ProjectChange = 0,
+  [int]$CodeChange = 0,
+  [string]$BuildReceiptPath = 'C:\BuildAgent\Dev01\state\completed_build.json',
+  [IO.FileStream]$PipelineLease,
   [switch]$Submit
 )
 
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'dev01_release_contract.ps1')
+$lease = Enter-Dev01PipelineLease $PipelineLease
+try {
 $env:Path = 'C:\Program Files\Perforce;' + $env:Path
 $env:P4PORT = 'ssl:localhost:1666'
 $env:P4USER = 'Dev01BuildAgent'
@@ -37,65 +44,29 @@ if ([string]$targetJson.Version.BuildId -ne $engineBuildId) {
   throw "Refusing to publish mismatched target BuildId $($targetJson.Version.BuildId); Engine has $engineBuildId"
 }
 
-$changeLine = & p4 -c build_10_0_0_10_Dev01_main changes -s submitted -m 1 //Dev01/main/...
-if ($LASTEXITCODE -ne 0 -or $changeLine -notmatch '^Change\s+(\d+)') {
-  throw "Cannot determine latest project changelist: $changeLine"
-}
-$projectChange = [int]$Matches[1]
+if (-not (Test-Path -LiteralPath $BuildReceiptPath)) { throw 'No completed build receipt. Run the updated build script first.' }
+$receipt = Get-Content -LiteralPath $BuildReceiptPath -Raw | ConvertFrom-Json
+$receiptHash = (Get-FileHash -LiteralPath $BuildReceiptPath -Algorithm SHA256).Hash
+$inventory = @(Get-Dev01PcbInventory $ProjectRoot)
+$workspaceStamp = Get-Dev01WorkspaceStamp 'build_10_0_0_10_Dev01_main'
+Assert-Dev01BuildReceipt $receipt $ProjectChange $CodeChange $engineBuildId $workspaceStamp $inventory
+$projectChange = [int]$receipt.project_cl
+$codeChange = [int]$receipt.code_cl
+Assert-Dev01WorkspaceInputs 'build_10_0_0_10_Dev01_main' $projectChange ([int]$receipt.engine_cl)
 
-# UGS associates a PCB with the latest code change visible through the stream
-# workspace, not necessarily with the latest project/content changelist which
-# triggered the build. Imported Engine changes are included in this query.
-$codeExtensions = @(
-  '.c', '.cc', '.cpp', '.inl', '.m', '.mm', '.rc', '.cs', '.csproj',
-  '.h', '.hpp', '.usf', '.ush', '.uproject', '.uplugin', '.sln',
-  '.native.verse'
-)
-$visibleChanges = & p4 -c build_10_0_0_10_Dev01_main changes -s submitted -m 512 "//build_10_0_0_10_Dev01_main/...@1,$projectChange"
-if ($LASTEXITCODE -ne 0) {
-  throw 'Cannot enumerate changelists visible to the build workspace.'
-}
-
-$codeChange = 0
-foreach ($changeEntry in $visibleChanges) {
-  if ($changeEntry -notmatch '^Change\s+(\d+)') {
-    continue
-  }
-
-  $candidateChange = [int]$Matches[1]
-  $describe = & p4 -c build_10_0_0_10_Dev01_main describe -s $candidateChange
-  if ($LASTEXITCODE -ne 0) {
-    throw "Cannot inspect changelist $candidateChange while finding the last code change."
-  }
-
-  $containsCode = $false
-  foreach ($describeLine in $describe) {
-    if ($describeLine -match '^\.\.\.\s+(//\S+)#\d+\s+') {
-      $depotFile = $Matches[1]
-      if ($codeExtensions | Where-Object { $depotFile.EndsWith($_, [StringComparison]::OrdinalIgnoreCase) }) {
-        $containsCode = $true
-        break
-      }
-    }
-  }
-
-  if ($containsCode) {
-    $codeChange = $candidateChange
-    break
-  }
-}
-
-if ($codeChange -le 0) {
-  throw "Cannot determine the last code changelist at or before project CL $projectChange."
-}
-
-$ugsIni = & p4 -c build_10_0_0_10_Dev01_main print -q //Dev01/main/Build/UnrealGameSync.ini
-if (($ugsIni -join "`n") -notmatch [regex]::Escape('ZippedBinariesPath=//Dev01Binaries/UGS/++Dev01+main-Editor.zip')) {
+$ugsIni = & p4 -c build_10_0_0_10_Dev01_main print -q "//Dev01/main/Build/UnrealGameSync.ini@$projectChange"
+if ($LASTEXITCODE -ne 0 -or ($ugsIni -join "`n") -notmatch [regex]::Escape("ZippedBinariesPath=$ArchiveDepotPath")) {
   throw 'UGS config does not point to the expected zipped binaries depot path.'
 }
 
 $stageRoot = Join-Path $ReleaseRoot 'stage_ugs_editor'
 $zipLocalPath = Join-Path $ReleaseRoot 'UGS\++Dev01+main-Editor.zip'
+$candidateZip = Join-Path $ReleaseRoot 'candidate_ugs_editor.zip'
+# Validate the exact recursive-delete target before removing only our staging payload.
+$resolvedReleaseRoot = [IO.Path]::GetFullPath($ReleaseRoot).TrimEnd('\') + '\'
+$stageRoot = [IO.Path]::GetFullPath($stageRoot)
+if (-not $stageRoot.StartsWith($resolvedReleaseRoot, [StringComparison]::OrdinalIgnoreCase) -or
+    [IO.Path]::GetFileName($stageRoot) -ne 'stage_ugs_editor') { throw 'Unsafe staging directory.' }
 if (Test-Path $stageRoot) {
   Remove-Item -LiteralPath $stageRoot -Recurse -Force
 }
@@ -153,51 +124,43 @@ foreach ($dir in $binaryDirs) {
 # Do not duplicate them in the PCB archive: UGS extracts PCBs after syncing the
 # stream and cannot overwrite read-only imported Engine files.
 
-if (Test-Path $zipLocalPath) {
-  # A synced archive is normally not opened on the release client.  Do not
-  # treat that expected P4 message as a publishing failure.
-  & cmd.exe /d /c "p4 revert `"$ArchiveDepotPath`" 2>NUL" | Out-Null
-  Remove-Item -LiteralPath $zipLocalPath -Force
-}
-
-$opened = & cmd.exe /d /c "p4 opened `"$ArchiveDepotPath`" 2>NUL"
-if ($opened) {
-  throw "Archive is already opened in P4: $opened"
-}
-
-& p4 sync $ArchiveDepotPath | Out-Host
-$editOutput = & p4 edit $ArchiveDepotPath
-$editOutput | Out-Host
-$openedAfterEdit = & cmd.exe /d /c "p4 opened `"$ArchiveDepotPath`" 2>NUL"
-$openedForEdit = $openedAfterEdit -match '\s-\sedit\b'
-
-if (Test-Path $zipLocalPath) {
-  Remove-Item -LiteralPath $zipLocalPath -Force
-}
-Compress-Archive -Path (Join-Path $stageRoot '*') -DestinationPath $zipLocalPath -CompressionLevel Optimal -Force
-if (-not (Test-Path $zipLocalPath)) {
-  throw "Archive was not created: $zipLocalPath"
-}
-
-if (-not $openedForEdit) {
-  & p4 add $ArchiveDepotPath | Out-Host
-if ($LASTEXITCODE -ne 0) {
-    throw "Unable to open archive for edit/add: $ArchiveDepotPath"
-  }
-}
+Assert-Dev01BuildReceipt $receipt $projectChange $codeChange $engineBuildId $workspaceStamp @(Get-Dev01PcbInventory $stageRoot)
+Compress-Archive -Path (Join-Path $stageRoot '*') -DestinationPath $candidateZip -CompressionLevel Optimal -Force
+if (-not (Test-Path -LiteralPath $candidateZip)) { throw 'Archive was not created.' }
+$candidateHash = (Get-FileHash -LiteralPath $candidateZip -Algorithm SHA256).Hash
 
 # UGS parses the associated source changelist from this exact, zero-padded
 # eight-digit prefix. Use the last visible code CL so content-only updates reuse
 # the same PCB instead of deleting and redownloading an older archive.
 $description = "[CL {0:D8}] Cloud-built DevKitEditor" -f $codeChange
 if ($Submit) {
+  # These gates run BEFORE touching the depot archive. Never revert another run's work.
+  $currentStamp = Get-Dev01WorkspaceStamp 'build_10_0_0_10_Dev01_main'
+  Assert-Dev01WorkspaceInputs 'build_10_0_0_10_Dev01_main' $projectChange ([int]$receipt.engine_cl)
+  if ((Get-FileHash -LiteralPath $BuildReceiptPath -Algorithm SHA256).Hash -ne $receiptHash) { throw 'Build receipt was replaced during packaging.' }
+  Assert-Dev01BuildReceipt $receipt $projectChange $codeChange $engineBuildId $currentStamp @(Get-Dev01PcbInventory $ProjectRoot)
+  Assert-Dev01BuildReceipt $receipt $projectChange $codeChange $engineBuildId $currentStamp @(Get-Dev01PcbInventory $stageRoot)
+  if ((Get-FileHash -LiteralPath $candidateZip -Algorithm SHA256).Hash -ne $candidateHash) { throw 'Candidate ZIP changed before publication.' }
+  $opened = Invoke-Dev01P4Capture @('-ztag', 'opened', '-a', $ArchiveDepotPath)
+  if (($opened.Lines -join "`n") -match 'depotFile') { throw "Archive is already opened: $($opened.Lines)" }
+  if ($opened.ExitCode -ne 0 -and ($opened.Lines -join "`n") -notmatch 'not opened|no file') { throw "Cannot inspect archive state: $($opened.Lines)" }
+  $where = @(& p4 -ztag where $ArchiveDepotPath)
+  if ($LASTEXITCODE -ne 0) { throw 'Cannot resolve release workspace archive path.' }
+  $mapped = @($where | Where-Object { $_ -match '^\.\.\. path ' })
+  if ($mapped.Count -ne 1 -or $mapped[0].Substring(9) -ine $zipLocalPath) { throw 'ReleaseRoot does not match the archive client mapping.' }
+  & p4 sync $ArchiveDepotPath | Out-Host
+  if ($LASTEXITCODE -ne 0) { throw 'Cannot sync existing archive; bootstrap publication requires explicit setup.' }
+  & p4 edit $ArchiveDepotPath | Out-Host
+  if ($LASTEXITCODE -ne 0) { throw 'Cannot open archive for edit.' }
+  Copy-Item -LiteralPath $candidateZip -Destination $zipLocalPath -Force
+  if ((Get-FileHash -LiteralPath $zipLocalPath -Algorithm SHA256).Hash -ne $candidateHash) { throw 'Staged ZIP copy failed verification; leaving opened file for inspection.' }
   $submitOutput = & p4 submit -d $description $ArchiveDepotPath
   $submitOutput | Out-Host
   if ($LASTEXITCODE -ne 0) {
     throw 'P4 submit failed.'
   }
 } else {
-  Write-Output "DRY_RUN_ARCHIVE_READY=$zipLocalPath"
+  Write-Output "DRY_RUN_ARCHIVE_READY=$candidateZip"
   Write-Output "DRY_RUN_PROJECT_CL=$projectChange"
   Write-Output "DRY_RUN_CODE_CL=$codeChange"
   Write-Output 'Re-run with -Submit to submit the UGS archive.'
@@ -221,3 +184,6 @@ Write-Output "UGS_ARCHIVE_OK=$ArchiveDepotPath"
 Write-Output "PROJECT_CL=$projectChange"
 Write-Output "CODE_CL=$codeChange"
 Write-Output "ZIP_LOCAL=$zipLocalPath"
+} finally {
+  if ($lease.Owned) { $lease.Stream.Dispose() }
+}

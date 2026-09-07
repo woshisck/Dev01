@@ -50,6 +50,7 @@
 #include "Surface/DevKitDecalCollectionActor.h"
 #include "Tools/SMaterialBatchToolsWidget.h"
 #include "Tools/SMaterialTextureRulesWidget.h"
+#include "Tools/SMaterialTextureWorkbenchWidget.h"
 #include "Tools/SMetaProgressionWorkbenchWidget.h"
 #include "Tools/SModelAssetComplianceWidget.h"
 #include "Tools/SRuntimeGMSettingsWidget.h"

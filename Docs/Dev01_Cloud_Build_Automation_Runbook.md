@@ -33,9 +33,9 @@
 ## P4 构建身份
 
 - 服务地址：`ssl:localhost:1666`
-- 构建用户：`Admin`
+- 构建用户：`Dev01BuildAgent`（不与同事共享 Admin ticket）
 - 构建 client：`build_10_0_0_10_Dev01_main`
-- ticket/trust：`C:\BuildAgent\Dev01\.p4tickets`、`C:\BuildAgent\Dev01\p4trust.txt`
+- ticket/trust：`C:\BuildAgent\Dev01\secrets\Dev01BuildAgent.ticket`、`C:\BuildAgent\Dev01\secrets\p4trust.txt`
 
 不要把密码写入日志、脚本、Markdown、GitHub 或 P4。
 
@@ -49,7 +49,7 @@
 
 原因：高并发 UBA 曾将内存推到约 40GB 并触发编译器/UBA 失败。低并发构建较慢，但已验证稳定。
 
-构建入口：
+常规自动化入口是任务计划程序的 `Dev01 UGS PCB Build`，由现有飞书包装脚本调用 `dev01_auto_ugs_build.ps1`。不要再并行启动旧的 Build And Mirror 构建入口。仅编译、不发布的维护入口：
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
@@ -69,6 +69,18 @@ C:\BuildAgent\Dev01\logs\ci_build_after_support.exit.txt
 1. 进程退出码为 `0`。
 2. `C:\Project\Dev01-P4\Binaries\Win64\DevKitEditor.target` 存在且是本次构建产生。
 3. 不存在 UBT error/fatal 编译错误。
+4. `state\completed_build.json` 为 `complete`，保存了本次 ProjectCL、CodeCL、EngineCL、BuildId、工作区快照和输出文件摘要；仅有旧 DLL 或旧日志不算构建成功。
+
+### 2026-09-08 发布契约修复
+
+- `dev01_auto_ugs_build.ps1` 在开始时选择一次 ProjectCL/CodeCL，并传给编译、发布两个阶段；发布器禁止再用最新 head 给既有 DLL 重新贴标签。
+- `dev01_release_contract.ps1` 是三脚本共同依赖，必须成套部署。直接调用编译/发布和自动编排共用 `state\auto_ugs_build.lock` 排他文件句柄。
+- 编译开始先把完成凭据标为 `building`；完整同步项目固定 CL 和只读 Engine 固定 CL，并恢复 Engine `.modules`；失败不能复用上一轮完成凭据。
+- 编译前后、发布前核对 have-list、stream import、opened、已追踪文件的缺失/字节修改；对 allwrite 工作区不能只看 have-list。
+- 项目和插件生成元数据以固定 Engine BuildId 为准。输出文件路径、长度、SHA-256 写入完成凭据；源输出、打包暂存和最终 ZIP 都复核，禁止混合输出。
+- 云端既有 `DEV01_PRECOMPILED_IMPORT_LIBS` 热修已回收：从固定版本 StateTreeEditorModule/PropertyBindingUtils DLL 的导出重建项目链接所需 `.lib`。不编译完整引擎，也不上传引擎私有源码。
+- 发布 dry-run 只生成本地候选包，不执行 P4 sync/edit/submit/revert。正式发布如发现 archive 已被任何 client opened，立即停止并保留现场，不自动 revert。
+- `test_dev01_release_contract.ps1` 为无真实 P4 写入的故障注入/契约测试；`test_dev01_auto_ugs_build_with_feishu.ps1` 验证既有通知包装逻辑。它们不能替代一次真实云端构建与 PCB verify。
 
 ## 构建支持文件
 
@@ -93,7 +105,7 @@ C:\BuildAgent\Dev01\precompiled_intermediate_deployed.ok
 
 只有当项目构建成功后才能发布：
 
-1. 获取当前 `//Dev01/main/...` 最新 submitted changelist，记为 `<ProjectCL>`。
+1. 编排阶段固定 `<ProjectCL>` 和对应 `<CodeCL>`，编译该快照。发布器只接受这个成功构建的 `completed_build.json`，不重新取 head。
 2. 从 `C:\Project\Dev01-P4` 收集本次的项目 `Binaries\Win64` 以及项目插件所需的 `Binaries\Win64`，保持相对目录结构。
 3. 打包为：
 
@@ -105,10 +117,10 @@ C:\BuildAgent\Dev01\precompiled_intermediate_deployed.ok
 5. 提交描述必须含有：
 
    ```text
-   [CL <ProjectCL>] Cloud-built DevKitEditor
+   [CL <CodeCL，补齐八位数字>] Cloud-built DevKitEditor
    ```
 
-   UGS 依靠这个 CL 标签把项目同步版本与编辑器包对应起来。
+   UGS 依靠代码 CL 标签关联 PCB，内容变更的 ProjectCL 可以大于 CodeCL；EngineCL 来自 stream 的显式 `@N` 导入，不能自动跟随 head。
 6. 验证 P4 中 zip 已更新，并用 `p4 verify -q` 验证。
 7. 验证 `//Dev01/main/Build/UnrealGameSync.ini` 仍指向：
 
@@ -126,6 +138,15 @@ GitHub 是代码协作入口，P4 是完整游戏内容入口。同步前必须�
 - P4 -> GitHub：只同步代码/配置白名单；禁止包含 `Engine/`、`Binaries/`、`Intermediate/`、`Saved/`、内容资产与 UGS zip。
 - 默认先 dry-run；只有工作区干净、没有冲突且用户明确要求时才提交/推送。
 - 每次同步后，如果 `Source/`、`Config/`、`.uproject` 或插件源码发生变更，则触发云端 `DevKitEditor` 构建和 UGS 发布。
+- 历史 Git 已追踪的内容资产不代表可以继续把 P4 艺术资产上传 GitHub。维护提交使用精确文件白名单，不进行整目录镜像删除，不夹带别人的 default changelist。
+
+## 脚本部署与回滚
+
+1. 读取实际运行脚本，与版本化副本 diff，先回收云端热修；检查 P4 opened/pending/resolve、任务计划和构建进程。
+2. 暂停相关定时入口的新触发，不能中断正在编译/提交的工作。确认管线锁空闲后，将当前脚本备份到唯一时间戳目录。
+3. 成套部署四个脚本（三入口加 release_contract），检查文件 SHA-256 并运行契约测试；不要部署票据/密码。
+4. 恢复原先启用的任务状态。一次只启动一个编排，保留既有飞书通知设置。
+5. 失败先定位明确日志。可恢复整套旧脚本，但不能用旧发布器给新/失败构建输出贴标签；必须重新构建并验证匹配关系。
 
 ## Codex CLI 自动化职责
 

@@ -6,11 +6,14 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "SaveGame/YogSaveGame.h"
 #include "SaveGame/YogSettingsSave.h"
+#include "SaveGame/YogSaveOperationQueue.h"
+#include "Containers/Ticker.h"
 #include "YogSaveSubsystem.generated.h"
 
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSaveGameSignature, class UYogSaveGame*, SaveObject);
 DECLARE_DYNAMIC_DELEGATE_OneParam(FOnSlotPreviewReady, const FSlotPreviewData&, Preview);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnSaveOperationFailed, const FString&, SlotName, const FString&, Operation, const FString&, Reason);
 
 
 class UYogSaveGame;
@@ -25,6 +28,7 @@ class DEVKIT_API UYogSaveSubsystem : public UGameInstanceSubsystem
 public:
 
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Deinitialize() override;
 
 	// =========================================================
 	// 多槽位管理（3 个独立槽位，索引 0-2）
@@ -121,6 +125,22 @@ public:
 	UPROPERTY(BlueprintAssignable)
 	FOnSaveGameSignature OnSaveGameWritten;
 
+	UPROPERTY(BlueprintAssignable, Category = "SaveGame")
+	FOnSaveOperationFailed OnSaveOperationFailed;
+
+	// Explicit boundary for shutdown/menu transitions. Failed snapshots remain retryable.
+	UFUNCTION(BlueprintCallable, Category = "SaveGame")
+	bool FlushPendingSaves();
+
+	UFUNCTION(BlueprintCallable, Category = "SaveGame")
+	void RetryFailedSaves();
+
+	UFUNCTION(BlueprintPure, Category = "SaveGame")
+	bool IsCurrentSlotWriteProtected() const { return WriteProtectedSlots.Contains(CurrentSlotIndex); }
+
+	UFUNCTION(BlueprintPure, Category = "SaveGame")
+	bool HasSaveFailures() const { return SaveQueue && SaveQueue->HasFailures(); }
+
 	UFUNCTION()
 	void OnLevelLoaded(UWorld* LoadedWorld);
 
@@ -187,9 +207,20 @@ public:
 
 private:
 
-	// 防止并发异步写盘的标志
-	bool bAsyncSavePending = false;
-	bool bAsyncSaveQueued = false;
+	TUniquePtr<FYogSaveOperationQueue> SaveQueue;
+	FYogSaveSlotState SlotState;
+	FTSTicker::FDelegateHandle SaveTickerHandle;
+	TSet<int32> WriteProtectedSlots;
+	bool bSettingsWriteProtected = false;
+	bool bDeinitializing = false;
+	bool bDispatchingSaveResults = false;
+	void EnsureSaveQueue();
+	bool TickSaveQueue(float DeltaTime);
+	void DispatchSaveResults();
+	void EnqueueSave(UYogSaveGame* Save, int32 SlotIndex);
+	void ReportSaveFailure(const FString& SlotName, const FString& Operation, const FString& Reason);
+	void HandleEnginePreExit();
+	UYogSaveGame* SelectSlotInternal(int32 SlotIndex);
 
 	// 本局开始时间（用于计算 TotalPlayTimeSeconds）
 	FDateTime RunStartTime;
@@ -208,10 +239,6 @@ private:
 	bool IsNormalGameSlot(int32 SlotIndex) const;
 	void InitializeSaveForNewGame(UYogSaveGame* Save, bool bFirstRunTutorial) const;
 	void EnsureReservedNormalGameSlot();
-
-	// 异步写盘完成回调
-	UFUNCTION()
-	void OnAsyncSaveComplete(const FString& SlotName, const int32 UserIndex, bool bSuccess);
 
 	// 存档版本迁移（顺序逐版本升级）
 	void MigrateSaveGame(UYogSaveGame* Save, int32 FromVersion, int32 ToVersion);
