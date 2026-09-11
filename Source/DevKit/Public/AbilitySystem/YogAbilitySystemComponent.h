@@ -269,6 +269,7 @@ private:
 		FGuid FlowGuid;
 		FActiveGameplayEffectHandle EffectHandle;
 		FGameplayAbilitySpecHandle AbilityHandle;
+		FGameplayTag CueTag;
 		ETagReactionUndo UndoPolicy = ETagReactionUndo::Auto;
 	};
 
@@ -276,6 +277,10 @@ private:
 
 	// Applying a GE or starting a flow grants tags, which re-enters OnTagUpdated.
 	bool bProcessingTagReaction = false;
+
+	// Tag reactions declared in C++ instead of a DataAsset. Both DA layers still win on the same
+	// TriggerTag + ReactionType, so these act as defaults rather than hardcoded overrides.
+	void RegisterNativeTagReactions(TArray<FTagReactionRule>& OutRules) const;
 
 	void ProcessStateConflict(const FGameplayTag& Tag, bool TagExists);
 	void ProcessTagReactions(const FGameplayTag& Tag, bool TagExists);

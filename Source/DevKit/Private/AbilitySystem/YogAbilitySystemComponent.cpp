@@ -15,6 +15,7 @@
 #include "Data/YogGameData.h"
 #include "Data/StateConflictDataAsset.h"
 #include "Data/TagReactionDataAsset.h"
+#include "GameplayCueSet.h"
 #include "BuffFlow/BuffFlowComponent.h"
 #include "FlowAsset.h"
 #include "DevAssetManager.h"
@@ -341,6 +342,23 @@ namespace
 				return false;
 			}
 			return true;
+
+		case ETagReactionType::GameplayCue:
+			if (!Rule.CueTag.IsValid())
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[TagReaction] Tag=%s GameplayCue rule has no CueTag in %s, skipped."),
+					*Rule.TriggerTag.ToString(), *GetNameSafe(SourceTable));
+				return false;
+			}
+			// GAS only builds notify routing for children of the GameplayCue root, so a cue tag
+			// outside it would apply cleanly and then silently do nothing.
+			if (!Rule.CueTag.MatchesTag(UGameplayCueSet::BaseGameplayCueTag()))
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[TagReaction] Tag=%s CueTag %s is not under the GameplayCue root in %s, skipped."),
+					*Rule.TriggerTag.ToString(), *Rule.CueTag.ToString(), *GetNameSafe(SourceTable));
+				return false;
+			}
+			return true;
 		}
 
 		return false;
@@ -391,6 +409,29 @@ void UYogAbilitySystemComponent::InitTagReactionTable()
 	MergeTable(GlobalTable, false);
 	MergeTable(TagReactionTable, true);
 
+	// Native rules only fill slots no DataAsset rule already claims, so a designer can always
+	// override a C++ default from the table without a rebuild.
+	TArray<FTagReactionRule> NativeRules;
+	RegisterNativeTagReactions(NativeRules);
+	for (const FTagReactionRule& Rule : NativeRules)
+	{
+		if (!TagReaction_IsRuleValid(Rule, this))
+		{
+			continue;
+		}
+
+		TArray<FTagReactionRule>& Bucket = ReactionMap.FindOrAdd(Rule.TriggerTag);
+		const bool bClaimed = Bucket.ContainsByPredicate([&Rule](const FTagReactionRule& Existing)
+		{
+			return Existing.ReactionType == Rule.ReactionType;
+		});
+
+		if (!bClaimed)
+		{
+			Bucket.Add(Rule);
+		}
+	}
+
 	if (ReactionMap.IsEmpty())
 	{
 		UE_LOG(LogTemp, Log, TEXT("[TagReaction] Initialized 0 rules on %s."), *GetNameSafe(GetOwner()));
@@ -416,6 +457,20 @@ void UYogAbilitySystemComponent::InitTagReactionTable()
 
 	UE_LOG(LogTemp, Log, TEXT("[TagReaction] Initialized %d rules across %d tags on %s."),
 		RuleCount, ReactionMap.Num(), *GetNameSafe(GetOwner()));
+}
+
+void UYogAbilitySystemComponent::RegisterNativeTagReactions(TArray<FTagReactionRule>& OutRules) const
+{
+	static const FGameplayTag TAG_JustComboWindow =
+		FGameplayTag::RequestGameplayTag(TEXT("Character.State.Window.JustCombo"), false);
+	static const FGameplayTag TAG_Cue_JustComboBoost =
+		FGameplayTag::RequestGameplayTag(TEXT("GameplayCue.Character.JustCombo.Boost"), false);
+
+	FTagReactionRule& JustComboWindow = OutRules.AddDefaulted_GetRef();
+	JustComboWindow.TriggerTag = TAG_JustComboWindow;
+	JustComboWindow.ReactionType = ETagReactionType::GameplayCue;
+	JustComboWindow.CueTag = TAG_Cue_JustComboBoost;
+	JustComboWindow.UndoPolicy = ETagReactionUndo::Auto;
 }
 
 void UYogAbilitySystemComponent::SetTagReactionTable(UTagReactionDataAsset* NewTable)
@@ -876,6 +931,16 @@ bool UYogAbilitySystemComponent::ApplyTagReaction(const FTagReactionRule& Rule, 
 			*Rule.TriggerTag.ToString(), *GetNameSafe(Rule.AbilityClass), *GetNameSafe(Avatar));
 		return true;
 	}
+
+	case ETagReactionType::GameplayCue:
+	{
+		AddGameplayCue(Rule.CueTag);
+		OutRecord.CueTag = Rule.CueTag;
+
+		UE_LOG(LogTemp, Log, TEXT("[TagReaction] Tag=%s added cue %s on %s."),
+			*Rule.TriggerTag.ToString(), *Rule.CueTag.ToString(), *GetNameSafe(Avatar));
+		return true;
+	}
 	}
 
 	return false;
@@ -907,6 +972,11 @@ void UYogAbilitySystemComponent::UndoTagReaction(const FActiveTagReaction& Recor
 	if (Record.AbilityHandle.IsValid())
 	{
 		CancelAbilityHandle(Record.AbilityHandle);
+	}
+
+	if (Record.CueTag.IsValid())
+	{
+		RemoveGameplayCue(Record.CueTag);
 	}
 }
 

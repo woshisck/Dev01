@@ -15,7 +15,8 @@ enum class ETagReactionType : uint8
 {
 	StartBuffFlow		UMETA(DisplayName = "启动 BuffFlow"),
 	ApplyGameplayEffect	UMETA(DisplayName = "施加 GameplayEffect"),
-	ActivateAbility		UMETA(DisplayName = "激活 GameplayAbility")
+	ActivateAbility		UMETA(DisplayName = "激活 GameplayAbility"),
+	GameplayCue			UMETA(DisplayName = "触发 GameplayCue")
 };
 
 UENUM(BlueprintType)
@@ -56,6 +57,13 @@ struct DEVKIT_API FTagReactionRule
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "TagReaction", meta = (DisplayName = "GameplayAbility",
 		EditCondition = "ReactionType == ETagReactionType::ActivateAbility", EditConditionHides))
 	TSubclassOf<UGameplayAbility> AbilityClass;
+
+	// Cue driven as a persistent cue for as long as TriggerTag is present. GAS only routes notifies
+	// for tags under the GameplayCue root, so TriggerTag may be anything but this may not.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "TagReaction", meta = (DisplayName = "GameplayCue",
+		Categories = "GameplayCue",
+		EditCondition = "ReactionType == ETagReactionType::GameplayCue", EditConditionHides))
+	FGameplayTag CueTag;
 
 	// Execution order when one tag carries several rules; higher runs first.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "TagReaction", meta = (DisplayName = "优先级"))
