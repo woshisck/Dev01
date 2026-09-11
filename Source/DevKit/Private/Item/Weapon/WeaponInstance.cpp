@@ -8,6 +8,7 @@
 #include "UI/BackpackStyleDataAsset.h"
 #include "Components/MeshComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "NiagaraComponent.h"
 
 // Sets default values
 AWeaponInstance::AWeaponInstance()
@@ -152,4 +153,26 @@ void AWeaponInstance::OnHeatPhaseChanged(int32 Phase)
 
 	// 启动动画计时
 	GlowElapsed = 0.f;
+}
+
+void AWeaponInstance::PlayJustComboVFX(UNiagaraSystem* System)
+{
+	if (!System || !VFXAttachPoint)
+	{
+		return;
+	}
+
+	if (!JustComboVFXComponent)
+	{
+		JustComboVFXComponent = NewObject<UNiagaraComponent>(this);
+		JustComboVFXComponent->SetAsset(System);
+		// Both must be set before registration: auto-activate would fire the burst on equip,
+		// and auto-destroy would tear the component down after the first proc.
+		JustComboVFXComponent->bAutoActivate = false;
+		JustComboVFXComponent->SetAutoDestroy(false);
+		JustComboVFXComponent->SetupAttachment(VFXAttachPoint);
+		JustComboVFXComponent->RegisterComponent();
+	}
+
+	JustComboVFXComponent->Activate(true);
 }

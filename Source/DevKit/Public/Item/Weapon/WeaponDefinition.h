@@ -183,6 +183,15 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "战斗|精准连击", meta = (DisplayName = "精准连击效果"))
 	TArray<FJustComboEffectEntry> JustComboEffects;
 
+	/**
+	 * Burst VFX played on the equipped weapon's VFXAttachPoint when the Just Combo input lands.
+	 *
+	 * Author it as a self-terminating one-shot: the component is created once per weapon and only
+	 * ever re-activated, so nothing deactivates it and a looping system would never stop.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "战斗|精准连击", meta = (DisplayName = "精准连击特效"))
+	TObjectPtr<UNiagaraSystem> JustComboVFX;
+
 	// Deprecated compatibility data. Current cards loop in sequence without shuffle downtime.
 	UPROPERTY()
 	float ShuffleCooldownDuration = 0.0f;
