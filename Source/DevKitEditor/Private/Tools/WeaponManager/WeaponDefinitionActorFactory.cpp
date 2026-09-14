@@ -2,7 +2,6 @@
 
 #include "AssetRegistry/AssetData.h"
 #include "Item/Weapon/WeaponDefinition.h"
-#include "Item/Weapon/WeaponInfoDA.h"
 #include "Item/Weapon/WeaponSpawner.h"
 
 namespace
@@ -89,9 +88,9 @@ FString UWeaponDefinitionActorFactory::GetDefaultActorLabel(UObject* Asset) cons
 {
 	if (const UWeaponDefinition* Weapon = Cast<UWeaponDefinition>(Asset))
 	{
-		if (Weapon->WeaponInfo && !Weapon->WeaponInfo->WeaponName.IsEmpty())
+		if (!Weapon->WeaponName.IsEmpty())
 		{
-			return FString::Printf(TEXT("Weapon_%s"), *Weapon->WeaponInfo->WeaponName.ToString());
+			return FString::Printf(TEXT("Weapon_%s"), *Weapon->WeaponName.ToString());
 		}
 
 		FString Stem = Weapon->GetName();

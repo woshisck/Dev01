@@ -1,7 +1,6 @@
 #include "UI/WeaponFloatWidget.h"
 #include "UI/YogCommonRichTextBlock.h"
 #include "Item/Weapon/WeaponDefinition.h"
-#include "Item/Weapon/WeaponInfoDA.h"
 #include "Data/RuneDataAsset.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
@@ -234,17 +233,15 @@ void UWeaponFloatWidget::SetWeaponDefinition(const UWeaponDefinition* Def)
 		InfoContainer->SetVisibility(YogWidgetReflectorDebug::GetInspectableVisibility(ESlateVisibility::SelfHitTestInvisible));
 	}
 
-	const UWeaponInfoDA* Info = Def->WeaponInfo;
-
 	// ── 缩略图 ─────────────────────────────────
 	CachedThumbnail = nullptr;
 	if (WeaponThumbnail)
 	{
-		if (Info && Info->Thumbnail)
+		if (Def->Thumbnail)
 		{
-			WeaponThumbnail->SetBrushFromTexture(Info->Thumbnail, true);
+			WeaponThumbnail->SetBrushFromTexture(Def->Thumbnail, true);
 			WeaponThumbnail->SetVisibility(YogWidgetReflectorDebug::GetInspectableVisibility(ESlateVisibility::SelfHitTestInvisible));
-			CachedThumbnail = Info->Thumbnail;
+			CachedThumbnail = Def->Thumbnail;
 		}
 		else
 		{
@@ -254,17 +251,17 @@ void UWeaponFloatWidget::SetWeaponDefinition(const UWeaponDefinition* Def)
 
 	// ── 名称 ───────────────────────────────────
 	if (WeaponNameText)
-		WeaponNameText->SetText(Info ? Info->WeaponName : FText::GetEmpty());
+		WeaponNameText->SetText(Def->WeaponName);
 
 	// ── 描述 ───────────────────────────────────
 	if (WeaponDescText)
 	{
-		const bool bHas = Info && !Info->WeaponDescription.IsEmpty();
+		const bool bHas = !Def->WeaponDescription.IsEmpty();
 		WeaponDescText->SetVisibility(YogWidgetReflectorDebug::GetInspectableVisibility(
 			bHas ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed));
 		if (bHas)
 		{
-			WeaponDescText->SetText(Info->WeaponDescription);
+			WeaponDescText->SetText(Def->WeaponDescription);
 			WeaponDescText->SetAutoWrapText(true);
 		}
 	}

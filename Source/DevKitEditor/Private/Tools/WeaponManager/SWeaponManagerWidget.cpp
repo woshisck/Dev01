@@ -16,7 +16,6 @@
 #include "InputCoreTypes.h"
 #include "IAssetTools.h"
 #include "Item/Weapon/WeaponDefinition.h"
-#include "Item/Weapon/WeaponInfoDA.h"
 #include "Misc/PackageName.h"
 #include "Modules/ModuleManager.h"
 #include "ObjectTools.h"
@@ -1018,13 +1017,6 @@ TSharedRef<SWidget> SWeaponManagerWidget::BuildWeaponDetailsPage()
 						.Text(LOCTEXT("BrowseWeaponAsset", "在内容浏览器中定位"))
 						.OnClicked_Lambda([this, Weapon]() { return SyncAsset(Weapon); })
 				]
-				+ SHorizontalBox::Slot().AutoWidth()
-				[
-					SNew(SButton)
-						.Text(LOCTEXT("OpenWeaponInfo", "打开显示信息"))
-						.IsEnabled(Weapon->WeaponInfo != nullptr)
-						.OnClicked_Lambda([this, Weapon]() { return OpenAsset(Weapon->WeaponInfo); })
-				]
 			]
 			+ SVerticalBox::Slot().AutoHeight()
 			[
@@ -1032,7 +1024,7 @@ TSharedRef<SWidget> SWeaponManagerWidget::BuildWeaponDetailsPage()
 					LOCTEXT("GeneralFieldGuide", "字段分组说明"),
 					LOCTEXT(
 						"GeneralFieldGuideDesc",
-						"“场景拾取”控制拖入关卡后的显示模型和变换；“装备”控制生成的武器 Actor、挂接插槽、动画层和远程弹丸；“显示信息”控制名称、简介、缩略图和激活区图片。"))
+						"“场景拾取”控制拖入关卡后的显示模型和变换；“装备”控制生成的武器 Actor、挂接插槽、动画层和远程弹丸；“显示信息”控制名称、描述和缩略图。"))
 			]
 		];
 }
@@ -1238,12 +1230,12 @@ void SWeaponManagerWidget::RefreshWeapons(bool bKeepSelection)
 		Item->LibraryCategory = IsOfficialWeaponPackage(AssetData.PackageName.ToString())
 			? EWeaponManagerLibraryCategory::Official
 			: EWeaponManagerLibraryCategory::Test;
-		UObject* ThumbnailObject = Weapon->WeaponInfo && Weapon->WeaponInfo->Thumbnail
-			? static_cast<UObject*>(Weapon->WeaponInfo->Thumbnail.Get())
+		UObject* ThumbnailObject = Weapon->Thumbnail
+			? static_cast<UObject*>(Weapon->Thumbnail.Get())
 			: static_cast<UObject*>(Weapon);
 		Item->Thumbnail = MakeShared<FAssetThumbnail>(ThumbnailObject, 56, 56, ThumbnailPool);
-		Item->DisplayName = Weapon->WeaponInfo && !Weapon->WeaponInfo->WeaponName.IsEmpty()
-			? Weapon->WeaponInfo->WeaponName
+		Item->DisplayName = !Weapon->WeaponName.IsEmpty()
+			? Weapon->WeaponName
 			: FText::FromName(AssetData.AssetName);
 		Item->WeaponTypeText =
 			StaticEnum<EWeaponType>()->GetDisplayNameTextByValue(static_cast<int64>(Weapon->WeaponType));
@@ -2037,12 +2029,9 @@ FReply SWeaponManagerWidget::ConfirmCreateWeapon(TSharedPtr<SWindow> Dialog)
 	FString AttackAssetName;
 	FString PassivePackage;
 	FString PassiveAssetName;
-	FString InfoPackage;
-	FString InfoAssetName;
 	MakeUnique(TEXT("DA_WPN_") + CleanName, WeaponPackage, WeaponAssetName);
 	MakeUnique(TEXT("DA_Attack_") + CleanName, AttackPackage, AttackAssetName);
 	MakeUnique(TEXT("DA_Passive_") + CleanName, PassivePackage, PassiveAssetName);
-	MakeUnique(TEXT("DA_WPN_Info_") + CleanName, InfoPackage, InfoAssetName);
 
 	TArray<UPackage*> Packages;
 	UWeaponDefinition* Weapon = Cast<UWeaponDefinition>(
@@ -2051,9 +2040,7 @@ FReply SWeaponManagerWidget::ConfirmCreateWeapon(TSharedPtr<SWindow> Dialog)
 		CreateAsset(UWeaponAttackAbilityMontageData::StaticClass(), AttackPackage, AttackAssetName, Packages));
 	UWeaponPassiveAbilityMontageData* PassiveData = Cast<UWeaponPassiveAbilityMontageData>(
 		CreateAsset(UWeaponPassiveAbilityMontageData::StaticClass(), PassivePackage, PassiveAssetName, Packages));
-	UWeaponInfoDA* WeaponInfo = Cast<UWeaponInfoDA>(
-		CreateAsset(UWeaponInfoDA::StaticClass(), InfoPackage, InfoAssetName, Packages));
-	if (!Weapon || !AttackData || !PassiveData || !WeaponInfo)
+	if (!Weapon || !AttackData || !PassiveData)
 	{
 		SetStatus(LOCTEXT("CreateWeaponFailed", "一个或多个武器资产创建失败。"), true);
 		return FReply::Handled();
@@ -2061,12 +2048,10 @@ FReply SWeaponManagerWidget::ConfirmCreateWeapon(TSharedPtr<SWindow> Dialog)
 
 	Weapon->AttackAbilityData = AttackData;
 	Weapon->PassiveAbilityData = PassiveData;
-	Weapon->WeaponInfo = WeaponInfo;
-	WeaponInfo->WeaponName = FText::FromString(CleanName);
+	Weapon->WeaponName = FText::FromString(CleanName);
 	Weapon->MarkPackageDirty();
 	AttackData->MarkPackageDirty();
 	PassiveData->MarkPackageDirty();
-	WeaponInfo->MarkPackageDirty();
 
 	const bool bSaved = SavePackages(Packages, false);
 	if (Dialog.IsValid())
@@ -2165,7 +2150,6 @@ FReply SWeaponManagerWidget::SaveManagedAssets()
 	AddAsset(Weapon);
 	AddAsset(Weapon->AttackAbilityData);
 	AddAsset(Weapon->PassiveAbilityData);
-	AddAsset(Weapon->WeaponInfo);
 	for (UWeaponSkillDataAsset* Skill : Weapon->AvailableWeaponSkills)
 	{
 		AddAsset(Skill);
@@ -2232,8 +2216,8 @@ FText SWeaponManagerWidget::GetSelectedWeaponTitle() const
 	{
 		return LOCTEXT("NoWeaponSelected", "尚未选择武器");
 	}
-	const FText DisplayName = Weapon->WeaponInfo && !Weapon->WeaponInfo->WeaponName.IsEmpty()
-		? Weapon->WeaponInfo->WeaponName
+	const FText DisplayName = !Weapon->WeaponName.IsEmpty()
+		? Weapon->WeaponName
 		: FText::FromString(Weapon->GetName());
 	return FText::Format(
 		LOCTEXT("SelectedWeaponTitleFmt", "{0}  |  {1}"),
@@ -2257,7 +2241,7 @@ int32 SWeaponManagerWidget::CountWeaponIssues(const UWeaponDefinition* Weapon, i
 	{
 		++OutWarnings;
 	}
-	if (!Weapon->WeaponInfo)
+	if (Weapon->WeaponName.IsEmpty())
 	{
 		++OutWarnings;
 	}

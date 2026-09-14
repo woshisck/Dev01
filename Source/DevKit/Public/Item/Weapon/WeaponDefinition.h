@@ -9,7 +9,6 @@
 #include "Data/AbilityData.h"
 #include "GameplayTagContainer.h"
 #include "Item/Weapon/WeaponDefinitionBase.h"
-#include "Item/Weapon/WeaponInfoDA.h"
 #include "Item/Weapon/WeaponTypes.h"
 
 #include "WeaponDefinition.generated.h"
@@ -26,6 +25,7 @@ class UYogGameplayEffect;
 class URuneDataAsset;
 class USoundBase;
 class UNiagaraSystem;
+class UTexture2D;
 //class UYogAnimInstance;
 
 
@@ -161,9 +161,19 @@ public:
 	UPROPERTY()
 	FBackpackConfig BackpackConfig;
 
-	// 武器展示信息（名称/描述/缩略图/激活区图像），驱动武器浮窗
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "显示信息", meta = (DisplayName = "武器显示信息"))
-	TObjectPtr<UWeaponInfoDA> WeaponInfo;
+	// 武器展示信息（名称/描述/缩略图），驱动武器浮窗、HUD 武器槽和背包界面。
+	// 留空时各界面回退到资产名。
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "显示信息", meta = (DisplayName = "武器名称"))
+	FText WeaponName;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "显示信息", meta = (MultiLine = true, DisplayName = "主要描述"))
+	FText WeaponDescription;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "显示信息", meta = (MultiLine = true, DisplayName = "补充描述"))
+	FText WeaponSubDescription;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "显示信息", meta = (DisplayName = "缩略图"))
+	TObjectPtr<UTexture2D> Thumbnail;
 
 	// Deprecated compatibility data for old backpack rune seeding. Do not use as a combat deck fallback.
 	UPROPERTY()

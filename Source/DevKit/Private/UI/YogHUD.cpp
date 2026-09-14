@@ -31,7 +31,6 @@
 #include "SaveGame/YogSaveSubsystem.h"
 #include "SaveGame/YogSaveGame.h"
 #include "Item/Weapon/WeaponDefinition.h"
-#include "Item/Weapon/WeaponInfoDA.h"
 #include "Engine/PostProcessVolume.h"
 #include "Blueprint/WidgetLayoutLibrary.h"
 #include "Kismet/GameplayStatics.h"
@@ -874,7 +873,7 @@ void AYogHUD::TriggerWeaponPickup(const UWeaponDefinition* Def, FVector2D StartS
 		return;
 	}
 
-	UTexture2D* Thumbnail = (Def->WeaponInfo) ? Def->WeaponInfo->Thumbnail : nullptr;
+	UTexture2D* Thumbnail = Def->Thumbnail;
 	UE_LOG(LogTemp, Warning, TEXT("[WeaponPickup] TriggerWeaponPickup — Def=%s Thumbnail=%s Start=(%.0f,%.0f)"),
 		*Def->GetName(),
 		Thumbnail ? *Thumbnail->GetName() : TEXT("NULL"),

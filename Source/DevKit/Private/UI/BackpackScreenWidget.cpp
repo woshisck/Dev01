@@ -25,7 +25,6 @@
 #include "UI/WeaponComboTextUtils.h"
 #include "UI/YogHUD.h"
 #include "Item/Weapon/WeaponDefinition.h"
-#include "Item/Weapon/WeaponInfoDA.h"
 #include "GameModes/YogGameMode.h"
 #include "Story/StoryEngineSubsystem.h"
 #include "TimerManager.h"
@@ -137,7 +136,6 @@ void UBackpackScreenWidget::RefreshWeaponAndComboInfo()
 {
     const APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(GetOwningPlayerPawn());
     const UWeaponDefinition* WeaponDefinition = Player ? Player->EquippedWeaponDef.Get() : nullptr;
-    const UWeaponInfoDA* WeaponInfo = WeaponDefinition ? WeaponDefinition->WeaponInfo.Get() : nullptr;
 
     FText WeaponName = FText::FromString(TEXT("No Weapon"));
     FText WeaponDesc = FText::FromString(TEXT("Equip a weapon to view its action slots."));
@@ -145,24 +143,21 @@ void UBackpackScreenWidget::RefreshWeaponAndComboInfo()
 
     if (WeaponDefinition)
     {
-        WeaponName = WeaponInfo && !WeaponInfo->WeaponName.IsEmpty()
-            ? WeaponInfo->WeaponName
+        WeaponName = !WeaponDefinition->WeaponName.IsEmpty()
+            ? WeaponDefinition->WeaponName
             : FText::FromString(WeaponDefinition->GetName());
-        if (WeaponInfo)
+        if (!WeaponDefinition->WeaponDescription.IsEmpty())
         {
-            if (!WeaponInfo->WeaponDescription.IsEmpty())
-            {
-                WeaponDesc = WeaponInfo->WeaponDescription;
-            }
-            if (!WeaponInfo->WeaponSubDescription.IsEmpty())
-            {
-                const FString MainDesc = WeaponDesc.ToString();
-                WeaponDesc = FText::FromString(MainDesc.IsEmpty()
-                    ? WeaponInfo->WeaponSubDescription.ToString()
-                    : FString::Printf(TEXT("%s\n%s"), *MainDesc, *WeaponInfo->WeaponSubDescription.ToString()));
-            }
-            Thumbnail = WeaponInfo->Thumbnail.Get();
+            WeaponDesc = WeaponDefinition->WeaponDescription;
         }
+        if (!WeaponDefinition->WeaponSubDescription.IsEmpty())
+        {
+            const FString MainDesc = WeaponDesc.ToString();
+            WeaponDesc = FText::FromString(MainDesc.IsEmpty()
+                ? WeaponDefinition->WeaponSubDescription.ToString()
+                : FString::Printf(TEXT("%s\n%s"), *MainDesc, *WeaponDefinition->WeaponSubDescription.ToString()));
+        }
+        Thumbnail = WeaponDefinition->Thumbnail.Get();
     }
 
     if (WeaponIcon)

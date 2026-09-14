@@ -17,7 +17,6 @@
 #include "Data/RuneDataAsset.h"
 #include "Engine/Texture2D.h"
 #include "Item/Weapon/WeaponDefinition.h"
-#include "Item/Weapon/WeaponInfoDA.h"
 #include "Styling/SlateBrush.h"
 #include "UI/PlayerCommonInfoWidget.h"
 #include "UI/WidgetReflectorDebugUtils.h"
@@ -64,12 +63,9 @@ namespace
 			return FText::GetEmpty();
 		}
 
-		if (const UWeaponInfoDA* WeaponInfo = WeaponDefinition->WeaponInfo.Get())
+		if (!WeaponDefinition->WeaponName.IsEmpty())
 		{
-			if (!WeaponInfo->WeaponName.IsEmpty())
-			{
-				return WeaponInfo->WeaponName;
-			}
+			return WeaponDefinition->WeaponName;
 		}
 
 		return FText::FromString(WeaponDefinition->GetName());
@@ -77,8 +73,7 @@ namespace
 
 	UTexture2D* GetWeaponThumbnail(const UWeaponDefinition* WeaponDefinition)
 	{
-		const UWeaponInfoDA* WeaponInfo = WeaponDefinition ? WeaponDefinition->WeaponInfo.Get() : nullptr;
-		return WeaponInfo ? WeaponInfo->Thumbnail.Get() : nullptr;
+		return WeaponDefinition ? WeaponDefinition->Thumbnail.Get() : nullptr;
 	}
 
 	void UpdateWeaponSlot(UWidget* Slot, UImage* Icon, UTextBlock* NameText, const UWeaponDefinition* WeaponDefinition, bool bActive)
