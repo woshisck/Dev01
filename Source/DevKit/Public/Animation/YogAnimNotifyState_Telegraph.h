@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "YogAnimNotifyState.h"
 #include "UObject/ObjectKey.h"
+#include "Actors/YogTelegraphZoneActor.h"
 #include "YogAnimNotifyState_Telegraph.generated.h"
 
 class AYogTelegraphZoneActor;
@@ -16,6 +17,11 @@ class USkeletalMeshComponent;
  * the enemy if it lunges); NotifyEnd hides and destroys it. The actual hit is unchanged - it
  * still fires from AN_MeleeDamage / ANS Melee Damage Window later on the timeline.
  *
+ * The zone footprint is always read off the AN_MeleeDamage that this window warns about - the
+ * earliest one triggering at or after the window ends - so the warning and the hit cannot drift
+ * apart. Place the window so it ends on the damage frame. If that notify is missing or its
+ * hitbox carries no usable size, FYogTelegraphShape's defaults apply.
+ *
  * Instances are shared across every character playing the montage, so the spawned actor is
  * tracked per skeletal-mesh component.
  */
@@ -27,30 +33,30 @@ class DEVKIT_API UYogAnimNotifyState_Telegraph : public UYogAnimNotifyState
 public:
 	virtual void NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation,
 		float TotalDuration, const FAnimNotifyEventReference& EventReference) override;
+	virtual void NotifyTick(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation,
+		float FrameDeltaTime, const FAnimNotifyEventReference& EventReference) override;
 	virtual void NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation,
 		const FAnimNotifyEventReference& EventReference) override;
 
-	virtual FString GetNotifyName_Implementation() const override;
-
-	/** Telegraph actor BP (with the warning-zone material) to spawn for the window. */
+	/** Fallback zone BP, used when ZoneClassByShape has no entry for the resolved shape. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telegraph")
 	TSubclassOf<AYogTelegraphZoneActor> TelegraphClass;
-
-	/** Zone radius in cm. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telegraph", meta = (ClampMin = "0.0"))
-	float Radius = 300.f;
-
-	/** Sector half-angle in degrees (for sector-shaped warning materials). */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telegraph", meta = (ClampMin = "0.0", ClampMax = "180.0"))
-	float HalfAngle = 45.f;
-
-	/** Local-space offset from the owner (e.g. push the zone forward). */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telegraph")
-	FVector Offset = FVector::ZeroVector;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telegraph")
 	FLinearColor Color = FLinearColor(1.f, 0.2f, 0.f, 1.f);
 
+	/**
+	 * Zone BP per hitbox shape. Triangle falls back to the Annulus entry, since it is the same
+	 * cone with no inner cull.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telegraph")
+	TMap<EHitBoxType, TSubclassOf<AYogTelegraphZoneActor>> ZoneClassByShape;
+
 private:
+	FYogTelegraphShape ResolveShape(USkeletalMeshComponent* MeshComp,
+		const UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference) const;
+
+	TSubclassOf<AYogTelegraphZoneActor> ResolveZoneClass(EHitBoxType ShapeType) const;
+
 	mutable TMap<TObjectKey<USkeletalMeshComponent>, TWeakObjectPtr<AYogTelegraphZoneActor>> SpawnedByMesh;
 };

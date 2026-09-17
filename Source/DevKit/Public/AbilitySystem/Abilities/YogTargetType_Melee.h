@@ -28,6 +28,9 @@ protected:
 	 */
 	FActionData GetActionData(AYogCharacterBase* TargetingCharacter, const FGameplayEventData& EventData) const;
 
+	/** Authored data before the character's innate AttackRange attribute is folded into ActRange. */
+	FActionData ResolveRawActionData(AYogCharacterBase* TargetingCharacter, const FGameplayEventData& EventData) const;
+
 	bool ShouldDrawDebugHitbox(const FGameplayEventData& EventData) const;
 
 	/** 根据 ActionData 的 hitboxTypes 判断目标是否在命中框内 */

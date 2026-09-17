@@ -125,6 +125,17 @@ UYogAbilitySystemComponent* AYogCharacterBase::GetASC() const
 	//return nullptr;
 }
 
+float AYogCharacterBase::ResolveEffectiveAttackRange(float AuthoredActRange) const
+{
+	const UAbilitySystemComponent* ASC = GetASC();
+	if (!ASC)
+	{
+		return AuthoredActRange;
+	}
+
+	return AuthoredActRange + ASC->GetNumericAttributeBase(UBaseAttributeSet::GetAttackRangeAttribute());
+}
+
 void AYogCharacterBase::PlayCosmeticHitPushFromLocation(const FVector& SourceLocation, float Strength)
 {
 	if (HitImpactVisualComponent)

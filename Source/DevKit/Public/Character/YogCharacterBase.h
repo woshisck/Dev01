@@ -163,6 +163,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Character")
 	UYogAbilitySystemComponent* GetASC() const;
 
+	/**
+	 * Effective melee outer radius: authored ActRange plus this character's innate AttackRange,
+	 * with no fallback — an unauthored ActRange of 0 yields the bare attribute value.
+	 * Reads the attribute BASE value on purpose: GE_MeleeAttackFrame Overrides the current
+	 * AttackRange with ActRange for the whole ability, so current would double-count.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Combat")
+	float ResolveEffectiveAttackRange(float AuthoredActRange) const;
+
 	UFUNCTION(BlueprintCallable, Category = "Combat|Hit Impact")
 	void PlayCosmeticHitPushFromLocation(const FVector& SourceLocation, float Strength = 1.0f);
 

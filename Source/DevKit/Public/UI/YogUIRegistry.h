@@ -25,7 +25,6 @@ enum class EYogUIScreenId : uint8
 	LevelEndReveal,
 	WeaponFloat,
 	WeaponThumbnailFly,
-	WeaponTrail,
 	DamageEdgeFlash,
 	ShopSelection,
 	AltarMenu,

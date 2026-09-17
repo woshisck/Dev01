@@ -1,0 +1,100 @@
+// YogTelegraphZone.ush
+// 敌人攻击预警区（Alert Zone）遮罩函数，供材质 Custom 节点 #include 使用。
+//
+// 三种形状对应 EHitBoxType：
+//   Fan    ← Annulus / Triangle
+//   Circle ← Circle
+//   Rect   ← Square
+//
+// 承载体是 AYogTelegraphZoneActor 的平面 StaticMesh（不是 Deferred Decal），
+// 材质须为 Surface / Unlit / Translucent，只连 Emissive Color 与 Opacity。
+// 平面 local +X = 角色正前方 → UV 的 U 轴。
+//
+// C++ 侧 AYogTelegraphZoneActor::Show 会推送以下参数（材质未声明则静默忽略）：
+//   ArcRadius         Scalar  外圈半径（cm）。仅需存在，UV 已由 DecalSize 归一化
+//   HalfAngle         Scalar  扇形半角（度）
+//   InnerRadiusRatio  Scalar  内圈剔除半径 / 外圈半径，0~1
+//   OuterRadiusRatio  Scalar  0~1 fill progress over the telegraph window; 1 = full zone
+//   Color             Vector  预警颜色
+//
+// 【重要】本文件必须通过 Custom 节点的 IncludeFilePaths 数组引入，
+// 填 "/Project/YogTelegraphZone.ush"，Code 里只写 return 调用，例如：
+//   return YogTelegraph_FanMask(UV, HalfAngle, InnerRadiusRatio, Softness);
+//
+// 不要在 Code 里写 #include。Code 会被生成到 CustomExpressionN() 函数体内部，
+// 那里的 #include 会让本文件的函数变成嵌套函数定义，SM6（DXC）报
+// "function definition is not allowed here"。加 static 并不能绕过这一限制；
+// IncludeFilePaths 会把 include 提到 shader 全局作用域，才是正确做法。
+
+#pragma once
+
+// 扇形预警区。Annulus / Triangle 命中框使用。
+//   UV               ← TexCoord[0]
+//   HalfAngleDeg     ← ScalarParameter "HalfAngle"
+//   InnerRadiusRatio ← ScalarParameter "InnerRadiusRatio"
+//   OuterRadiusRatio ← ScalarParameter "OuterRadiusRatio", 0~1 fill progress
+//   Softness         ← 边缘柔化宽度（弧度），建议 0.05
+// Output Type: CMOT Float 1
+static float YogTelegraph_FanMask(float2 UV, float HalfAngleDeg, float InnerRadiusRatio, float OuterRadiusRatio, float Softness)
+{
+    float2 C = UV - 0.5;
+
+    // 平面网格 local +X = 角色正前方，对应 UV 的 U（即 C.x）。
+    // 扇形关于前向对称，所以 V 方向翻转与否不影响结果。
+    float Angle = atan2(C.y, C.x);
+    float HalfRad = HalfAngleDeg * (3.14159265 / 180.0);
+
+    // abs(Angle) can never exceed PI, so a feather band straddling PI would leave a
+    // half-opacity seam along local -X at HalfAngle 180. Clamp the band to fit inside
+    // the fan and bias the outer edge past PI so 180 resolves to a full annulus.
+    float Soft = min(Softness, max(3.14159265 - HalfRad, 0.0));
+    float AngleMask = 1.0 - smoothstep(HalfRad - Soft, HalfRad + Soft + 1e-4, abs(Angle));
+
+    // C 的范围是 ±0.5，×2 归一化到 0~1，1.0 = ArcRadius
+    float R = length(C) * 2.0;
+
+    // 内圈剔除：与 FHitboxAnnulus::inner_radius 对应，避免预警区盖住角色脚下不可命中的区域
+    float InnerEdge = saturate(InnerRadiusRatio);
+    float InnerMask = smoothstep(InnerEdge, InnerEdge + 0.04, R);
+
+    // Fill progress: the outer edge sweeps from the inner edge out to R=1, where the 0.12
+    // feather band reproduces the pre-progress look exactly. The sweep starts at InnerEdge
+    // rather than 0 because InnerMask would otherwise cull the whole early part of the ramp.
+    float OuterEdge = lerp(InnerEdge, 1.0, saturate(OuterRadiusRatio));
+    float OuterMask = 1.0 - smoothstep(max(OuterEdge - 0.12, 0.0), OuterEdge, R);
+
+    return AngleMask * OuterMask * InnerMask;
+}
+
+// 整圆预警区（自身周围 AoE）。Circle 命中框使用。
+//   UV               ← TexCoord[0]
+//   InnerRadiusRatio ← ScalarParameter "InnerRadiusRatio"
+// Output Type: CMOT Float 1
+static float YogTelegraph_CircleMask(float2 UV, float InnerRadiusRatio)
+{
+    float2 C = UV - 0.5;
+    float R = length(C) * 2.0;
+
+    float OuterMask = 1.0 - smoothstep(0.88, 1.0, R);
+
+    float InnerEdge = saturate(InnerRadiusRatio);
+    float InnerMask = smoothstep(InnerEdge, InnerEdge + 0.04, R);
+
+    return OuterMask * InnerMask;
+}
+
+// 矩形 / 直线预警区（冲刺、突进）。Square 命中框使用。
+// 前向范围由平面 X 缩放（ArcRadius）控制，横向范围由 Y 缩放（HalfWidth）控制，
+// 因此这里两轴都按整幅 UV 处理，不需要额外的宽度参数。
+//   UV       ← TexCoord[0]
+//   Softness ← 边缘柔化宽度（UV 单位），建议 0.03
+// Output Type: CMOT Float 1
+static float YogTelegraph_RectMask(float2 UV, float Softness)
+{
+    float2 C = abs(UV - 0.5) * 2.0;
+
+    float LateralMask = 1.0 - smoothstep(1.0 - Softness, 1.0, C.x);
+    float ForwardMask = 1.0 - smoothstep(1.0 - Softness, 1.0, C.y);
+
+    return LateralMask * ForwardMask;
+}

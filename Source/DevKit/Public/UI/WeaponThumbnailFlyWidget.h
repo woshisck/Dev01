@@ -9,9 +9,6 @@ class UWeaponGlassAnimDA;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnThumbnailFlyComplete, UTexture2D*, Thumbnail);
 
-/** Flying 阶段每帧广播 (起点, 当前位置, 进度 0-1)，供 WeaponTrailWidget 绘制流光 */
-DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnThumbnailFlyProgress, FVector2D, FVector2D, float);
-
 /**
  * 武器缩略图飞行 Widget — 仅包含一张 Image，C++ 驱动屏幕坐标平移。
  *
@@ -36,9 +33,6 @@ public:
 	/** 飞行完成时广播，参数为缩略图贴图（供 GlassIconWidget 使用） */
 	UPROPERTY(BlueprintAssignable, Category = "ThumbnailFly")
 	FOnThumbnailFlyComplete OnFlyComplete;
-
-	/** 每帧广播，供 WeaponTrailWidget 更新流光线段 */
-	FOnThumbnailFlyProgress OnFlyProgress;
 
 protected:
 	UPROPERTY(meta = (BindWidgetOptional))

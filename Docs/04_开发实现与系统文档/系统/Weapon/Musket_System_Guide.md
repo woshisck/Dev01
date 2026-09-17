@@ -1,6 +1,9 @@
 ﻿# 火绳枪武器系统 — 完整实现指南
 
-> 版本：v4.0 | 日期：2026-04-21 | 状态：C++ 全部已编译，待 Editor 配置
+> 版本：v4.1 | 日期：2026-09-16 | 状态：C++ 全部已编译，待 Editor 配置
+>
+> v4.1 修正：Custom 节点须用 `IncludeFilePaths` 而非 Code 内 `#include`（§5.1 / §5.5 / Step 1）；
+> `Decal Blend Mode` 在 UE 5.8 已废弃（§5.3）。
 
 ---
 
@@ -68,7 +71,7 @@
 
 | 文件 | 路径 | 说明 |
 |------|------|------|
-| `MusketAimArc.ush` | `Shaders/MusketAimArc.ush` | 扇形遮罩 HLSL 函数，供 Custom 节点 `#include` |
+| `MusketAimArc.ush` | `Shaders/MusketAimArc.ush` | 扇形遮罩 HLSL 函数，由 Custom 节点的 `IncludeFilePaths` 引入 |
 
 ### 2.3 GA_MusketBase 提供的工具方法（子类可直接调用）
 
@@ -194,13 +197,18 @@ Reload 按键按下
 [SM6] error: use of undeclared identifier 'MusketAimArc_GetMask'
 ```
 
-**根因**：SM6（DXC 编译器，DX12 路径）要求 `.ush` 文件里通过 `#include` 引入的函数必须声明为 `static`，否则视为非法的全局函数定义。SM5（FXC）无此限制。
+**根因**：Custom 节点 Code 字段的内容会被 UE 生成到 `CustomExpressionN()` 函数体**内部**。如果把 `#include` 写在 Code 里，被引入文件中的函数就变成了嵌套函数定义，SM6（DXC，DX12 路径）直接报错。
 
-**修复**：[Shaders/MusketAimArc.ush](../../../../Shaders/MusketAimArc.ush) 第 14 行已修改为：
-```hlsl
-static float MusketAimArc_GetMask(float2 UV, float HalfAngleDeg, float Softness)
-```
-已修复，重新打开编辑器后材质会自动重编译。
+**加 `static` 并不能绕过这一限制** —— HLSL 本身不允许函数内部再定义函数，与 `static` 无关。单函数文件偶尔"看起来能过"只是运气，多函数文件必然报错（每个函数的 `{` 各报一次）。
+
+**正确做法**：用 Custom 节点的 `IncludeFilePaths` 数组引入文件，UE 会把 include 提到 shader 全局作用域。Code 里只保留 `return` 调用，不写任何 `#include`。
+
+| 字段 | 值 |
+|------|----|
+| `IncludeFilePaths[0]` | `/Project/MusketAimArc.ush` |
+| `Code` | `return MusketAimArc_GetMask(UV, HalfAngle, Softness);` |
+
+`M_AimArc` 与 `M_TelegraphZone_*` 均采用此写法。
 
 ---
 
@@ -212,9 +220,10 @@ static float MusketAimArc_GetMask(float2 UV, float HalfAngleDeg, float Softness)
 // MusketAimArc.ush
 // 扇形瞄准弧遮罩。
 // Custom 节点写法：
-//   #include "/Project/MusketAimArc.ush"
-//   return MusketAimArc_GetMask(UV, HalfAngle, Softness);
-// Output Type: CMOT Float 1
+//   IncludeFilePaths: /Project/MusketAimArc.ush
+//   Code:             return MusketAimArc_GetMask(UV, HalfAngle, Softness);
+//   Output Type:      CMOT Float 1
+// 不要把 #include 写进 Code，否则 SM6 报 function definition is not allowed here。
 
 static float MusketAimArc_GetMask(float2 UV, float HalfAngleDeg, float Softness)
 {
@@ -239,11 +248,14 @@ static float MusketAimArc_GetMask(float2 UV, float HalfAngleDeg, float Softness)
 |------|----|
 | **Material Domain** | `Deferred Decal` |
 | **Blend Mode** | `Translucent` |
-| **Decal Blend Mode** | `Emissive` |
 | **Two Sided** | ✓ 勾选 |
 | Cast Shadow | 不需要勾选 |
 
-> `Decal Blend Mode = Emissive` 代表此 Decal 只写入 Emissive 通道，不影响场景 GBuffer 的 BaseColor/Roughness，是地面 VFX 的标准用法。
+> **UE 5.8 起不再有 Decal Blend Mode**：`UMaterial::DecalBlendMode` 已标记
+> `DeprecatedProperty / "No longer used."`（`Material.h:488`），面板里也不再显示。
+> 想要"只写 Emissive、不影响场景 GBuffer 的 BaseColor/Roughness"，现在的做法是
+> **只连 Emissive Color 与 Opacity，BaseColor / Normal / Roughness 全部留空**。
+> `M_AimArc` 与 `M_TelegraphZone_*` 都是这样配置的。
 
 ---
 
@@ -268,16 +280,18 @@ static float MusketAimArc_GetMask(float2 UV, float HalfAngleDeg, float Softness)
 | 字段 | 值 |
 |------|----|
 | **Output Type** | `CMOT Float 1` |
+| **Include File Paths** | `/Project/MusketAimArc.ush` （数组第 0 项） |
 | **Code** | 见下方 |
 | 输入 Pin 1 名称 | `UV` （类型 float2） |
 | 输入 Pin 2 名称 | `HalfAngle` （类型 float） |
 | 输入 Pin 3 名称 | `Softness` （类型 float） |
 
-Custom 节点 Code 字段：
+Custom 节点 Code 字段（**只有这一行，不要写 `#include`**）：
 ```hlsl
-#include "/Project/MusketAimArc.ush"
 return MusketAimArc_GetMask(UV, HalfAngle, Softness);
 ```
+
+> 把 `#include` 写进 Code 会触发 SM6 的 `function definition is not allowed here`，原因见 [5.1](#51-根因说明sm6-报错)。
 
 ---
 
@@ -317,13 +331,16 @@ Custom "AimArcMask" 输出 → 材质 Opacity
 
 ---
 
-### Step 1 — 确认 .ush 文件已修复
+### Step 1 — 确认 .ush 引入方式正确
 
-打开 `Shaders/MusketAimArc.ush`，确认第 14 行为：
-```hlsl
-static float MusketAimArc_GetMask(float2 UV, float HalfAngleDeg, float Softness)
-```
-（已在代码中修复，打开编辑器后材质会自动重编译）
+打开 `M_AimArc` 里的 Custom 节点，确认：
+
+| 字段 | 应为 |
+|------|------|
+| `IncludeFilePaths[0]` | `/Project/MusketAimArc.ush` |
+| `Code` | 只有 `return MusketAimArc_GetMask(UV, HalfAngle, Softness);` 一行 |
+
+Code 里出现 `#include` 就会报 SM6 错误，原因见 [5.1](#51-根因说明sm6-报错)。
 
 ---
 
@@ -508,10 +525,10 @@ WBP_AmmoCounter 的可调参数（Class Defaults）：
 ### Q1：M_AimArc 材质仍然报 SM6 错误
 
 **排查**：
-1. 确认 `Shaders/MusketAimArc.ush` 第 14 行有 `static` 关键字
-2. 在 UE 编辑器里，Edit → Editor Preferences → General → Performance → 勾选 "Use Less CPU when in Background" 取消勾选看看是否 Live Update 影响重编译
+1. 确认 Custom 节点的 `#include` 写在 **IncludeFilePaths** 数组里，而不是 Code 字段里（见 [Step 1](#step-1--确认-ush-引入方式正确)）
+2. 确认 Code 字段只有一行 `return ...;`
 3. 关闭 M_AimArc → 重新打开 → Stats 面板应显示无错误
-4. 如果仍然报错，在 Custom 节点里直接 **内联 HLSL**（不用 #include），把函数体粘贴进 Code 字段，只改第一行为 `static`
+4. 如果仍然报错，在 Custom 节点里直接 **内联 HLSL**：把函数体（不含函数签名与外层大括号）直接粘进 Code 字段，并清空 IncludeFilePaths
 
 ### Q2：按 RMB 松手后不开枪
 

@@ -607,7 +607,8 @@ void UMontageVFXBindingComponent::SpawnAnnulusPlanes(const FMontageVFXBindingCon
 		return;
 	}
 
-	const float OuterR = ActionData.ActRange > 0.f ? ActionData.ActRange : 400.f;
+	// Verbatim, matching IsTargetHit: ActRange already carries the character's AttackRange.
+	const float OuterR = ActionData.ActRange;
 	if (OuterR <= 0.f)
 	{
 		return;
@@ -633,7 +634,8 @@ void UMontageVFXBindingComponent::SpawnAnnulusPlanes(const FMontageVFXBindingCon
 		const float InnerR = FMath::Max(Ann.inner_radius, 0.f);
 		const float EffectiveOffset = Ann.bAutoOffset ? -InnerR : Ann.OffsetCore;
 		const FVector CenterLoc = Loc + Forward * EffectiveOffset + FVector(0.f, 0.f, Config.AnnulusPlaneZOffset);
-		const float EffectiveOuterR = (Ann.bAutoOffset && InnerR > 0.f) ? OuterR + InnerR : OuterR;
+		// Matches IsInAnnulus: no inner_radius compensation on the outer edge.
+		const float EffectiveOuterR = OuterR;
 		if (EffectiveOuterR <= 0.f)
 		{
 			continue;

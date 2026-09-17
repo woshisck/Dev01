@@ -15,7 +15,6 @@ class APostProcessVolume;
 class UWeaponGlassAnimDA;
 class UWeaponDefinition;
 class UBackpackScreenWidget;
-class UWeaponTrailWidget;
 class UWeaponThumbnailFlyWidget;
 class UWeaponFloatWidget;
 class ULevelEndEffectDA;
@@ -300,10 +299,6 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "WeaponGlass")
 	TSubclassOf<UWeaponThumbnailFlyWidget> ThumbnailFlyClass;
 
-	/** 流光拖尾 Widget */
-	UPROPERTY(EditDefaultsOnly, Category = "WeaponGlass")
-	TSubclassOf<UWeaponTrailWidget> TrailWidgetClass;
-
 	/** 动画时序 DA */
 	UPROPERTY(EditDefaultsOnly, Category = "WeaponGlass")
 	TObjectPtr<UWeaponGlassAnimDA> WeaponGlassAnimDA;
@@ -436,9 +431,6 @@ private:
 	void RefreshCurrentRoomBuffsFromGameMode();
 	void ApplyWidgetReflectorDebugVisibility();
 
-	UPROPERTY()
-	TObjectPtr<UWeaponTrailWidget> ActiveTrailWidget;
-
 	// === Portal 引导（私有运行时状态） ===
 	UPROPERTY()
 	TObjectPtr<UPortalPreviewWidget>   PortalPreviewWidget;
@@ -462,8 +454,6 @@ private:
 	void TickPortalPreview(float DeltaSeconds);
 	void TickBlackoutFade(float DeltaSeconds);
 	void ApplyBlackoutPP();
-
-	void OnFlyProgressUpdate(FVector2D FlyStart, FVector2D CurrentPos, float Alpha);
 
 	UFUNCTION()
 	void OnSaveGameLoaded(UYogSaveGame* SaveGame);

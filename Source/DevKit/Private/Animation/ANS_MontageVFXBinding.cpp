@@ -73,6 +73,11 @@ void UANS_MontageVFXBinding::NotifyBegin(USkeletalMeshComponent* MeshComp, UAnim
 		}
 	}
 
+	if (ActionDataPtr)
+	{
+		ActionData.ActRange = Character->ResolveEffectiveAttackRange(ActionData.ActRange);
+	}
+
 	VFXBindingComponent->ActivateSlot(SlotName, ActionDataPtr, RemainTime);
 
 	if (bGateMontageSectionWithRemainTime && RemainTime > KINDA_SMALL_NUMBER)

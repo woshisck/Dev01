@@ -18,7 +18,6 @@
 #include "UI/WeaponThumbnailFlyWidget.h"
 #include "UI/WeaponFloatWidget.h"
 #include "UI/WeaponGlassAnimDA.h"
-#include "UI/WeaponTrailWidget.h"
 #include "UI/WidgetReflectorDebugUtils.h"
 #include "Character/YogCharacterBase.h"
 #include "Character/PlayerCharacterBase.h"
@@ -879,13 +878,6 @@ void AYogHUD::TriggerWeaponPickup(const UWeaponDefinition* Def, FVector2D StartS
 		Thumbnail ? *Thumbnail->GetName() : TEXT("NULL"),
 		StartScreenPos.X, StartScreenPos.Y);
 
-	// 清理上次残留的飞行 Widget
-	if (ActiveTrailWidget)
-	{
-		ActiveTrailWidget->RemoveFromParent();
-		ActiveTrailWidget = nullptr;
-	}
-
 	// 隐藏旧玻璃图标（换武器时）
 	UWeaponGlassIconWidget* GlassIcon = MainHUDWidget ? MainHUDWidget->WeaponGlassIcon : nullptr;
 	if (GlassIcon)
@@ -898,41 +890,12 @@ void AYogHUD::TriggerWeaponPickup(const UWeaponDefinition* Def, FVector2D StartS
 
 	FlyWidget->AddToViewport(ResolveManagedZOrder(EYogUIScreenId::WeaponThumbnailFly, 10));
 
-	// 创建流光拖尾
-	if (TSubclassOf<UWeaponTrailWidget> WidgetClass = ResolveManagedWidgetClass(EYogUIScreenId::WeaponTrail, TrailWidgetClass))
-	{
-		ActiveTrailWidget = CreateWidget<UWeaponTrailWidget>(
-			GetOwningPlayerController(), WidgetClass);
-		if (ActiveTrailWidget)
-		{
-			ActiveTrailWidget->AddToViewport(ResolveManagedZOrder(EYogUIScreenId::WeaponTrail, 9));
-			FlyWidget->OnFlyProgress.AddUObject(this, &AYogHUD::OnFlyProgressUpdate);
-		}
-	}
-
 	FlyWidget->OnFlyComplete.AddDynamic(this, &AYogHUD::OnWeaponFlyComplete);
 	FlyWidget->StartFly(Thumbnail, StartScreenPos, GetWeaponGlassIconScreenCenter(), WeaponGlassAnimDA);
 }
 
-void AYogHUD::OnFlyProgressUpdate(FVector2D FlyStart, FVector2D CurrentPos, float Alpha)
-{
-	if (Alpha < 0.01f)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[WeaponPickup] FlyProgress 首帧 — Start=(%.0f,%.0f) Cur=(%.0f,%.0f)"),
-			FlyStart.X, FlyStart.Y, CurrentPos.X, CurrentPos.Y);
-	}
-	if (ActiveTrailWidget)
-		ActiveTrailWidget->SetTrailEndpoints(FlyStart, CurrentPos, Alpha);
-}
-
 void AYogHUD::OnWeaponFlyComplete(UTexture2D* Thumbnail)
 {
-	if (ActiveTrailWidget)
-	{
-		ActiveTrailWidget->StartFadeOut();
-		ActiveTrailWidget = nullptr;
-	}
-
 	UWeaponGlassIconWidget* GlassIcon = MainHUDWidget ? MainHUDWidget->WeaponGlassIcon : nullptr;
 	if (!GlassIcon || !WeaponGlassAnimDA) return;
 
@@ -1026,10 +989,6 @@ void AYogHUD::ApplyWidgetReflectorDebugVisibility()
 	if (PortalDirectionWidget)
 	{
 		YogWidgetReflectorDebug::ApplyToWidgetTree(PortalDirectionWidget);
-	}
-	if (ActiveTrailWidget)
-	{
-		YogWidgetReflectorDebug::ApplyToWidgetTree(ActiveTrailWidget);
 	}
 	if (UYogUIManagerSubsystem* UIManager = GetUIManagerFromHUD(this))
 	{

@@ -43,7 +43,9 @@ namespace
 	{
 		if (!World) return;
 
-		const float OuterR = Data.ActRange > 0.f ? Data.ActRange : 400.f;
+		// Authored value verbatim. There is no character in the montage editor, so this preview
+		// shows ActRange alone; at runtime the character's AttackRange is added on top.
+		const float OuterR = Data.ActRange;
 		const FColor Color = FColor::Cyan;
 		constexpr float Duration = 2.f;
 
@@ -74,7 +76,8 @@ namespace
 				const float EffectiveOffset = Ann.bAutoOffset ? -InnerR : Ann.OffsetCore;
 				const float YawRad = FMath::DegreesToRadians(Yaw);
 				const FVector CenterLoc = Loc + FVector(FMath::Cos(YawRad), FMath::Sin(YawRad), 0.f) * EffectiveOffset;
-				const float EffectiveOuterR = (Ann.bAutoOffset && InnerR > 0.f) ? OuterR + InnerR : OuterR;
+				// Matches IsInAnnulus: no inner_radius compensation on the outer edge.
+				const float EffectiveOuterR = OuterR;
 
 				constexpr int32 Seg = 24;
 				FVector PrevOuter = FVector::ZeroVector;

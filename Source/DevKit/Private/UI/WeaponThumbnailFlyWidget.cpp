@@ -52,8 +52,6 @@ void UWeaponThumbnailFlyWidget::NativeTick(const FGeometry& MyGeometry, float In
 	if (UCanvasPanelSlot* CanvasSlot = Cast<UCanvasPanelSlot>(ThumbnailImage->Slot))
 		CanvasSlot->SetPosition(CurPos - ImgSize * 0.5f);
 
-	OnFlyProgress.Broadcast(FlyStartAbs, CurPos, Alpha);
-
 	if (Alpha >= 1.f)
 	{
 		bFlying = false;

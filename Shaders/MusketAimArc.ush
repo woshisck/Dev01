@@ -6,10 +6,15 @@
 //     float2 UV         ← TexCoord[0]
 //     float  HalfAngle  ← ScalarParameter "HalfAngle"（度数，0~90）
 //     float  Softness   ← ScalarParameter "Softness"（默认 0.05，边缘柔化宽度，弧度）
+//   IncludeFilePaths:
+//     /Project/MusketAimArc.ush
 //   Code:
-//     #include "/Project/MusketAimArc.ush"
 //     return MusketAimArc_GetMask(UV, HalfAngle, Softness);
 //   Output Type: CMOT Float 1
+//
+// 不要把 #include 写进 Code —— Code 会生成到 CustomExpressionN() 函数体内部，
+// 那里的 include 会让本文件的函数变成嵌套函数定义，SM6（DXC）报
+// "function definition is not allowed here"。必须用 IncludeFilePaths。
 
 static float MusketAimArc_GetMask(float2 UV, float HalfAngleDeg, float Softness)
 {
