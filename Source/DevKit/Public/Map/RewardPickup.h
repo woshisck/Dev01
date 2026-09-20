@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Containers/Ticker.h"
 #include "GameFramework/Actor.h"
+#include "Character/InteractHoldFeedback.h"
 #include "GameModes/LevelFlowTypes.h"
 #include "Map/PickupInteractable.h"
 #include "RewardPickup.generated.h"
@@ -23,7 +24,7 @@ class APlayerCharacterBase;
  * 独立的三选一选项（AssignedLoot），互不干扰、不重复。
  */
 UCLASS()
-class DEVKIT_API ARewardPickup : public AActor, public IPickupInteractable
+class DEVKIT_API ARewardPickup : public AActor, public IPickupInteractable, public IInteractHoldFeedback
 {
 	GENERATED_BODY()
 
@@ -34,6 +35,9 @@ public:
 	virtual void OnPlayerEnterRange(APlayerCharacterBase* Player) override;
 	virtual void OnPlayerLeaveRange(APlayerCharacterBase* Player) override;
 	virtual void TryPickup(APlayerCharacterBase* Player) override;
+
+	// ~ IInteractHoldFeedback
+	virtual void SetInteractHoldProgress(float Normalized) override;
 
 	/** 选符文确认后由 LootSelectionWidget 调用：销毁本拾取物 */
 	void ConsumeAndDestroy();

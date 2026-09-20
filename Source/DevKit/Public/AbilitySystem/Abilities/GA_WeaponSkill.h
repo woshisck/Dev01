@@ -21,6 +21,14 @@ public:
 	 */
 	virtual bool PrepareForInputActivation();
 
+	/**
+	 * Whether the activation just prepared starts the skill fresh rather than continuing a
+	 * multi-stage combo. Limited-use skills spend a charge per fresh start, so a combo costs
+	 * one charge for the whole sequence instead of one per stage.
+	 * Only meaningful immediately after PrepareForInputActivation.
+	 */
+	virtual bool IsPreparedActivationFreshStart() const { return true; }
+
 	/** Returns the DA that granted this equipped weapon-skill ability. */
 	UFUNCTION(BlueprintPure, Category = "战技", meta = (DisplayName = "获取已装备战技数据"))
 	const UWeaponSkillDataAsset* GetEquippedWeaponSkillData() const;

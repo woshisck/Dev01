@@ -3,8 +3,10 @@
 #include "Components/BillboardComponent.h"
 #include "Components/BoxComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/WidgetComponent.h"
 #include "Component/BackpackGridComponent.h"
 #include "NiagaraComponent.h"
+#include "UI/InteractPromptWidget.h"
 #include "SaveGame/YogSaveSubsystem.h"
 #include "System/YogGameInstanceBase.h"
 #include "Engine/GameInstance.h"
@@ -137,11 +139,58 @@ APortal::APortal(const FObjectInitializer& ObjectInitializer)
 	IdleVFXComp = CreateDefaultSubobject<UNiagaraComponent>(TEXT("IdleVFX"));
 	IdleVFXComp->SetupAttachment(RootComponent);
 	IdleVFXComp->bAutoActivate = false;
+
+	InteractPromptWidgetComp = CreateDefaultSubobject<UWidgetComponent>(TEXT("InteractPromptWidgetComp"));
+	InteractPromptWidgetComp->SetupAttachment(RootComponent);
+	InteractPromptWidgetComp->SetRelativeLocation(FVector(0.f, 0.f, 180.f));
+	InteractPromptWidgetComp->SetWidgetSpace(EWidgetSpace::Screen);
+	InteractPromptWidgetComp->SetDrawAtDesiredSize(true);
+	InteractPromptWidgetComp->SetVisibility(false);
+	InteractPromptWidgetComp->SetWidgetClass(UInteractPromptWidget::StaticClass());
+}
+
+void APortal::ConfigureInteractPrompt()
+{
+	if (!InteractPromptWidgetComp)
+	{
+		return;
+	}
+
+	if (APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr)
+	{
+		InteractPromptWidgetComp->SetOwnerPlayer(PC->GetLocalPlayer());
+	}
+
+	InteractPromptWidgetComp->SetWidgetClass(UInteractPromptWidget::StaticClass());
+	InteractPromptWidgetComp->InitWidget();
+	if (UInteractPromptWidget* PromptWidget = Cast<UInteractPromptWidget>(InteractPromptWidgetComp->GetWidget()))
+	{
+		PromptWidget->SetPromptLabel(NSLOCTEXT("InteractPrompt", "EnterPortal", "进入传送门"));
+	}
+}
+
+void APortal::SetInteractPromptVisible(bool bVisible)
+{
+	if (InteractPromptWidgetComp)
+	{
+		InteractPromptWidgetComp->SetVisibility(bVisible && bIsOpen);
+	}
+}
+
+void APortal::SetInteractHoldProgress(float Normalized)
+{
+	if (!InteractPromptWidgetComp) return;
+
+	if (UInteractPromptWidget* PromptWidget = Cast<UInteractPromptWidget>(InteractPromptWidgetComp->GetWidget()))
+	{
+		PromptWidget->SetHoldProgress(Normalized);
+	}
 }
 
 void APortal::BeginPlay()
 {
 	Super::BeginPlay();
+	ConfigureInteractPrompt();
 	// 关卡开始时门是关闭的
 	DisablePortal();
 	if (GetWorld())
@@ -426,9 +475,10 @@ void APortal::HandlePlayerEnterRange(APlayerCharacterBase* Player)
 
 	// TODO(Stage C)：调 HUD->NotifyPlayerInPortalRange(this) 切单例浮窗
 
+	SetInteractPromptVisible(true);
 	K2_OnHighlightChanged(true);
 	K2_OnPortalRangeEntered();
-	UE_LOG(LogTemp, Log, TEXT("Portal[%d]: 玩家进入交互范围（按 E 进入）"), Index);
+	UE_LOG(LogTemp, Log, TEXT("Portal[%d]: 玩家进入交互范围（按住 E 进入）"), Index);
 }
 
 void APortal::HandlePlayerExitRange(APlayerCharacterBase* Player)
@@ -441,6 +491,7 @@ void APortal::HandlePlayerExitRange(APlayerCharacterBase* Player)
 
 	// TODO(Stage C)：调 HUD->NotifyPlayerExitedPortalRange(this)
 
+	SetInteractPromptVisible(false);
 	K2_OnHighlightChanged(false);
 	K2_OnPortalRangeExited();
 	UE_LOG(LogTemp, Log, TEXT("Portal[%d]: 玩家离开交互范围"), Index);

@@ -14,6 +14,7 @@
 #include "Component/CharacterDataComponent.h"
 #include "Controller/YogAIController.h"
 #include "Data/GASTemplate.h"
+#include "Data/WeaponSkillDataAsset.h"
 #include "GameModes/YogGameMode.h"
 #include "BuffFlow/BuffFlowComponent.h"
 #include "Component/EnemyHealthDisplayComponent.h"
@@ -24,6 +25,9 @@
 
 namespace
 {
+	// Keeps multiple kill-reward pickups from stacking inside each other's 80cm collision box.
+	constexpr float EnemyCharacter_KillRewardPickupSpacing = 120.0f;
+
 	bool EnemyWeaponHasUsableMontageConfigList(const FAbilityMontageConfigList& ConfigList)
 	{
 		for (const FTaggedMontageConfig& Config : ConfigList.Configs)
@@ -219,6 +223,12 @@ bool AEnemyCharacterBase::IsAlive() const
 
 float AEnemyCharacterBase::GetDeathDisappearDelayAfterAnimation(bool /*bHasDissolveCue*/) const
 {
+	const UEnemyData* RuntimeEnemyData = CharacterDataComponent ? Cast<UEnemyData>(CharacterDataComponent->GetCharacterData()) : nullptr;
+	if (RuntimeEnemyData && RuntimeEnemyData->bOverrideDeathDisappearDelay)
+	{
+		return FMath::Max(0.0f, RuntimeEnemyData->DeathDisappearDelayAfterAnimation);
+	}
+
 	return FMath::Max(0.0f, DeathDisappearDelayAfterAnimation);
 }
 
@@ -493,8 +503,68 @@ void AEnemyCharacterBase::Die()
 
 void AEnemyCharacterBase::FinishDying()
 {
+	// Must run before Super, which broadcasts the death delegates and then destroys this actor.
+	RollAndSpawnKillRewards();
 	DestroySpawnedEnemyWeaponActors();
 	Super::FinishDying();
+}
+
+void AEnemyCharacterBase::RollAndSpawnKillRewards()
+{
+	const UEnemyData* RuntimeEnemyData = CharacterDataComponent ? Cast<UEnemyData>(CharacterDataComponent->GetCharacterData()) : nullptr;
+	if (!RuntimeEnemyData || !RuntimeEnemyData->bEnableKillRewards || RuntimeEnemyData->KillRewards.IsEmpty())
+	{
+		return;
+	}
+
+	AYogGameMode* GameMode = GetWorld() ? Cast<AYogGameMode>(GetWorld()->GetAuthGameMode()) : nullptr;
+	if (!GameMode)
+	{
+		return;
+	}
+
+	TArray<FLootOption> BundledLoot;
+	TArray<FLootOption> WeaponSkillLoot;
+
+	for (const FEnemyKillRewardEntry& Entry : RuntimeEnemyData->KillRewards)
+	{
+		if (FMath::FRand() > Entry.DropChance)
+		{
+			continue;
+		}
+
+		FLootOption Loot = Entry.Loot;
+		if (Loot.LootType == ELootType::WeaponSkill)
+		{
+			// Quantity multipliers are meaningless for a skill; WeaponSkillCharges is authored directly.
+			if (Loot.WeaponSkillAsset)
+			{
+				WeaponSkillLoot.Add(Loot);
+			}
+			continue;
+		}
+
+		Loot.Amount *= FMath::RandRange(Entry.MinQuantityMultiplier, Entry.MaxQuantityMultiplier);
+		BundledLoot.Add(Loot);
+	}
+
+	const FVector DeathLocation = GetActorLocation();
+	int32 PickupIndex = 0;
+
+	if (!BundledLoot.IsEmpty())
+	{
+		GameMode->SpawnEnemyKillRewardPickup(this, BundledLoot, DeathLocation);
+		++PickupIndex;
+	}
+
+	// Each skill needs its own pickup: ShouldGrantLootImmediatelyForOptions rejects the whole
+	// option array if any entry is a Rune, which would route the skill into the Rune-only card UI.
+	for (const FLootOption& SkillLoot : WeaponSkillLoot)
+	{
+		const FVector SpawnLocation = DeathLocation + FVector(PickupIndex * EnemyCharacter_KillRewardPickupSpacing, 0.f, 0.f);
+		GameMode->SpawnEnemyKillRewardPickup(this, { SkillLoot }, SpawnLocation);
+		++PickupIndex;
+	}
 }
 
 void AEnemyCharacterBase::EndPlay(const EEndPlayReason::Type EndPlayReason)

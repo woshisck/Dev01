@@ -13,6 +13,7 @@ class DEVKIT_API UGA_WeaponSkill_THSwordCombo : public UGA_WeaponSkill
 public:
 	UGA_WeaponSkill_THSwordCombo(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 	virtual bool PrepareForInputActivation() override;
+	virtual bool IsPreparedActivationFreshStart() const override { return PreparedComboSlot <= 1; }
 	virtual void ActivateAbility(
 		const FGameplayAbilitySpecHandle Handle,
 		const FGameplayAbilityActorInfo* ActorInfo,

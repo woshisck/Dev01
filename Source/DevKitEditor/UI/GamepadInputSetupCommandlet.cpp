@@ -8,6 +8,7 @@
 #include "InputAction.h"
 #include "InputCoreTypes.h"
 #include "InputMappingContext.h"
+#include "InputTriggers.h"
 #include "Misc/FileHelper.h"
 #include "Misc/PackageName.h"
 #include "UI/InputActionRichTextDecorator.h"
@@ -144,6 +145,52 @@ namespace
 			*ActionName,
 			KeyNames.IsEmpty() ? TEXT("no default keys") : *FString::Join(KeyNames, TEXT(", ")),
 			bChanged ? TEXT(" (updated)") : TEXT("")));
+	}
+
+	/**
+	 * Strips explicit triggers so Enhanced Input falls back to its implicit Down trigger.
+	 * Hold-to-interact needs Started on press and Completed on release; UInputTriggerPressed
+	 * reports Triggered only on the press edge, so the action drops to None the very next frame
+	 * and fires Completed while the key is still held.
+	 */
+	void EnsureNoExplicitTriggers(
+		UInputAction* Action,
+		const FString& ActionName,
+		bool bDryRun,
+		TArray<FString>& ReportLines,
+		TArray<UPackage*>& DirtyPackages)
+	{
+		if (!Action)
+		{
+			ReportLines.Add(FString::Printf(TEXT("- Missing action `%s`; trigger cleanup skipped."), *ActionName));
+			return;
+		}
+
+		if (Action->Triggers.IsEmpty())
+		{
+			ReportLines.Add(FString::Printf(TEXT("- `%s` already has no explicit triggers."), *ActionName));
+			return;
+		}
+
+		TArray<FString> TriggerNames;
+		for (const UInputTrigger* Trigger : Action->Triggers)
+		{
+			TriggerNames.Add(Trigger ? Trigger->GetClass()->GetName() : TEXT("null"));
+		}
+
+		if (!bDryRun)
+		{
+			Action->Modify();
+			Action->Triggers.Empty();
+			Action->MarkPackageDirty();
+			DirtyPackages.AddUnique(Action->GetPackage());
+		}
+
+		ReportLines.Add(FString::Printf(
+			TEXT("- `%s` %s stripped of explicit triggers (%s) so press/release edges reach the controller."),
+			*ActionName,
+			bDryRun ? TEXT("would be") : TEXT("was"),
+			*FString::Join(TriggerNames, TEXT(", "))));
 	}
 
 	void RemoveActionMappings(
@@ -401,6 +448,7 @@ int32 UGamepadInputSetupCommandlet::Main(const FString& Params)
 	UInputAction* IA_ReverseCard = LoadOrCreateInputAction(TEXT("IA_ReverseCard"), bDryRun, ReportLines, DirtyPackages);
 
 	EnsureMappings(MappingContext, IA_Interact, TEXT("IA_Interact"), { EKeys::E, EKeys::Gamepad_FaceButton_Bottom }, { EKeys::Gamepad_FaceButton_Right }, bDryRun, ReportLines, DirtyPackages);
+	EnsureNoExplicitTriggers(IA_Interact, TEXT("IA_Interact"), bDryRun, ReportLines, DirtyPackages);
 	EnsureMappings(MappingContext, IA_Attack, TEXT("IA_Attack"), { EKeys::LeftMouseButton, EKeys::Gamepad_FaceButton_Left }, {}, bDryRun, ReportLines, DirtyPackages);
 	EnsureMappings(MappingContext, IA_WeaponSkill, TEXT("IA_WeaponSkill"), { EKeys::RightMouseButton, EKeys::Gamepad_FaceButton_Top }, {}, bDryRun, ReportLines, DirtyPackages);
 	EnsureMappings(MappingContext, IA_Dash, TEXT("IA_Dash"), { EKeys::SpaceBar, EKeys::Gamepad_FaceButton_Right }, { EKeys::Gamepad_FaceButton_Bottom }, bDryRun, ReportLines, DirtyPackages);

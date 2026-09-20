@@ -323,6 +323,16 @@ void AWeaponSpawner::TryPickup(APlayerCharacterBase* Player)
 	TryPickupWeapon(Player);
 }
 
+void AWeaponSpawner::SetInteractHoldProgress(float Normalized)
+{
+	if (!WeaponInfoWidgetComp) return;
+
+	if (UWeaponFloatWidget* FloatWidget = Cast<UWeaponFloatWidget>(WeaponInfoWidgetComp->GetWidget()))
+	{
+		FloatWidget->SetHoldProgress(Normalized);
+	}
+}
+
 void AWeaponSpawner::OnPlayerBeginOverlap(APlayerCharacterBase* Player)
 {
 	OnPlayerEnterRange(Player);

@@ -39,6 +39,7 @@ public:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void SetupInputComponent() override;
 	virtual bool InputKey(const FInputKeyEventArgs& Params) override;
+	virtual void PlayerTick(float DeltaTime) override;
 
 
 	//UFUNCTION(BlueprintCallable)
@@ -73,7 +74,21 @@ public:
 	void SwitchWeapon(const FInputActionValue& Value);
 	void HandlePauseInput(const FInputActionValue& Value);
 	void Move(const FInputActionValue& Value);
-	void Interact(const FInputActionValue& Value);
+	void InteractPressed(const FInputActionValue& Value);
+	void InteractReleased(const FInputActionValue& Value);
+
+	/** Zeroes any in-progress interact hold. Safe to call when no hold is active. */
+	void CancelInteractHold();
+
+	/**
+	 * Clamped 0..1 hold fill.
+	 * A non-positive duration returns 1 so a target can opt back into instant interaction.
+	 */
+	static float ComputeHoldProgress(float ElapsedSeconds, float DurationSeconds);
+
+	/** Seconds of held input needed to commit, unless the target overrides it. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Interact", meta = (ClampMin = "0.0"))
+	float InteractHoldDuration = 0.6f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
 	TObjectPtr<UInputMappingContext> DefaultMappingContext;
@@ -221,6 +236,13 @@ private:
 	void HandleCommonInputMethodChanged(ECommonInputType NewInputType);
 	void SetGameplayCursorUsesMouse(bool bUsesMouse);
 	void ApplyHardwareCursorStyle();
+
+	/** First non-null Pending* on the pawn, in the documented interact priority order. */
+	AActor* ResolveInteractTarget(APlayerCharacterBase* PlayerCharacter) const;
+	void CommitInteract(APlayerCharacterBase* PlayerCharacter, AActor* Target);
+	void TickInteractHold(float DeltaTime);
+	void PushInteractHoldProgress(AActor* Target, float Normalized) const;
+	float ResolveInteractHoldDuration(AActor* Target) const;
 #if !UE_BUILD_SHIPPING
 	void MaybeScheduleRuntimeGMSmokeTest();
 	void RunRuntimeGMSmokeTest();
@@ -239,6 +261,10 @@ private:
 	int32 ActiveMenuCount = 0;
 	FVector LastAttackRedirectMoveDirection = FVector::ZeroVector;
 	float LastAttackRedirectMoveInputTime = -BIG_NUMBER;
+
+	bool bInteractHoldActive = false;
+	float InteractHoldElapsed = 0.f;
+	TWeakObjectPtr<AActor> InteractHoldTarget;
 
 	UPROPERTY()
 	TObjectPtr<UUserWidget> CombatHUDWidget;

@@ -71,6 +71,13 @@ struct FRunState
 	UPROPERTY()
 	TObjectPtr<UWeaponSkillDataAsset> InactiveWeaponSkill;
 
+	// 战技剩余次数（拾取获得的限次战技）；INDEX_NONE = 无限
+	UPROPERTY()
+	int32 EquippedWeaponSkillRemainingCharges = INDEX_NONE;
+
+	UPROPERTY()
+	int32 InactiveWeaponSkillRemainingCharges = INDEX_NONE;
+
 	// 整理阶段已选但尚未放入格子的符文（新关卡恢复后放回 PendingRunes）
 	UPROPERTY()
 	TArray<FRuneInstance> PendingRunes;

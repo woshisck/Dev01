@@ -6,6 +6,7 @@
 #include "InteractPromptWidget.generated.h"
 
 class UBorder;
+class UProgressBar;
 class UYogCommonRichTextBlock;
 
 UCLASS(Blueprintable, BlueprintType)
@@ -16,6 +17,10 @@ class DEVKIT_API UInteractPromptWidget : public UUserWidget
 public:
 	UFUNCTION(BlueprintCallable, Category = "Interact Prompt")
 	void SetPromptLabel(const FText& InLabel);
+
+	/** Drives the hold-to-interact fill. 0 hides the bar, anything above shows it. */
+	UFUNCTION(BlueprintCallable, Category = "Interact Prompt")
+	void SetHoldProgress(float Normalized);
 
 	static FText MakePromptMarkup(const FText& Label);
 
@@ -29,6 +34,9 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UYogCommonRichTextBlock> PromptText;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UProgressBar> HoldProgressBar;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interact Prompt")
 	FText PromptLabel;
@@ -44,6 +52,12 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interact Prompt")
 	FLinearColor PromptBorderColor = FLinearColor(0.75f, 0.66f, 0.42f, 0.85f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interact Prompt")
+	FLinearColor HoldProgressFillColor = FLinearColor(0.85f, 0.72f, 0.36f, 1.f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interact Prompt")
+	float HoldProgressBarHeight = 6.f;
 
 private:
 	void BuildFallbackLayout();

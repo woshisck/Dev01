@@ -365,11 +365,19 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Weapon Skill")
 	TObjectPtr<UWeaponSkillDataAsset> EquippedWeaponSkill;
 
+	// Remaining uses for a skill granted by a kill-reward pickup.
+	// INDEX_NONE = unlimited, 0 = exhausted (reverts on the next activation attempt), N > 0 = N uses left.
+	UPROPERTY(BlueprintReadOnly, Category = "Weapon Skill")
+	int32 EquippedWeaponSkillRemainingCharges = INDEX_NONE;
+
 	UPROPERTY(BlueprintReadOnly, Category = "Weapon")
 	TObjectPtr<UWeaponDefinition> InactiveWeaponDef;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Weapon Skill")
 	TObjectPtr<UWeaponSkillDataAsset> InactiveWeaponSkill;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Weapon Skill")
+	int32 InactiveWeaponSkillRemainingCharges = INDEX_NONE;
 
 	UPROPERTY()
 	FWeaponCombatDeckRuntimeState EquippedWeaponDeckState;
@@ -400,6 +408,16 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Weapon Skill")
 	bool EquipWeaponSkill(UWeaponSkillDataAsset* WeaponSkill);
+
+	/** Equips a pickup-granted skill. Charges <= 0 means permanent. */
+	UFUNCTION(BlueprintCallable, Category = "Weapon Skill")
+	bool EquipWeaponSkillFromPickup(UWeaponSkillDataAsset* WeaponSkill, int32 Charges);
+
+	UFUNCTION(BlueprintCallable, Category = "Weapon Skill")
+	void RevertEquippedWeaponSkillToDefault();
+
+	UFUNCTION(BlueprintPure, Category = "Weapon Skill")
+	bool IsEquippedWeaponSkillAbilityActive();
 
 	UFUNCTION(BlueprintPure, Category = "Weapon Skill")
 	UWeaponSkillDataAsset* GetEquippedWeaponSkill() const { return EquippedWeaponSkill; }

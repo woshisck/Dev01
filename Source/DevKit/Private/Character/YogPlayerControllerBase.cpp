@@ -20,6 +20,7 @@
 #include "Character/PlayerCharacterBase.h"
 
 #include "Character/YogCharacterBase.h"
+#include "Character/InteractHoldFeedback.h"
 #include <EnhancedInputSubsystems.h>
 #include "Item/ItemSpawner.h"
 #include "Map/RewardPickup.h"
@@ -315,6 +316,13 @@ void AYogPlayerControllerBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
+void AYogPlayerControllerBase::PlayerTick(float DeltaTime)
+{
+	Super::PlayerTick(DeltaTime);
+
+	TickInteractHold(DeltaTime);
+}
+
 void AYogPlayerControllerBase::SetupInputComponent()
 {
 	Super::SetupInputComponent();
@@ -380,8 +388,12 @@ void AYogPlayerControllerBase::SetupInputComponent()
 		}
 		if (Input_Interact)
 		{
-			const FEnhancedInputActionEventBinding& interactBinding = EnhancedInputComp->BindAction(Input_Interact, ETriggerEvent::Triggered, this, &AYogPlayerControllerBase::Interact);
+			// Hold-to-interact needs the press and release edges, so IA_Interact must carry no
+			// explicit trigger: UInputTriggerPressed would drop to None the frame after the press
+			// and fire Completed immediately, cancelling every hold on frame two.
+			const FEnhancedInputActionEventBinding& interactBinding = EnhancedInputComp->BindAction(Input_Interact, ETriggerEvent::Started, this, &AYogPlayerControllerBase::InteractPressed);
 			InteractInputHandle = interactBinding.GetHandle();
+			EnhancedInputComp->BindAction(Input_Interact, ETriggerEvent::Completed, this, &AYogPlayerControllerBase::InteractReleased);
 		}
 		if (Input_OpenBackpack)
 		{
@@ -1018,6 +1030,7 @@ void AYogPlayerControllerBase::SetGameplayCursorUsesMouse(bool bUsesMouse)
 void AYogPlayerControllerBase::Attack(const FInputActionValue& Value)
 {
 	if (IsGameplayInputBlocked()) return;
+	CancelInteractHold();
 	if (APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn()))
 	{
 		if (UBufferComponent* Buffer = player->GetInputBufferComponent())
@@ -1058,6 +1071,7 @@ void AYogPlayerControllerBase::Attack(const FInputActionValue& Value)
 void AYogPlayerControllerBase::WeaponSkill(const FInputActionValue& Value)
 {
 	if (IsGameplayInputBlocked()) return;
+	CancelInteractHold();
 	if (APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn()))
 	{
 		if (UBufferComponent* Buffer = player->GetInputBufferComponent())
@@ -1117,6 +1131,7 @@ void AYogPlayerControllerBase::WeaponSkillReleased(const FInputActionValue& Valu
 void AYogPlayerControllerBase::Dash(const FInputActionValue& Value)
 {
 	if (IsGameplayInputBlocked()) return;
+	CancelInteractHold();
 	if (APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn()))
 	{
 		if (UBufferComponent* Buffer = player->GetInputBufferComponent())
@@ -1152,6 +1167,7 @@ void AYogPlayerControllerBase::MusketReload(const FInputActionValue& Value)
 void AYogPlayerControllerBase::UseCombatItem(const FInputActionValue& Value)
 {
 	if (IsGameplayInputBlocked()) return;
+	CancelInteractHold();
 	if (APlayerCharacterBase* PlayerCharacter = Cast<APlayerCharacterBase>(GetPawn()))
 	{
 		if (PlayerCharacter->CombatItemComponent)
@@ -1188,6 +1204,7 @@ void AYogPlayerControllerBase::SwitchCombatItemPrevious(const FInputActionValue&
 void AYogPlayerControllerBase::UseActiveSkill(const FInputActionValue& Value)
 {
 	if (IsGameplayInputBlocked()) return;
+	CancelInteractHold();
 	if (APlayerCharacterBase* PlayerCharacter = Cast<APlayerCharacterBase>(GetPawn()))
 	{
 		if (UBufferComponent* Buffer = PlayerCharacter->GetInputBufferComponent())
@@ -1258,6 +1275,8 @@ void AYogPlayerControllerBase::Move(const FInputActionValue& Value)
 
 	if (!MoveDir.IsNearlyZero())
 	{
+		CancelInteractHold();
+
 		LastAttackRedirectMoveDirection = MoveDir.GetSafeNormal();
 		LastAttackRedirectMoveInputTime = GetWorld() ? GetWorld()->GetTimeSeconds() : -BIG_NUMBER;
 
@@ -1306,50 +1325,191 @@ void AYogPlayerControllerBase::Move(const FInputActionValue& Value)
 	//UE_LOG(LogTemp, Log, TEXT("Move"));
 }
 
-void AYogPlayerControllerBase::Interact(const FInputActionValue& Value)
+float AYogPlayerControllerBase::ComputeHoldProgress(float ElapsedSeconds, float DurationSeconds)
 {
-	if (IsGameplayInputBlocked()) return;
-	UE_LOG(LogTemp, Log, TEXT("Interact"));
-
-	if (APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn()))
+	if (DurationSeconds <= KINDA_SMALL_NUMBER)
 	{
-		if (player->OverlappingSpawner)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("Player is overlapping with spawner: %s"), *player->OverlappingSpawner->GetName());
-		}
+		return 1.f;
+	}
 
-		// 范围内有武器 Spawner → 按 E 触发武器拾取
-		if (player->PendingWeaponSpawner)
-		{
-			player->PendingWeaponSpawner->TryPickupWeapon(player);
-		}
-		// 范围内有奖励拾取物 → 按 E 触发拾取
-		else if (player->PendingPickup)
-		{
-			player->PendingPickup->TryPickup(player);
-		}
-		// 范围内有献祭恩赐拾取物 → 按 E 触发获取
-		else if (player->PendingAltar)
-		{
-			player->PendingAltar->TryInteract(player);
-		}
-		else if (player->PendingShop)
-		{
-			player->PendingShop->TryInteract(player);
-		}
-		// 范围内有可进入的传送门 → 按 E 触发进入（v3 替代 Overlap 自动入门）
-		// 设计约束：门与拾取物不会同范围，所以放在拾取物之后即可
-		else if (player->PendingPortal)
-		{
-			player->PendingPortal->TryEnter(player);
-		}
-		// 范围内有主城设施 → 按 E 触发交互（打开对应 UI）
-		else if (player->PendingFacility)
-		{
-			player->PendingFacility->Interact(player);
-		}
+	return FMath::Clamp(ElapsedSeconds / DurationSeconds, 0.f, 1.f);
+}
+
+AActor* AYogPlayerControllerBase::ResolveInteractTarget(APlayerCharacterBase* PlayerCharacter) const
+{
+	if (!PlayerCharacter)
+	{
+		return nullptr;
+	}
+
+	// 范围内有武器 Spawner → 触发武器拾取
+	if (PlayerCharacter->PendingWeaponSpawner)
+	{
+		return PlayerCharacter->PendingWeaponSpawner;
+	}
+	// 范围内有奖励拾取物 → 触发拾取
+	if (PlayerCharacter->PendingPickup)
+	{
+		return PlayerCharacter->PendingPickup;
+	}
+	// 范围内有献祭恩赐拾取物 → 触发获取
+	if (PlayerCharacter->PendingAltar)
+	{
+		return PlayerCharacter->PendingAltar;
+	}
+	if (PlayerCharacter->PendingShop)
+	{
+		return PlayerCharacter->PendingShop;
+	}
+	// 范围内有可进入的传送门（v3 替代 Overlap 自动入门）
+	// 设计约束：门与拾取物不会同范围，所以放在拾取物之后即可
+	if (PlayerCharacter->PendingPortal)
+	{
+		return PlayerCharacter->PendingPortal;
+	}
+	// 范围内有主城设施 → 打开对应 UI
+	if (PlayerCharacter->PendingFacility)
+	{
+		return PlayerCharacter->PendingFacility;
+	}
+
+	return nullptr;
+}
+
+void AYogPlayerControllerBase::CommitInteract(APlayerCharacterBase* PlayerCharacter, AActor* Target)
+{
+	if (!PlayerCharacter || !Target)
+	{
+		return;
+	}
+
+	if (Target == PlayerCharacter->PendingWeaponSpawner)
+	{
+		PlayerCharacter->PendingWeaponSpawner->TryPickupWeapon(PlayerCharacter);
+	}
+	else if (Target == PlayerCharacter->PendingPickup)
+	{
+		PlayerCharacter->PendingPickup->TryPickup(PlayerCharacter);
+	}
+	else if (Target == PlayerCharacter->PendingAltar)
+	{
+		PlayerCharacter->PendingAltar->TryInteract(PlayerCharacter);
+	}
+	else if (Target == PlayerCharacter->PendingShop)
+	{
+		PlayerCharacter->PendingShop->TryInteract(PlayerCharacter);
+	}
+	else if (Target == PlayerCharacter->PendingPortal)
+	{
+		PlayerCharacter->PendingPortal->TryEnter(PlayerCharacter);
+	}
+	else if (Target == PlayerCharacter->PendingFacility)
+	{
+		PlayerCharacter->PendingFacility->Interact(PlayerCharacter);
 	}
 }
+
+float AYogPlayerControllerBase::ResolveInteractHoldDuration(AActor* Target) const
+{
+	if (const IInteractHoldFeedback* Feedback = Cast<IInteractHoldFeedback>(Target))
+	{
+		const float Override = Feedback->GetInteractHoldDuration();
+		if (Override >= 0.f)
+		{
+			return Override;
+		}
+	}
+
+	return InteractHoldDuration;
+}
+
+void AYogPlayerControllerBase::PushInteractHoldProgress(AActor* Target, float Normalized) const
+{
+	if (IInteractHoldFeedback* Feedback = Cast<IInteractHoldFeedback>(Target))
+	{
+		Feedback->SetInteractHoldProgress(Normalized);
+	}
+}
+
+void AYogPlayerControllerBase::InteractPressed(const FInputActionValue& Value)
+{
+	if (IsGameplayInputBlocked()) return;
+
+	APlayerCharacterBase* PlayerCharacter = Cast<APlayerCharacterBase>(GetPawn());
+	AActor* Target = ResolveInteractTarget(PlayerCharacter);
+	if (!Target)
+	{
+		return;
+	}
+
+	bInteractHoldActive = true;
+	InteractHoldElapsed = 0.f;
+	InteractHoldTarget = Target;
+	PushInteractHoldProgress(Target, 0.f);
+}
+
+void AYogPlayerControllerBase::InteractReleased(const FInputActionValue& Value)
+{
+	CancelInteractHold();
+}
+
+void AYogPlayerControllerBase::CancelInteractHold()
+{
+	if (!bInteractHoldActive)
+	{
+		return;
+	}
+
+	PushInteractHoldProgress(InteractHoldTarget.Get(), 0.f);
+
+	bInteractHoldActive = false;
+	InteractHoldElapsed = 0.f;
+	InteractHoldTarget = nullptr;
+}
+
+void AYogPlayerControllerBase::TickInteractHold(float DeltaTime)
+{
+	if (!bInteractHoldActive)
+	{
+		return;
+	}
+
+	if (IsGameplayInputBlocked())
+	{
+		CancelInteractHold();
+		return;
+	}
+
+	APlayerCharacterBase* PlayerCharacter = Cast<APlayerCharacterBase>(GetPawn());
+	AActor* Target = InteractHoldTarget.Get();
+
+	// Every interactable clears its own Pending* pointer on overlap end, so re-resolving each
+	// frame is what makes "walk out of the volume" cancel without touching the target classes.
+	if (!Target || ResolveInteractTarget(PlayerCharacter) != Target)
+	{
+		CancelInteractHold();
+		return;
+	}
+
+	InteractHoldElapsed += DeltaTime;
+
+	const float Duration = ResolveInteractHoldDuration(Target);
+	const float Progress = ComputeHoldProgress(InteractHoldElapsed, Duration);
+	PushInteractHoldProgress(Target, Progress);
+
+	if (Progress >= 1.f)
+	{
+		// Clear the hold before committing: TryPickup and friends can destroy the target or
+		// open UI that blocks input, and both would re-enter CancelInteractHold on a stale target.
+		bInteractHoldActive = false;
+		InteractHoldElapsed = 0.f;
+		InteractHoldTarget = nullptr;
+		PushInteractHoldProgress(Target, 0.f);
+
+		CommitInteract(PlayerCharacter, Target);
+	}
+}
+
 
 
 

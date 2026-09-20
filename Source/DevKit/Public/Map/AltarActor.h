@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Character/InteractHoldFeedback.h"
 #include "Character/PlayerInteraction.h"
 #include "GameModes/LevelFlowTypes.h"
 #include "Data/AltarDataAsset.h"
@@ -17,7 +18,7 @@ class UWidgetComponent;
 class UNiagaraComponent;
 
 UCLASS()
-class DEVKIT_API AAltarActor : public AActor, public IPlayerInteraction
+class DEVKIT_API AAltarActor : public AActor, public IPlayerInteraction, public IInteractHoldFeedback
 {
 	GENERATED_BODY()
 
@@ -28,6 +29,9 @@ public:
 	// IPlayerInteraction
 	virtual void OnPlayerBeginOverlap(APlayerCharacterBase* Player) override;
 	virtual void OnPlayerEndOverlap(APlayerCharacterBase* Player) override;
+
+	// ~ IInteractHoldFeedback
+	virtual void SetInteractHoldProgress(float Normalized) override;
 
 	// 由玩家输入或交互 UI 调用
 	UFUNCTION(BlueprintCallable, Category = "Altar")

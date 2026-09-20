@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "GameplayTagContainer.h"
+#include "Character/InteractHoldFeedback.h"
 #include "NiagaraSystem.h"
 #include "Data/EnemyData.h"   // FBuffEntry
 #include "GameModes/LevelFlowTypes.h"
@@ -13,6 +14,7 @@ class UBillboardComponent;
 class UBoxComponent;
 class UNiagaraComponent;
 class UStaticMeshComponent;
+class UWidgetComponent;
 class UYogSaveSubsystem;
 class UYogGameInstanceBase;
 class URoomDataAsset;
@@ -77,13 +79,19 @@ struct DEVKIT_API FPortalArtConfig
 };
 
 UCLASS()
-class DEVKIT_API APortal : public AActor
+class DEVKIT_API APortal : public AActor, public IInteractHoldFeedback
 {
 	GENERATED_BODY()
 
 public:
 
 	APortal(const FObjectInitializer& ObjectInitializer);
+
+	// ~ IInteractHoldFeedback
+	virtual void SetInteractHoldProgress(float Normalized) override;
+
+	void ConfigureInteractPrompt();
+	void SetInteractPromptVisible(bool bVisible);
 
 	/**
 	 * 开启传送门：C++ 根据 SelectedLevel 查 DestinationArtMap 自动切换美术。
@@ -226,6 +234,10 @@ public:
 	// 门开启后的持续待机特效
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Portal|Components")
 	TObjectPtr<UNiagaraComponent> IdleVFXComp;
+
+	// 按住 E 进入的提示 + 蓄力进度条（纯 C++ Widget，无需 WBP）
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Portal|Components")
+	TObjectPtr<UWidgetComponent> InteractPromptWidgetComp;
 
 	// =========================================================
 	// 美术配置（在蓝图 Details 面板填写即可）

@@ -438,6 +438,15 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Poise", meta = (ClampMin = "0.0"))
 	float RecentlyDamagedStateDuration = 3.f;
 
+	// Takes priority over AEnemyCharacterBase::DeathDisappearDelayAfterAnimation so the timing
+	// can be tuned per enemy definition instead of per Blueprint.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Death", meta = (DisplayName = "覆盖死亡消失延迟"))
+	bool bOverrideDeathDisappearDelay = false;
+
+	// 死亡动画（或消解 GameplayCue）结束后，等待多久销毁敌人 Actor。
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Death", meta = (DisplayName = "死亡消失延迟", ClampMin = "0.0", ForceUnits = "s", EditCondition = "bOverrideDeathDisappearDelay"))
+	float DeathDisappearDelayAfterAnimation = 0.15f;
+
 	// Enemy-owned kill rewards. Room/level rewards remain configured independently on RoomData.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Kill Rewards")
 	bool bEnableKillRewards = false;

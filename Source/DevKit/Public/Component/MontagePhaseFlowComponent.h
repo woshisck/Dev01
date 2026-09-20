@@ -76,9 +76,11 @@ private:
 
 	UYogAbilitySystemComponent* GetOwnerASC() const;
 
-	UPROPERTY()
+	// Transient: bindings are runtime-only. Without this, anything bound before a level save is
+	// serialized onto the placed actor and reloaded next session, so the map grows across sessions.
+	UPROPERTY(Transient)
 	TMap<FGuid, FMontagePhaseFlowBinding> Bindings;
 
-	UPROPERTY()
+	UPROPERTY(Transient)
 	TWeakObjectPtr<UYogAbilitySystemComponent> BoundASC;
 };

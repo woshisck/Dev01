@@ -3,12 +3,14 @@
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/Image.h"
+#include "Components/ProgressBar.h"
 #include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
 #include "Components/Widget.h"
 #include "Data/RuneDataAsset.h"
+#include "Data/WeaponSkillDataAsset.h"
 #include "Engine/Texture2D.h"
 #include "UI/YogCommonRichTextBlock.h"
 
@@ -16,6 +18,21 @@ void URuneRewardFloatWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 	RefreshPickupHint();
+	SetHoldProgress(0.f);
+}
+
+void URuneRewardFloatWidget::SetHoldProgress(float Normalized)
+{
+	if (!HoldProgressBar)
+	{
+		return;
+	}
+
+	const float Clamped = FMath::Clamp(Normalized, 0.f, 1.f);
+	HoldProgressBar->SetPercent(Clamped);
+	HoldProgressBar->SetVisibility(Clamped > KINDA_SMALL_NUMBER
+		? ESlateVisibility::HitTestInvisible
+		: ESlateVisibility::Collapsed);
 }
 
 void URuneRewardFloatWidget::SetLootOptions(const TArray<FLootOption>& Options)
@@ -54,6 +71,24 @@ void URuneRewardFloatWidget::SetLootOptions(const TArray<FLootOption>& Options)
 				? FText::Format(NSLOCTEXT("RuneRewardFloat", "MaterialRewardFmt", "Material x{0}"), FText::AsNumber(Option.Amount))
 				: Option.DisplayName;
 			AddRewardRow(Label, Option.Icon.Get(), FLinearColor(0.35f, 0.32f, 0.42f, 1.f));
+		}
+		else if (Option.LootType == ELootType::WeaponSkill && Option.WeaponSkillAsset)
+		{
+			FText Label = Option.DisplayName.IsEmpty() ? Option.WeaponSkillAsset->DisplayName : Option.DisplayName;
+			if (Label.IsEmpty())
+			{
+				Label = FText::FromName(Option.WeaponSkillAsset->GetFName());
+			}
+			if (Option.WeaponSkillCharges > 0)
+			{
+				Label = FText::Format(
+					NSLOCTEXT("RuneRewardFloat", "WeaponSkillChargesFmt", "{0} x{1}"),
+					Label,
+					FText::AsNumber(Option.WeaponSkillCharges));
+			}
+
+			UTexture2D* SkillIcon = Option.Icon ? Option.Icon.Get() : Option.WeaponSkillAsset->Icon.Get();
+			AddRewardRow(Label, SkillIcon, FLinearColor(0.20f, 0.42f, 0.55f, 1.f));
 		}
 	}
 }

@@ -2036,7 +2036,14 @@ void SEnemyManagerWidget::CountValidationIssues(
 			{
 				++OutErrors;
 			}
-			if (Entry.Loot.LootType != ELootType::Rune && Entry.Loot.Amount <= 0)
+			if (Entry.Loot.LootType == ELootType::WeaponSkill && !Entry.Loot.WeaponSkillAsset)
+			{
+				++OutErrors;
+			}
+			// WeaponSkill counts uses in WeaponSkillCharges, where 0 legitimately means permanent.
+			if (Entry.Loot.LootType != ELootType::Rune
+				&& Entry.Loot.LootType != ELootType::WeaponSkill
+				&& Entry.Loot.Amount <= 0)
 			{
 				++OutErrors;
 			}

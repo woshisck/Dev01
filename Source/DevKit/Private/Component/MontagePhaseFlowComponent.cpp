@@ -58,6 +58,17 @@ FGuid UMontagePhaseFlowComponent::BindPhaseFlow(FGameplayTag Phase, UFlowAsset* 
 		return FGuid();
 	}
 
+	// Duplicates would each launch the flow again on the same phase, multiplying the effect by the
+	// number of redundant calls. Hand back the existing handle instead so re-binding is a no-op.
+	for (const TPair<FGuid, FMontagePhaseFlowBinding>& Pair : Bindings)
+	{
+		const FMontagePhaseFlowBinding& Existing = Pair.Value;
+		if (Existing.Phase == Phase && Existing.Flow == Flow && Existing.Target == Target)
+		{
+			return Pair.Key;
+		}
+	}
+
 	FMontagePhaseFlowBinding Binding;
 	Binding.Phase = Phase;
 	Binding.Flow = Flow;

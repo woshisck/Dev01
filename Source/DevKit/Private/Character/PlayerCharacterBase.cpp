@@ -520,10 +520,46 @@ bool APlayerCharacterBase::EquipWeaponSkill(UWeaponSkillDataAsset* WeaponSkill)
 
 	ClearEquippedWeaponSkillAbilityGrant();
 	EquippedWeaponSkill = WeaponSkill;
+	EquippedWeaponSkillRemainingCharges = INDEX_NONE;
 	ApplyAbilityDataFromWeapon(WeaponDefinition);
 	RefreshEquippedWeaponSkillAbilityGrant();
 	OnWeaponSkillChanged.Broadcast(EquippedWeaponSkill);
 	return true;
+}
+
+bool APlayerCharacterBase::EquipWeaponSkillFromPickup(UWeaponSkillDataAsset* WeaponSkill, int32 Charges)
+{
+	if (!EquipWeaponSkill(WeaponSkill))
+	{
+		return false;
+	}
+
+	// Authoring uses <= 0 for "permanent"; normalize to the INDEX_NONE runtime sentinel here so
+	// every other charge site can assume the sentinel.
+	EquippedWeaponSkillRemainingCharges = (Charges <= 0) ? INDEX_NONE : Charges;
+	return true;
+}
+
+void APlayerCharacterBase::RevertEquippedWeaponSkillToDefault()
+{
+	UWeaponDefinition* WeaponDefinition = GetEffectiveEquippedWeaponDefinition();
+	if (UWeaponSkillDataAsset* DefaultSkill = WeaponDefinition ? WeaponDefinition->ResolveDefaultWeaponSkill() : nullptr)
+	{
+		if (EquippedWeaponSkill == DefaultSkill)
+		{
+			// EquipWeaponSkill early-returns on an unchanged skill, so clear the spent count here.
+			EquippedWeaponSkillRemainingCharges = INDEX_NONE;
+			return;
+		}
+
+		EquipWeaponSkill(DefaultSkill);
+		return;
+	}
+
+	ClearEquippedWeaponSkillAbilityGrant();
+	EquippedWeaponSkill = nullptr;
+	EquippedWeaponSkillRemainingCharges = INDEX_NONE;
+	OnWeaponSkillChanged.Broadcast(nullptr);
 }
 
 void APlayerCharacterBase::ClearEquippedWeaponSkillAbilityGrant()
@@ -567,8 +603,29 @@ void APlayerCharacterBase::RefreshEquippedWeaponSkillAbilityGrant()
 		*GetNameSafe(WeaponDefinition));
 }
 
+bool APlayerCharacterBase::IsEquippedWeaponSkillAbilityActive()
+{
+	UYogAbilitySystemComponent* ASC = GetASC();
+	if (!ASC || !EquippedWeaponSkillAbilityHandle.IsValid())
+	{
+		return false;
+	}
+
+	const FGameplayAbilitySpec* Spec = ASC->FindAbilitySpecFromHandle(EquippedWeaponSkillAbilityHandle);
+	const UGameplayAbility* Instance = Spec ? Spec->GetPrimaryInstance() : nullptr;
+	return Instance && Instance->IsActive();
+}
+
 bool APlayerCharacterBase::TryActivateEquippedWeaponSkill()
 {
+	// Deferred on purpose. Reverting runs ClearEquippedWeaponSkillAbilityGrant, which cancels the
+	// ability, so an exhausted skill is only swapped out once it has stopped running - otherwise a
+	// combo whose opening stage spent the final charge would be cut off by its own follow-up press.
+	if (EquippedWeaponSkillRemainingCharges == 0 && !IsEquippedWeaponSkillAbilityActive())
+	{
+		RevertEquippedWeaponSkillToDefault();
+	}
+
 	UYogAbilitySystemComponent* ASC = GetASC();
 	if (!ASC || !HasEquippedWeaponSkill())
 	{
@@ -586,6 +643,9 @@ bool APlayerCharacterBase::TryActivateEquippedWeaponSkill()
 			: nullptr;
 	}
 
+	// Combo stages past the first are continuations of the same use, so they must not each
+	// cost a charge. Read after PrepareForInputActivation, which resolves the upcoming stage.
+	bool bFreshActivation = true;
 	if (CurrentSpec)
 	{
 		if (UGA_WeaponSkill* SkillAbility = Cast<UGA_WeaponSkill>(CurrentSpec->GetPrimaryInstance()))
@@ -594,11 +654,19 @@ bool APlayerCharacterBase::TryActivateEquippedWeaponSkill()
 			{
 				return false;
 			}
+			bFreshActivation = SkillAbility->IsPreparedActivationFreshStart();
 		}
 	}
 
-	return EquippedWeaponSkillAbilityHandle.IsValid()
+	const bool bActivated = EquippedWeaponSkillAbilityHandle.IsValid()
 		&& ASC->TryActivateAbility(EquippedWeaponSkillAbilityHandle, true);
+
+	if (bActivated && bFreshActivation && EquippedWeaponSkillRemainingCharges > 0)
+	{
+		--EquippedWeaponSkillRemainingCharges;
+	}
+
+	return bActivated;
 }
 
 void APlayerCharacterBase::CaptureEquippedWeaponDeckState()
@@ -730,6 +798,8 @@ void APlayerCharacterBase::CaptureCombatLoadoutForRunState(FRunState& OutState)
 	OutState.InactiveWeaponDef = InactiveWeaponDef;
 	OutState.EquippedWeaponSkill = EquippedWeaponSkill;
 	OutState.InactiveWeaponSkill = InactiveWeaponSkill;
+	OutState.EquippedWeaponSkillRemainingCharges = EquippedWeaponSkillRemainingCharges;
+	OutState.InactiveWeaponSkillRemainingCharges = InactiveWeaponSkillRemainingCharges;
 	CopyDeckRuntimeStateToRunStateFields(
 		EquippedWeaponDeckState,
 		OutState.CombatDeckCards,
@@ -755,6 +825,7 @@ void APlayerCharacterBase::RestoreInactiveWeaponFromDefinition(UWeaponDefinition
 
 	InactiveWeaponDef = WeaponDefinition;
 	InactiveWeaponSkill = WeaponDefinition ? WeaponDefinition->ResolveDefaultWeaponSkill() : nullptr;
+	InactiveWeaponSkillRemainingCharges = INDEX_NONE;
 	InactiveWeaponFromSpawner = nullptr;
 	InactiveWeaponDeckState.Reset();
 	if (!WeaponDefinition || !GetWorld())
@@ -801,9 +872,11 @@ void APlayerCharacterBase::ResetToDefaultUnarmedCombatState()
 
 	EquippedWeaponDef = nullptr;
 	EquippedWeaponSkill = nullptr;
+	EquippedWeaponSkillRemainingCharges = INDEX_NONE;
 	EquippedFromSpawner = nullptr;
 	InactiveWeaponDef = nullptr;
 	InactiveWeaponSkill = nullptr;
+	InactiveWeaponSkillRemainingCharges = INDEX_NONE;
 	InactiveWeaponFromSpawner = nullptr;
 	EquippedWeaponDeckState.Reset();
 	InactiveWeaponDeckState.Reset();
@@ -884,6 +957,7 @@ void APlayerCharacterBase::SwitchWeapon(bool bForceRecoveryCancel)
 
 	Swap(EquippedWeaponDef, InactiveWeaponDef);
 	Swap(EquippedWeaponSkill, InactiveWeaponSkill);
+	Swap(EquippedWeaponSkillRemainingCharges, InactiveWeaponSkillRemainingCharges);
 	Swap(EquippedWeaponInstance, InactiveWeaponInstance);
 	Swap(EquippedFromSpawner, InactiveWeaponFromSpawner);
 	Swap(EquippedWeaponDeckState, InactiveWeaponDeckState);
@@ -1060,18 +1134,19 @@ void APlayerCharacterBase::RestoreRunState(const FRunState& State)
 	if (State.EquippedWeaponDef)
 	{
 		State.EquippedWeaponDef->SetupWeaponToCharacter(GetMesh(), this);
-		if (State.EquippedWeaponSkill)
+		if (State.EquippedWeaponSkill && EquipWeaponSkill(State.EquippedWeaponSkill))
 		{
-			EquipWeaponSkill(State.EquippedWeaponSkill);
+			// EquipWeaponSkill resets to unlimited, so the persisted count has to be reapplied after it.
+			EquippedWeaponSkillRemainingCharges = State.EquippedWeaponSkillRemainingCharges;
 		}
 		UE_LOG(LogTemp, Warning, TEXT("[RunState] RESTORE Weapon - %s"), *State.EquippedWeaponDef->GetName());
 	}
 	else
 	{
 		ResetToDefaultUnarmedCombatState();
-		if (State.EquippedWeaponSkill)
+		if (State.EquippedWeaponSkill && EquipWeaponSkill(State.EquippedWeaponSkill))
 		{
-			EquipWeaponSkill(State.EquippedWeaponSkill);
+			EquippedWeaponSkillRemainingCharges = State.EquippedWeaponSkillRemainingCharges;
 		}
 	}
 
@@ -1104,6 +1179,7 @@ void APlayerCharacterBase::RestoreRunState(const FRunState& State)
 	if (State.InactiveWeaponDef && State.InactiveWeaponDef->CanEquipWeaponSkill(State.InactiveWeaponSkill))
 	{
 		InactiveWeaponSkill = State.InactiveWeaponSkill;
+		InactiveWeaponSkillRemainingCharges = State.InactiveWeaponSkillRemainingCharges;
 	}
 	if (State.InactiveWeaponDef)
 	{
@@ -1599,7 +1675,19 @@ void APlayerCharacterBase::HandleDamageReceivedFeedback(UYogAbilitySystemCompone
 {
 	(void)SourceASC;
 
-	if (!bEnableDamageReceivedFeedback || Damage <= 0.f)
+	if (Damage <= 0.f)
+	{
+		return;
+	}
+
+	// Interrupting a channelled interaction is gameplay, not feedback, so it has to run before
+	// the bEnableDamageReceivedFeedback cosmetic gate below.
+	if (AYogPlayerControllerBase* YogPC = Cast<AYogPlayerControllerBase>(GetController()))
+	{
+		YogPC->CancelInteractHold();
+	}
+
+	if (!bEnableDamageReceivedFeedback)
 	{
 		return;
 	}

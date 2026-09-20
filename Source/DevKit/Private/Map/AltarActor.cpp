@@ -391,6 +391,16 @@ void AAltarActor::ConfigureInteractPrompt()
 	}
 }
 
+void AAltarActor::SetInteractHoldProgress(float Normalized)
+{
+	if (!InteractPromptWidgetComp) return;
+
+	if (UInteractPromptWidget* PromptWidget = Cast<UInteractPromptWidget>(InteractPromptWidgetComp->GetWidget()))
+	{
+		PromptWidget->SetHoldProgress(Normalized);
+	}
+}
+
 void AAltarActor::SetInteractPromptVisible(bool bVisible)
 {
 	const bool bFinalVisible = bVisible && bIsActive && !bSacrificeRewardConsumed;

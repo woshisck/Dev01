@@ -6,6 +6,7 @@
 #include "Character/PlayerCharacterBase.h"
 #include "Containers/Ticker.h"
 #include "Component/BackpackGridComponent.h"
+#include "Data/WeaponSkillDataAsset.h"
 #include "GameModes/YogGameMode.h"
 #include "Kismet/GameplayStatics.h"
 #include "MetaProgression/YogMetaProgressionSubsystem.h"
@@ -125,6 +126,16 @@ void ARewardPickup::OnPlayerLeaveRange(APlayerCharacterBase* Player)
 		NearbyPlayer = nullptr;
 		bPlayerInRange = false;
 		if (RuneInfoWidgetComp && !bSpawnFocusCueActive) RuneInfoWidgetComp->SetVisibility(false);
+	}
+}
+
+void ARewardPickup::SetInteractHoldProgress(float Normalized)
+{
+	if (!RuneInfoWidgetComp) return;
+
+	if (URuneRewardFloatWidget* FloatWidget = Cast<URuneRewardFloatWidget>(RuneInfoWidgetComp->GetWidget()))
+	{
+		FloatWidget->SetHoldProgress(Normalized);
 	}
 }
 
@@ -283,10 +294,16 @@ void ARewardPickup::TryPickup(APlayerCharacterBase* Player)
 		}
 		else
 		{
+			// PendingPickup was cleared optimistically above; without restoring it the player
+			// keeps pressing E with no effect until they leave and re-enter the trigger.
 			bPickedUp = false;
-			if (bPlayerInRange && RuneInfoWidgetComp)
+			if (bPlayerInRange)
 			{
-				RuneInfoWidgetComp->SetVisibility(true);
+				Player->PendingPickup = this;
+				if (RuneInfoWidgetComp)
+				{
+					RuneInfoWidgetComp->SetVisibility(true);
+				}
 			}
 		}
 		return;
@@ -377,7 +394,27 @@ bool ARewardPickup::GrantImmediateLoot(APlayerCharacterBase* Player, const TArra
 	bool bGrantedAny = false;
 	for (const FLootOption& Option : Options)
 	{
-		const int32 Amount = FMath::Max(0, Option.Amount);
+		// Handled before the Amount guard below: a weapon skill carries its count in
+		// WeaponSkillCharges, and Option.Amount is legitimately 0 for it.
+		if (Option.LootType == ELootType::WeaponSkill)
+		{
+			if (Option.WeaponSkillAsset && Player->EquipWeaponSkillFromPickup(Option.WeaponSkillAsset, Option.WeaponSkillCharges))
+			{
+				bGrantedAny = true;
+				K2_OnImmediateLootGranted(ELootType::WeaponSkill, Option.WeaponSkillCharges, FGameplayTag());
+				UE_LOG(LogTemp, Log, TEXT("[RewardPickup] Granted weapon skill: %s Charges=%d"),
+					*GetNameSafe(Option.WeaponSkillAsset),
+					Option.WeaponSkillCharges);
+			}
+			else
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[RewardPickup] Weapon skill grant failed. Skill=%s"),
+					*GetNameSafe(Option.WeaponSkillAsset));
+			}
+			continue;
+		}
+
+		const int32 Amount = FMath::Max(1, Option.Amount);
 		if (Amount <= 0)
 		{
 			continue;

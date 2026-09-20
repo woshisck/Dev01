@@ -3330,29 +3330,53 @@ void AYogGameMode::MarkStorySpecialRewardEnemy(AEnemyCharacterBase* Enemy, const
 		RewardOptions.Num());
 }
 
-void AYogGameMode::SpawnStorySpecialRewardPickup(AYogCharacterBase* DeadCharacter, const TArray<FLootOption> RewardOptions)
+ARewardPickup* AYogGameMode::SpawnRewardPickupAtLocation(AYogCharacterBase* DeadCharacter, const TArray<FLootOption>& RewardOptions, const FVector& SpawnLocation)
 {
 	if (!DeadCharacter || !RewardPickupClass || RewardOptions.IsEmpty())
 	{
-		return;
+		return nullptr;
 	}
 
-	const FVector SpawnLoc = DeadCharacter->GetActorLocation();
-	ARewardPickup* Pickup = GetWorld()->SpawnActor<ARewardPickup>(RewardPickupClass, SpawnLoc, FRotator::ZeroRotator);
+	ARewardPickup* Pickup = GetWorld()->SpawnActor<ARewardPickup>(RewardPickupClass, SpawnLocation, FRotator::ZeroRotator);
 	if (!Pickup)
 	{
-		return;
+		return nullptr;
 	}
 
 	Pickup->bAllowPickupOutsideArrangement = true;
 	Pickup->AssignLoot(RewardOptions);
 	Pickup->RefreshPickupAvailability();
 	Pickup->PlaySpawnFocusCue();
+	return Pickup;
+}
+
+void AYogGameMode::SpawnStorySpecialRewardPickup(AYogCharacterBase* DeadCharacter, const TArray<FLootOption> RewardOptions)
+{
+	const FVector SpawnLoc = DeadCharacter ? DeadCharacter->GetActorLocation() : FVector::ZeroVector;
+	ARewardPickup* Pickup = SpawnRewardPickupAtLocation(DeadCharacter, RewardOptions, SpawnLoc);
+	if (!Pickup)
+	{
+		return;
+	}
 
 	UE_LOG(LogTemp, Log, TEXT("[FirstRunTutorialDirector] Spawned special RewardPickup=%s at %s LootCount=%d"),
 		*GetNameSafe(Pickup),
 		*SpawnLoc.ToString(),
 		RewardOptions.Num());
+}
+
+ARewardPickup* AYogGameMode::SpawnEnemyKillRewardPickup(AYogCharacterBase* DeadEnemy, const TArray<FLootOption>& RewardOptions, const FVector& SpawnLocation)
+{
+	ARewardPickup* Pickup = SpawnRewardPickupAtLocation(DeadEnemy, RewardOptions, SpawnLocation);
+	if (Pickup)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[KillReward] Spawned RewardPickup=%s at %s LootCount=%d Enemy=%s"),
+			*GetNameSafe(Pickup),
+			*SpawnLocation.ToString(),
+			RewardOptions.Num(),
+			*GetNameSafe(DeadEnemy));
+	}
+	return Pickup;
 }
 
 void AYogGameMode::StartForcedSurvivalEncounter()

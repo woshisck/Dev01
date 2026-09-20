@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Character/InteractHoldFeedback.h"
 #include "Character/PlayerInteraction.h"
 #include "GameFramework/Actor.h"
 #include "ShopActor.generated.h"
@@ -13,7 +14,7 @@ class UStaticMeshComponent;
 class UWidgetComponent;
 
 UCLASS()
-class DEVKIT_API AShopActor : public AActor, public IPlayerInteraction
+class DEVKIT_API AShopActor : public AActor, public IPlayerInteraction, public IInteractHoldFeedback
 {
 	GENERATED_BODY()
 
@@ -23,6 +24,9 @@ public:
 
 	virtual void OnPlayerBeginOverlap(APlayerCharacterBase* Player) override;
 	virtual void OnPlayerEndOverlap(APlayerCharacterBase* Player) override;
+
+	// ~ IInteractHoldFeedback
+	virtual void SetInteractHoldProgress(float Normalized) override;
 
 	UFUNCTION(BlueprintCallable, Category = "Shop")
 	void TryInteract(APlayerCharacterBase* Player);

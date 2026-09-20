@@ -77,7 +77,10 @@ protected:
 	void OnReceivedDamageForAI(UYogAbilitySystemComponent* SourceASC, float Damage);
 
 	void DestroySpawnedEnemyWeaponActors();
-	
+
+	/** Rolls UEnemyData::KillRewards and spawns the surviving loot as pickups at the corpse. */
+	void RollAndSpawnKillRewards();
+
 	UPROPERTY(BlueprintReadWrite)
 	TObjectPtr<UEnemyAttributeSet> EnemyAttributeSet;
 

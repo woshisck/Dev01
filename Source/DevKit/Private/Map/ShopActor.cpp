@@ -167,3 +167,13 @@ void AShopActor::SetInteractPromptVisible(bool bVisible)
 		InteractPromptWidgetComp->SetVisibility(bVisible && ShopData);
 	}
 }
+
+void AShopActor::SetInteractHoldProgress(float Normalized)
+{
+	if (!InteractPromptWidgetComp) return;
+
+	if (UInteractPromptWidget* PromptWidget = Cast<UInteractPromptWidget>(InteractPromptWidgetComp->GetWidget()))
+	{
+		PromptWidget->SetHoldProgress(Normalized);
+	}
+}

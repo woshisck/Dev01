@@ -136,8 +136,10 @@ void UWeaponDefinition::SetupWeaponToCharacter(USkeletalMeshComponent* AttachTar
 
 bool UWeaponDefinition::CanEquipWeaponSkill(const UWeaponSkillDataAsset* WeaponSkill) const
 {
+	// Kill-reward pickups grant skills the weapon never listed, so the authored whitelist
+	// no longer gates equipping. AvailableWeaponSkills still seeds ResolveDefaultWeaponSkill.
 	return WeaponSkill
-		&& AvailableWeaponSkills.Contains(WeaponSkill)
+		// && AvailableWeaponSkills.Contains(WeaponSkill)
 		&& WeaponSkill->AbilityClass
 		&& WeaponSkill->AbilityData;
 }

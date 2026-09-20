@@ -6,6 +6,7 @@
 #include "RuneRewardFloatWidget.generated.h"
 
 class UVerticalBox;
+class UProgressBar;
 class UTextBlock;
 class UWidget;
 
@@ -15,6 +16,7 @@ class UWidget;
  * WBP 控件（BindWidgetOptional）：
  *   RuneListBox    VerticalBox  动态填充每个可选符文行（图标 + 名称）
  *   PickupHintText RichText/TextBlock    推荐显示 `<input action="Interact"/> 拾取`
+ *   HoldProgressBar ProgressBar          按住蓄力拾取进度条（未绑定则不显示进度）
  */
 UCLASS(Blueprintable, BlueprintType)
 class DEVKIT_API URuneRewardFloatWidget : public UUserWidget
@@ -28,6 +30,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "RuneRewardFloat")
 	void PlayPromptHighlightPulse(float DurationSeconds);
 
+	/** Drives the hold-to-pickup fill. 0 hides the bar, anything above shows it. */
+	UFUNCTION(BlueprintCallable, Category = "RuneRewardFloat")
+	void SetHoldProgress(float Normalized);
+
 	static float ComputePromptHighlightScale(float ElapsedSeconds, float DurationSeconds);
 
 protected:
@@ -39,6 +45,9 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UWidget> PickupHintText;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	TObjectPtr<UProgressBar> HoldProgressBar;
 
 	void RefreshPickupHint();
 	void AddRewardRow(const FText& Name, UTexture2D* IconTexture, const FLinearColor& FallbackColor);

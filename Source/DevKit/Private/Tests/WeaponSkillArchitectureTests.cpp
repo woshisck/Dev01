@@ -24,18 +24,24 @@ bool FWeaponSkillContainerTest::RunTest(const FString& Parameters)
 	UWeaponSkillDataAsset* Thrust = NewObject<UWeaponSkillDataAsset>(Weapon);
 	UWeaponSkillDataAsset* Incomplete = NewObject<UWeaponSkillDataAsset>(Weapon);
 	UWeaponSkillDataAsset* Unsupported = NewObject<UWeaponSkillDataAsset>(Weapon);
+	UWeaponSkillDataAsset* UnlistedButValid = NewObject<UWeaponSkillDataAsset>(Weapon);
 
 	Block->AbilityClass = UGA_WeaponSkill_Block::StaticClass();
 	Thrust->AbilityClass = UGA_WeaponSkill_Thrust::StaticClass();
 	Block->AbilityData = NewObject<UWeaponSkillAbilityMontageData>(Block);
 	Thrust->AbilityData = NewObject<UWeaponSkillAbilityMontageData>(Thrust);
 	Incomplete->AbilityClass = UGA_WeaponSkill_Block::StaticClass();
+	UnlistedButValid->AbilityClass = UGA_WeaponSkill_Thrust::StaticClass();
+	UnlistedButValid->AbilityData = NewObject<UWeaponSkillAbilityMontageData>(UnlistedButValid);
 	Weapon->AvailableWeaponSkills = { Block, Thrust };
 	Weapon->DefaultWeaponSkill = Thrust;
 
 	TestTrue(TEXT("Listed block skill is compatible"), Weapon->CanEquipWeaponSkill(Block));
 	TestTrue(TEXT("Listed thrust skill is compatible"), Weapon->CanEquipWeaponSkill(Thrust));
-	TestFalse(TEXT("Unlisted skill is rejected"), Weapon->CanEquipWeaponSkill(Unsupported));
+	TestFalse(TEXT("Skill without AbilityClass or AbilityData is rejected"), Weapon->CanEquipWeaponSkill(Unsupported));
+	// Kill-reward pickups grant skills the weapon never listed, so the whitelist no longer gates equipping.
+	TestTrue(TEXT("Unlisted but fully authored skill is equippable"), Weapon->CanEquipWeaponSkill(UnlistedButValid));
+	TestFalse(TEXT("Null skill is rejected"), Weapon->CanEquipWeaponSkill(nullptr));
 	TestEqual(TEXT("Explicit listed default wins"), Weapon->ResolveDefaultWeaponSkill(), Thrust);
 
 	Weapon->DefaultWeaponSkill = Unsupported;

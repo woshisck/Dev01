@@ -5,6 +5,9 @@
 #include "CommonInputSubsystem.h"
 #include "CommonTextBlock.h"
 #include "Components/Border.h"
+#include "Components/ProgressBar.h"
+#include "Components/VerticalBox.h"
+#include "Components/VerticalBoxSlot.h"
 #include "UI/InputActionRichTextDecorator.h"
 #include "UI/YogCommonRichTextBlock.h"
 
@@ -43,6 +46,7 @@ void UInteractPromptWidget::NativeConstruct()
 	BuildFallbackLayout();
 	EnsureInputDecorator();
 	RefreshPrompt();
+	SetHoldProgress(0.f);
 
 	if (UCommonInputSubsystem* InputSub =
 		ULocalPlayer::GetSubsystem<UCommonInputSubsystem>(GetOwningLocalPlayer()))
@@ -68,6 +72,20 @@ void UInteractPromptWidget::SetPromptLabel(const FText& InLabel)
 	RefreshPrompt();
 }
 
+void UInteractPromptWidget::SetHoldProgress(float Normalized)
+{
+	if (!HoldProgressBar)
+	{
+		return;
+	}
+
+	const float Clamped = FMath::Clamp(Normalized, 0.f, 1.f);
+	HoldProgressBar->SetPercent(Clamped);
+	HoldProgressBar->SetVisibility(Clamped > KINDA_SMALL_NUMBER
+		? ESlateVisibility::HitTestInvisible
+		: ESlateVisibility::Collapsed);
+}
+
 void UInteractPromptWidget::BuildFallbackLayout()
 {
 	if (PromptText || !WidgetTree)
@@ -90,7 +108,31 @@ void UInteractPromptWidget::BuildFallbackLayout()
 	PromptText->OverrideColor = PromptTextColor;
 
 	PromptBorder->SetContent(PromptText);
-	WidgetTree->RootWidget = PromptBorder;
+
+	HoldProgressBar = WidgetTree->ConstructWidget<UProgressBar>(
+		UProgressBar::StaticClass(),
+		TEXT("HoldProgressBar"));
+	// SProgressBar takes its desired height from the style brush, so the bar thickness has to
+	// be baked into ImageSize here rather than set on the UProgressBar itself.
+	const FVector2f BarImageSize(64.f, HoldProgressBarHeight);
+	FProgressBarStyle HoldStyle = HoldProgressBar->GetWidgetStyle();
+	HoldStyle.BackgroundImage = FSlateRoundedBoxBrush(PromptFillColor, 2.f, BarImageSize);
+	HoldStyle.FillImage = FSlateRoundedBoxBrush(HoldProgressFillColor, 2.f, BarImageSize);
+	HoldProgressBar->SetWidgetStyle(HoldStyle);
+	HoldProgressBar->SetPercent(0.f);
+	HoldProgressBar->SetVisibility(ESlateVisibility::Collapsed);
+
+	UVerticalBox* Root = WidgetTree->ConstructWidget<UVerticalBox>(
+		UVerticalBox::StaticClass(),
+		TEXT("PromptRoot"));
+	Root->AddChildToVerticalBox(PromptBorder);
+	if (UVerticalBoxSlot* BarSlot = Cast<UVerticalBoxSlot>(Root->AddChildToVerticalBox(HoldProgressBar)))
+	{
+		BarSlot->SetPadding(FMargin(0.f, 3.f, 0.f, 0.f));
+		BarSlot->SetHorizontalAlignment(HAlign_Fill);
+	}
+
+	WidgetTree->RootWidget = Root;
 }
 
 void UInteractPromptWidget::RefreshPrompt(ECommonInputType /*NewInputType*/)

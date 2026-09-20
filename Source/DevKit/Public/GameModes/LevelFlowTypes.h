@@ -8,6 +8,7 @@
 #include "LevelFlowTypes.generated.h"
 
 class UTexture2D;
+class UWeaponSkillDataAsset;
 
 /**
  * 关卡阶段
@@ -30,6 +31,12 @@ enum class ELootType : uint8
 	Rune			UMETA(DisplayName = "Rune"),
 	Gold			UMETA(DisplayName = "Gold"),
 	Material		UMETA(DisplayName = "Material"),
+
+	// Only supported on the enemy kill-reward immediate-grant path
+	// (AEnemyCharacterBase::RollAndSpawnKillRewards -> ARewardPickup::GrantImmediateLoot).
+	// Placing this in a room/portal reward pool needs Portal.cpp, PortalPreviewWidget.cpp,
+	// LootSelectionWidget.cpp and AYogGameMode::SelectLoot extended first.
+	WeaponSkill		UMETA(DisplayName = "WeaponSkill"),
 };
 
 /** 单个战利品选项，由 GameMode 生成后广播给 UI */
@@ -44,6 +51,14 @@ struct DEVKIT_API FLootOption
 	// LootType == Rune 时有效
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot")
 	TObjectPtr<URuneDataAsset> RuneAsset = nullptr;
+
+	// LootType == WeaponSkill 时有效
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot")
+	TObjectPtr<UWeaponSkillDataAsset> WeaponSkillAsset = nullptr;
+
+	// LootType == WeaponSkill 时有效：可用次数，<=0 表示永久
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot")
+	int32 WeaponSkillCharges = INDEX_NONE;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot")
 	int32 Amount = 0;

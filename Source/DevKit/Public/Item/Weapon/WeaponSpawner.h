@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Character/InteractHoldFeedback.h"
 #include "Character/PlayerInteraction.h"
 #include "Map/PickupInteractable.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
@@ -42,7 +43,7 @@ enum class EWeaponSpawnerTutorialVisibility : uint8
 
 
 UCLASS(Blueprintable, BlueprintType)
-class DEVKIT_API AWeaponSpawner : public AActor, public IPlayerInteraction, public IPickupInteractable
+class DEVKIT_API AWeaponSpawner : public AActor, public IPlayerInteraction, public IPickupInteractable, public IInteractHoldFeedback
 {
 	GENERATED_BODY()
 
@@ -88,6 +89,9 @@ public:
 	virtual void OnPlayerLeaveRange(APlayerCharacterBase* Player) override;
 	virtual void TryPickup(APlayerCharacterBase* Player) override;
 	// ~ End IPickupInteractable
+
+	// ~ IInteractHoldFeedback
+	virtual void SetInteractHoldProgress(float Normalized) override;
 
 	UFUNCTION(BlueprintImplementableEvent)
 	void GrantWeapon(APlayerCharacterBase* ReceivingChar);
