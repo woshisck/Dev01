@@ -440,6 +440,10 @@ void SDevKitDecalCollectionWidget::Construct(const FArguments& InArgs)
 			]
 			+ SVerticalBox::Slot().AutoHeight().Padding(0, 8, 0, 0)
 			[
+				BuildInstanceBrowser()
+			]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0, 8, 0, 0)
+			[
 				SNew(SBorder)
 				.Visibility_Lambda([this] { return ActiveSection == 3 ? EVisibility::Visible : EVisibility::Collapsed; })
 				.Padding(FMargin(8.f, 6.f))
@@ -975,6 +979,7 @@ void SDevKitDecalCollectionWidget::Construct(const FArguments& InArgs)
 void SDevKitDecalCollectionWidget::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
 	SCompoundWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
+	RefreshInstanceRows();
 
 	FGuid CurrentGuid;
 	FDevKitDecalPlacementRecord Record;
@@ -996,8 +1001,174 @@ void SDevKitDecalCollectionWidget::Tick(const FGeometry& AllottedGeometry, const
 	if (CurrentGuid != LastSelectedInstanceGuid)
 	{
 		LastSelectedInstanceGuid = CurrentGuid;
+		if (InstanceListView)
+		{
+			InstanceListView->ClearSelection();
+			for (const FDevKitDecalInstanceItemPtr& Item : InstanceItems)
+			{
+				if (Item.IsValid() && *Item == CurrentGuid)
+				{
+					InstanceListView->SetSelection(Item, ESelectInfo::Direct);
+					InstanceListView->RequestScrollIntoView(Item);
+					break;
+				}
+			}
+		}
 		Invalidate(EInvalidateWidget::LayoutAndVolatility);
 	}
+}
+
+TSharedRef<SWidget> SDevKitDecalCollectionWidget::BuildInstanceBrowser()
+{
+	auto MakeCommand = [this](const FText& Label, const FText& Help, int32 Command) -> TSharedRef<SWidget>
+	{
+		return SNew(SButton).Text(Label).ToolTipText(Help)
+			.IsEnabled_Lambda([this] { FDevKitDecalPlacementRecord Record; return GetSelectedInstanceRecord(Record); })
+			.OnClicked_Lambda([this, Command] { return RunSelectedInstanceCommand(Command); });
+	};
+	return SNew(SExpandableArea)
+		.Visibility_Lambda([this] { return ActiveSection == 0 || ActiveSection == 1 ? EVisibility::Visible : EVisibility::Collapsed; })
+		.InitiallyCollapsed(false)
+		.HeaderContent()[SNew(STextBlock).Text(LOCTEXT("SceneInstanceList", "场景实例：选中一处进行调整"))]
+		.BodyContent()
+		[
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot().AutoHeight().Padding(4.f)
+			[
+				SNew(SSearchBox).HintText(LOCTEXT("InstanceSearchHint", "搜索已放置实例名称，例如 Poison"))
+				.OnTextChanged_Lambda([this](const FText& Text)
+				{
+					InstanceSearchText = Text.ToString().TrimStartAndEnd();
+					InstanceListCollection.Reset();
+					RefreshInstanceRows();
+				})
+			]
+			+ SVerticalBox::Slot().AutoHeight().Padding(4.f, 0.f)
+			[
+				SNew(SBox).HeightOverride(156.f)
+				[
+					SAssignNew(InstanceListView, SListView<FDevKitDecalInstanceItemPtr>)
+					.ListItemsSource(&InstanceItems).SelectionMode(ESelectionMode::Single)
+					.OnGenerateRow(this, &SDevKitDecalCollectionWidget::GenerateInstanceRow)
+					.OnSelectionChanged(this, &SDevKitDecalCollectionWidget::OnInstanceSelectionChanged)
+				]
+			]
+			+ SVerticalBox::Slot().AutoHeight().Padding(4.f)
+			[
+				SNew(STextBlock).AutoWrapText(true).Text_Lambda([this]
+				{
+					FDevKitDecalPlacementRecord Record;
+					return GetSelectedInstanceRecord(Record)
+						? FText::Format(LOCTEXT("InstanceSelectedHint", "已选中 1 个实例 · 列表 {0} 项。回到视口使用 W 移动 / E 旋转 / R 缩放；删除只影响这一处，可 Ctrl+Z 撤销。"), FText::AsNumber(InstanceItems.Num()))
+						: FText::Format(LOCTEXT("InstanceEmptyHint", "当前 0 个实例 · 列表 {0} 项。请点击上方实例行，不是资产库缩略图；不会删除整个 Collection。"), FText::AsNumber(InstanceItems.Num()));
+				})
+			]
+			+ SVerticalBox::Slot().AutoHeight().Padding(4.f)
+			[
+				SNew(SWrapBox).UseAllottedSize(true).InnerSlotPadding(FVector2D(4.f, 4.f))
+				+ SWrapBox::Slot()[MakeCommand(LOCTEXT("FocusInstance", "定位实例"), LOCTEXT("FocusInstanceHelp", "将视口移到选中的这一处，不移动物件。"), 0)]
+				+ SWrapBox::Slot()[MakeCommand(LOCTEXT("DuplicateInstance", "复制实例"), LOCTEXT("DuplicateInstanceHelp", "复制当前放置记录并选中新副本；使用 W 移开。"), 1)]
+				+ SWrapBox::Slot()[MakeCommand(LOCTEXT("DeleteInstance", "删除实例"), LOCTEXT("DeleteInstanceHelp", "仅删除当前实例记录，不删除资产定义、材质或整个 Collection。可 Ctrl+Z 撤销。"), 2)]
+			]
+		];
+}
+
+void SDevKitDecalCollectionWidget::RefreshInstanceRows()
+{
+	ADevKitDecalCollectionActor* Collection = GetTargetCollection();
+	uint32 Signature = GetTypeHash(InstanceSearchText);
+	if (Collection && Collection->Collection)
+	{
+		for (const FDevKitDecalPlacementRecord& Record : Collection->Collection->Records)
+		{
+			Signature = HashCombine(Signature, GetTypeHash(Record.InstanceGuid));
+			Signature = HashCombine(Signature, GetTypeHash(Record.Asset.Get()));
+			Signature = HashCombine(Signature, GetTypeHash(Record.bEnabled));
+		}
+	}
+	if (Collection == InstanceListCollection.Get() && Signature == InstanceListSignature) return;
+	InstanceListCollection = Collection;
+	InstanceListSignature = Signature;
+	InstanceItems.Reset();
+	if (Collection && Collection->Collection)
+	{
+		for (const FDevKitDecalPlacementRecord& Record : Collection->Collection->Records)
+		{
+			const FString Name = Record.Asset ? Record.Asset->GetName() : TEXT("未配置资产");
+			const FString DisplayName = Record.Asset ? Record.Asset->DisplayName.ToString() : FString();
+			if (InstanceSearchText.IsEmpty() || Name.Contains(InstanceSearchText) || DisplayName.Contains(InstanceSearchText)
+				|| Record.InstanceGuid.ToString().Contains(InstanceSearchText))
+			{
+				InstanceItems.Add(MakeShared<FGuid>(Record.InstanceGuid));
+			}
+		}
+	}
+	// Re-apply selection to replacement list item objects on the next Tick.
+	LastSelectedInstanceGuid.Invalidate();
+	if (InstanceListView) InstanceListView->RequestListRefresh();
+}
+
+TSharedRef<ITableRow> SDevKitDecalCollectionWidget::GenerateInstanceRow(
+	FDevKitDecalInstanceItemPtr Item, const TSharedRef<STableViewBase>& OwnerTable)
+{
+	return SNew(STableRow<FDevKitDecalInstanceItemPtr>, OwnerTable).Padding(4.f)
+	[
+		SNew(STextBlock).AutoWrapText(true).Text_Lambda([this, Item]
+		{
+			ADevKitDecalCollectionActor* Collection = GetTargetCollection();
+			const FDevKitDecalPlacementRecord* Record = Collection && Collection->Collection && Item.IsValid()
+				? Collection->Collection->FindRecord(*Item) : nullptr;
+			if (!Record) return LOCTEXT("RemovedInstanceRow", "实例已移除");
+			const FString Name = Record->Asset
+				? (Record->Asset->DisplayName.IsEmpty() ? Record->Asset->GetName() : Record->Asset->DisplayName.ToString())
+				: TEXT("未配置资产");
+			return FText::FromString(FString::Printf(TEXT("%s%s  [%s]\n位置 %s"), Record->bEnabled ? TEXT("") : TEXT("[禁用] "),
+				*Name, *Record->InstanceGuid.ToString(EGuidFormats::Digits).Left(8), *Record->Transform.GetLocation().ToCompactString()));
+		})
+	];
+}
+
+void SDevKitDecalCollectionWidget::OnInstanceSelectionChanged(FDevKitDecalInstanceItemPtr Item, ESelectInfo::Type SelectInfo)
+{
+	if (!Item.IsValid() || SelectInfo == ESelectInfo::Direct) return;
+	const FGuid Guid = *Item;
+	if (!GLevelEditorModeTools().IsModeActive(UDevKitDecalCollectionEdMode::EM_DevKitDecalCollection)) EnterSelectedCollection();
+	if (UDevKitDecalCollectionEdMode* Mode = Cast<UDevKitDecalCollectionEdMode>(
+		GLevelEditorModeTools().GetActiveScriptableMode(UDevKitDecalCollectionEdMode::EM_DevKitDecalCollection)))
+	{
+		ActionStatus = Mode->SelectRecord(Guid)
+			? TEXT("已选中场景中的 1 个实例。使用定位、复制、删除按钮，或回到视口 W/E/R 调整。")
+			: TEXT("无法选中：当前 Collection 已变化或该记录不存在，请刷新当前 Collection。");
+	}
+}
+
+FReply SDevKitDecalCollectionWidget::RunSelectedInstanceCommand(int32 Command)
+{
+	FDevKitDecalPlacementRecord Record;
+	if (!GetSelectedInstanceRecord(Record))
+	{
+		ActionStatus = TEXT("没有选中的场景实例；请先在实例列表中点击一项。未修改任何对象。");
+		return FReply::Handled();
+	}
+	if (UDevKitDecalCollectionEdMode* Mode = Cast<UDevKitDecalCollectionEdMode>(
+		GLevelEditorModeTools().GetActiveScriptableMode(UDevKitDecalCollectionEdMode::EM_DevKitDecalCollection)))
+	{
+		const bool bSuccess = Command == 0 ? Mode->FocusSelectedRecord()
+			: Command == 1 ? Mode->DuplicateSelectedRecord() : Mode->DeleteSelectedRecord();
+		if (bSuccess && Command == 0)
+		{
+			if (const TSharedPtr<ILevelEditor> LevelEditor = FModuleManager::LoadModuleChecked<FLevelEditorModule>(TEXT("LevelEditor")).GetFirstLevelEditor())
+			{
+				if (const TSharedPtr<SLevelViewport> Viewport = LevelEditor->GetActiveViewportInterface()) Viewport->SetKeyboardFocusToThisViewport();
+			}
+		}
+		ActionStatus = bSuccess
+			? (Command == 0 ? TEXT("已定位当前实例。") : Command == 1 ? TEXT("已复制并选中新实例；可用 W 移开，可 Ctrl+Z 撤销。")
+				: TEXT("已删除 1 个实例；其他记录、材质和资产定义不变。可 Ctrl+Z 撤销。"))
+			: TEXT("操作未完成：请确认实例仍存在，且有可用的关卡视口。");
+		RefreshInstanceRows();
+	}
+	return FReply::Handled();
 }
 
 bool SDevKitDecalCollectionWidget::GetSelectedInstanceRecord(FDevKitDecalPlacementRecord& OutRecord) const
@@ -1020,7 +1191,7 @@ FText SDevKitDecalCollectionWidget::GetSelectedInstanceSummary() const
 	FDevKitDecalPlacementRecord Record;
 	if (!GetSelectedInstanceRecord(Record) || !Record.Asset)
 	{
-		return LOCTEXT("NoSelectedInstance", "<muted>未选中当前 Collection 的实例。</> 进入 Edit 后点击单个网格或 Deferred 投射范围；使用 <key>W/E/R</> 调整，材质预览只影响当前记录。");
+		return LOCTEXT("NoSelectedInstance", "<muted>未选中当前 Collection 的实例。</> 请在上方“场景实例”列表中点击一项，也可以在视口点选；使用 <key>W/E/R</> 调整，材质预览只影响当前记录。");
 	}
 
 	UStaticMesh* Mesh = Record.Asset->Mesh ? Record.Asset->Mesh : (Record.Asset->LegacyRVTAsset ? Record.Asset->LegacyRVTAsset->Mesh : nullptr);
@@ -1039,7 +1210,8 @@ FText SDevKitDecalCollectionWidget::GetSelectedInstanceSummary() const
 	}
 	return FText::FromString(FString::Printf(
 		TEXT("<label>当前实例</> <muted>%s</>\n<label>类型</> %s  ·  <label>模型</> %s\n<label>材质</> %s\n<muted>材质预览不会改动其他记录；Mesh 类可 Bake 为独立批次，Deferred 保持独立投射代理。</>"),
-		*EscapeDecalRichText(Record.InstanceGuid.ToString(EGuidFormats::DigitsWithHyphensInBraces)),
+		*EscapeDecalRichText((Record.Asset->DisplayName.IsEmpty() ? Record.Asset->GetName() : Record.Asset->DisplayName.ToString())
+			+ TEXT(" [") + Record.InstanceGuid.ToString(EGuidFormats::Digits).Left(8) + TEXT("]")),
 		*EscapeDecalRichText(BackendLabel.ToString()),
 		*EscapeDecalRichText(Mesh ? Mesh->GetName() : TEXT("未配置模型")),
 		*EscapeDecalRichText(Material ? Material->GetName() : TEXT("未配置材质"))));
