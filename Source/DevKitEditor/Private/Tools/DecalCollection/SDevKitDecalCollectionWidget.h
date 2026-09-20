@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/STileView.h"
+#include "Widgets/Views/SListView.h"
 
 class ADevKitDecalCollectionActor;
 class UDevKitDecalAsset;
@@ -17,6 +18,7 @@ struct FDevKitDecalPaletteItem;
 class SVerticalBox;
 
 using FDevKitDecalPaletteItemPtr = TSharedPtr<FDevKitDecalPaletteItem>;
+using FDevKitDecalInstanceItemPtr = TSharedPtr<FGuid>;
 
 class SDevKitDecalCollectionWidget final : public SCompoundWidget
 {
@@ -56,6 +58,11 @@ private:
 	void OnSelectedInstanceMaterialChanged(const FAssetData& AssetData);
 	void OnPaletteSearchChanged(const FText& SearchText);
 	FReply BakeSelectedInstance();
+	TSharedRef<SWidget> BuildInstanceBrowser();
+	void RefreshInstanceRows();
+	TSharedRef<ITableRow> GenerateInstanceRow(FDevKitDecalInstanceItemPtr Item, const TSharedRef<STableViewBase>& OwnerTable);
+	void OnInstanceSelectionChanged(FDevKitDecalInstanceItemPtr Item, ESelectInfo::Type SelectInfo);
+	FReply RunSelectedInstanceCommand(int32 Command);
 	FText GetSelectedInstanceSummary() const;
 	FString GetSelectedInstanceMaterialPath() const;
 	FText GetPaletteCountText() const;
@@ -91,6 +98,11 @@ private:
 	TSharedPtr<STileView<FDevKitDecalPaletteItemPtr>> PaletteTileView;
 	FText PaletteEmptyMessage;
 	TSharedPtr<SVerticalBox> CollectionRows;
+	TArray<FDevKitDecalInstanceItemPtr> InstanceItems;
+	TSharedPtr<SListView<FDevKitDecalInstanceItemPtr>> InstanceListView;
+	FString InstanceSearchText;
+	TWeakObjectPtr<ADevKitDecalCollectionActor> InstanceListCollection;
+	uint32 InstanceListSignature = 0;
 	FString PaletteSearchText;
 	/** -1 is every backend; otherwise the numeric EDevKitDecalBackend value. */
 	int32 PaletteBackendFilter = -1;

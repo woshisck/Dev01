@@ -181,13 +181,25 @@ ADevKitDecalCollectionActor::ADevKitDecalCollectionActor()
 
 void ADevKitDecalCollectionActor::RebuildDerivedRendering()
 {
-	if (Collection)
-	{
-		Collection->Modify();
-	}
+	// This changes derived proxies only. Do not record a second authoring change
+	// when rebuilding after Undo, loading, or a diagnostic refresh.
 	ClearDerivedRendering();
 	BuildDerivedRendering();
 }
+
+#if WITH_EDITOR
+void ADevKitDecalCollectionActor::PostEditUndo()
+{
+	Super::PostEditUndo();
+	if (IsValid(this) && !HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject)) RebuildDerivedRendering();
+}
+
+void ADevKitDecalCollectionActor::PostEditUndo(TSharedPtr<ITransactionObjectAnnotation> TransactionAnnotation)
+{
+	Super::PostEditUndo(TransactionAnnotation);
+	if (IsValid(this) && !HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject)) RebuildDerivedRendering();
+}
+#endif
 
 bool ADevKitDecalCollectionActor::ValidateCollection()
 {
@@ -280,6 +292,7 @@ bool ADevKitDecalCollectionActor::FindRecordForDerivedInstance(
 bool ADevKitDecalCollectionActor::FindRecordForDerivedDeferred(UDecalComponent* Component, FGuid& OutRecordGuid) const
 {
 	OutRecordGuid.Invalidate();
+	if (!IsValid(Component) || Component->GetOwner() != this) return false;
 	const int32 ComponentIndex = DerivedDeferredComponents.IndexOfByKey(Component);
 	if (!DerivedDeferredGuids.IsValidIndex(ComponentIndex))
 	{

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ScopedTransaction.h"
+#include "EditorUndoClient.h"
 #include "Tools/LegacyEdModeWidgetHelpers.h"
 #include "Surface/DevKitDecalCollectionActor.h"
 #include "DevKitDecalCollectionEdMode.generated.h"
@@ -13,7 +14,7 @@ class HHitProxy;
 struct FViewportClick;
 
 UCLASS(Transient)
-class DEVKITEDITOR_API UDevKitDecalCollectionEdMode : public UBaseLegacyWidgetEdMode
+class DEVKITEDITOR_API UDevKitDecalCollectionEdMode : public UBaseLegacyWidgetEdMode, public FEditorUndoClient
 {
 	GENERATED_BODY()
 
@@ -25,6 +26,8 @@ public:
 	virtual void Enter() override;
 	virtual void Exit() override;
 	virtual void ModeTick(float DeltaTime) override;
+	virtual void PostUndo(bool bSuccess) override;
+	virtual void PostRedo(bool bSuccess) override { PostUndo(bSuccess); }
 	virtual bool IsSelectionAllowed(AActor* InActor, bool bInSelection) const override;
 	virtual bool IsEditingDisallowed(AActor* InActor) const override;
 	virtual bool ProcessEditDuplicate() override;
@@ -65,6 +68,11 @@ public:
 	float GetBrushSpacing() const { return BrushSpacing; }
 	/** Returns the authored record behind the current ISM selection. */
 	bool GetSelectedInstanceDetails(FDevKitDecalPlacementRecord& OutRecord) const;
+	/** Artist-facing commands always operate on one authored GUID, never the collection actor. */
+	bool SelectRecord(const FGuid& RecordGuid);
+	bool DeleteSelectedRecord();
+	bool DuplicateSelectedRecord();
+	bool FocusSelectedRecord();
 	/** Applies a material preview to only the selected record/batch. */
 	bool SetSelectedInstanceMaterialOverride(UMaterialInterface* Material);
 	/** Rebinds the selected record to a baked material-variant asset. */
@@ -76,13 +84,13 @@ protected:
 	virtual void CreateToolkit() override;
 
 private:
+	friend class FDevKitDecalSelectionRebuildTest;
 	TWeakObjectPtr<ADevKitDecalCollectionActor> SessionCollection;
 	TArray<FDevKitDecalPlacementRecord> SessionRecords;
 	bool bSessionSnapshotValid = false;
 	bool bAcceptOnExit = true;
-	FGuid SelectedDeferredRecordGuid;
-	TWeakObjectPtr<class UDecalComponent> SelectedDeferredComponent;
-	TUniquePtr<FScopedTransaction> DeferredTransformTransaction;
+	mutable FGuid SelectedRecordGuid;
+	TUniquePtr<FScopedTransaction> RecordTransformTransaction;
 	TWeakObjectPtr<UDevKitDecalAsset> BrushPlacementAsset;
 	TUniquePtr<FScopedTransaction> BrushPlacementTransaction;
 	FVector BrushLastPlacement = FVector::ZeroVector;
@@ -93,8 +101,8 @@ private:
 
 	bool GetSelectedInstanceTransform(FTransform& OutTransform) const;
 	bool GetSelectedInstanceRecord(FGuid& OutRecordGuid, FDevKitDecalPlacementRecord& OutRecord) const;
-	bool GetSelectedDeferredRecord(FGuid& OutRecordGuid, FDevKitDecalPlacementRecord& OutRecord) const;
 	bool TrySelectDeferredRecord(const FViewportClick& Click);
+	bool UpdateSelectedRecordTransform(const FGuid& RecordGuid, const FTransform& Transform);
 	void RestoreSessionAdoptionSourceVisibility(ADevKitDecalCollectionActor* Collection) const;
 	bool ResolvePlacementTransform(UDevKitDecalAsset* Asset, FEditorViewportClient* ViewportClient, int32 ViewportX, int32 ViewportY, bool bRequireSurfaceHit, FTransform& OutTransform) const;
 	bool AddPlacementRecord(UDevKitDecalAsset* Asset, const FTransform& PlacementTransform);

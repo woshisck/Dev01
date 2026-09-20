@@ -23,6 +23,7 @@
 #include "SceneView.h"
 #include "Subsystems/EditorElementSubsystem.h"
 #include "Surface/DevKitDecalCollectionActor.h"
+#include "Tools/DecalCollection/DevKitDecalSelectionGeometry.h"
 #include "Tools/DecalCollection/SDevKitDecalCollectionWidget.h"
 #include "Toolkits/BaseToolkit.h"
 #include "Selection.h"
@@ -113,6 +114,7 @@ void UDevKitDecalCollectionEdMode::CreateToolkit()
 void UDevKitDecalCollectionEdMode::Enter()
 {
 	UEdMode::Enter();
+	if (GEditor) GEditor->RegisterForUndo(this);
 	ADevKitDecalCollectionActor* RequestedCollection = GRequestedCollection.Get();
 	GRequestedCollection.Reset();
 	const bool bRequestedStarted = BeginEditingCollection(RequestedCollection);
@@ -152,6 +154,29 @@ void UDevKitDecalCollectionEdMode::ModeTick(float DeltaTime)
 				FallbackCollection ? *FallbackCollection->GetPathName() : TEXT("None"), bFallbackStarted ? 1 : 0);
 		}
 	}
+	if (ADevKitDecalCollectionActor* Collection = SessionCollection.Get(); Collection && GEditor && GEditor->GetSelectedComponents())
+	{
+		FGuid ComponentGuid;
+		for (FSelectionIterator It(*GEditor->GetSelectedComponents()); It; ++It)
+		{
+			if (Collection->FindRecordForDerivedDeferred(Cast<UDecalComponent>(*It), ComponentGuid)) break;
+		}
+		if (ComponentGuid.IsValid())
+		{
+			// Promote a Details proxy selection into the actual instance. This also
+			// removes the misleading whole-Collection outline / editable proxy fields.
+			SelectRecord(ComponentGuid);
+		}
+	}
+}
+
+void UDevKitDecalCollectionEdMode::PostUndo(bool bSuccess)
+{
+	if (bSuccess && SessionCollection.IsValid() && GEditor)
+	{
+		// Actor PostEditUndo has rebuilt the proxies, including after leaving this mode.
+		GEditor->RedrawLevelEditingViewports();
+	}
 }
 
 void UDevKitDecalCollectionEdMode::RequestCollectionForActivation(ADevKitDecalCollectionActor* Collection)
@@ -184,6 +209,14 @@ bool UDevKitDecalCollectionEdMode::BeginEditingCollection(ADevKitDecalCollection
 		UE_LOG(LogTemp, Warning, TEXT("DecalCollectionMode BeginEditing rejected: null collection/component"));
 		return false;
 	}
+	FGuid InitialComponentSelection;
+	if (GEditor && GEditor->GetSelectedComponents())
+	{
+		for (FSelectionIterator It(*GEditor->GetSelectedComponents()); It; ++It)
+		{
+			if (Collection->FindRecordForDerivedDeferred(Cast<UDecalComponent>(*It), InitialComponentSelection)) break;
+		}
+	}
 
 	// A Mode can already be active when the user selects a Collection in the
 	// Outliner or presses Edit in the inline toolkit.  In that case UE does not
@@ -201,8 +234,7 @@ bool UDevKitDecalCollectionEdMode::BeginEditingCollection(ADevKitDecalCollection
 		SessionRecords = Collection->Collection->Records;
 		bSessionSnapshotValid = true;
 		bAcceptOnExit = true;
-		SelectedDeferredRecordGuid.Invalidate();
-		SelectedDeferredComponent.Reset();
+		SelectedRecordGuid.Invalidate();
 	}
 
 	Collection->BeginEditSession();
@@ -254,6 +286,7 @@ bool UDevKitDecalCollectionEdMode::BeginEditingCollection(ADevKitDecalCollection
 		}
 		GEditor->RedrawLevelEditingViewports();
 	}
+	if (InitialComponentSelection.IsValid()) SelectedRecordGuid = InitialComponentSelection;
 	return true;
 }
 
@@ -400,12 +433,21 @@ bool UDevKitDecalCollectionEdMode::AddPlacementRecord(UDevKitDecalAsset* Asset, 
 	}
 
 	Collection->Modify();
-	if (!Collection->Collection->AddPaletteAsset(Asset)
-		|| !Collection->Collection->AddRecord(Asset, PlacementTransform).IsValid())
+	if (!Collection->Collection->AddPaletteAsset(Asset)) return false;
+	const FGuid NewGuid = Collection->Collection->AddRecord(Asset, PlacementTransform);
+	if (!NewGuid.IsValid())
 	{
 		return false;
 	}
 	Collection->RebuildDerivedRendering();
+	if (bBrushStrokeActive)
+	{
+		SelectedRecordGuid = NewGuid;
+	}
+	else
+	{
+		SelectRecord(NewGuid);
+	}
 	Collection->MarkPackageDirty();
 	if (Collection->GetLevel())
 	{
@@ -471,7 +513,8 @@ bool UDevKitDecalCollectionEdMode::PaintBrushAtViewportCoordinates(FEditorViewpo
 
 void UDevKitDecalCollectionEdMode::Exit()
 {
-	DeferredTransformTransaction.Reset();
+	if (GEditor) GEditor->UnregisterForUndo(this);
+	RecordTransformTransaction.Reset();
 	BrushPlacementTransaction.Reset();
 	bBrushStrokeActive = false;
 	bHasBrushLastPlacement = false;
@@ -496,8 +539,7 @@ void UDevKitDecalCollectionEdMode::Exit()
 	}
 	SessionCollection.Reset();
 	SessionRecords.Reset();
-	SelectedDeferredRecordGuid.Invalidate();
-	SelectedDeferredComponent.Reset();
+	SelectedRecordGuid.Invalidate();
 	bSessionSnapshotValid = false;
 	UEdMode::Exit();
 }
@@ -635,6 +677,12 @@ bool UDevKitDecalCollectionEdMode::IsEditingDisallowed(AActor* InActor) const
 
 bool UDevKitDecalCollectionEdMode::ProcessEditDelete()
 {
+	if (DeleteSelectedRecord() || SessionCollection.IsValid()) return true;
+	return UEdMode::ProcessEditDelete();
+}
+
+bool UDevKitDecalCollectionEdMode::DeleteSelectedRecord()
+{
 	FGuid RecordGuid;
 	FDevKitDecalPlacementRecord Record;
 	ADevKitDecalCollectionActor* Collection = SessionCollection.Get();
@@ -644,8 +692,9 @@ bool UDevKitDecalCollectionEdMode::ProcessEditDelete()
 		Collection->Modify();
 		if (Collection->Collection->RemoveRecord(RecordGuid))
 		{
-			SelectedDeferredRecordGuid.Invalidate();
-			SelectedDeferredComponent.Reset();
+			// Retain identity, not a component pointer: Undo can reselect this exact
+			// record, while FindRecord correctly reports no selection after deletion.
+			SelectedRecordGuid = RecordGuid;
 			Collection->RebuildDerivedRendering();
 			Collection->MarkPackageDirty();
 			if (Collection->GetLevel())
@@ -663,17 +712,22 @@ bool UDevKitDecalCollectionEdMode::ProcessEditDelete()
 	}
 	// In the active mode an unowned actor must never be deleted through a decal
 	// hotkey. Leaving it untouched makes the ownership boundary explicit.
-	return SessionCollection.IsValid() ? true : UEdMode::ProcessEditDelete();
+	return false;
 }
 
 bool UDevKitDecalCollectionEdMode::ProcessEditDuplicate()
+{
+	return DuplicateSelectedRecord() || SessionCollection.IsValid();
+}
+
+bool UDevKitDecalCollectionEdMode::DuplicateSelectedRecord()
 {
 	FGuid RecordGuid;
 	FDevKitDecalPlacementRecord SourceRecord;
 	ADevKitDecalCollectionActor* Collection = SessionCollection.Get();
 	if (!Collection || !Collection->Collection || !GetSelectedInstanceRecord(RecordGuid, SourceRecord) || !SourceRecord.Asset)
 	{
-		return SessionCollection.IsValid();
+		return false;
 	}
 
 	const FScopedTransaction Transaction(LOCTEXT("DuplicateCollectionRecord", "复制贴花与地表物件实例"));
@@ -682,7 +736,7 @@ bool UDevKitDecalCollectionEdMode::ProcessEditDuplicate()
 	FDevKitDecalPlacementRecord* NewRecord = Collection->Collection->FindRecord(NewGuid);
 	if (!NewRecord)
 	{
-		return true;
+		return false;
 	}
 	NewRecord->DecalSize = SourceRecord.DecalSize;
 	NewRecord->CustomData = SourceRecord.CustomData;
@@ -690,6 +744,7 @@ bool UDevKitDecalCollectionEdMode::ProcessEditDuplicate()
 	NewRecord->Tags = SourceRecord.Tags;
 	NewRecord->bEnabled = SourceRecord.bEnabled;
 	Collection->RebuildDerivedRendering();
+	SelectRecord(NewGuid);
 	Collection->MarkPackageDirty();
 	if (Collection->GetLevel())
 	{
@@ -725,8 +780,7 @@ bool UDevKitDecalCollectionEdMode::HandleClick(
 		// A normal scene/ISM click must relinquish the deferred selection; otherwise
 		// the widget would keep editing the last projected decal after the artist
 		// visibly selected a different record.
-		SelectedDeferredRecordGuid.Invalidate();
-		SelectedDeferredComponent.Reset();
+		SelectedRecordGuid.Invalidate();
 	}
 
 	return Super::HandleClick(InViewportClient, HitProxy, Click);
@@ -781,34 +835,30 @@ bool UDevKitDecalCollectionEdMode::StartTracking(FEditorViewportClient* InViewpo
 {
 	FGuid RecordGuid;
 	FDevKitDecalPlacementRecord Record;
-	if (!GetSelectedDeferredRecord(RecordGuid, Record))
+	if (!GetSelectedInstanceRecord(RecordGuid, Record))
 	{
 		return Super::StartTracking(InViewportClient, InViewport);
 	}
 
-	if (!DeferredTransformTransaction)
+	if (!RecordTransformTransaction)
 	{
 		ADevKitDecalCollectionActor* Collection = SessionCollection.Get();
 		if (!Collection || !Collection->Collection)
 		{
 			return false;
 		}
-		DeferredTransformTransaction = MakeUnique<FScopedTransaction>(LOCTEXT("TransformDeferredRecord", "调整延迟贴花实例"));
+		RecordTransformTransaction = MakeUnique<FScopedTransaction>(LOCTEXT("TransformCollectionRecord", "调整贴花与地表物件实例"));
 		Collection->Modify();
 		Collection->Collection->Modify();
-		if (UDecalComponent* Component = SelectedDeferredComponent.Get())
-		{
-			Component->Modify();
-		}
 	}
 	return true;
 }
 
 bool UDevKitDecalCollectionEdMode::EndTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport)
 {
-	if (DeferredTransformTransaction)
+	if (RecordTransformTransaction)
 	{
-		DeferredTransformTransaction.Reset();
+		RecordTransformTransaction.Reset();
 		return true;
 	}
 	return Super::EndTracking(InViewportClient, InViewport);
@@ -824,13 +874,12 @@ bool UDevKitDecalCollectionEdMode::InputDelta(
 	FGuid RecordGuid;
 	FDevKitDecalPlacementRecord Record;
 	ADevKitDecalCollectionActor* Collection = SessionCollection.Get();
-	UDecalComponent* Component = SelectedDeferredComponent.Get();
-	if (!Collection || !Component || !GetSelectedDeferredRecord(RecordGuid, Record))
+	if (!Collection || !GetSelectedInstanceRecord(RecordGuid, Record))
 	{
 		return Super::InputDelta(InViewportClient, InViewport, InDrag, InRot, InScale);
 	}
 
-	if (!DeferredTransformTransaction && !StartTracking(InViewportClient, InViewport))
+	if (!RecordTransformTransaction && !StartTracking(InViewportClient, InViewport))
 	{
 		return false;
 	}
@@ -840,13 +889,18 @@ bool UDevKitDecalCollectionEdMode::InputDelta(
 	UpdatedTransform.ConcatenateRotation(InRot.Quaternion());
 	UpdatedTransform.NormalizeRotation();
 	const FVector CurrentScale = UpdatedTransform.GetScale3D();
-	const FVector UpdatedScale = CurrentScale + CurrentScale * InScale;
-	UpdatedTransform.SetScale3D(FVector(
-		FMath::Max(KINDA_SMALL_NUMBER, UpdatedScale.X),
-		FMath::Max(KINDA_SMALL_NUMBER, UpdatedScale.Y),
-		FMath::Max(KINDA_SMALL_NUMBER, UpdatedScale.Z)));
+	FVector UpdatedScale = CurrentScale + ((GEditor && GEditor->UsePercentageBasedScaling()) ? CurrentScale * InScale : InScale);
+	for (int32 Axis = 0; Axis != 3; ++Axis)
+	{
+		// Keep mirrored instances mirrored even on a translation-only drag.
+		if (FMath::Abs(UpdatedScale[Axis]) < KINDA_SMALL_NUMBER)
+		{
+			UpdatedScale[Axis] = CurrentScale[Axis] < 0.0 ? -KINDA_SMALL_NUMBER : KINDA_SMALL_NUMBER;
+		}
+	}
+	UpdatedTransform.SetScale3D(UpdatedScale);
 
-	if (!Collection->UpdateDerivedDeferredTransform(Component, UpdatedTransform))
+	if (!UpdateSelectedRecordTransform(RecordGuid, UpdatedTransform))
 	{
 		return false;
 	}
@@ -861,53 +915,14 @@ bool UDevKitDecalCollectionEdMode::InputDelta(
 bool UDevKitDecalCollectionEdMode::GetSelectedInstanceTransform(FTransform& OutTransform) const
 {
 	OutTransform = FTransform::Identity;
-	FGuid DeferredGuid;
-	FDevKitDecalPlacementRecord DeferredRecord;
-	if (GetSelectedDeferredRecord(DeferredGuid, DeferredRecord))
+	FGuid RecordGuid;
+	FDevKitDecalPlacementRecord Record;
+	if (GetSelectedInstanceRecord(RecordGuid, Record))
 	{
-		OutTransform = DeferredRecord.Transform;
+		OutTransform = Record.Transform;
 		return true;
 	}
-
-	// The Level Editor owns a separate typed-element selection set from the
-	// legacy editor actor selection set.  The viewport already normalizes that
-	// set and filters it through CanMoveSMInstance before drawing the widget.
-	// Prefer the viewport cache so an ISM instance selected by its hit proxy is
-	// the exact element used by the native W/E/R interaction; falling back to
-	// the mode set keeps the toolkit usable when no level viewport is active.
-	if (GCurrentLevelEditingViewportClient)
-	{
-		const FTypedElementListConstRef ElementsToManipulate = GCurrentLevelEditingViewportClient->GetElementsToManipulate();
-		if (const TTypedElement<ITypedElementWorldInterface> SelectedElement =
-			ElementsToManipulate->GetBottomElement<ITypedElementWorldInterface>())
-		{
-			if (SelectedElement.GetWorldTransform(OutTransform))
-			{
-				return true;
-			}
-		}
-	}
-
-	FEditorModeTools* ModeTools = GetModeManager();
-	if (!ModeTools)
-	{
-		return false;
-	}
-
-	UTypedElementSelectionSet* SelectionSet = ModeTools->GetEditorSelectionSet();
-	if (!SelectionSet)
-	{
-		return false;
-	}
-
-	const FTypedElementListRef NormalizedSelection = UEditorElementSubsystem::GetEditorNormalizedSelectionSet(*SelectionSet);
-	const TTypedElement<ITypedElementWorldInterface> SelectedElement =
-		UEditorElementSubsystem::GetLastSelectedEditorManipulableElement(
-			NormalizedSelection,
-			GLevelEditorModeTools().GetWidgetMode(),
-			GetWorld());
-
-	return SelectedElement && SelectedElement.GetWorldTransform(OutTransform);
+	return false;
 }
 
 bool UDevKitDecalCollectionEdMode::GetSelectedInstanceRecord(
@@ -921,9 +936,26 @@ bool UDevKitDecalCollectionEdMode::GetSelectedInstanceRecord(
 	{
 		return false;
 	}
-	if (GetSelectedDeferredRecord(OutRecordGuid, OutRecord))
+	// Component-tree selection is a first-class route, not a separate authoring state.
+	// Resolve the selected proxy to its record before consulting the viewport ISM cache.
+	if (GEditor && GEditor->GetSelectedComponents())
 	{
-		return true;
+		for (FSelectionIterator It(*GEditor->GetSelectedComponents()); It; ++It)
+		{
+			if (UDecalComponent* Component = Cast<UDecalComponent>(*It))
+			{
+				FGuid ComponentGuid;
+				if (Collection->FindRecordForDerivedDeferred(Component, ComponentGuid))
+				{
+					if (const FDevKitDecalPlacementRecord* Record = Collection->Collection->FindRecord(ComponentGuid))
+					{
+						SelectedRecordGuid = OutRecordGuid = ComponentGuid;
+						OutRecord = *Record;
+						return true;
+					}
+				}
+			}
+		}
 	}
 
 	auto ResolveHandle = [&](const FTypedElementHandle& Handle) -> bool
@@ -946,6 +978,7 @@ bool UDevKitDecalCollectionEdMode::GetSelectedInstanceRecord(
 		}
 		if (const FDevKitDecalPlacementRecord* Record = Collection->Collection->FindRecord(OutRecordGuid))
 		{
+			SelectedRecordGuid = OutRecordGuid;
 			OutRecord = *Record;
 			return true;
 		}
@@ -983,33 +1016,16 @@ bool UDevKitDecalCollectionEdMode::GetSelectedInstanceRecord(
 		}
 	}
 
-	return false;
-}
-
-bool UDevKitDecalCollectionEdMode::GetSelectedDeferredRecord(
-	FGuid& OutRecordGuid,
-	FDevKitDecalPlacementRecord& OutRecord) const
-{
-	OutRecordGuid.Invalidate();
-	OutRecord = FDevKitDecalPlacementRecord();
-	ADevKitDecalCollectionActor* Collection = SessionCollection.Get();
-	UDecalComponent* Component = SelectedDeferredComponent.Get();
-	if (!Collection || !Collection->Collection || !Component || !SelectedDeferredRecordGuid.IsValid())
+	// The proxy may have been destroyed by a material change, placement or Undo.
+	// Never discard a valid authoring selection merely because its proxy changed.
+	if (SelectedRecordGuid.IsValid())
 	{
-		return false;
-	}
-
-	FGuid ComponentGuid;
-	if (!Collection->FindRecordForDerivedDeferred(Component, ComponentGuid)
-		|| ComponentGuid != SelectedDeferredRecordGuid)
-	{
-		return false;
-	}
-	if (const FDevKitDecalPlacementRecord* Record = Collection->Collection->FindRecord(ComponentGuid))
-	{
-		OutRecordGuid = ComponentGuid;
-		OutRecord = *Record;
-		return true;
+		if (const FDevKitDecalPlacementRecord* Record = Collection->Collection->FindRecord(SelectedRecordGuid))
+		{
+			OutRecordGuid = SelectedRecordGuid;
+			OutRecord = *Record;
+			return true;
+		}
 	}
 	return false;
 }
@@ -1024,7 +1040,18 @@ bool UDevKitDecalCollectionEdMode::TrySelectDeferredRecord(const FViewportClick&
 
 	const FVector RayOrigin = Click.GetOrigin();
 	const FVector RayDirection = Click.GetDirection().GetSafeNormal(UE_SMALL_NUMBER, FVector::ForwardVector);
-	float BestDistanceSquared = TNumericLimits<float>::Max();
+	double BestDistance = TNumericLimits<double>::Max();
+	double OcclusionDistance = TNumericLimits<double>::Max();
+	if (UWorld* World = Collection->GetWorld())
+	{
+		FHitResult SurfaceHit;
+		FCollisionQueryParams Query(SCENE_QUERY_STAT(DevKitDecalSelection), true);
+		Query.AddIgnoredActor(Collection);
+		if (World->LineTraceSingleByChannel(SurfaceHit, RayOrigin, RayOrigin + RayDirection * HALF_WORLD_MAX, ECC_Visibility, Query))
+		{
+			OcclusionDistance = SurfaceHit.Distance + 2.0;
+		}
+	}
 	int32 BestComponentIndex = INDEX_NONE;
 	for (int32 ComponentIndex = 0; ComponentIndex < Collection->DerivedDeferredComponents.Num(); ++ComponentIndex)
 	{
@@ -1039,18 +1066,11 @@ bool UDevKitDecalCollectionEdMode::TrySelectDeferredRecord(const FViewportClick&
 			continue;
 		}
 
-		const FVector ToDecal = Record->Transform.GetLocation() - RayOrigin;
-		const float RayDistance = FVector::DotProduct(ToDecal, RayDirection);
-		if (RayDistance < 0.f)
+		double HitDistance = 0.0;
+		if (DevKit::DecalSelection::IntersectProjectionBox(Component->GetComponentTransform(), Component->DecalSize,
+			RayOrigin, RayDirection, HitDistance) && HitDistance < BestDistance && HitDistance <= OcclusionDistance)
 		{
-			continue;
-		}
-		const FVector ClosestPoint = RayOrigin + RayDirection * RayDistance;
-		const float SelectionRadius = FMath::Max(32.f, Record->DecalSize.GetAbsMax() * 0.5f);
-		const float DistanceSquared = FVector::DistSquared(ClosestPoint, Record->Transform.GetLocation());
-		if (DistanceSquared <= FMath::Square(SelectionRadius) && DistanceSquared < BestDistanceSquared)
-		{
-			BestDistanceSquared = DistanceSquared;
+			BestDistance = HitDistance;
 			BestComponentIndex = ComponentIndex;
 		}
 	}
@@ -1060,10 +1080,68 @@ bool UDevKitDecalCollectionEdMode::TrySelectDeferredRecord(const FViewportClick&
 		return false;
 	}
 
-	SelectedDeferredComponent = Collection->DerivedDeferredComponents[BestComponentIndex];
-	SelectedDeferredRecordGuid = Collection->DerivedDeferredGuids[BestComponentIndex];
+	return SelectRecord(Collection->DerivedDeferredGuids[BestComponentIndex]);
+}
+
+bool UDevKitDecalCollectionEdMode::SelectRecord(const FGuid& RecordGuid)
+{
+	ADevKitDecalCollectionActor* Collection = SessionCollection.Get();
+	if (!RecordGuid.IsValid() || !Collection || !Collection->Collection || !Collection->Collection->FindRecord(RecordGuid)) return false;
+	bBrushPlacementEnabled = false;
+	bBrushStrokeActive = false;
+	BrushPlacementTransaction.Reset();
+	if (GEditor)
+	{
+		GEditor->SelectNone(false, true);
+		GEditor->NoteSelectionChange();
+	}
+	SelectedRecordGuid = RecordGuid;
 	GLevelEditorModeTools().SetShowWidget(true);
-	GLevelEditorModeTools().SetWidgetMode(UE::Widget::WM_Translate);
+	if (GLevelEditorModeTools().GetWidgetMode() == UE::Widget::WM_None)
+	{
+		GLevelEditorModeTools().SetWidgetMode(UE::Widget::WM_Translate);
+	}
+	if (GEditor) GEditor->RedrawLevelEditingViewports();
+	return true;
+}
+
+bool UDevKitDecalCollectionEdMode::FocusSelectedRecord()
+{
+	FGuid RecordGuid;
+	FDevKitDecalPlacementRecord Record;
+	if (!GetSelectedInstanceRecord(RecordGuid, Record) || !GCurrentLevelEditingViewportClient) return false;
+	const FVector Extent = Record.Asset && Record.Asset->Backend == EDevKitDecalBackend::DeferredProjection
+		? Record.DecalSize.GetAbs() * Record.Transform.GetScale3D().GetAbs() : FVector(100.f);
+	const double Radius = FMath::Max(100.0, Extent.Size());
+	GCurrentLevelEditingViewportClient->FocusViewportOnBox(FBox::BuildAABB(Record.Transform.GetLocation(), FVector(Radius)));
+	return true;
+}
+
+bool UDevKitDecalCollectionEdMode::UpdateSelectedRecordTransform(const FGuid& RecordGuid, const FTransform& Transform)
+{
+	ADevKitDecalCollectionActor* Collection = SessionCollection.Get();
+	if (!Collection || !Collection->Collection || !Collection->Collection->UpdateRecordTransform(RecordGuid, Transform)) return false;
+	const int32 DeferredIndex = Collection->DerivedDeferredGuids.IndexOfByKey(RecordGuid);
+	if (Collection->DerivedDeferredComponents.IsValidIndex(DeferredIndex))
+	{
+		if (UDecalComponent* Component = Collection->DerivedDeferredComponents[DeferredIndex])
+		{
+			Component->SetWorldTransform(Transform, false, nullptr, ETeleportType::TeleportPhysics);
+		}
+		return true;
+	}
+	for (int32 BatchIndex = 0; BatchIndex < Collection->DerivedInstanceGuids.Num(); ++BatchIndex)
+	{
+		const int32 InstanceIndex = Collection->DerivedInstanceGuids[BatchIndex].IndexOfByKey(RecordGuid);
+		if (InstanceIndex != INDEX_NONE && Collection->DerivedRVTComponents.IsValidIndex(BatchIndex))
+		{
+			if (UInstancedStaticMeshComponent* Component = Collection->DerivedRVTComponents[BatchIndex])
+			{
+				Component->UpdateInstanceTransform(InstanceIndex, Transform, true, true, true);
+			}
+			break;
+		}
+	}
 	return true;
 }
 

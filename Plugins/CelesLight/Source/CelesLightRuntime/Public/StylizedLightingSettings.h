@@ -73,15 +73,15 @@ struct CELESLIGHTRUNTIME_API FStylizedCharacterLightingProfile
 	UPROPERTY(EditAnywhere, Category = "Environment", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
 	float IndirectOcclusionStrength = 1.0f;
 
-	/** Minimum neutral indirect diffuse-lighting level. Uses PBR DiffuseColor, so metallic surfaces receive no fake diffuse fill. */
+	/** Weak view-upper-right two-tone readability. Fades out after real lighting; no LightActor or fake metallic diffuse. */
 	UPROPERTY(EditAnywhere, Category = "Environment", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
 	float CharacterBaseFill = 0.20f;
 
-	/** Soft transition width around the minimum-brightness threshold. */
+	/** Softness of the weak readability light/dark boundary. Does not change the real-light partition. */
 	UPROPERTY(EditAnywhere, Category = "Environment", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
 	float CharacterBaseFillSoftness = 0.10f;
 
-	/** How strongly SSAO/Lumen occlusion is allowed to darken the minimum-brightness floor. */
+	/** How strongly material GBuffer AO can darken the weak readability result. */
 	UPROPERTY(EditAnywhere, Category = "Environment", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
 	float CharacterBaseFillOcclusionInfluence = 0.25f;
 
@@ -114,7 +114,7 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "Character Features|01 Basic Half Lambert")
 	bool bEnableHalfLambertPartition = true;
 
-	/** Keeps non-metal character diffuse lighting above a neutral, PBR-aware minimum. */
+	/** Enables weak view-relative character readability after real opaque lighting, fading to zero when real light is sufficient. */
 	UPROPERTY(Config, EditAnywhere, Category = "Character Features|01 Basic Half Lambert")
 	bool bEnableDarkColorFloor = true;
 

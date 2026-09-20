@@ -182,6 +182,11 @@ public:
 	/** Restores the original source component for one adopted record and disables its derived copy. */
 	bool RestoreAdoptedSource(const FGuid& InstanceGuid);
 
+#if WITH_EDITOR
+	virtual void PostEditUndo() override;
+	virtual void PostEditUndo(TSharedPtr<ITransactionObjectAnnotation> TransactionAnnotation) override;
+#endif
+
 protected:
 	virtual void OnConstruction(const FTransform& Transform) override;
 	virtual void PostInitializeComponents() override;
