@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Abilities/Tasks/AbilityTask.h"
+#include "AbilitySystem/AbilityTask/MontagePhaseTagDriver.h"
 #include "YogAbilityTask_PlayMontageAndWaitForEvent.generated.h"
 
 class UYogAbilitySystemComponent;
@@ -98,6 +99,9 @@ private:
 	/** Rather montage should be aborted if ability ends */
 	UPROPERTY()
 	bool bStopWhenAbilityEnds;
+
+	/** Drives Character.State.Phase.* from the section under the playhead. */
+	FMontagePhaseTagDriver PhaseTagDriver;
 
 	/** Checks if the ability is playing a montage and stops that montage, returns true if a montage was stopped, false if not. */
 	bool StopPlayingMontage();

@@ -19,6 +19,7 @@
 #include "Component/GameEffectComponent.h"
 #include "Component/HitImpactVisualComponent.h"
 #include "Component/MontageVFXBindingComponent.h"
+#include "Component/MontagePhaseFlowComponent.h"
 #include "Component/CharacterDataComponent.h"
 #include "GameplayEffect.h"
 #include "Component/BufferComponent.h"
@@ -57,6 +58,7 @@ AYogCharacterBase::AYogCharacterBase(const FObjectInitializer& ObjectInitializer
 	AbilitySystemComponent = CreateDefaultSubobject<UYogAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
 	AttributeStatsComponent = CreateDefaultSubobject<UAttributeStatComponent>(TEXT("AttributeStatComponent"));
 	GameEffectComponent = CreateDefaultSubobject<UGameEffectComponent>(TEXT("GameEffectComponent"));
+	MontagePhaseFlowComponent = CreateDefaultSubobject<UMontagePhaseFlowComponent>(TEXT("MontagePhaseFlowComponent"));
 	InputBufferComponent = CreateDefaultSubobject<UBufferComponent>(TEXT("InputBufferComponent"));
 	CharacterDataComponent = CreateDefaultSubobject<UCharacterDataComponent>(TEXT("CharacterDataComponent"));
 	PropInteractComponent = CreateDefaultSubobject<UPropInteractComponnet>(TEXT("PropInteractComponent"));

@@ -238,6 +238,20 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "TagReaction")
 	void SetTagReactionTable(UTagReactionDataAsset* NewTable);
 
+	/**
+	 * Grants one rule to the live table without touching the source DataAsset, which is shared by
+	 * every instance and would persist for the whole session. Unlike SetTagReactionTable this
+	 * leaves the reactions already active for other tags standing.
+	 * Applies immediately when TriggerTag is already held, so ReactionMap and ActiveTagReactions
+	 * cannot disagree.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "TagReaction")
+	bool AddTagReaction(const FTagReactionRule& Rule);
+
+	/** Revokes the matching rule and undoes its live reaction, subject to that rule's UndoPolicy. */
+	UFUNCTION(BlueprintCallable, Category = "TagReaction")
+	bool RemoveTagReaction(FGameplayTag TriggerTag, ETagReactionType ReactionType);
+
 	/** Tag 计数跨越 0 边界时广播，供蓝图直接绑定而无需配表 */
 	UPROPERTY(BlueprintAssignable, Category = "TagReaction")
 	FGameplayTagChangedDelegate OnGameplayTagChanged;

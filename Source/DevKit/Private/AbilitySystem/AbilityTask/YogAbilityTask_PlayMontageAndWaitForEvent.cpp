@@ -29,7 +29,7 @@ void UYogAbilityTask_PlayMontageAndWaitForEvent::TickTask(float DeltaTime)
 {
 	Super::TickTask(DeltaTime);
 
-	if (!MontageToPlay || !MontageToPlay->HasCurveData(YogAbilityTaskPlayMontageAndWaitForEvent_PlayRateCurveName))
+	if (!MontageToPlay)
 	{
 		return;
 	}
@@ -37,6 +37,13 @@ void UYogAbilityTask_PlayMontageAndWaitForEvent::TickTask(float DeltaTime)
 	const FGameplayAbilityActorInfo* ActorInfo = Ability ? Ability->GetCurrentActorInfo() : nullptr;
 	UAnimInstance* AnimInstance = ActorInfo ? ActorInfo->GetAnimInstance() : nullptr;
 	if (!AnimInstance || !AnimInstance->Montage_IsPlaying(MontageToPlay))
+	{
+		return;
+	}
+
+	PhaseTagDriver.Update(*AnimInstance, MontageToPlay, GetTargetASC());
+
+	if (!MontageToPlay->HasCurveData(YogAbilityTaskPlayMontageAndWaitForEvent_PlayRateCurveName))
 	{
 		return;
 	}
@@ -230,6 +237,8 @@ void UYogAbilityTask_PlayMontageAndWaitForEvent::ExternalCancel()
 
 void UYogAbilityTask_PlayMontageAndWaitForEvent::OnDestroy(bool AbilityEnded)
 {
+	PhaseTagDriver.Clear(GetTargetASC());
+
 	// Note: Clearing montage end delegate isn't necessary since its not a multicast and will be cleared when the next montage plays.
 	// (If we are destroyed, it will detect this and not do anything)
 

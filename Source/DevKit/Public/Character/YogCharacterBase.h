@@ -23,6 +23,7 @@ enum class EHitStopMode : uint8;
 class AYogPlayerControllerBase;
 class UGASTemplate;
 class UGameEffectComponent;
+class UMontagePhaseFlowComponent;
 class UCharacterDataComponent;
 class UBufferComponent;
 class URuneDataAsset;
@@ -223,6 +224,10 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	TObjectPtr<UGameEffectComponent> GameEffectComponent;
+
+	/** Runtime phase -> flow bindings, driven by the phase tags this character's montages emit. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Phase Flow")
+	TObjectPtr<UMontagePhaseFlowComponent> MontagePhaseFlowComponent;
 
 
 

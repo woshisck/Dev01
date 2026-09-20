@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "Abilities/Tasks/AbilityTask.h"
+#include "GameplayTagContainer.h"
+#include "AbilitySystem/AbilityTask/MontagePhaseTagDriver.h"
 #include "YogTask_PlayMontageAbility.generated.h"
 
 
@@ -84,10 +86,13 @@ private:
 	bool bStopWhenAbilityEnds;
 
 
+	/** Drives Character.State.Phase.* from the section under the playhead. */
+	FMontagePhaseTagDriver PhaseTagDriver;
+
 	UFUNCTION()
 	bool StopPlayingMontage();
 
-	
+
 	/** Returns our ability system component */
 	UFUNCTION()
 	UYogAbilitySystemComponent* GetTargetASC();

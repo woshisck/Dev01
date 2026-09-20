@@ -479,6 +479,116 @@ void UYogAbilitySystemComponent::SetTagReactionTable(UTagReactionDataAsset* NewT
 	InitTagReactionTable();
 }
 
+bool UYogAbilitySystemComponent::AddTagReaction(const FTagReactionRule& Rule)
+{
+	if (!TagReaction_IsRuleValid(Rule, this))
+	{
+		return false;
+	}
+
+	// One slot per ReactionType per tag, matching the DataAsset merge in InitTagReactionTable.
+	// Retiring the outgoing rule first stops its live reaction from leaking.
+	RemoveTagReaction(Rule.TriggerTag, Rule.ReactionType);
+
+	TArray<FTagReactionRule>& Bucket = ReactionMap.FindOrAdd(Rule.TriggerTag);
+	Bucket.Add(Rule);
+	Bucket.Sort([](const FTagReactionRule& A, const FTagReactionRule& B)
+	{
+		return A.Priority > B.Priority;
+	});
+
+	// Granted while the trigger is already held, the rule would otherwise sit inert until the next
+	// 0 -> non-zero edge and removal would find nothing to undo.
+	if (!bProcessingTagReaction && HasMatchingGameplayTag(Rule.TriggerTag))
+	{
+		TGuardValue<bool> Guard(bProcessingTagReaction, true);
+
+		FActiveTagReaction Record;
+		if (ApplyTagReaction(Rule, Record))
+		{
+			ActiveTagReactions.FindOrAdd(Rule.TriggerTag).Add(Record);
+		}
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[TagReaction] Granted Tag=%s ReactionType=%d at runtime on %s."),
+		*Rule.TriggerTag.ToString(), static_cast<int32>(Rule.ReactionType), *GetNameSafe(GetOwner()));
+
+	return true;
+}
+
+bool UYogAbilitySystemComponent::RemoveTagReaction(FGameplayTag TriggerTag, ETagReactionType ReactionType)
+{
+	TArray<FTagReactionRule>* Bucket = ReactionMap.Find(TriggerTag);
+	if (!Bucket)
+	{
+		return false;
+	}
+
+	const int32 RemovedRules = Bucket->RemoveAll([ReactionType](const FTagReactionRule& Existing)
+	{
+		return Existing.ReactionType == ReactionType;
+	});
+
+	if (RemovedRules == 0)
+	{
+		return false;
+	}
+
+	if (Bucket->IsEmpty())
+	{
+		ReactionMap.Remove(TriggerTag);
+	}
+
+	if (TArray<FActiveTagReaction>* Records = ActiveTagReactions.Find(TriggerTag))
+	{
+		TGuardValue<bool> Guard(bProcessingTagReaction, true);
+
+		for (int32 Index = Records->Num() - 1; Index >= 0; --Index)
+		{
+			// FActiveTagReaction does not record its ReactionType, so the live reaction is
+			// identified by whichever handle ApplyTagReaction populated.
+			const FActiveTagReaction Record = (*Records)[Index];
+			bool bMatchesType = false;
+			switch (ReactionType)
+			{
+			case ETagReactionType::StartBuffFlow:
+				bMatchesType = Record.FlowGuid.IsValid();
+				break;
+
+			case ETagReactionType::ApplyGameplayEffect:
+				bMatchesType = Record.EffectHandle.IsValid();
+				break;
+
+			case ETagReactionType::ActivateAbility:
+				bMatchesType = Record.AbilityHandle.IsValid();
+				break;
+
+			case ETagReactionType::GameplayCue:
+				bMatchesType = Record.CueTag.IsValid();
+				break;
+			}
+
+			if (!bMatchesType)
+			{
+				continue;
+			}
+
+			Records->RemoveAt(Index);
+			UndoTagReaction(Record);
+		}
+
+		if (Records->IsEmpty())
+		{
+			ActiveTagReactions.Remove(TriggerTag);
+		}
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[TagReaction] Revoked Tag=%s ReactionType=%d at runtime on %s."),
+		*TriggerTag.ToString(), static_cast<int32>(ReactionType), *GetNameSafe(GetOwner()));
+
+	return true;
+}
+
 bool UYogAbilitySystemComponent::HasActiveStatusNiagaraForTag(FGameplayTag Tag) const
 {
 	const TObjectPtr<UNiagaraComponent>* FoundComponent = ActiveStatusNiagaraEffects.Find(Tag);

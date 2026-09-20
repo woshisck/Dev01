@@ -76,6 +76,45 @@ EHeatTier CurrentTier = EHeatTier::Tier1;
 | `ActiveNiagaraEffects` | PlayNiagara | DestroyNiagara |
 
 **FA 实例隔离（Dota 道具模型）：** 每个符文实例有独立的 FA 实例，`FActiveGameplayEffectHandle` 存储在对应的 BFNode member variable 里，Rune 卸下时只 Stop 对应 FA，不影响其他符文。
+前提是**不同符文用不同的 FlowAsset** —— 见下面的实例唯一性约束。
+
+#### ⚠️ 实例唯一性：一个 FlowAsset 在一个角色身上只能有一个实例
+
+FlowGraph 插件级的硬限制，项目代码绕不过去：
+
+```
+UFlowSubsystem::CreateRootFlow()          FlowSubsystem.cpp:101-108
+  遍历 RootInstances：
+    if (Owner == 已有实例.Owner && FlowAsset == 已有实例.GetTemplateAsset())
+        → Warning "Attempted to start Root Flow for the same Owner again"
+        → return nullptr（启动失败）
+```
+
+`StartRootFlow` 的 `bAllowMultipleInstances` **管不了这一条**，它只作用于另一个全局
+`InstancedTemplates` 检查。`UBuffFlowComponent::StartBuffFlowInternal` 自己还有一层同样按
+FlowAsset 匹配的去重（`ExistingSameFlowGuids`），所以传不同的 RuneGuid 也没用 —— 去重的键是资产，不是 GUID。
+
+| 场景 | 结果 |
+|---|---|
+| 不同 FlowAsset + 同一角色 | ✅ 各自独立实例，同时运行，效果叠加 |
+| 同一 FlowAsset + 不同角色 | ✅ 独立互不影响（键包含 Owner） |
+| 同一 FlowAsset + 同一角色 | ❌ 永远只有一个实例。`bRestartExistingFlow=false` 静默丢弃（Verbose 日志看不见），`=true` 则 Abort 旧实例再重启 |
+
+**推论 1 —— 反复启动同一个 FA，效果必须是 Instant 才会累加。**
+`bRestartExistingFlow=true` 会先 `FinishRootFlow(Abort)`，旧实例的节点走 `Cleanup()`，
+`RemoveActiveGameplayEffect` 把 Infinite / Duration 的 GE 撤掉，属性回到原点。只有 Instant 把修改写进
+属性的 **base value**，且节点对 Instant 不存 handle（`BFNode_ApplyAttributeModifier.cpp:283-290`），
+Cleanup 无可撤销，于是每次执行都真正累加。
+
+| DurationType | 反复启动时的表现 |
+|---|---|
+| `Instant` | base 累加：200 → 300 → 400，且不可撤销 |
+| `Infinite` / `Duration` | 不累加：每次都是撤掉旧 GE 再加新的，永远停在 200 → 300 |
+
+**推论 2 —— 不要让符文和其他系统共用同一个 FlowAsset。** 任何一方用 `bRestartExistingFlow=true`
+启动，都会 Abort 掉另一方的实例、移除其 GE、删掉 `ActiveRuneFlows` 记录并广播 `OnBuffFlowStopped`，
+符文的 Infinite buff 会在运行中凭空消失。
+**一个 FlowAsset = 一个角色身上的一个槽位**，要同时生效就拆成两个资产。
 
 ---
 
