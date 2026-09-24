@@ -17,6 +17,7 @@
 #include "AbilitySystem/Abilities/GA_WeaponSkill.h"
 #include "Data/WeaponSkillDataAsset.h"
 #include "Character/YogPlayerControllerBase.h"
+#include "Character/YogInteractable.h"
 #include "Camera/YogCameraPawn.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "Buff/Aura/AuraBase.h"
@@ -2128,5 +2129,45 @@ void APlayerCharacterBase::OnDeckCardsEnteredForTutorial(const TArray<FCombatCar
 			TM->TryShowHintOnce(FinisherHintTag, TEXT("tutorial_finisher"), PC);
 		}
 	}
+}
+
+void APlayerCharacterBase::RegisterInteractable(AActor* Interactable)
+{
+	if (!Interactable || !Cast<IYogInteractable>(Interactable))
+	{
+		return;
+	}
+
+	OverlappingInteractables.AddUnique(Interactable);
+}
+
+void APlayerCharacterBase::UnregisterInteractable(AActor* Interactable)
+{
+	OverlappingInteractables.Remove(Interactable);
+}
+
+AActor* APlayerCharacterBase::GetBestInteractable() const
+{
+	AActor* Best = nullptr;
+	int32 BestPriority = MIN_int32;
+
+	for (const TObjectPtr<AActor>& Candidate : OverlappingInteractables)
+	{
+		AActor* Actor = Candidate.Get();
+		IYogInteractable* Interactable = Cast<IYogInteractable>(Actor);
+		if (!Interactable || !Interactable->CanInteract(this))
+		{
+			continue;
+		}
+
+		const int32 Priority = Interactable->GetInteractPriority();
+		if (Priority > BestPriority)
+		{
+			BestPriority = Priority;
+			Best = Actor;
+		}
+	}
+
+	return Best;
 }
 

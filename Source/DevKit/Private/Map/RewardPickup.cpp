@@ -3,6 +3,7 @@
 #include "Components/PrimitiveComponent.h"
 #include "Components/BoxComponent.h"
 #include "Components/WidgetComponent.h"
+#include "Component/InteractPromptComponent.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Containers/Ticker.h"
 #include "Component/BackpackGridComponent.h"
@@ -29,6 +30,9 @@ ARewardPickup::ARewardPickup()
 	RuneInfoWidgetComp->SetupAttachment(RootComponent);
 	RuneInfoWidgetComp->SetWidgetSpace(EWidgetSpace::Screen);
 	RuneInfoWidgetComp->SetVisibility(false);
+
+	InteractPromptComp = CreateDefaultSubobject<UInteractPromptComponent>(TEXT("InteractPromptComp"));
+	InteractPromptComp->PromptHeight = 60.f;
 }
 
 void ARewardPickup::BeginPlay()
@@ -105,10 +109,11 @@ void ARewardPickup::OnPlayerEnterRange(APlayerCharacterBase* Player)
 	if (bPickedUp || !Player) return;
 	if (!IsPickupAllowed()) return;
 
-	Player->PendingPickup = this;
+	Player->RegisterInteractable(this);
 	NearbyPlayer = Player;
 	bPlayerInRange = true;
 	if (RuneInfoWidgetComp) RuneInfoWidgetComp->SetVisibility(true);
+	ShowInteractPrompt(true);
 	UE_LOG(LogTemp, Log, TEXT("RewardPickup: 玩家进入拾取范围，按 A 键（手柄）拾取"));
 }
 
@@ -116,26 +121,14 @@ void ARewardPickup::OnPlayerLeaveRange(APlayerCharacterBase* Player)
 {
 	if (!Player) return;
 
-	if (Player->PendingPickup == this)
-	{
-		Player->PendingPickup = nullptr;
-		UE_LOG(LogTemp, Log, TEXT("RewardPickup: 玩家离开拾取范围"));
-	}
+	Player->UnregisterInteractable(this);
+	UE_LOG(LogTemp, Log, TEXT("RewardPickup: 玩家离开拾取范围"));
 	if (NearbyPlayer.Get() == Player)
 	{
 		NearbyPlayer = nullptr;
 		bPlayerInRange = false;
+		ShowInteractPrompt(false);
 		if (RuneInfoWidgetComp && !bSpawnFocusCueActive) RuneInfoWidgetComp->SetVisibility(false);
-	}
-}
-
-void ARewardPickup::SetInteractHoldProgress(float Normalized)
-{
-	if (!RuneInfoWidgetComp) return;
-
-	if (URuneRewardFloatWidget* FloatWidget = Cast<URuneRewardFloatWidget>(RuneInfoWidgetComp->GetWidget()))
-	{
-		FloatWidget->SetHoldProgress(Normalized);
 	}
 }
 
@@ -275,7 +268,7 @@ void ARewardPickup::TryPickup(APlayerCharacterBase* Player)
 	// 此时所有依赖都可用，安全修改自身状态
 	bPickedUp = true;
 	if (RuneInfoWidgetComp) RuneInfoWidgetComp->SetVisibility(false);
-	if (Player->PendingPickup == this) Player->PendingPickup = nullptr;
+	Player->UnregisterInteractable(this);
 
 	if (bUseFixedLootOptions && !FixedLootOptions.IsEmpty() && AssignedLoot.IsEmpty())
 	{
@@ -294,12 +287,12 @@ void ARewardPickup::TryPickup(APlayerCharacterBase* Player)
 		}
 		else
 		{
-			// PendingPickup was cleared optimistically above; without restoring it the player
+			// Registration was dropped optimistically above; without restoring it the player
 			// keeps pressing E with no effect until they leave and re-enter the trigger.
 			bPickedUp = false;
 			if (bPlayerInRange)
 			{
-				Player->PendingPickup = this;
+				Player->RegisterInteractable(this);
 				if (RuneInfoWidgetComp)
 				{
 					RuneInfoWidgetComp->SetVisibility(true);
@@ -326,12 +319,12 @@ void ARewardPickup::ResetForSkip(APlayerCharacterBase* Player)
 
 	bPickedUp = false;
 
-	// 仅当玩家仍在范围内才重新挂回 PendingPickup + 显示浮窗
+	// 仅当玩家仍在范围内才重新登记交互 + 显示浮窗
 	if (Player && bPlayerInRange && NearbyPlayer.Get() == Player)
 	{
 		if (!IsPickupAllowed()) return;
 
-		Player->PendingPickup = this;
+		Player->RegisterInteractable(this);
 		if (RuneInfoWidgetComp) RuneInfoWidgetComp->SetVisibility(true);
 	}
 }
@@ -471,10 +464,7 @@ void ARewardPickup::ClearNearbyPlayer()
 {
 	if (APlayerCharacterBase* Player = NearbyPlayer.Get())
 	{
-		if (Player->PendingPickup == this)
-		{
-			Player->PendingPickup = nullptr;
-		}
+		Player->UnregisterInteractable(this);
 	}
 
 	NearbyPlayer = nullptr;

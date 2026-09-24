@@ -117,7 +117,7 @@ void UPortalDirectionWidget::NativeTick(const FGeometry& MyGeometry, float InDel
     // 玩家进入任意 Portal Box → 全隐
     if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(PC->GetPawn()))
     {
-        if (Player->PendingPortal != nullptr)
+        if (Player->GetOverlappingInteractable<APortal>() != nullptr)
         {
             for (FArrowUnit& U : Units)
                 if (U.Container) U.Container->SetVisibility(ESlateVisibility::Collapsed);

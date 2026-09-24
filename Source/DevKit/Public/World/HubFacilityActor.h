@@ -3,16 +3,16 @@
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
 #include "GameFramework/Actor.h"
-#include "Character/InteractHoldFeedback.h"
+#include "Character/YogInteractable.h"
 #include "HubFacilityActor.generated.h"
 
 class UBoxComponent;
 class UCommonActivatableWidget;
-class UWidgetComponent;
+class UInteractPromptComponent;
 class APlayerCharacterBase;
 
 UCLASS(Blueprintable)
-class DEVKIT_API AHubFacilityActor : public AActor, public IInteractHoldFeedback
+class DEVKIT_API AHubFacilityActor : public AActor, public IYogInteractable
 {
 	GENERATED_BODY()
 
@@ -20,8 +20,9 @@ public:
 
 	AHubFacilityActor(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-	// ~ IInteractHoldFeedback
-	virtual void SetInteractHoldProgress(float Normalized) override;
+	// ~ IYogInteractable
+	virtual void TryInteract(APlayerCharacterBase* Player) override { Interact(Player); }
+	virtual int32 GetInteractPriority() const override { return YogInteractPriority::Facility; }
 
 	// 玩家进入交互范围时由 PlayerCharacterBase 调用
 	UFUNCTION(BlueprintCallable, Category = "Hub")
@@ -41,9 +42,9 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hub")
 	TObjectPtr<UBoxComponent> InteractBox;
 
-	// 按住 E 交互的提示 + 蓄力进度条（纯 C++ Widget，无需 WBP）
+	// 按住 E 交互的提示（按键图标 + 蓄力环，纯 C++ Widget，无需 WBP）
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hub")
-	TObjectPtr<UWidgetComponent> InteractPromptWidgetComp;
+	TObjectPtr<UInteractPromptComponent> InteractPromptComp;
 
 protected:
 
@@ -57,7 +58,6 @@ protected:
 private:
 	bool IsFeatureAvailable() const;
 	void ApplyFeatureAvailability();
-	void ConfigureInteractPrompt();
 	void SetInteractPromptVisible(bool bVisible);
 
 	UFUNCTION()

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Character/InteractHoldFeedback.h"
+#include "Character/YogInteractable.h"
 #include "Character/PlayerInteraction.h"
 #include "GameFramework/Actor.h"
 #include "ShopActor.generated.h"
@@ -10,11 +10,11 @@ class APlayerCharacterBase;
 class UBoxComponent;
 class UShopDataAsset;
 class UShopSelectionWidget;
+class UInteractPromptComponent;
 class UStaticMeshComponent;
-class UWidgetComponent;
 
 UCLASS()
-class DEVKIT_API AShopActor : public AActor, public IPlayerInteraction, public IInteractHoldFeedback
+class DEVKIT_API AShopActor : public AActor, public IPlayerInteraction, public IYogInteractable
 {
 	GENERATED_BODY()
 
@@ -25,11 +25,11 @@ public:
 	virtual void OnPlayerBeginOverlap(APlayerCharacterBase* Player) override;
 	virtual void OnPlayerEndOverlap(APlayerCharacterBase* Player) override;
 
-	// ~ IInteractHoldFeedback
-	virtual void SetInteractHoldProgress(float Normalized) override;
+	// ~ IYogInteractable
+	virtual int32 GetInteractPriority() const override { return YogInteractPriority::Shop; }
 
 	UFUNCTION(BlueprintCallable, Category = "Shop")
-	void TryInteract(APlayerCharacterBase* Player);
+	virtual void TryInteract(APlayerCharacterBase* Player) override;
 
 	UFUNCTION(BlueprintCallable, Category = "Shop")
 	void SetShopData(UShopDataAsset* InData);
@@ -51,7 +51,7 @@ protected:
 	TObjectPtr<UStaticMeshComponent> ShopMesh;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Shop|Prompt")
-	TObjectPtr<UWidgetComponent> InteractPromptWidgetComp;
+	TObjectPtr<UInteractPromptComponent> InteractPromptComp;
 
 	UPROPERTY()
 	TObjectPtr<UShopSelectionWidget> ShopWidget;
@@ -61,6 +61,5 @@ protected:
 	UFUNCTION(BlueprintImplementableEvent, Category = "Shop")
 	void OnPlayerNearby(APlayerCharacterBase* Player, bool bNearby);
 
-	void ConfigureInteractPrompt();
 	void SetInteractPromptVisible(bool bVisible);
 };

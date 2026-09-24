@@ -5,24 +5,25 @@
 #include "CommonInputTypeEnum.h"
 #include "InteractPromptWidget.generated.h"
 
-class UBorder;
-class UProgressBar;
-class UYogCommonRichTextBlock;
+class UImage;
+class UTexture2D;
 
+/**
+ * Hold-to-interact prompt: the interact button glyph with the radial hold material behind it.
+ *
+ * Shown and hidden by UInteractPromptComponent, which owns the widget component this lives in.
+ * The ring stays on screen for as long as the prompt does and reads as an empty track at 0, so
+ * the button always communicates that it can be held.
+ */
 UCLASS(Blueprintable, BlueprintType)
 class DEVKIT_API UInteractPromptWidget : public UUserWidget
 {
 	GENERATED_BODY()
 
 public:
-	UFUNCTION(BlueprintCallable, Category = "Interact Prompt")
-	void SetPromptLabel(const FText& InLabel);
-
-	/** Drives the hold-to-interact fill. 0 hides the bar, anything above shows it. */
+	/** Drives the radial fill. 0 leaves the ring empty rather than hiding it. */
 	UFUNCTION(BlueprintCallable, Category = "Interact Prompt")
 	void SetHoldProgress(float Normalized);
-
-	static FText MakePromptMarkup(const FText& Label);
 
 protected:
 	virtual void NativeOnInitialized() override;
@@ -30,37 +31,26 @@ protected:
 	virtual void NativeDestruct() override;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	TObjectPtr<UBorder> PromptBorder;
+	TObjectPtr<UImage> ButtonIcon;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	TObjectPtr<UYogCommonRichTextBlock> PromptText;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	TObjectPtr<UProgressBar> HoldProgressBar;
+	TObjectPtr<UImage> HoldProgressRing;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interact Prompt")
-	FText PromptLabel;
+	TSoftObjectPtr<UTexture2D> KeyboardIcon =
+		TSoftObjectPtr<UTexture2D>(FSoftObjectPath(TEXT("/Game/UI/Button/keyBoard/E_Key_Light.E_Key_Light")));
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interact Prompt")
-	int32 PromptFontSize = 16;
+	TSoftObjectPtr<UTexture2D> GamepadIcon =
+		TSoftObjectPtr<UTexture2D>(FSoftObjectPath(TEXT("/Game/UI/Button/Xbox/XboxSeriesX_A.XboxSeriesX_A")));
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interact Prompt")
-	FLinearColor PromptTextColor = FLinearColor(0.94f, 0.92f, 0.84f, 1.f);
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interact Prompt", meta = (ClampMin = "8.0"))
+	float IconSize = 32.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interact Prompt")
-	FLinearColor PromptFillColor = FLinearColor(0.02f, 0.025f, 0.03f, 0.82f);
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interact Prompt")
-	FLinearColor PromptBorderColor = FLinearColor(0.75f, 0.66f, 0.42f, 0.85f);
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interact Prompt")
-	FLinearColor HoldProgressFillColor = FLinearColor(0.85f, 0.72f, 0.36f, 1.f);
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interact Prompt")
-	float HoldProgressBarHeight = 6.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interact Prompt", meta = (ClampMin = "8.0"))
+	float RingSize = 64.f;
 
 private:
 	void BuildFallbackLayout();
-	void RefreshPrompt(ECommonInputType NewInputType = ECommonInputType::MouseAndKeyboard);
-	void EnsureInputDecorator();
+	void RefreshIcon(ECommonInputType NewInputType = ECommonInputType::MouseAndKeyboard);
 };

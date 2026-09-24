@@ -582,7 +582,7 @@ void UPortalPreviewWidget::SetPreviewInfo(const FPortalPreviewInfo& Info)
         LootSummaryText->SetText(BuildPortalRewardFallbackText(AggregatedRewardPreviewOptions));
     }
 
-    // 浮窗刚显示时默认隐藏交互提示，待 HUD 检测到 PendingPortal == this 再调 SetInteractHintVisible(true)
+    // 浮窗刚显示时默认隐藏交互提示，待 HUD 检测到玩家进入本门 Box 再调 SetInteractHintVisible(true)
     SetInteractHintVisible(false);
 
     K2_OnPreviewShown();

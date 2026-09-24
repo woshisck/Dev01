@@ -14,7 +14,6 @@
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
 #include "Components/PanelWidget.h"
-#include "Components/ProgressBar.h"
 #include "Components/ScrollBox.h"
 #include "Components/ScrollBoxSlot.h"
 #include "Components/SizeBox.h"
@@ -216,22 +215,8 @@ void UWeaponFloatWidget::NativeConstruct()
 
 	SetIsFocusable(true);
 	EnsureRuntimeCardScrollBox();
-	SetHoldProgress(0.f);
 }
 
-void UWeaponFloatWidget::SetHoldProgress(float Normalized)
-{
-	if (!HoldProgressBar)
-	{
-		return;
-	}
-
-	const float Clamped = FMath::Clamp(Normalized, 0.f, 1.f);
-	HoldProgressBar->SetPercent(Clamped);
-	HoldProgressBar->SetVisibility(Clamped > KINDA_SMALL_NUMBER
-		? ESlateVisibility::HitTestInvisible
-		: ESlateVisibility::Collapsed);
-}
 
 void UWeaponFloatWidget::SetWeaponDefinition(const UWeaponDefinition* Def)
 {

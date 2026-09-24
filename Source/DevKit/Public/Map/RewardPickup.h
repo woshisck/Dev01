@@ -3,13 +3,14 @@
 #include "CoreMinimal.h"
 #include "Containers/Ticker.h"
 #include "GameFramework/Actor.h"
-#include "Character/InteractHoldFeedback.h"
+#include "Character/YogInteractable.h"
 #include "GameModes/LevelFlowTypes.h"
 #include "Map/PickupInteractable.h"
 #include "RewardPickup.generated.h"
 
 class UBoxComponent;
 class UNiagaraSystem;
+class UInteractPromptComponent;
 class UPrimitiveComponent;
 class UTexture2D;
 class UWidgetComponent;
@@ -24,7 +25,7 @@ class APlayerCharacterBase;
  * 独立的三选一选项（AssignedLoot），互不干扰、不重复。
  */
 UCLASS()
-class DEVKIT_API ARewardPickup : public AActor, public IPickupInteractable, public IInteractHoldFeedback
+class DEVKIT_API ARewardPickup : public AActor, public IPickupInteractable, public IYogInteractable
 {
 	GENERATED_BODY()
 
@@ -36,8 +37,11 @@ public:
 	virtual void OnPlayerLeaveRange(APlayerCharacterBase* Player) override;
 	virtual void TryPickup(APlayerCharacterBase* Player) override;
 
-	// ~ IInteractHoldFeedback
-	virtual void SetInteractHoldProgress(float Normalized) override;
+	// ~ IYogInteractable
+	virtual void TryInteract(APlayerCharacterBase* Player) override { TryPickup(Player); }
+	virtual int32 GetInteractPriority() const override { return YogInteractPriority::Pickup; }
+	// Re-checked every resolve: the phase can leave Arrangement while the player stands in the volume.
+	virtual bool CanInteract(const APlayerCharacterBase* Player) const override { return !bPickedUp && IsPickupAllowed(); }
 
 	/** 选符文确认后由 LootSelectionWidget 调用：销毁本拾取物 */
 	void ConsumeAndDestroy();
@@ -118,6 +122,10 @@ protected:
 	// 符文奖励浮窗 WidgetComponent（Screen Space）
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Floating Panel")
 	TObjectPtr<UWidgetComponent> RuneInfoWidgetComp;
+
+	// 按住 E 拾取的提示（按键图标 + 蓄力环）
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Interact Prompt")
+	TObjectPtr<UInteractPromptComponent> InteractPromptComp;
 
 	// 在 BP_RewardPickup 里指定浮窗 WBP 类
 	UPROPERTY(EditDefaultsOnly, Category = "Floating Panel")

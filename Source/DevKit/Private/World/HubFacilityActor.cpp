@@ -1,10 +1,9 @@
 #include "World/HubFacilityActor.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Components/BoxComponent.h"
-#include "Components/WidgetComponent.h"
+#include "Component/InteractPromptComponent.h"
 #include "CommonActivatableWidget.h"
 #include "Blueprint/UserWidget.h"
-#include "UI/InteractPromptWidget.h"
 #include "UI/YogHUD.h"
 #include "MetaProgression/YogMetaProgressionSubsystem.h"
 
@@ -20,51 +19,12 @@ AHubFacilityActor::AHubFacilityActor(const FObjectInitializer& ObjectInitializer
 
 	FacilityDisplayName = NSLOCTEXT("HubFacility", "UpgradeTerminal", "升级终端");
 
-	InteractPromptWidgetComp = CreateDefaultSubobject<UWidgetComponent>(TEXT("InteractPromptWidgetComp"));
-	InteractPromptWidgetComp->SetupAttachment(RootComponent);
-	InteractPromptWidgetComp->SetRelativeLocation(FVector(0.f, 0.f, 150.f));
-	InteractPromptWidgetComp->SetWidgetSpace(EWidgetSpace::Screen);
-	InteractPromptWidgetComp->SetDrawAtDesiredSize(true);
-	InteractPromptWidgetComp->SetVisibility(false);
-	InteractPromptWidgetComp->SetWidgetClass(UInteractPromptWidget::StaticClass());
-}
-
-void AHubFacilityActor::ConfigureInteractPrompt()
-{
-	if (!InteractPromptWidgetComp)
-	{
-		return;
-	}
-
-	if (APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr)
-	{
-		InteractPromptWidgetComp->SetOwnerPlayer(PC->GetLocalPlayer());
-	}
-
-	InteractPromptWidgetComp->SetWidgetClass(UInteractPromptWidget::StaticClass());
-	InteractPromptWidgetComp->InitWidget();
-	if (UInteractPromptWidget* PromptWidget = Cast<UInteractPromptWidget>(InteractPromptWidgetComp->GetWidget()))
-	{
-		PromptWidget->SetPromptLabel(FacilityDisplayName);
-	}
+	InteractPromptComp = CreateDefaultSubobject<UInteractPromptComponent>(TEXT("InteractPromptComp"));
 }
 
 void AHubFacilityActor::SetInteractPromptVisible(bool bVisible)
 {
-	if (InteractPromptWidgetComp)
-	{
-		InteractPromptWidgetComp->SetVisibility(bVisible);
-	}
-}
-
-void AHubFacilityActor::SetInteractHoldProgress(float Normalized)
-{
-	if (!InteractPromptWidgetComp) return;
-
-	if (UInteractPromptWidget* PromptWidget = Cast<UInteractPromptWidget>(InteractPromptWidgetComp->GetWidget()))
-	{
-		PromptWidget->SetHoldProgress(Normalized);
-	}
+	ShowInteractPrompt(bVisible);
 }
 
 void AHubFacilityActor::BeginPlay()
@@ -72,7 +32,6 @@ void AHubFacilityActor::BeginPlay()
 	Super::BeginPlay();
 	InteractBox->OnComponentBeginOverlap.AddDynamic(this, &AHubFacilityActor::HandleBeginOverlap);
 	InteractBox->OnComponentEndOverlap.AddDynamic(this,   &AHubFacilityActor::HandleEndOverlap);
-	ConfigureInteractPrompt();
 	ApplyFeatureAvailability();
 
 	if (UGameInstance* GI = GetGameInstance())
@@ -159,7 +118,7 @@ void AHubFacilityActor::HandleBeginOverlap(UPrimitiveComponent* OverlappedCompon
 	{
 		if (IsFeatureAvailable())
 		{
-			Player->PendingFacility = this;
+			Player->RegisterInteractable(this);
 			SetInteractPromptVisible(true);
 		}
 	}
@@ -171,10 +130,7 @@ void AHubFacilityActor::HandleEndOverlap(UPrimitiveComponent* OverlappedComponen
 {
 	if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(OtherActor))
 	{
-		if (Player->PendingFacility == this)
-		{
-			Player->PendingFacility = nullptr;
-		}
+		Player->UnregisterInteractable(this);
 		SetInteractPromptVisible(false);
 	}
 }

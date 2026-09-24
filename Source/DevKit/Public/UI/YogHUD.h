@@ -37,7 +37,9 @@ class UCurrentRoomBuffWidget;
 class UYogRunSummaryWidgetBase;
 class URoomDataAsset;
 class UTexture2D;
+class UBubbleMessageWidget;
 enum class EYogUIScreenId : uint8;
+enum class EBubbleScreenCorner : uint8;
 
 
 UCLASS()
@@ -225,6 +227,30 @@ public:
 	bool ScrollWeaponFloatCards(float Direction);
 	bool IsWeaponFloatInfoVisible() const;
 
+	// ── Bubble message (screen-corner anchor) ──────────────────────────
+	// Driven entirely by UYogBubbleSubsystem, which decides when a line belongs in a corner
+	// rather than above its speaker. The HUD only draws what it is handed.
+
+	UPROPERTY(EditDefaultsOnly, Category = "Bubble")
+	TSubclassOf<UBubbleMessageWidget> BubbleWidgetClass;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Bubble")
+	FVector2D BubbleViewportSize = FVector2D(460.f, 0.f);
+
+	UPROPERTY(EditDefaultsOnly, Category = "Bubble", meta = (ClampMin = "0"))
+	float BubbleViewportPadding = 64.f;
+
+	void ShowBubbleAtCorner(const FText& SpeakerName, const FText& Body, EBubbleScreenCorner Corner);
+	void HideBubble();
+
+	/** Viewport position + alignment for a corner. Static and pure so it can be unit tested. */
+	static void ResolveBubbleCornerPlacement(
+		EBubbleScreenCorner Corner,
+		const FVector2D& ViewportSize,
+		float Padding,
+		FVector2D& OutPosition,
+		FVector2D& OutAlignment);
+
 	bool StartWeaponFloatPickup(
 		const UWeaponDefinition* Def,
 		FVector WorldFallbackLocation,
@@ -280,7 +306,7 @@ public:
 	/** 切关前 / 战斗开始时关闭引导 */
 	void HidePortalGuidance();
 
-	/** Portal 玩家进/出范围回调（v3 决策：当前实现仅由 TickPortalPreview 读 PendingPortal，
+	/** Portal 玩家进/出范围回调（v3 决策：当前实现仅由 TickPortalPreview 读玩家重叠的 Portal，
 	    本接口保留作为 BP 扩展或后续高级行为占位） */
 	void NotifyPlayerInPortalRange(APortal* Portal);
 	void NotifyPlayerExitedPortalRange(APortal* Portal);
@@ -368,6 +394,7 @@ private:
 	void EnsureCombatItemWidget();
 	void EnsureActiveSkillWidget();
 	bool EnsureWeaponFloatWidget();
+	bool EnsureBubbleWidget();
 	void EnsureBackpackWidget();
 	void EnsureLootSelectionWidget();
 	template<typename WidgetT>
@@ -400,6 +427,9 @@ private:
 	const UWeaponDefinition* ActiveWeaponFloatDefinition = nullptr;
 	float WeaponFloatFadeAlpha = 0.f;
 	float WeaponFloatFadeTarget = 0.f;
+
+	UPROPERTY()
+	TObjectPtr<UBubbleMessageWidget> BubbleWidget;
 
 	UPROPERTY()
 	TObjectPtr<ULootSelectionWidget> LootSelectionWidget;

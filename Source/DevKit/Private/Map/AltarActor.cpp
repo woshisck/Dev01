@@ -1,12 +1,11 @@
 #include "Map/AltarActor.h"
 #include "Components/BoxComponent.h"
 #include "Components/StaticMeshComponent.h"
-#include "Components/WidgetComponent.h"
+#include "Component/InteractPromptComponent.h"
 #include "Engine/LocalPlayer.h"
 #include "GameModes/YogGameMode.h"
 #include "NiagaraComponent.h"
 #include "UI/AltarMenuWidget.h"
-#include "UI/InteractPromptWidget.h"
 #include "UI/SacrificeSelectionWidget.h"
 #include "UI/YogUIManagerSubsystem.h"
 #include "Character/PlayerCharacterBase.h"
@@ -73,17 +72,7 @@ AAltarActor::AAltarActor()
 		AltarMesh->SetStaticMesh(DefaultAltarMesh.Object);
 	}
 
-	InteractPromptWidgetComp = CreateDefaultSubobject<UWidgetComponent>(TEXT("InteractPromptWidgetComp"));
-	InteractPromptWidgetComp->SetupAttachment(RootComponent);
-	InteractPromptWidgetComp->SetRelativeLocation(FVector(0.f, 0.f, 150.f));
-	InteractPromptWidgetComp->SetWidgetSpace(EWidgetSpace::Screen);
-	InteractPromptWidgetComp->SetDrawAtDesiredSize(true);
-	// Keep the component itself permanently visible so it registers with the screen layer on the first
-	// tick (UpdateWidgetOnScreen only adds to the layer when component is visible, and SetVisibility
-	// later doesn't re-trigger that path for screen-space). Toggle the inner UUserWidget's Slate
-	// visibility for show/hide instead.
-	InteractPromptWidgetComp->SetVisibility(true);
-	InteractPromptWidgetComp->SetWidgetClass(UInteractPromptWidget::StaticClass());
+	InteractPromptComp = CreateDefaultSubobject<UInteractPromptComponent>(TEXT("InteractPromptComp"));
 
 	IdleVFXComponent = CreateDefaultSubobject<UNiagaraComponent>(TEXT("IdleVFXComponent"));
 	IdleVFXComponent->SetupAttachment(RootComponent);
@@ -101,7 +90,6 @@ void AAltarActor::BeginPlay()
 		OnPhaseChanged(GM->CurrentPhase);
 	}
 
-	ConfigureInteractPrompt();
 	QueueRefreshCurrentPlayerOverlap();
 }
 
@@ -130,7 +118,14 @@ void AAltarActor::SetAltarActive(bool bInActive)
 
 	if (NearbyPlayer.IsValid())
 	{
-		NearbyPlayer->PendingAltar = bIsActive ? this : nullptr;
+		if (bIsActive)
+		{
+			NearbyPlayer->RegisterInteractable(this);
+		}
+		else
+		{
+			NearbyPlayer->UnregisterInteractable(this);
+		}
 		SetInteractPromptVisible(bIsActive);
 	}
 	else if (bIsActive && InteractBox)
@@ -158,7 +153,6 @@ void AAltarActor::ConsumeSacrificeReward()
 void AAltarActor::SetAltarData(UAltarDataAsset* InData)
 {
 	AltarData = InData;
-	ConfigureInteractPrompt();
 	SetInteractPromptVisible(NearbyPlayer.IsValid() && bIsActive);
 	QueueRefreshCurrentPlayerOverlap();
 }
@@ -166,7 +160,6 @@ void AAltarActor::SetAltarData(UAltarDataAsset* InData)
 void AAltarActor::SetOpenSacrificeDirectly(bool bInOpenDirectly)
 {
 	bOpenSacrificeDirectly = bInOpenDirectly;
-	ConfigureInteractPrompt();
 	SetInteractPromptVisible(NearbyPlayer.IsValid() && bIsActive);
 	QueueRefreshCurrentPlayerOverlap();
 }
@@ -292,7 +285,7 @@ void AAltarActor::OnPlayerBeginOverlap(APlayerCharacterBase* Player)
 	NearbyPlayer = Player;
 	if (Player && bIsActive)
 	{
-		Player->PendingAltar = this;
+		Player->RegisterInteractable(this);
 	}
 	const bool bWasActive = bIsActive;
 	OnPlayerNearby(Player, true);
@@ -311,9 +304,9 @@ void AAltarActor::OnPlayerBeginOverlap(APlayerCharacterBase* Player)
 
 void AAltarActor::OnPlayerEndOverlap(APlayerCharacterBase* Player)
 {
-	if (Player && Player->PendingAltar == this)
+	if (Player)
 	{
-		Player->PendingAltar = nullptr;
+		Player->UnregisterInteractable(this);
 	}
 	if (NearbyPlayer.Get() == Player)
 	{
@@ -356,81 +349,14 @@ void AAltarActor::OnInteractBoxEndOverlap(UPrimitiveComponent* OverlappedCompone
 	}
 }
 
-void AAltarActor::ConfigureInteractPrompt()
-{
-	if (!InteractPromptWidgetComp)
-	{
-		return;
-	}
-
-	if (APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr)
-	{
-		InteractPromptWidgetComp->SetOwnerPlayer(PC->GetLocalPlayer());
-	}
-
-	// Bug fix: only InitWidget once. Calling InitWidget multiple times (BeginPlay + SetAltarData + SetOpenSacrificeDirectly all triggered)
-	// destroyed+recreated the widget on each call, leaving the renderer in a "freshly-created" state that didn't paint on the first
-	// SetVisibility(true). Re-entering the box did a visibility toggle that gave the renderer a chance to catch up.
-	if (!InteractPromptWidgetComp->GetWidget())
-	{
-		InteractPromptWidgetComp->SetWidgetClass(UInteractPromptWidget::StaticClass());
-		InteractPromptWidgetComp->InitWidget();
-		// Default UUserWidget visibility is SelfHitTestInvisible (visible). We want hidden until
-		// the player overlaps, but we keep the component visible so it gets added to the screen
-		// layer on the first tick. So collapse the inner widget right after creation.
-		if (UUserWidget* InnerWidget = InteractPromptWidgetComp->GetWidget())
-		{
-			InnerWidget->SetVisibility(ESlateVisibility::Collapsed);
-		}
-	}
-	if (UInteractPromptWidget* PromptWidget = Cast<UInteractPromptWidget>(InteractPromptWidgetComp->GetWidget()))
-	{
-		PromptWidget->SetPromptLabel(bOpenSacrificeDirectly
-			? NSLOCTEXT("InteractPrompt", "Sacrifice", "献祭")
-			: NSLOCTEXT("InteractPrompt", "UseAltar", "使用祭坛"));
-	}
-}
-
-void AAltarActor::SetInteractHoldProgress(float Normalized)
-{
-	if (!InteractPromptWidgetComp) return;
-
-	if (UInteractPromptWidget* PromptWidget = Cast<UInteractPromptWidget>(InteractPromptWidgetComp->GetWidget()))
-	{
-		PromptWidget->SetHoldProgress(Normalized);
-	}
-}
-
 void AAltarActor::SetInteractPromptVisible(bool bVisible)
 {
-	const bool bFinalVisible = bVisible && bIsActive && !bSacrificeRewardConsumed;
-	if (InteractPromptWidgetComp)
-	{
-		// Component stays visible permanently (registered with screen layer on first tick). Only toggle
-		// the inner UUserWidget's Slate visibility. Toggling component visibility instead is racy on
-		// screen-space because UWidgetComponent::UpdateWidgetOnScreen only runs from TickComponent,
-		// and USceneComponent::SetVisibility doesn't reliably reactivate that tick.
-		if (UUserWidget* InnerWidget = InteractPromptWidgetComp->GetWidget())
-		{
-			InnerWidget->SetVisibility(bFinalVisible
-				? ESlateVisibility::SelfHitTestInvisible
-				: ESlateVisibility::Collapsed);
-		}
-	}
+	ShowInteractPrompt(bVisible && bIsActive && !bSacrificeRewardConsumed);
 }
 
 bool AAltarActor::IsInteractPromptShowing() const
 {
-	if (!InteractPromptWidgetComp)
-	{
-		return false;
-	}
-	if (const UUserWidget* InnerWidget = InteractPromptWidgetComp->GetWidget())
-	{
-		const ESlateVisibility V = InnerWidget->GetVisibility();
-		return V != ESlateVisibility::Collapsed && V != ESlateVisibility::Hidden;
-	}
-	return false;
+	return InteractPromptComp && InteractPromptComp->IsPromptShowing();
 }
 
 void AAltarActor::RefreshCurrentPlayerOverlap()
@@ -451,7 +377,7 @@ void AAltarActor::RefreshCurrentPlayerOverlap()
 	{
 		if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(Actor))
 		{
-			if (NearbyPlayer.Get() != Player || Player->PendingAltar != this || !IsInteractPromptShowing())
+			if (NearbyPlayer.Get() != Player || !Player->OverlappingInteractables.Contains(this) || !IsInteractPromptShowing())
 			{
 				OnPlayerBeginOverlap(Player);
 			}
@@ -462,7 +388,7 @@ void AAltarActor::RefreshCurrentPlayerOverlap()
 	if (bFallbackPlayerInRange)
 	{
 		if (NearbyPlayer.Get() != FallbackPlayer
-			|| FallbackPlayer->PendingAltar != this
+			|| !FallbackPlayer->OverlappingInteractables.Contains(this)
 			|| !IsInteractPromptShowing())
 		{
 			OnPlayerBeginOverlap(FallbackPlayer);

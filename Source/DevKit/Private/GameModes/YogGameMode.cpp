@@ -1111,7 +1111,7 @@ void AYogGameMode::SpawnShopActorForRoom()
 			constexpr float ImmediateInteractRadiusSq = 320.0f * 320.0f;
 			if (FVector::DistSquared(Player->GetActorLocation(), Shop->GetActorLocation()) <= ImmediateInteractRadiusSq)
 			{
-				Player->PendingShop = Shop;
+				Player->RegisterInteractable(Shop);
 			}
 		}
 	};

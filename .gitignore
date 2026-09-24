@@ -2013,3 +2013,9 @@ Plugins/GameFeatures/CountDownTime/Binaries/Win64/UnrealEditor.modules
 Plugins/ModularGameplayActors/Binaries/Win64/UnrealEditor.modules
 /UI_Reference
 /SourceArt
+
+# GPU crash dumps and local decode scratch (Nsight Aftermath)
+*.nv-gpudmp
+/gpudmp_crashcontext.xml
+/gpudmp_decoded.json
+/decode_aftermath.py

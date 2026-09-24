@@ -1,29 +1,72 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Misc/AutomationTest.h"
+#include "Blueprint/UserWidget.h"
 #include "Character/YogPlayerControllerBase.h"
+#include "Component/InteractPromptComponent.h"
+#include "Components/SceneComponent.h"
+#include "Components/WidgetComponent.h"
+#include "Engine/World.h"
+#include "GameFramework/Actor.h"
 #include "UI/InteractPromptWidget.h"
 #include "UI/RuneRewardFloatWidget.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
-	FInteractPromptWidgetMarkupTest,
-	"DevKit.UI.InteractPromptWidget.UsesCommonInteractAction",
+	FInteractPromptComponentVisibilityTest,
+	"DevKit.UI.InteractPrompt.ComponentTogglesInnerWidget",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FInteractPromptWidgetMarkupTest::RunTest(const FString& Parameters)
+bool FInteractPromptComponentVisibilityTest::RunTest(const FString& Parameters)
 {
 	(void)Parameters;
 
-	TestEqual(
-		TEXT("Prompt markup uses the shared Interact action token"),
-		UInteractPromptWidget::MakePromptMarkup(FText::FromString(TEXT("Open"))).ToString(),
-		FString(TEXT("<input action=\"Interact\"/> Open")));
+	UWorld* World = GWorld;
+	TestNotNull(TEXT("Automation world exists"), World);
+	if (!World)
+	{
+		return false;
+	}
 
-	TestEqual(
-		TEXT("Empty prompt still renders the shared Interact action token"),
-		UInteractPromptWidget::MakePromptMarkup(FText::GetEmpty()).ToString(),
-		FString(TEXT("<input action=\"Interact\"/>")));
+	AActor* Owner = World->SpawnActor<AActor>();
+	TestNotNull(TEXT("Owner actor spawned"), Owner);
+	if (!Owner)
+	{
+		return false;
+	}
 
+	Owner->SetRootComponent(NewObject<USceneComponent>(Owner, TEXT("Root")));
+	Owner->GetRootComponent()->RegisterComponent();
+
+	UInteractPromptComponent* Prompt =
+		NewObject<UInteractPromptComponent>(Owner, TEXT("InteractPromptComp"));
+	Prompt->RegisterComponent();
+
+	// The widget component has to belong to the actor, otherwise it never registers and never draws.
+	UWidgetComponent* WidgetComponent = Prompt->GetWidgetComponent();
+	TestNotNull(TEXT("Prompt spawned its widget component"), WidgetComponent);
+	if (!WidgetComponent)
+	{
+		return false;
+	}
+	TestEqual(TEXT("Widget component is owned by the actor"), WidgetComponent->GetOwner(), Owner);
+	TestTrue(TEXT("Widget component is registered"), WidgetComponent->IsRegistered());
+
+	TestFalse(TEXT("Prompt starts hidden"), Prompt->IsPromptShowing());
+
+	Prompt->SetPromptVisible(true);
+	TestTrue(TEXT("Prompt shows after SetPromptVisible(true)"), Prompt->IsPromptShowing());
+	if (const UUserWidget* InnerWidget = WidgetComponent->GetWidget())
+	{
+		// Hiding must happen on the inner widget: toggling the component is racy for screen space.
+		TestTrue(TEXT("Component itself stays visible"), WidgetComponent->IsVisible());
+		TestNotEqual(TEXT("Inner widget is not collapsed while showing"),
+			InnerWidget->GetVisibility(), ESlateVisibility::Collapsed);
+	}
+
+	Prompt->SetPromptVisible(false);
+	TestFalse(TEXT("Prompt hides again"), Prompt->IsPromptShowing());
+
+	Owner->Destroy();
 	return true;
 }
 

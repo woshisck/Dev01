@@ -148,49 +148,52 @@ namespace
 	}
 
 	/**
-	 * Strips explicit triggers so Enhanced Input falls back to its implicit Down trigger.
-	 * Hold-to-interact needs Started on press and Completed on release; UInputTriggerPressed
-	 * reports Triggered only on the press edge, so the action drops to None the very next frame
-	 * and fires Completed while the key is still held.
+	 * Keeps the Hold trigger that owns the charge-up time on the action asset, so designers can
+	 * retune it in the editor. Only seeds the default threshold when the trigger is missing —
+	 * an existing Hold trigger is left alone so a commandlet run never clobbers a designer's value.
 	 */
-	void EnsureNoExplicitTriggers(
+	void EnsureHoldTrigger(
 		UInputAction* Action,
 		const FString& ActionName,
+		float DefaultHoldSeconds,
 		bool bDryRun,
 		TArray<FString>& ReportLines,
 		TArray<UPackage*>& DirtyPackages)
 	{
 		if (!Action)
 		{
-			ReportLines.Add(FString::Printf(TEXT("- Missing action `%s`; trigger cleanup skipped."), *ActionName));
+			ReportLines.Add(FString::Printf(TEXT("- Missing action `%s`; hold trigger setup skipped."), *ActionName));
 			return;
 		}
 
-		if (Action->Triggers.IsEmpty())
-		{
-			ReportLines.Add(FString::Printf(TEXT("- `%s` already has no explicit triggers."), *ActionName));
-			return;
-		}
-
-		TArray<FString> TriggerNames;
 		for (const UInputTrigger* Trigger : Action->Triggers)
 		{
-			TriggerNames.Add(Trigger ? Trigger->GetClass()->GetName() : TEXT("null"));
+			if (const UInputTriggerHold* HoldTrigger = Cast<UInputTriggerHold>(Trigger))
+			{
+				ReportLines.Add(FString::Printf(
+					TEXT("- `%s` already holds for %.2fs; left untouched."),
+					*ActionName,
+					HoldTrigger->HoldTimeThreshold));
+				return;
+			}
 		}
 
 		if (!bDryRun)
 		{
 			Action->Modify();
-			Action->Triggers.Empty();
+			UInputTriggerHold* HoldTrigger = NewObject<UInputTriggerHold>(Action);
+			HoldTrigger->HoldTimeThreshold = DefaultHoldSeconds;
+			HoldTrigger->bIsOneShot = true;
+			Action->Triggers.Add(HoldTrigger);
 			Action->MarkPackageDirty();
 			DirtyPackages.AddUnique(Action->GetPackage());
 		}
 
 		ReportLines.Add(FString::Printf(
-			TEXT("- `%s` %s stripped of explicit triggers (%s) so press/release edges reach the controller."),
+			TEXT("- `%s` %s given a Hold trigger at %.2fs so the charge-up time is editable on the asset."),
 			*ActionName,
 			bDryRun ? TEXT("would be") : TEXT("was"),
-			*FString::Join(TriggerNames, TEXT(", "))));
+			DefaultHoldSeconds));
 	}
 
 	void RemoveActionMappings(
@@ -413,7 +416,7 @@ int32 UGamepadInputSetupCommandlet::Main(const FString& Params)
 	TArray<UPackage*> DirtyPackages;
 	ReportLines.Add(TEXT("# Gamepad Input Setup Report"));
 	ReportLines.Add(FString::Printf(TEXT("- Mode: %s"), bDryRun ? TEXT("DryRun") : TEXT("Apply")));
-	ReportLines.Add(TEXT("- Layout: A=Interact/Accept, B=Dash/Back, X=Attack/Secondary/ReverseCard, Y=WeaponSkill/Details, LB=Use item, RB/LT=Use active skill, L3=Switch weapon, RS=Switch active skill, Menu=Pause, View=Backpack."));
+	ReportLines.Add(TEXT("- Layout: A=Interact/Accept (hold), B=Dash/Back, X=Attack/Secondary/ReverseCard, Y=WeaponSkill/Details, LB=Use item, RB/LT=Use active skill, L3=Switch weapon, RS=Switch active skill, Menu=Pause, View=Backpack."));
 	ReportLines.Add(TEXT(""));
 
 	UInputMappingContext* MappingContext = Cast<UInputMappingContext>(LoadObjectByPackagePath(MappingContextPath, UInputMappingContext::StaticClass()));
@@ -448,7 +451,7 @@ int32 UGamepadInputSetupCommandlet::Main(const FString& Params)
 	UInputAction* IA_ReverseCard = LoadOrCreateInputAction(TEXT("IA_ReverseCard"), bDryRun, ReportLines, DirtyPackages);
 
 	EnsureMappings(MappingContext, IA_Interact, TEXT("IA_Interact"), { EKeys::E, EKeys::Gamepad_FaceButton_Bottom }, { EKeys::Gamepad_FaceButton_Right }, bDryRun, ReportLines, DirtyPackages);
-	EnsureNoExplicitTriggers(IA_Interact, TEXT("IA_Interact"), bDryRun, ReportLines, DirtyPackages);
+	EnsureHoldTrigger(IA_Interact, TEXT("IA_Interact"), 0.6f, bDryRun, ReportLines, DirtyPackages);
 	EnsureMappings(MappingContext, IA_Attack, TEXT("IA_Attack"), { EKeys::LeftMouseButton, EKeys::Gamepad_FaceButton_Left }, {}, bDryRun, ReportLines, DirtyPackages);
 	EnsureMappings(MappingContext, IA_WeaponSkill, TEXT("IA_WeaponSkill"), { EKeys::RightMouseButton, EKeys::Gamepad_FaceButton_Top }, {}, bDryRun, ReportLines, DirtyPackages);
 	EnsureMappings(MappingContext, IA_Dash, TEXT("IA_Dash"), { EKeys::SpaceBar, EKeys::Gamepad_FaceButton_Right }, { EKeys::Gamepad_FaceButton_Bottom }, bDryRun, ReportLines, DirtyPackages);

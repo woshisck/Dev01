@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "Character/InteractHoldFeedback.h"
+#include "Character/YogInteractable.h"
 #include "Character/PlayerInteraction.h"
 #include "GameModes/LevelFlowTypes.h"
 #include "Data/AltarDataAsset.h"
@@ -14,11 +14,11 @@ class USacrificeSelectionWidget;
 class UBoxComponent;
 class UStaticMeshComponent;
 class UPrimitiveComponent;
-class UWidgetComponent;
+class UInteractPromptComponent;
 class UNiagaraComponent;
 
 UCLASS()
-class DEVKIT_API AAltarActor : public AActor, public IPlayerInteraction, public IInteractHoldFeedback
+class DEVKIT_API AAltarActor : public AActor, public IPlayerInteraction, public IYogInteractable
 {
 	GENERATED_BODY()
 
@@ -30,12 +30,12 @@ public:
 	virtual void OnPlayerBeginOverlap(APlayerCharacterBase* Player) override;
 	virtual void OnPlayerEndOverlap(APlayerCharacterBase* Player) override;
 
-	// ~ IInteractHoldFeedback
-	virtual void SetInteractHoldProgress(float Normalized) override;
+	// ~ IYogInteractable
+	virtual int32 GetInteractPriority() const override { return YogInteractPriority::Altar; }
 
 	// 由玩家输入或交互 UI 调用
 	UFUNCTION(BlueprintCallable, Category = "Altar")
-	void TryInteract(APlayerCharacterBase* Player);
+	virtual void TryInteract(APlayerCharacterBase* Player) override;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Altar")
 	TObjectPtr<UAltarDataAsset> AltarData;
@@ -83,7 +83,7 @@ protected:
 	TObjectPtr<UStaticMeshComponent> AltarMesh;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Altar|Prompt")
-	TObjectPtr<UWidgetComponent> InteractPromptWidgetComp;
+	TObjectPtr<UInteractPromptComponent> InteractPromptComp;
 
 	// 未献祭时持续播放的待机特效，献祭完成后自动隐藏；可在细节面板指定 Niagara System 资产并调整位置
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Altar|VFX")
@@ -109,8 +109,6 @@ protected:
 	void OnInteractBoxEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
 		UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
 
-	// BP 重写：显示 / 隐藏交互提示（"按 F 交互"等）
-	void ConfigureInteractPrompt();
 	void SetInteractPromptVisible(bool bVisible);
 	bool IsInteractPromptShowing() const;
 	void RefreshCurrentPlayerOverlap();

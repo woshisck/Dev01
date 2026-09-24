@@ -5,6 +5,29 @@
 
 ---
 
+## 2026-09-21
+
+### [INTERACT-001] 蓄力交互移入 IA_Interact 资产 + IYogInteractable 统一接口
+
+**状态**：C++ 完整，已编译；15 项相关自动化测试通过
+
+| 项目 | 内容 |
+|------|------|
+| 涉及文件 | `Content/Code/Core/Input/Actions/IA_Interact.uasset`<br>`Source/DevKit/Public/Character/YogInteractable.h`（新）<br>`Source/DevKit/Public/Character/InteractHoldFeedback.h`（删除，已并入上面）<br>`Character/PlayerCharacterBase.{h,cpp}`、`Character/YogPlayerControllerBase.{h,cpp}`<br>`Item/Weapon/WeaponSpawner.{h,cpp}`、`Map/RewardPickup.{h,cpp}`、`Map/AltarActor.{h,cpp}`、`Map/ShopActor.{h,cpp}`、`Map/Portal.{h,cpp}`、`World/HubFacilityActor.{h,cpp}`<br>`UI/YogHUD.cpp`、`UI/PortalDirectionWidget.cpp`、`GameModes/YogGameMode.cpp`<br>`Source/DevKitEditor/UI/GamepadInputSetupCommandlet.cpp` |
+| 蓄力时长 | 由 `IA_Interact` 上的 `UInputTriggerHold` 决定（`HoldTimeThreshold=0.6`、`bIsOneShot=true`），策划可在编辑器内直接改，无需重编译 |
+| 输入事件 | `Started`=按下登记目标 / `Ongoing`=每帧推进度 / `Triggered`=提交 / `Canceled`+`Completed`=取消；原先的 `PlayerTick`+`TickInteractHold` 手写计时已删除 |
+| 进度条 | `ComputeHoldProgress(Instance.GetElapsedTime(), InteractHoldThreshold)`；`bAffectedByTimeDilation` 必须保持 false，否则 Trigger 用缩放时间而 `GetElapsedTime()` 用非缩放时间，进度环与实际触发会脱节 |
+| 统一接口 | `IYogInteractable`：`TryInteract` / `GetInteractPriority` / `SetInteractHoldProgress` / `CanInteract`；优先级常量见 `YogInteractPriority`（WeaponSpawner 60 > Pickup 50 > Altar 40 > Shop 30 > Portal 20 > Facility 10，沿用旧 if-chain 顺序）|
+| 六合一 | `PlayerCharacterBase` 上的 `PendingWeaponSpawner/PendingPickup/PendingAltar/PendingShop/PendingPortal/PendingFacility` 六个单值槽 → 一个 `OverlappingInteractables` 数组 + `RegisterInteractable` / `UnregisterInteractable` / `GetBestInteractable()` / 模板 `GetOverlappingInteractable<T>()` |
+| 连带收益 | `ResolveInteractTarget` 与 `CommitInteract` 的两条 if-chain 全部删除；新增交互物只需实现接口 + Overlap 里 Register/Unregister，不再需要改玩家角色与控制器 |
+| 非交互消费方 | HUD 门浮窗、方位箭头原先借 `PendingPortal` 判断"玩家是否站在门 Box 内"，改用 `Player->GetOverlappingInteractable<APortal>()`；`YogGameMode` 直写 `PendingShop` 改为 `RegisterInteractable(Shop)` |
+| Commandlet | `GamepadInputSetupCommandlet` 原有 `EnsureNoExplicitTriggers(IA_Interact)` 会清掉 Trigger，已换成 `EnsureHoldTrigger(..., 0.6f)`；已存在的 Hold Trigger 不覆盖，避免跑一次 commandlet 冲掉策划调好的值 |
+| 行为变更 | 蓄力时长从"每个目标可覆写"变成"整个 IA_Interact 共用"（原 `IInteractHoldFeedback::GetInteractHoldDuration` 无任何实现者，属死代码）；键盘 E 与手柄 A 共用同一时长 |
+| 已知限制 | 想让单个交互物用不同蓄力时长，需要另建一个 InputAction，无法再用 C++ 覆写；`CanInteract()` 目前只有 RewardPickup / WeaponSpawner 覆写 |
+| 设计文档 | [WeaponSystem_Technical.md](../04_开发实现与系统文档/系统/Weapon/WeaponSystem_Technical.md)（已更新）|
+
+---
+
 ## 2026-07-01
 
 ### [PERF-VT-001] 地面 RVT 保留 + 普通 Texture Collection / NoVT 编辑器工具
@@ -204,7 +227,7 @@
 |------|------|
 | 核心文件 | `UI/LootSelectionWidget.h/.cpp`（重写）、`UI/RuneInfoCardWidget.h/.cpp`、`UI/GenericEffectListWidget.h/.cpp`（新）、`UI/YogCommonRichTextBlock.h/.cpp`（新）、`UI/InputActionRichTextDecorator.h/.cpp`（新）、`Data/GenericRuneEffectDA.h/.cpp`（新）、`Data/RuneDataAsset.h`、`UI/YogHUD.h/.cpp`、`UI/BackpackScreenWidget.h/.cpp`、`UI/GameDialogWidget.h/.cpp`、`UI/WeaponFloatWidget.h`、`Map/RewardPickup.h/.cpp`、`Item/Weapon/WeaponSpawner.cpp` |
 | 功能说明 | 三选一战利品 UI 重构 — 卡片数量动态（N≤5）、底部跳过/预览背包按钮、聚焦时显示通用效果浮窗（如击退）、鼠标点击 + 完整手柄支持（DPad/LB/RB/Stick X/A/B/Y） |
-| 跳过流程 | RewardPickup 不再立刻 Destroy；选符文 → `ConsumeAndDestroy`；跳过 → `ResetForSkip(Player)` 复位 bPickedUp/PendingPickup/浮窗，玩家走开再回按 E 可重开 |
+| 跳过流程 | RewardPickup 不再立刻 Destroy；选符文 → `ConsumeAndDestroy`；跳过 → `ResetForSkip(Player)` 复位 bPickedUp/PendingPickup/浮窗，玩家走开再回按 E 可重开<br>⚠️ `PendingPickup` 已于 [INTERACT-001]（2026-09-21）改为 `RegisterInteractable` |
 | 选完→开背包 | 沿用现有行为：`SelectRuneLoot` 末尾调 `HUD->OpenBackpack()`（整理模式） |
 | 背包预览 | `HUD::OpenBackpackForPreview(OnClosed)` 封装；`UBackpackScreenWidget::SetPreviewMode(true)` 禁拖拽/旋转/出售/抓取/长按；NativeOnDeactivated 跳过 SyncPendingToPlayer 但保留 EndPauseEffect 配对 |
 | 多 pickup 排队 | `AYogHUD` 新增 `LootQueue` (FQueuedLootRequest 数组) FIFO；`bLootSelectionActive` 标记；`OnLootSelectionFinished` 弹下一项 |
@@ -230,7 +253,7 @@
 | 核心文件 | `Map/Portal.h/.cpp`、`Character/PlayerCharacterBase.h`、`Character/YogPlayerControllerBase.cpp`、`System/YogGameInstanceBase.h/.cpp`、`GameModes/YogGameMode.h/.cpp`、`Data/RoomDataAsset.h`、`UI/YogHUD.h/.cpp`、`UI/PortalPreviewWidget.h/.cpp`（新）、`UI/PortalDirectionWidget.h/.cpp`（新） |
 | 功能说明 | 关卡结算后玩家不再"踩进就走"；屏幕外门画方位箭头，屏幕内门显示单例浮窗（房间名/类型徽章/已确定 Buff/战利品摘要），按 E 触发渐黑过场后切关 |
 | 跨关 Buff 确定性 | Portal::Open 时按下一关 FloorConfig 难度档预骰 BuffPool；玩家确认进入时 TryEnter 把 PreRolledBuffs 写入 GI->PendingRoomBuffs；下一关 StartLevelSpawning 用 `bUsedPendingRoomData` 信号判定（即使 BuffCount=0 也合法）|
-| HUD 单例浮窗 | `AYogHUD::TickPortalPreview` 按"PendingPortal 优先 → 否则距玩家最近 + 屏幕内可见或<800cm"挑 Target，100cm 滞回防中点抖动；位置每帧跟门屏幕投影 + 相机右向量避让 |
+| HUD 单例浮窗 | `AYogHUD::TickPortalPreview` 按"PendingPortal 优先 → 否则距玩家最近 + 屏幕内可见或<800cm"挑 Target，100cm 滞回防中点抖动；位置每帧跟门屏幕投影 + 相机右向量避让<br>⚠️ [INTERACT-001]（2026-09-21）起 `PendingPortal` 改为 `Player->GetOverlappingInteractable<APortal>()` |
 | 方位箭头 | `UPortalDirectionWidget` 仿 EnemyArrow，仅对屏幕外开启门画箭头 + 房间名标签；玩家进入任意 Box 时全隐 |
 | 渐黑过场 | `APortal::TryEnter` 主导：bEntryInProgress 防重入 → 锁输入/锁背包 → 启 Timer 每 0.05s AddMovementInput 朝门方向 0.7s（不必抵达）→ HUD::BeginBlackoutFade 复用 LevelEndEffectDA 的 Saturation/Gain 三参 → 切关；超时 +0.5s 兜底；任何前置失败走 AbortEntry 显式恢复输入 |
 | 下一关淡入 | 切关后 GI->bPlayLevelIntroFadeIn=true；下一关 HUD::BeginPlay 立即清标志 → 瞬时贴 Blackout → 调 EndBlackoutFade 反向插值（线性 PostProcess，不画圆形揭幕）|
@@ -242,7 +265,7 @@
 | 新增 GI 字段 | `PendingRoomBuffs : TArray<FBuffEntry>`、`bPlayLevelIntroFadeIn : bool`；`ClearRunState` 同点清这两项 + 已有的 PendingRoomData/PendingNextFloor/PendingRunState |
 | 新增 GameMode | 静态 `ResolveTier(Room, TotalScore, LowMax, HighMin)` —— ActivatePortals 预骰 Buff 与 StartLevelSpawning 共用，避免选档逻辑漂移 |
 | 行为变更 | 删除 `APortal::OnOverlapBegin` 自动调 EnterPortal 的路径；旧 `EnterPortal_Implementation` 保留作 BP override 钩，新流程不调它 |
-| 已知限制 | 浮窗"屏幕内可见"未做 LineTrace 遮挡检测（用户决策）；门 Box 单值 PendingPortal 假设关卡间距保证不重叠（用户决策）；EnterPortal_Implementation 旧路径残留供 BP override 兼容 |
+| 已知限制 | 浮窗"屏幕内可见"未做 LineTrace 遮挡检测（用户决策）；~~门 Box 单值 PendingPortal 假设关卡间距保证不重叠（用户决策）~~ → [INTERACT-001]（2026-09-21）改为列表 + 优先级，该约束已解除；EnterPortal_Implementation 旧路径残留供 BP override 兼容 |
 | 设计文档 | [WBP_PortalPreview_Layout.md](../04_开发实现与系统文档/系统/Level/WBP_PortalPreview_Layout.md)、[WBP_PortalDirection_Layout.md](../00_入口与规范/缺失引用记录.md)、[Portal_ConfigGuide.md](../04_开发实现与系统文档/系统/Level/Portal_ConfigGuide.md)（已更新） |
 | WBP 待办 | 编辑器内：① 创建 WBP_PortalPreview（父类 UPortalPreviewWidget）按规格搭建 ② 创建 WBP_PortalDirection（父类 UPortalDirectionWidget，根 RootCanvas + ArrowTexture 字段）③ BP_YogHUD Details 填 PortalPreviewClass / PortalDirectionClass |
 
@@ -1646,7 +1669,7 @@ Stack: UnrealEditor_SlateCore / UnrealEditor_Slate（无游戏代码帧）
 | 项目 | 内容 |
 | --- | --- |
 | 核心文件 | `WeaponSpawner.h/.cpp`、`WeaponInstance.h/.cpp`、`WeaponDefinition.h/.cpp`、`PlayerCharacterBase.h/.cpp` |
-| 拾取方式 | Overlap 进入范围 → `PendingWeaponSpawner` 登记，按 E → `TryPickupWeapon`（与 RewardPickup 同模式） |
+| 拾取方式 | Overlap 进入范围 → `PendingWeaponSpawner` 登记，按 E → `TryPickupWeapon`（与 RewardPickup 同模式）<br>⚠️ [INTERACT-001]（2026-09-21）起改为 `RegisterInteractable` + 按住 E 蓄力 |
 | 换武器逻辑 | 旧 Spawner 恢复原色（`OriginalMeshMaterials`），旧 WeaponInstance Destroy，热度委托 RemoveDynamic |
 | 热度发光 | `OnHeatPhaseChanged(Phase)` 通过 Overlay Material + `EmissiveColor` 参数驱动 Fresnel 边缘光；Phase 1=白 / 2=绿 / 3=橙黄 / 4=过热红 |
 | 触发源 | `PlayerCharacterBase` 监听 GAS Tag `Buff.Status.Heat.Phase.1/2/3`（`RegisterGameplayTagEvent`），tag 变化自动广播 `OnHeatPhaseChanged` |

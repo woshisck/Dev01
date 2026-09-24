@@ -20,8 +20,9 @@
 #include "Character/PlayerCharacterBase.h"
 
 #include "Character/YogCharacterBase.h"
-#include "Character/InteractHoldFeedback.h"
+#include "Character/YogInteractable.h"
 #include <EnhancedInputSubsystems.h>
+#include "InputTriggers.h"
 #include "Item/ItemSpawner.h"
 #include "Map/RewardPickup.h"
 #include "Map/AltarActor.h"
@@ -316,13 +317,6 @@ void AYogPlayerControllerBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
-void AYogPlayerControllerBase::PlayerTick(float DeltaTime)
-{
-	Super::PlayerTick(DeltaTime);
-
-	TickInteractHold(DeltaTime);
-}
-
 void AYogPlayerControllerBase::SetupInputComponent()
 {
 	Super::SetupInputComponent();
@@ -388,11 +382,31 @@ void AYogPlayerControllerBase::SetupInputComponent()
 		}
 		if (Input_Interact)
 		{
-			// Hold-to-interact needs the press and release edges, so IA_Interact must carry no
-			// explicit trigger: UInputTriggerPressed would drop to None the frame after the press
-			// and fire Completed immediately, cancelling every hold on frame two.
+			// The hold duration lives on IA_Interact's UInputTriggerHold so designers can retune it
+			// without a recompile. Mirror it here only to draw the fill; the trigger owns the commit.
+			InteractHoldThreshold = 0.f;
+			for (const UInputTrigger* Trigger : Input_Interact->Triggers)
+			{
+				if (const UInputTriggerHold* HoldTrigger = Cast<UInputTriggerHold>(Trigger))
+				{
+					InteractHoldThreshold = HoldTrigger->HoldTimeThreshold;
+					break;
+				}
+			}
+
+			if (InteractHoldThreshold <= 0.f)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[Interact] %s has no Hold trigger; interaction will commit instantly."),
+					*GetNameSafe(Input_Interact));
+			}
+
 			const FEnhancedInputActionEventBinding& interactBinding = EnhancedInputComp->BindAction(Input_Interact, ETriggerEvent::Started, this, &AYogPlayerControllerBase::InteractPressed);
 			InteractInputHandle = interactBinding.GetHandle();
+			EnhancedInputComp->BindAction(Input_Interact, ETriggerEvent::Ongoing, this, &AYogPlayerControllerBase::InteractOngoing);
+			EnhancedInputComp->BindAction(Input_Interact, ETriggerEvent::Triggered, this, &AYogPlayerControllerBase::InteractTriggered);
+			// Canceled = released before the threshold. Completed = the frame after a one-shot
+			// trigger fires, by which point the hold is already cleared and this is a no-op.
+			EnhancedInputComp->BindAction(Input_Interact, ETriggerEvent::Canceled, this, &AYogPlayerControllerBase::InteractReleased);
 			EnhancedInputComp->BindAction(Input_Interact, ETriggerEvent::Completed, this, &AYogPlayerControllerBase::InteractReleased);
 		}
 		if (Input_OpenBackpack)
@@ -1337,43 +1351,7 @@ float AYogPlayerControllerBase::ComputeHoldProgress(float ElapsedSeconds, float 
 
 AActor* AYogPlayerControllerBase::ResolveInteractTarget(APlayerCharacterBase* PlayerCharacter) const
 {
-	if (!PlayerCharacter)
-	{
-		return nullptr;
-	}
-
-	// 范围内有武器 Spawner → 触发武器拾取
-	if (PlayerCharacter->PendingWeaponSpawner)
-	{
-		return PlayerCharacter->PendingWeaponSpawner;
-	}
-	// 范围内有奖励拾取物 → 触发拾取
-	if (PlayerCharacter->PendingPickup)
-	{
-		return PlayerCharacter->PendingPickup;
-	}
-	// 范围内有献祭恩赐拾取物 → 触发获取
-	if (PlayerCharacter->PendingAltar)
-	{
-		return PlayerCharacter->PendingAltar;
-	}
-	if (PlayerCharacter->PendingShop)
-	{
-		return PlayerCharacter->PendingShop;
-	}
-	// 范围内有可进入的传送门（v3 替代 Overlap 自动入门）
-	// 设计约束：门与拾取物不会同范围，所以放在拾取物之后即可
-	if (PlayerCharacter->PendingPortal)
-	{
-		return PlayerCharacter->PendingPortal;
-	}
-	// 范围内有主城设施 → 打开对应 UI
-	if (PlayerCharacter->PendingFacility)
-	{
-		return PlayerCharacter->PendingFacility;
-	}
-
-	return nullptr;
+	return PlayerCharacter ? PlayerCharacter->GetBestInteractable() : nullptr;
 }
 
 void AYogPlayerControllerBase::CommitInteract(APlayerCharacterBase* PlayerCharacter, AActor* Target)
@@ -1383,56 +1361,52 @@ void AYogPlayerControllerBase::CommitInteract(APlayerCharacterBase* PlayerCharac
 		return;
 	}
 
-	if (Target == PlayerCharacter->PendingWeaponSpawner)
+	if (IYogInteractable* Interactable = Cast<IYogInteractable>(Target))
 	{
-		PlayerCharacter->PendingWeaponSpawner->TryPickupWeapon(PlayerCharacter);
+		Interactable->TryInteract(PlayerCharacter);
 	}
-	else if (Target == PlayerCharacter->PendingPickup)
-	{
-		PlayerCharacter->PendingPickup->TryPickup(PlayerCharacter);
-	}
-	else if (Target == PlayerCharacter->PendingAltar)
-	{
-		PlayerCharacter->PendingAltar->TryInteract(PlayerCharacter);
-	}
-	else if (Target == PlayerCharacter->PendingShop)
-	{
-		PlayerCharacter->PendingShop->TryInteract(PlayerCharacter);
-	}
-	else if (Target == PlayerCharacter->PendingPortal)
-	{
-		PlayerCharacter->PendingPortal->TryEnter(PlayerCharacter);
-	}
-	else if (Target == PlayerCharacter->PendingFacility)
-	{
-		PlayerCharacter->PendingFacility->Interact(PlayerCharacter);
-	}
-}
-
-float AYogPlayerControllerBase::ResolveInteractHoldDuration(AActor* Target) const
-{
-	if (const IInteractHoldFeedback* Feedback = Cast<IInteractHoldFeedback>(Target))
-	{
-		const float Override = Feedback->GetInteractHoldDuration();
-		if (Override >= 0.f)
-		{
-			return Override;
-		}
-	}
-
-	return InteractHoldDuration;
 }
 
 void AYogPlayerControllerBase::PushInteractHoldProgress(AActor* Target, float Normalized) const
 {
-	if (IInteractHoldFeedback* Feedback = Cast<IInteractHoldFeedback>(Target))
+	if (IYogInteractable* Interactable = Cast<IYogInteractable>(Target))
 	{
-		Feedback->SetInteractHoldProgress(Normalized);
+		Interactable->SetInteractHoldProgress(Normalized);
 	}
 }
 
-void AYogPlayerControllerBase::InteractPressed(const FInputActionValue& Value)
+AActor* AYogPlayerControllerBase::ValidateActiveHoldTarget()
 {
+	if (!bInteractHoldActive)
+	{
+		return nullptr;
+	}
+
+	if (IsGameplayInputBlocked())
+	{
+		CancelInteractHold();
+		return nullptr;
+	}
+
+	AActor* Target = InteractHoldTarget.Get();
+
+	// Every interactable clears its own Pending* pointer on overlap end, so re-resolving each
+	// frame is what makes "walk out of the volume" cancel without touching the target classes.
+	if (!Target || ResolveInteractTarget(Cast<APlayerCharacterBase>(GetPawn())) != Target)
+	{
+		CancelInteractHold();
+		return nullptr;
+	}
+
+	return Target;
+}
+
+void AYogPlayerControllerBase::InteractPressed(const FInputActionInstance& Instance)
+{
+	// Broadcast before the block check: conversation mode sets bBlockGameInput, so a dialogue
+	// system waiting on "advance" would never hear the press if this sat below the guard.
+	OnInteractPressedRaw.Broadcast();
+
 	if (IsGameplayInputBlocked()) return;
 
 	APlayerCharacterBase* PlayerCharacter = Cast<APlayerCharacterBase>(GetPawn());
@@ -1443,12 +1417,41 @@ void AYogPlayerControllerBase::InteractPressed(const FInputActionValue& Value)
 	}
 
 	bInteractHoldActive = true;
-	InteractHoldElapsed = 0.f;
 	InteractHoldTarget = Target;
 	PushInteractHoldProgress(Target, 0.f);
 }
 
-void AYogPlayerControllerBase::InteractReleased(const FInputActionValue& Value)
+void AYogPlayerControllerBase::InteractOngoing(const FInputActionInstance& Instance)
+{
+	AActor* Target = ValidateActiveHoldTarget();
+	if (!Target)
+	{
+		return;
+	}
+
+	PushInteractHoldProgress(Target, ComputeHoldProgress(Instance.GetElapsedTime(), InteractHoldThreshold));
+}
+
+void AYogPlayerControllerBase::InteractTriggered(const FInputActionInstance& Instance)
+{
+	// The Hold trigger keeps counting even after we abandoned the hold (walked out of the volume,
+	// input got blocked), so it will still fire here. Only commit if the hold survived.
+	AActor* Target = ValidateActiveHoldTarget();
+	if (!Target)
+	{
+		return;
+	}
+
+	// Clear the hold before committing: TryPickup and friends can destroy the target or
+	// open UI that blocks input, and both would re-enter CancelInteractHold on a stale target.
+	bInteractHoldActive = false;
+	InteractHoldTarget = nullptr;
+	PushInteractHoldProgress(Target, 0.f);
+
+	CommitInteract(Cast<APlayerCharacterBase>(GetPawn()), Target);
+}
+
+void AYogPlayerControllerBase::InteractReleased(const FInputActionInstance& Instance)
 {
 	CancelInteractHold();
 }
@@ -1463,51 +1466,7 @@ void AYogPlayerControllerBase::CancelInteractHold()
 	PushInteractHoldProgress(InteractHoldTarget.Get(), 0.f);
 
 	bInteractHoldActive = false;
-	InteractHoldElapsed = 0.f;
 	InteractHoldTarget = nullptr;
-}
-
-void AYogPlayerControllerBase::TickInteractHold(float DeltaTime)
-{
-	if (!bInteractHoldActive)
-	{
-		return;
-	}
-
-	if (IsGameplayInputBlocked())
-	{
-		CancelInteractHold();
-		return;
-	}
-
-	APlayerCharacterBase* PlayerCharacter = Cast<APlayerCharacterBase>(GetPawn());
-	AActor* Target = InteractHoldTarget.Get();
-
-	// Every interactable clears its own Pending* pointer on overlap end, so re-resolving each
-	// frame is what makes "walk out of the volume" cancel without touching the target classes.
-	if (!Target || ResolveInteractTarget(PlayerCharacter) != Target)
-	{
-		CancelInteractHold();
-		return;
-	}
-
-	InteractHoldElapsed += DeltaTime;
-
-	const float Duration = ResolveInteractHoldDuration(Target);
-	const float Progress = ComputeHoldProgress(InteractHoldElapsed, Duration);
-	PushInteractHoldProgress(Target, Progress);
-
-	if (Progress >= 1.f)
-	{
-		// Clear the hold before committing: TryPickup and friends can destroy the target or
-		// open UI that blocks input, and both would re-enter CancelInteractHold on a stale target.
-		bInteractHoldActive = false;
-		InteractHoldElapsed = 0.f;
-		InteractHoldTarget = nullptr;
-		PushInteractHoldProgress(Target, 0.f);
-
-		CommitInteract(PlayerCharacter, Target);
-	}
 }
 
 

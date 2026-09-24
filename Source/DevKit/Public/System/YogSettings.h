@@ -29,6 +29,11 @@ public:
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Camera")
 	TSoftObjectPtr<UDataTable> CameraShakeLevelTable;
 
+	// DataTable of FBubbleMessageRow: authored speech-bubble lines, looked up by row name through
+	// UYogBubbleSubsystem::RequestBubbleByName.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI")
+	TSoftObjectPtr<UDataTable> BubbleMessageTable;
+
 	// Victim-side hit sound/VFX, keyed by the victim's material and state tags.
 	// Resolved by UHitImpactVisualComponent on every landed hit.
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Combat")

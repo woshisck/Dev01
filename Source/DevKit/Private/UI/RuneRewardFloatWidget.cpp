@@ -3,7 +3,6 @@
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/Image.h"
-#include "Components/ProgressBar.h"
 #include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
@@ -18,21 +17,6 @@ void URuneRewardFloatWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 	RefreshPickupHint();
-	SetHoldProgress(0.f);
-}
-
-void URuneRewardFloatWidget::SetHoldProgress(float Normalized)
-{
-	if (!HoldProgressBar)
-	{
-		return;
-	}
-
-	const float Clamped = FMath::Clamp(Normalized, 0.f, 1.f);
-	HoldProgressBar->SetPercent(Clamped);
-	HoldProgressBar->SetVisibility(Clamped > KINDA_SMALL_NUMBER
-		? ESlateVisibility::HitTestInvisible
-		: ESlateVisibility::Collapsed);
 }
 
 void URuneRewardFloatWidget::SetLootOptions(const TArray<FLootOption>& Options)

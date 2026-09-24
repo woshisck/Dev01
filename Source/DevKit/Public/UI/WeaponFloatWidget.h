@@ -8,7 +8,6 @@
 DECLARE_DELEGATE_OneParam(FOnWeaponFloatCollapseComplete, FVector2D /*ThumbnailScreenCenter*/)
 
 class UImage;
-class UProgressBar;
 class UTextBlock;
 class UCanvasPanel;
 class UScrollBox;
@@ -29,7 +28,8 @@ struct FRuneShape;
  *   WeaponDescText    YogCommonRichTextBlock 武器描述（空时自动隐藏；支持 <input action="X"/> 图标）
  *   RuneListBox       VerticalBox            初始卡牌列表（C++ 动态填充，优先读取 WeaponDefinition.InitialCombatDeck）
  *   PickupHintText    YogCommonRichTextBlock 按键拾取提示（如 `按 <input action="Interact"/> 拾取武器`）
- *   HoldProgressBar   ProgressBar            按住蓄力拾取进度条（未绑定则不显示进度）
+ *
+ * 蓄力进度不在这里显示，由 UInteractPromptComponent 的按键提示负责。
  */
 UCLASS(Blueprintable, BlueprintType)
 class DEVKIT_API UWeaponFloatWidget : public UUserWidget
@@ -50,10 +50,6 @@ public:
 	void BroadcastCollapseComplete(FVector2D ThumbnailScreenCenter);
 
 	bool ScrollCardList(float Direction);
-
-	/** Drives the hold-to-pickup fill. 0 hides the bar, anything above shows it. */
-	UFUNCTION(BlueprintCallable, Category = "WeaponFloat")
-	void SetHoldProgress(float Normalized);
 
 	/** 折叠完成时触发（传入 WeaponThumbnail 的屏幕绝对中心坐标） */
 	FOnWeaponFloatCollapseComplete OnCollapseComplete;
@@ -91,9 +87,6 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UCommonRichTextBlock> ScrollHintText;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	TObjectPtr<UProgressBar> HoldProgressBar;
 
 private:
 	void BuildCombatCardList(const TArray<TObjectPtr<URuneDataAsset>>& Cards);

@@ -13,7 +13,7 @@
 | 关卡 Buff 奖励池 (BUFF-POOL) | 房间按难度档抽 Buff | ✅ 编译通过 | ✅ DA 已配 |
 | 背包战斗锁定（按 ELevelPhase）(FIX-027) | 进关到刷怪前锁定不可操作 | ✅ 编译通过 | — |
 | 传送门切关基础 (LEVEL-001 / MAP-001) | 多分支选关 + 美术切换 | ✅ 编译通过 | ✅ Portal 已放置 + DA_Campaign 配 |
-| 传送门 v3：按 E 进入 + HUD 双层预览 + 渐黑过场 (LEVEL-006) | 主动选下一关 + 浮窗 + 箭头 | ✅ 编译通过 | ⚙ WBP_PortalPreview / Direction 待搭 + BP_YogHUD 赋值 |
+| 传送门 v3：按住 E 进入 + HUD 双层预览 + 渐黑过场 (LEVEL-006) | 主动选下一关 + 浮窗 + 箭头 | ✅ 编译通过 | ⚙ WBP_PortalPreview / Direction 待搭 + BP_YogHUD 赋值 |
 | 跨关持久化 YogSaveSubsystem (SAVE-001) | HP / 金币 / 背包 / 热度 / 献祭恩赐切关保留 | ✅ 编译通过 | — |
 | LevelFlow 时间轴节点（独立于 BuffFlow）(LFLOW-001 / FEAT-012) | 关卡内事件可视化编排 | ✅ 编译通过 | ⚙ 各 DA_LevelEvent_* 按需配 |
 | LENode_ShowTutorial bPauseGame 选项 (FEAT-030) | 信息浮窗可不暂停游戏 | ✅ 编译通过 | — DA 字段直接选 |
@@ -71,21 +71,21 @@
 - **设计文档**：[Portal_ConfigGuide](../../04_开发实现与系统文档/系统/Level/Portal_ConfigGuide.md)
 - **验收方式**：放置 Portal 设 Index=0，DA_Campaign 配对应 PortalDestinations[0]，关卡结算应自动开门并切美术
 
-### [LEVEL-006] 传送门 v3：按 E 进入 + HUD 双层预览 + 渐黑过场
-- **设计需求**：把"踩进就走"改为"按 E 主动选下一关"；屏幕外门画方位箭头；屏幕内门显示单例浮窗（房间名 / 类型徽章 / 已确定 Buff / 战利品摘要）；按 E 触发渐黑过场后切关。
+### [LEVEL-006] 传送门 v3：按住 E 进入 + HUD 双层预览 + 渐黑过场
+- **设计需求**：把"踩进就走"改为"按住 E 主动选下一关"；屏幕外门画方位箭头；屏幕内门显示单例浮窗（房间名 / 类型徽章 / 已确定 Buff / 战利品摘要）；按住 E 触发渐黑过场后切关。
 - **状态**：✅ C++完成；⚙ WBP_PortalPreview / WBP_PortalDirection 待按规格搭建并赋到 BP_YogHUD
 - **核心文件**：
   - `Public/Map/Portal.h` + `Private/Map/Portal.cpp`（`HandlePlayerEnterRange` / `TryEnter` / `FinishEntry` / `AbortEntry` / `PreRolledBuffs`）
   - `Public/UI/PortalPreviewWidget.h` + `Private/UI/PortalPreviewWidget.cpp`（新）
   - `Public/UI/PortalDirectionWidget.h` + `Private/UI/PortalDirectionWidget.cpp`（新）
   - `Public/UI/YogHUD.h` + `Private/UI/YogHUD.cpp`（`TickPortalPreview` / `BeginBlackoutFade` / `EndBlackoutFade` / `ShowPortalGuidance`）
-  - `Public/Character/PlayerCharacterBase.h`（`PendingPortal`）
+  - `Public/Character/PlayerCharacterBase.h`（`OverlappingInteractables` / `GetOverlappingInteractable<APortal>()`）
   - `Public/System/YogGameInstanceBase.h`（`PendingRoomBuffs` / `bPlayLevelIntroFadeIn`）
   - `Public/Data/RoomDataAsset.h`（`DisplayName : FText`）
 - **设计文档**：[Portal_ConfigGuide](../../04_开发实现与系统文档/系统/Level/Portal_ConfigGuide.md) · [WBP_PortalPreview_Layout](../../04_开发实现与系统文档/系统/Level/WBP_PortalPreview_Layout.md) · [WBP_PortalDirection_Layout](../../00_入口与规范/缺失引用记录.md)
 - **验收方式**：
-  1. 关卡结算后非主城关，屏幕外门应画方位箭头；进入门 Box 应弹浮窗 + "按 E 进入"
-  2. 按 E 应渐黑 → 切关 → 下一关淡入
+  1. 关卡结算后非主城关，屏幕外门应画方位箭头；进入门 Box 应弹浮窗 + "按住 E 进入"
+  2. 按住 E 应渐黑 → 切关 → 下一关淡入
   3. 主城（HubRoom）应不显示任何浮窗 / 箭头
 
 ---

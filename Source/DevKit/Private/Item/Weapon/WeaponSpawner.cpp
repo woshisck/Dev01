@@ -10,6 +10,7 @@
 #include "Components/PrimitiveComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/WidgetComponent.h"
+#include "Component/InteractPromptComponent.h"
 #include "GameFramework/Pawn.h"
 #include "EngineUtils.h"
 #include "NiagaraFunctionLibrary.h"
@@ -88,6 +89,10 @@ AWeaponSpawner::AWeaponSpawner(const FObjectInitializer& ObjectInitializer)
 	WeaponInfoWidgetComp->SetRelativeLocation(FVector(0.f, 0.f, 120.f));
 	WeaponInfoWidgetComp->SetWidgetSpace(EWidgetSpace::Screen);
 	WeaponInfoWidgetComp->SetVisibility(false);
+
+	// Sits below the info card so both stay readable while the player holds to pick up.
+	InteractPromptComp = CreateDefaultSubobject<UInteractPromptComponent>(TEXT("InteractPromptComp"));
+	InteractPromptComp->PromptHeight = 60.f;
 }
 
 bool AWeaponSpawner::ShouldEnableForFirstRunTutorialState(
@@ -285,9 +290,10 @@ void AWeaponSpawner::OnPlayerEnterRange(APlayerCharacterBase* Player)
 	}
 	if (!Player || !WeaponDefinition || bPickedUp) return;
 
-	Player->PendingWeaponSpawner = this;
+	Player->RegisterInteractable(this);
 	NearbyPlayer = Player;
 	bPlayerInRange = true;
+	ShowInteractPrompt(true);
 	// 浮窗可见性由 Tick 根据朝向动态控
 }
 
@@ -299,10 +305,7 @@ void AWeaponSpawner::OnPlayerLeaveRange(APlayerCharacterBase* Player)
 	}
 	if (!Player) return;
 
-	if (Player->PendingWeaponSpawner == this)
-	{
-		Player->PendingWeaponSpawner = nullptr;
-	}
+	Player->UnregisterInteractable(this);
 	if (NearbyPlayer.Get() == Player)
 	{
 		if (!bCollapsingForPickup)
@@ -314,6 +317,7 @@ void AWeaponSpawner::OnPlayerLeaveRange(APlayerCharacterBase* Player)
 		}
 		NearbyPlayer = nullptr;
 		bPlayerInRange = false;
+		ShowInteractPrompt(false);
 		if (WeaponInfoWidgetComp) WeaponInfoWidgetComp->SetVisibility(false);
 	}
 }
@@ -321,16 +325,6 @@ void AWeaponSpawner::OnPlayerLeaveRange(APlayerCharacterBase* Player)
 void AWeaponSpawner::TryPickup(APlayerCharacterBase* Player)
 {
 	TryPickupWeapon(Player);
-}
-
-void AWeaponSpawner::SetInteractHoldProgress(float Normalized)
-{
-	if (!WeaponInfoWidgetComp) return;
-
-	if (UWeaponFloatWidget* FloatWidget = Cast<UWeaponFloatWidget>(WeaponInfoWidgetComp->GetWidget()))
-	{
-		FloatWidget->SetHoldProgress(Normalized);
-	}
 }
 
 void AWeaponSpawner::OnPlayerBeginOverlap(APlayerCharacterBase* Player)
@@ -450,7 +444,7 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 		Player->InactiveWeaponSkill        = WeaponDefinition->ResolveDefaultWeaponSkill();
 		Player->InactiveWeaponInstance     = NewInactiveWeapon;
 		Player->InactiveWeaponFromSpawner  = this;
-		Player->PendingWeaponSpawner       = nullptr;
+		Player->UnregisterInteractable(this);
 		Player->InitializeInactiveWeaponDeckStateFromDefinition();
 		Player->RelinkWeaponAnimLayer();
 
@@ -559,7 +553,7 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 	Player->EquippedWeaponDef    = WeaponDefinition;
 	Player->InitializeEquippedWeaponSkillFromDefinition();
 	Player->EquippedFromSpawner  = this;
-	Player->PendingWeaponSpawner = nullptr;
+	Player->UnregisterInteractable(this);
 
 	// ── 5.25 注入战斗卡组typed AbilityData ───────────────────────
 	// TryPickupWeapon 自己实现了装备流程，不走 WeaponDefinition::SetupWeaponToCharacter

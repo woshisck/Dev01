@@ -16,7 +16,7 @@ class APortal;
  * 仿 UEnemyArrowWidget 实现：在屏幕边缘对所有"开启 + 屏幕外"的 Portal 画箭头 + 房间名标签。
  *
  * 由 AYogHUD 通过 SetActive(true) 在 EnterArrangementPhase 末尾启用；
- * 玩家进入任意门 Box（PendingPortal != null）→ 全部箭头隐藏。
+ * 玩家进入任意门 Box（重叠到 APortal）→ 全部箭头隐藏。
  *
  * Designer：
  *   Canvas Panel "RootCanvas"（全屏，Anchor 全屏）

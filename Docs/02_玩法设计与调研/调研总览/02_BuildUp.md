@@ -124,7 +124,7 @@
   - `Public/Component/BackpackGridComponent.h`（新增 `TryRemoveRuneCell` — 清 GridOccupancy + Shape.Cells.RemoveAt + 广播 `OnRuneCellRemoved`；(0,0) pivot 拒绝删除）
 - **设计文档**：[FeatureLog FEAT-029](../../05_完成记录与任务看板/FeatureLog.md)
 - **验收方式**：
-  1. Arrangement 阶段走近祭坛按 E 应弹菜单；Combat 阶段不响应
+  1. Arrangement 阶段走近祭坛按住 E 应弹菜单；Combat 阶段不响应
   2. 净化选格子 → 确认 → 该格符文应消失但 (0,0) pivot 格删不掉
   3. 献祭选项确认 → 玩家背包应新增对应符文且 GrantedRune FA 触发
 

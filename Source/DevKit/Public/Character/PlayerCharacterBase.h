@@ -296,28 +296,33 @@ public:
 	UPROPERTY()
 	TObjectPtr<AItemSpawner> OverlappingSpawner;
 
-	// 当前在拾取范围内的 RewardPickup（按 E 键时触发拾取）
+	/** Every IYogInteractable currently overlapping the player; they compete on GetInteractPriority. */
 	UPROPERTY()
-	TObjectPtr<ARewardPickup> PendingPickup;
+	TArray<TObjectPtr<AActor>> OverlappingInteractables;
 
-	UPROPERTY()
-	TObjectPtr<AAltarActor> PendingAltar;
+	/** Idempotent — an actor wired to both its own volume and PropInteractComponnet registers twice. */
+	UFUNCTION(BlueprintCallable, Category = "Interact")
+	void RegisterInteractable(AActor* Interactable);
 
-	UPROPERTY()
-	TObjectPtr<AShopActor> PendingShop;
+	UFUNCTION(BlueprintCallable, Category = "Interact")
+	void UnregisterInteractable(AActor* Interactable);
 
-	// 当前在拾取范围内的 WeaponSpawner（按 E 键时触发武器拾取）
-	UPROPERTY()
-	TObjectPtr<AWeaponSpawner> PendingWeaponSpawner;
+	/** Highest-priority interactable that currently accepts interaction, or null. */
+	AActor* GetBestInteractable() const;
 
-	// 当前在交互范围内的传送门（按 E 键时触发 TryEnter）
-	// 设计约束保证多门 Box 不重叠，单值实现足够（v3 决策表）
-	UPROPERTY()
-	TObjectPtr<APortal> PendingPortal;
-
-	// 当前在交互范围内的主城设施（按 E 键时触发 Interact）
-	UPROPERTY()
-	TObjectPtr<AHubFacilityActor> PendingFacility;
+	/** First overlapping interactable of a concrete type, for systems that need more than TryInteract. */
+	template<typename T>
+	T* GetOverlappingInteractable() const
+	{
+		for (const TObjectPtr<AActor>& Candidate : OverlappingInteractables)
+		{
+			if (T* Typed = Cast<T>(Candidate))
+			{
+				return Typed;
+			}
+		}
+		return nullptr;
+	}
 
 	// 当前装备的武器 Actor（换武器时 Destroy）
 	UPROPERTY()

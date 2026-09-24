@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "GameplayTagContainer.h"
-#include "Character/InteractHoldFeedback.h"
+#include "Character/YogInteractable.h"
 #include "NiagaraSystem.h"
 #include "Data/EnemyData.h"   // FBuffEntry
 #include "GameModes/LevelFlowTypes.h"
@@ -14,6 +14,7 @@ class UBillboardComponent;
 class UBoxComponent;
 class UNiagaraComponent;
 class UStaticMeshComponent;
+class UInteractPromptComponent;
 class UWidgetComponent;
 class UYogSaveSubsystem;
 class UYogGameInstanceBase;
@@ -79,7 +80,7 @@ struct DEVKIT_API FPortalArtConfig
 };
 
 UCLASS()
-class DEVKIT_API APortal : public AActor, public IInteractHoldFeedback
+class DEVKIT_API APortal : public AActor, public IYogInteractable
 {
 	GENERATED_BODY()
 
@@ -87,10 +88,10 @@ public:
 
 	APortal(const FObjectInitializer& ObjectInitializer);
 
-	// ~ IInteractHoldFeedback
-	virtual void SetInteractHoldProgress(float Normalized) override;
+	// ~ IYogInteractable
+	virtual void TryInteract(APlayerCharacterBase* Player) override { TryEnter(Player); }
+	virtual int32 GetInteractPriority() const override { return YogInteractPriority::Portal; }
 
-	void ConfigureInteractPrompt();
 	void SetInteractPromptVisible(bool bVisible);
 
 	/**
@@ -235,9 +236,9 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Portal|Components")
 	TObjectPtr<UNiagaraComponent> IdleVFXComp;
 
-	// 按住 E 进入的提示 + 蓄力进度条（纯 C++ Widget，无需 WBP）
+	// 按住 E 进入的提示（按键图标 + 蓄力环，纯 C++ Widget，无需 WBP）
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Portal|Components")
-	TObjectPtr<UWidgetComponent> InteractPromptWidgetComp;
+	TObjectPtr<UInteractPromptComponent> InteractPromptComp;
 
 	// =========================================================
 	// 美术配置（在蓝图 Details 面板填写即可）

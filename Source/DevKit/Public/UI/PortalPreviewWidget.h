@@ -40,7 +40,7 @@ public:
     UFUNCTION(BlueprintCallable, Category = "PortalPreview")
     void SetPreviewInfo(const FPortalPreviewInfo& Info);
 
-    /** HUD 检测到 PendingPortal == 当前 Target 时调 true，否则 false */
+    /** HUD 检测到玩家所在门 == 当前 Target 时调 true，否则 false */
     UFUNCTION(BlueprintCallable, Category = "PortalPreview")
     void SetInteractHintVisible(bool bVisible);
 

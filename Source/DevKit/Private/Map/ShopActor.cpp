@@ -3,9 +3,9 @@
 #include "Character/PlayerCharacterBase.h"
 #include "Components/BoxComponent.h"
 #include "Components/StaticMeshComponent.h"
-#include "Components/WidgetComponent.h"
+#include "Component/InteractPromptComponent.h"
 #include "Engine/LocalPlayer.h"
-#include "UI/InteractPromptWidget.h"
+
 #include "UI/ShopSelectionWidget.h"
 #include "UI/YogUIManagerSubsystem.h"
 #include "UObject/ConstructorHelpers.h"
@@ -42,19 +42,12 @@ AShopActor::AShopActor()
 		ShopMesh->SetStaticMesh(DefaultMesh.Object);
 	}
 
-	InteractPromptWidgetComp = CreateDefaultSubobject<UWidgetComponent>(TEXT("InteractPromptWidgetComp"));
-	InteractPromptWidgetComp->SetupAttachment(RootComponent);
-	InteractPromptWidgetComp->SetRelativeLocation(FVector(0.f, 0.f, 150.f));
-	InteractPromptWidgetComp->SetWidgetSpace(EWidgetSpace::Screen);
-	InteractPromptWidgetComp->SetDrawAtDesiredSize(true);
-	InteractPromptWidgetComp->SetVisibility(false);
-	InteractPromptWidgetComp->SetWidgetClass(UInteractPromptWidget::StaticClass());
+	InteractPromptComp = CreateDefaultSubobject<UInteractPromptComponent>(TEXT("InteractPromptComp"));
 }
 
 void AShopActor::BeginPlay()
 {
 	Super::BeginPlay();
-	ConfigureInteractPrompt();
 }
 
 void AShopActor::TryInteract(APlayerCharacterBase* Player)
@@ -104,8 +97,7 @@ void AShopActor::TryInteract(APlayerCharacterBase* Player)
 void AShopActor::SetShopData(UShopDataAsset* InData)
 {
 	ShopData = InData;
-	ConfigureInteractPrompt();
-	SetInteractPromptVisible(NearbyPlayer.IsValid() && ShopData);
+	SetInteractPromptVisible(NearbyPlayer.IsValid() && ShopData != nullptr);
 }
 
 void AShopActor::OnPlayerBeginOverlap(APlayerCharacterBase* Player)
@@ -113,7 +105,7 @@ void AShopActor::OnPlayerBeginOverlap(APlayerCharacterBase* Player)
 	NearbyPlayer = Player;
 	if (Player)
 	{
-		Player->PendingShop = this;
+		Player->RegisterInteractable(this);
 	}
 	SetInteractPromptVisible(Player && ShopData);
 	OnPlayerNearby(Player, true);
@@ -121,9 +113,9 @@ void AShopActor::OnPlayerBeginOverlap(APlayerCharacterBase* Player)
 
 void AShopActor::OnPlayerEndOverlap(APlayerCharacterBase* Player)
 {
-	if (Player && Player->PendingShop == this)
+	if (Player)
 	{
-		Player->PendingShop = nullptr;
+		Player->UnregisterInteractable(this);
 	}
 	if (NearbyPlayer.Get() == Player)
 	{
@@ -140,40 +132,7 @@ void AShopActor::OnPlayerEndOverlap(APlayerCharacterBase* Player)
 	}
 }
 
-void AShopActor::ConfigureInteractPrompt()
-{
-	if (!InteractPromptWidgetComp)
-	{
-		return;
-	}
-
-	if (APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr)
-	{
-		InteractPromptWidgetComp->SetOwnerPlayer(PC->GetLocalPlayer());
-	}
-
-	InteractPromptWidgetComp->SetWidgetClass(UInteractPromptWidget::StaticClass());
-	InteractPromptWidgetComp->InitWidget();
-	if (UInteractPromptWidget* PromptWidget = Cast<UInteractPromptWidget>(InteractPromptWidgetComp->GetWidget()))
-	{
-		PromptWidget->SetPromptLabel(NSLOCTEXT("InteractPrompt", "OpenShop", "打开商店"));
-	}
-}
-
 void AShopActor::SetInteractPromptVisible(bool bVisible)
 {
-	if (InteractPromptWidgetComp)
-	{
-		InteractPromptWidgetComp->SetVisibility(bVisible && ShopData);
-	}
-}
-
-void AShopActor::SetInteractHoldProgress(float Normalized)
-{
-	if (!InteractPromptWidgetComp) return;
-
-	if (UInteractPromptWidget* PromptWidget = Cast<UInteractPromptWidget>(InteractPromptWidgetComp->GetWidget()))
-	{
-		PromptWidget->SetHoldProgress(Normalized);
-	}
+	ShowInteractPrompt(bVisible && ShopData != nullptr);
 }

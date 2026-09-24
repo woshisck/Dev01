@@ -322,7 +322,7 @@ WBP 根 Visibility 默认 `Visible` 即可，C++ `ShowLootUI` 调用时会切到
 ### 1. 基础显示
 
 1. PIE 启动，杀完所有敌人 → 关卡结束触发 RewardPickup spawn
-2. 走近 RewardPickup，按 E
+2. 走近 RewardPickup，按住 E 蓄力至进度环走满
 3. ✅ **WBP_LootSelection 弹出**：
    - DimBG 半透明覆盖
    - 标题"选择战利品"居中
@@ -346,7 +346,7 @@ WBP 根 Visibility 默认 `Visible` 即可，C++ `ShowLootUI` 调用时会切到
 ### 4. 跳过路径
 
 - 点 BtnSkip / 按 B / 按 Esc → ✅ UI 关 → ✅ pickup actor **保留在场景**
-- 走开 RewardPickup 范围（如有 Box overlap）→ 走回 → 按 E → ✅ **重新弹出 WBP_LootSelection**
+- 走开 RewardPickup 范围（如有 Box overlap）→ 走回 → 按住 E → ✅ **重新弹出 WBP_LootSelection**
 
 ### 5. 背包预览路径
 
@@ -378,7 +378,7 @@ WBP 根 Visibility 默认 `Visible` 即可，C++ `ShowLootUI` 调用时会切到
 ### 8. 多 pickup 排队
 
 - 同时刷 2 个 RewardPickup 在玩家附近
-- 按 E 触发第一个 → ✅ 第一个 LootSelection 弹出
+- 按住 E 触发第一个 → ✅ 第一个 LootSelection 弹出
 - 跳过 → ✅ 第一个关闭，**第二个 LootSelection 立即弹出**（队列 FIFO）
 
 ---
@@ -392,7 +392,7 @@ WBP 根 Visibility 默认 `Visible` 即可，C++ `ShowLootUI` 调用时会切到
 | 卡片重叠 / 跑屏外 | RuneInfoCard 自定义尺寸覆盖了 SizeBox | C++ 已用 SizeBox.SetWidthOverride 强制；如还是重叠检查 ShowRune 是否被 BP 子类覆盖 |
 | 5 张卡第二行没居中 | WrapBox 自身 HorizontalAlignment 没设 Center | C++ RebuildCards 已强制设；如果手动改了 BP 端覆盖，删除 BP 端设置 |
 | 4 张卡却被缩成小卡 | 误把 LootOptions 配了 5+ 项但部分无效 | 看 Output Log "ValidCount=N"，对照 GameMode 生成逻辑 |
-| 跳过后按 E 不再触发 | 老 RewardPickup 失效 / `bPickedUp` 没复位 | 看 `[RewardPickup] ResetForSkip` 日志，确认 `Player->PendingPickup = this` 重新挂上 |
+| 跳过后按住 E 不再触发 | 老 RewardPickup 失效 / `bPickedUp` 没复位 | 看 `[RewardPickup] ResetForSkip` 日志，确认 `Player->RegisterInteractable(this)` 重新挂上；`bPickedUp` 未复位时 `CanInteract()` 恒为 false，拾取物会被跳过 |
 | 选完没自动开背包 | HUD::OpenBackpack 没配 BackpackScreenClass | BP_YogHUD → BackpackScreenClass = WBP_BackpackScreen |
 | 背包预览能拖拽 | SetPreviewMode 没生效 | 看 `[Backpack] SetPreviewMode(true)` 日志；确认 BackpackScreen 拖拽入口已加 bIsPreviewMode 守卫 |
 | 切到下一关后按键图标变错 | InputAction 资产引用丢失 | 重新打开 BP_InputActionDecorator → ActionMap 重新指 IA_* 资产 |

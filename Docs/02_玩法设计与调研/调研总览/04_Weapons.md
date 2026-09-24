@@ -24,7 +24,7 @@
 
 ### [WEAPON-FW / COMBAT-003b] 武器拾取 + 装备 + 切关恢复
 > （ID 拆分说明：原 `COMBAT-003` 同时表示武器与三选一，此处取武器部分；三选一部分见 [03_RunLoop.md](03_RunLoop.md) 的 [COMBAT-003a]）
-- **设计需求**：一把主武器 — 走近 Spawner 弹浮窗 → 按 E 拾取（与 RewardPickup 同模式）→ 切关后状态保留；换武器时旧 Spawner 恢复原色（不再黑化），旧 WeaponInstance 销毁，热度委托解绑。
+- **设计需求**：一把主武器 — 走近 Spawner 弹浮窗 → 按住 E 拾取（与 RewardPickup 同模式）→ 切关后状态保留；换武器时旧 Spawner 恢复原色（不再黑化），旧 WeaponInstance 销毁，热度委托解绑。
 - **状态**：✅ C++完成（含 [FIX-009] 拾取黑化移除）
 - **核心文件**：
   - `Public/Item/Weapon/WeaponSpawner.h` + `Private/Item/Weapon/WeaponSpawner.cpp`（`TryPickupWeapon`）
@@ -33,7 +33,7 @@
   - `Public/Item/Weapon/WeaponInfoDA.h`（`WeaponName` / `WeaponDescription` / `Thumbnail` / `Zone1/2/3Image`）
 - **设计文档**：[WeaponSystem_Technical](../../04_开发实现与系统文档/系统/Weapon/WeaponSystem_Technical.md)
 - **验收方式**：
-  1. 走近 WeaponSpawner 应弹浮窗；按 E 应装备武器并隐藏浮窗
+  1. 走近 WeaponSpawner 应弹浮窗；按住 E 应装备武器并隐藏浮窗
   2. 切关后武器应自动恢复装备（FRunState.WeaponDefinition）
   3. 换武器时旧 Spawner 应恢复原 mesh 颜色，新武器装备成功
 

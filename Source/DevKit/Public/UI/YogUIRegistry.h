@@ -33,7 +33,12 @@ enum class EYogUIScreenId : uint8
 	EntryMenu,
 	CombatDeckFloatingDrag,
 	GameOver,
-	RuntimeGM
+	RuntimeGM,
+
+	// Ambient speech bubble / corner toast. Distinct from TutorialPopup: that one is the
+	// full-screen paged modal for onboarding, this one never takes focus or pauses.
+	// Append new ids only — the enum is serialized as uint8 inside the UYogUIRegistry asset.
+	BubbleMessage
 };
 
 /**

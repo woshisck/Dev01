@@ -18,6 +18,8 @@
 #include "UI/WeaponThumbnailFlyWidget.h"
 #include "UI/WeaponFloatWidget.h"
 #include "UI/WeaponGlassAnimDA.h"
+#include "UI/BubbleMessageWidget.h"
+#include "UI/BubbleMessageTypes.h"
 #include "UI/WidgetReflectorDebugUtils.h"
 #include "Character/YogCharacterBase.h"
 #include "Character/PlayerCharacterBase.h"
@@ -609,6 +611,98 @@ bool AYogHUD::EnsureWeaponFloatWidget()
 	WeaponFloatWidget->SetRenderOpacity(0.f);
 	WeaponFloatWidget->SetVisibility(ESlateVisibility::Collapsed);
 	return true;
+}
+
+bool AYogHUD::EnsureBubbleWidget()
+{
+	if (BubbleWidget)
+	{
+		return true;
+	}
+
+	APlayerController* PC = GetOwningPlayerController();
+	if (!PC)
+	{
+		return false;
+	}
+
+	// No hard-path fallback: the C++ base builds a readable text-only layout on its own, so a
+	// missing WBP degrades to an unstyled bubble instead of no bubble.
+	TSubclassOf<UBubbleMessageWidget> WidgetClass =
+		ResolveManagedWidgetClass(EYogUIScreenId::BubbleMessage, BubbleWidgetClass);
+	if (!WidgetClass)
+	{
+		WidgetClass = UBubbleMessageWidget::StaticClass();
+	}
+
+	BubbleWidget = CreateWidget<UBubbleMessageWidget>(PC, WidgetClass);
+	if (!BubbleWidget)
+	{
+		return false;
+	}
+
+	BubbleWidget->AddToViewport(ResolveManagedZOrder(EYogUIScreenId::BubbleMessage, 12));
+	BubbleWidget->SetVisibility(ESlateVisibility::Collapsed);
+	return true;
+}
+
+void AYogHUD::ResolveBubbleCornerPlacement(
+	EBubbleScreenCorner Corner,
+	const FVector2D& ViewportSize,
+	float Padding,
+	FVector2D& OutPosition,
+	FVector2D& OutAlignment)
+{
+	const bool bLeft = Corner == EBubbleScreenCorner::TopLeft || Corner == EBubbleScreenCorner::BottomLeft;
+	const bool bTop  = Corner == EBubbleScreenCorner::TopLeft || Corner == EBubbleScreenCorner::TopRight;
+
+	// Align to the corner the bubble sits in so it grows inward as the text gets longer.
+	OutAlignment = FVector2D(bLeft ? 0.f : 1.f, bTop ? 0.f : 1.f);
+	OutPosition = FVector2D(
+		bLeft ? Padding : ViewportSize.X - Padding,
+		bTop  ? Padding : ViewportSize.Y - Padding);
+}
+
+void AYogHUD::ShowBubbleAtCorner(const FText& SpeakerName, const FText& Body, EBubbleScreenCorner Corner)
+{
+	if (!EnsureBubbleWidget() || !BubbleWidget)
+	{
+		return;
+	}
+
+	FVector2D ViewportSize(1920.f, 1080.f);
+	if (UGameViewportClient* GVC = GetWorld() ? GetWorld()->GetGameViewport() : nullptr)
+	{
+		GVC->GetViewportSize(ViewportSize);
+	}
+
+	const float DPI = UWidgetLayoutLibrary::GetViewportScale(GetWorld());
+	if (DPI > KINDA_SMALL_NUMBER)
+	{
+		ViewportSize /= DPI;
+	}
+
+	FVector2D Position = FVector2D::ZeroVector;
+	FVector2D Alignment = FVector2D::ZeroVector;
+	ResolveBubbleCornerPlacement(Corner, ViewportSize, BubbleViewportPadding, Position, Alignment);
+
+	BubbleWidget->SetLine(SpeakerName, Body);
+	if (BubbleViewportSize.X > KINDA_SMALL_NUMBER)
+	{
+		BubbleWidget->SetDesiredSizeInViewport(BubbleViewportSize);
+	}
+	BubbleWidget->SetAlignmentInViewport(Alignment);
+	BubbleWidget->SetPositionInViewport(Position, false);
+	BubbleWidget->SetFadeAlpha(1.f);
+	BubbleWidget->SetVisibility(ESlateVisibility::HitTestInvisible);
+}
+
+void AYogHUD::HideBubble()
+{
+	if (BubbleWidget)
+	{
+		BubbleWidget->SetVisibility(ESlateVisibility::Collapsed);
+	}
 }
 
 void AYogHUD::ShowWeaponFloatInfo(const UWeaponDefinition* Def)
@@ -1484,7 +1578,7 @@ void AYogHUD::HidePortalGuidance()
 
 void AYogHUD::NotifyPlayerInPortalRange(APortal* /*Portal*/)
 {
-	// 当前实现：TickPortalPreview 已通过读 Player->PendingPortal 自动优先选中
+	// 当前实现：TickPortalPreview 已通过读玩家重叠的 Portal 自动优先选中
 	// 本接口保留作为后续扩展点（如立即加亮、播放进入提示音等）
 }
 
@@ -1560,11 +1654,12 @@ void AYogHUD::TickPortalPreview(float /*DeltaSeconds*/)
 	}
 
 	APortal* Target = nullptr;
+	APortal* PendingPortal = Player->GetOverlappingInteractable<APortal>();
 
 	// 优先级 1：玩家在某门 Box 内 → 强制选中此门，保证"按 E"提示稳定
-	if (Player->PendingPortal)
+	if (PendingPortal)
 	{
-		Target = Player->PendingPortal;
+		Target = PendingPortal;
 	}
 	else
 	{
@@ -1642,7 +1737,7 @@ void AYogHUD::TickPortalPreview(float /*DeltaSeconds*/)
 			*GetNameSafe(Target),
 			Target->Index,
 			TargetPreviewRevision,
-			*GetNameSafe(Player->PendingPortal),
+			*GetNameSafe(PendingPortal),
 			*DescribeHUDLootOptionsForRewardDebug(Target->CachedPreviewInfo.RewardPreviewOptions));
 		PortalPreviewWidget->SetPreviewInfo(Target->CachedPreviewInfo);
 		PortalPreviewWidget->SetVisibility(YogWidgetReflectorDebug::GetInspectableVisibility(ESlateVisibility::HitTestInvisible));
@@ -1670,7 +1765,7 @@ void AYogHUD::TickPortalPreview(float /*DeltaSeconds*/)
 	}
 
 	// 交互提示：仅当玩家进入 Target 的 Box 时显示"按 E 进入"
-	PortalPreviewWidget->SetInteractHintVisible(Player->PendingPortal == Target);
+	PortalPreviewWidget->SetInteractHintVisible(PendingPortal == Target);
 }
 
 void AYogHUD::BeginBlackoutFade(float Duration)

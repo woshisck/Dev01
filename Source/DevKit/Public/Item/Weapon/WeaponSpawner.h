@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "Character/InteractHoldFeedback.h"
+#include "Character/YogInteractable.h"
 #include "Character/PlayerInteraction.h"
 #include "Map/PickupInteractable.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
@@ -21,6 +21,7 @@ class APlayerCharacterBase;
 class UObject;
 class UPrimitiveComponent;
 class UStaticMeshComponent;
+class UInteractPromptComponent;
 class UWidgetComponent;
 class UWeaponFloatWidget;
 class UStoryEncounterGraph;
@@ -43,7 +44,7 @@ enum class EWeaponSpawnerTutorialVisibility : uint8
 
 
 UCLASS(Blueprintable, BlueprintType)
-class DEVKIT_API AWeaponSpawner : public AActor, public IPlayerInteraction, public IPickupInteractable, public IInteractHoldFeedback
+class DEVKIT_API AWeaponSpawner : public AActor, public IPlayerInteraction, public IPickupInteractable, public IYogInteractable
 {
 	GENERATED_BODY()
 
@@ -90,8 +91,10 @@ public:
 	virtual void TryPickup(APlayerCharacterBase* Player) override;
 	// ~ End IPickupInteractable
 
-	// ~ IInteractHoldFeedback
-	virtual void SetInteractHoldProgress(float Normalized) override;
+	// ~ IYogInteractable
+	virtual void TryInteract(APlayerCharacterBase* Player) override { TryPickupWeapon(Player); }
+	virtual int32 GetInteractPriority() const override { return YogInteractPriority::WeaponSpawner; }
+	virtual bool CanInteract(const APlayerCharacterBase* Player) const override { return bEnabledByFirstRunTutorialState && !bPickedUp; }
 
 	UFUNCTION(BlueprintImplementableEvent)
 	void GrantWeapon(APlayerCharacterBase* ReceivingChar);
@@ -129,7 +132,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon Display|Float")
 	FVector BobAxis = FVector(0.f, 0.f, 1.f);
 
-	// 玩家接近时登记 PendingWeaponSpawner，按 E 后调用 TryPickupWeapon
+	// 玩家接近时登记为可交互对象，按住 E 后调用 TryPickupWeapon
 	UFUNCTION()
 	virtual void OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepHitResult);
 
@@ -145,6 +148,10 @@ public:
 	// 武器信息浮窗 WidgetComponent（Screen Space，自动跟随武器位置）
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Floating Panel", meta = (AllowPrivateAccess = true))
 	TObjectPtr<UWidgetComponent> WeaponInfoWidgetComp;
+
+	// 按住 E 拾取的提示（按键图标 + 蓄力环）
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Interact Prompt", meta = (AllowPrivateAccess = true))
+	TObjectPtr<UInteractPromptComponent> InteractPromptComp;
 
 	// 在 BP_WeaponSpawner 里指定浮窗 WBP 类
 	UPROPERTY(EditDefaultsOnly, Category = "Floating Panel")

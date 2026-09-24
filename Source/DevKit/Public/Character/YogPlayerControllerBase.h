@@ -39,7 +39,6 @@ public:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void SetupInputComponent() override;
 	virtual bool InputKey(const FInputKeyEventArgs& Params) override;
-	virtual void PlayerTick(float DeltaTime) override;
 
 
 	//UFUNCTION(BlueprintCallable)
@@ -74,8 +73,10 @@ public:
 	void SwitchWeapon(const FInputActionValue& Value);
 	void HandlePauseInput(const FInputActionValue& Value);
 	void Move(const FInputActionValue& Value);
-	void InteractPressed(const FInputActionValue& Value);
-	void InteractReleased(const FInputActionValue& Value);
+	void InteractPressed(const FInputActionInstance& Instance);
+	void InteractOngoing(const FInputActionInstance& Instance);
+	void InteractTriggered(const FInputActionInstance& Instance);
+	void InteractReleased(const FInputActionInstance& Instance);
 
 	/** Zeroes any in-progress interact hold. Safe to call when no hold is active. */
 	void CancelInteractHold();
@@ -85,10 +86,6 @@ public:
 	 * A non-positive duration returns 1 so a target can opt back into instant interaction.
 	 */
 	static float ComputeHoldProgress(float ElapsedSeconds, float DurationSeconds);
-
-	/** Seconds of held input needed to commit, unless the target overrides it. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Interact", meta = (ClampMin = "0.0"))
-	float InteractHoldDuration = 0.6f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
 	TObjectPtr<UInputMappingContext> DefaultMappingContext;
@@ -217,6 +214,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Conversation")
 	void ExitConversationMode();
 
+	/**
+	 * Fires on every interact press, ahead of the IsGameplayInputBlocked() gate that stops the
+	 * normal interact pipeline. Conversation mode blocks game input by design, so this is the only
+	 * way a dialogue system can still read "advance" while it holds the player.
+	 *
+	 * Listeners must gate themselves — this fires during regular gameplay too.
+	 */
+	FSimpleMulticastDelegate OnInteractPressedRaw;
+
 	void SetGameplayCursorControlActive(bool bActive);
 	void ApplyGameplayInputModeForCurrentInputType();
 
@@ -240,9 +246,9 @@ private:
 	/** First non-null Pending* on the pawn, in the documented interact priority order. */
 	AActor* ResolveInteractTarget(APlayerCharacterBase* PlayerCharacter) const;
 	void CommitInteract(APlayerCharacterBase* PlayerCharacter, AActor* Target);
-	void TickInteractHold(float DeltaTime);
 	void PushInteractHoldProgress(AActor* Target, float Normalized) const;
-	float ResolveInteractHoldDuration(AActor* Target) const;
+	/** Target the hold is still valid for, or null if it should be abandoned this frame. */
+	AActor* ValidateActiveHoldTarget();
 #if !UE_BUILD_SHIPPING
 	void MaybeScheduleRuntimeGMSmokeTest();
 	void RunRuntimeGMSmokeTest();
@@ -263,7 +269,8 @@ private:
 	float LastAttackRedirectMoveInputTime = -BIG_NUMBER;
 
 	bool bInteractHoldActive = false;
-	float InteractHoldElapsed = 0.f;
+	/** Mirrors the Hold trigger on Input_Interact so the fill matches when the trigger fires. */
+	float InteractHoldThreshold = 0.f;
 	TWeakObjectPtr<AActor> InteractHoldTarget;
 
 	UPROPERTY()

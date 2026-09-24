@@ -221,7 +221,7 @@ CanvasPanel（根，Full Screen）
 | `RoomTypeText` | TextBlock | `RoomTypeText` | 不显示类型文字 |
 | `BuffListBox` | VerticalBox | `BuffListBox` | 不显示 Buff 列表 |
 | `LootSummaryText` | TextBlock | `LootSummaryText` | 不显示战利品摘要 |
-| `InteractHintRoot` | Widget（HBox/Border 均可） | `InteractHintRoot` | 不显示"按 E 进入"提示 |
+| `InteractHintRoot` | Widget（HBox/Border 均可） | `InteractHintRoot` | 不显示"按住 E 进入"提示 |
 
 ---
 
@@ -251,7 +251,7 @@ WBP 可在事件图表中实现以下事件追加视觉效果（不实现也能�
 |---|---|
 | `On Preview Shown` | 浮窗刚切换到新 Target Portal 时 |
 | `On Preview Hidden` | （C++ 当前未主动调；可由 BP 自行扩展） |
-| `On Interact Hint Shown` | "按 E 进入"提示首次显示 |
+| `On Interact Hint Shown` | "按住 E 进入"提示首次显示 |
 
 ---
 

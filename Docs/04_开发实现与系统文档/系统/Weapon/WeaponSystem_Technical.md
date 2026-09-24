@@ -1,6 +1,6 @@
 # 武器系统 — 技术文档
 
-> 更新：2026-04-16  
+> 更新：2026-09-21  
 > 覆盖：WeaponSpawner 拾取交互 / WeaponInstance 热度发光 / WeaponDefinition 配置 / 切关恢复
 
 ---
@@ -10,8 +10,9 @@
 ```
 WeaponSpawner（场景中）
   │ 玩家进入 Overlap 范围
-  │ → PendingWeaponSpawner 登记
-  │ 按 E 键
+  │ → Player->RegisterInteractable(this)   （IYogInteractable）
+  │ 按住 E 键蓄力至 IA_Interact 的 Hold 阈值
+  │ → IYogInteractable::TryInteract()
   └─→ TryPickupWeapon()
          │
          ├─ 销毁旧武器（RemoveDynamic + Destroy）
@@ -44,8 +45,9 @@ PlayerCharacterBase（BeginPlay）
 | `WeaponSpawner.h/.cpp` | 场景中的武器展示 + Interact 拾取逻辑 |
 | `WeaponDefinition.h/.cpp` | 武器数据资产（DA），`SetupWeaponToCharacter` 切关恢复路径 |
 | `WeaponInstance.h/.cpp` | 装备到角色身上的武器 Actor，热度发光接口 |
-| `PlayerCharacterBase.h/.cpp` | 持有 `OnHeatPhaseChanged` 委托，注册 GAS Tag 监听 |
-| `YogPlayerControllerBase.cpp` | `Interact()` 中判断 `PendingWeaponSpawner` 并调 `TryPickupWeapon` |
+| `PlayerCharacterBase.h/.cpp` | 持有 `OnHeatPhaseChanged` 委托，注册 GAS Tag 监听；维护 `OverlappingInteractables` 列表 |
+| `YogPlayerControllerBase.cpp` | 蓄力完成后 `CommitInteract` 统一走 `Cast<IYogInteractable>()->TryInteract()` |
+| `Character/YogInteractable.h` | 统一交互接口；`AWeaponSpawner::TryInteract` 转发到 `TryPickupWeapon` |
 
 ---
 
@@ -54,13 +56,16 @@ PlayerCharacterBase（BeginPlay）
 ### 3.1 Overlap 登记
 
 ```cpp
-// OnOverlapBegin
-Player->PendingWeaponSpawner = this;
+// OnPlayerEnterRange
+Player->RegisterInteractable(this);
 
-// OnOverlapEnd
-if (Player->PendingWeaponSpawner == this)
-    Player->PendingWeaponSpawner = nullptr;
+// OnPlayerLeaveRange
+Player->UnregisterInteractable(this);
 ```
+
+多个交互物同时重叠时，由 `GetInteractPriority()` 决定谁响应；WeaponSpawner 优先级最高
+（`YogInteractPriority::WeaponSpawner`）。`CanInteract()` 在每次解析时复查
+`bEnabledByFirstRunTutorialState && !bPickedUp`，已拾取的 Spawner 不会挡住同范围内的其他交互物。
 
 ### 3.2 TryPickupWeapon()
 
