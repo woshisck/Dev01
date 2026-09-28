@@ -132,8 +132,6 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRuntimeGMPIEF12OpensPanelTest,
 
 bool FRuntimeGMPIEF12OpensPanelTest::RunTest(const FString& Parameters)
 {
-	AddExpectedError(TEXT("Null input trigger detected in mapping to input action 'IA_CardCache'"), EAutomationExpectedErrorFlags::Contains, 1);
-
 	ADD_LATENT_AUTOMATION_COMMAND(FEditorLoadMap(TEXT("/Game/Art/Map/Map_Data/L1_InitialRoom/InitialRoom")));
 	ADD_LATENT_AUTOMATION_COMMAND(FStartPIECommand(false));
 	ADD_LATENT_AUTOMATION_COMMAND(FWaitForRuntimeGMPIEPlayerControllerCommand(this));
@@ -159,8 +157,6 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRuntimeGMConsoleCommandFromEditorWorldOpensPan
 
 bool FRuntimeGMConsoleCommandFromEditorWorldOpensPanelTest::RunTest(const FString& Parameters)
 {
-	AddExpectedError(TEXT("Null input trigger detected in mapping to input action 'IA_CardCache'"), EAutomationExpectedErrorFlags::Contains, 1);
-
 	ADD_LATENT_AUTOMATION_COMMAND(FEditorLoadMap(TEXT("/Game/Art/Map/Map_Data/L1_InitialRoom/InitialRoom")));
 	ADD_LATENT_AUTOMATION_COMMAND(FStartPIECommand(false));
 	ADD_LATENT_AUTOMATION_COMMAND(FWaitForRuntimeGMPIEPlayerControllerCommand(this));

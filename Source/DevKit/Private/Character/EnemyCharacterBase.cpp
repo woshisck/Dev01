@@ -275,6 +275,28 @@ const UWeaponDefinitionBase* AEnemyCharacterBase::GetEffectiveWeaponDefinition()
 	return EquippedEnemyWeaponDefinition.Get();
 }
 
+UEnemyData* AEnemyCharacterBase::GetEnemyData() const
+{
+	return CharacterDataComponent ? Cast<UEnemyData>(CharacterDataComponent->GetCharacterData()) : nullptr;
+}
+
+EEnemyCombatTier AEnemyCharacterBase::GetCombatTier() const
+{
+	const UEnemyData* Data = GetEnemyData();
+	return Data ? Data->CombatTier : EEnemyCombatTier::Normal;
+}
+
+FText AEnemyCharacterBase::GetEnemyDisplayName() const
+{
+	const UEnemyData* Data = GetEnemyData();
+	if (Data && !Data->DisplayName.IsEmpty())
+	{
+		return Data->DisplayName;
+	}
+
+	return FText::FromString(GetName());
+}
+
 AWeaponInstance* AEnemyCharacterBase::GetEquippedWeaponActor() const
 {
 	for (const TObjectPtr<AActor>& SpawnedActor : SpawnedEnemyWeaponActors)

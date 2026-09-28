@@ -283,9 +283,11 @@ struct DEVKIT_API FStateTreeTask_SpawnMobInReachableNavMesh : public FStateTreeA
 };
 
 // ─── Spawn Mob ──────────────────────────────────────────────────────────────
-// Spawns TotalCount mobs one at a time at random reachable NavMesh points
-// around the origin, waiting SpawnInterval seconds between each. Succeeds once
-// the last mob is spawned.
+// Spawns a batch of mobs at random reachable NavMesh points around the origin,
+// waiting SpawnInterval seconds between each. Batch size is TotalCount, or a
+// roll in [TotalCount, TotalCountMax] when TotalCountMax is larger. Succeeds
+// once the batch is spawned, unless bRepeatIndefinitely keeps it Running and
+// starts a fresh batch every RepeatDelay seconds.
 
 USTRUCT()
 struct FStateTreeTask_SpawnMobInstanceData
@@ -304,8 +306,21 @@ struct FStateTreeTask_SpawnMobInstanceData
 	UPROPERTY(EditAnywhere, Category = Parameter, meta = (ClampMin = "1"))
 	int32 TotalCount = 3;
 
+	// When greater than TotalCount, each batch rolls its size in
+	// [TotalCount, TotalCountMax]. 0 means every batch is exactly TotalCount.
+	UPROPERTY(EditAnywhere, Category = Parameter, meta = (ClampMin = "0"))
+	int32 TotalCountMax = 0;
+
 	UPROPERTY(EditAnywhere, Category = Parameter, meta = (ClampMin = "0.0"))
 	float SpawnInterval = 1.0f;
+
+	// Keeps the task Running after a batch completes and starts another one
+	// RepeatDelay seconds later, instead of succeeding.
+	UPROPERTY(EditAnywhere, Category = Parameter)
+	bool bRepeatIndefinitely = false;
+
+	UPROPERTY(EditAnywhere, Category = Parameter, meta = (EditCondition = "bRepeatIndefinitely", ClampMin = "0.0"))
+	float RepeatDelay = 3.0f;
 
 	UPROPERTY(EditAnywhere, Category = Parameter, meta = (ClampMin = "0.0"))
 	float SpawnRadius = 1000.0f;
@@ -331,6 +346,7 @@ struct FStateTreeTask_SpawnMobInstanceData
 	TArray<TObjectPtr<AEnemyCharacterBase>> SpawnedEnemies;
 
 	int32 SpawnedCount = 0;
+	int32 BatchTarget = 0;
 	int32 ConsecutiveFailures = 0;
 	float TimeUntilNextSpawn = 0.f;
 };
@@ -349,7 +365,9 @@ struct DEVKIT_API FStateTreeTask_SpawnMob : public FStateTreeAIActionTaskBase
 	virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) const override;
 
 private:
+	static void RollBatchTarget(FInstanceDataType& InstanceData);
 	EStateTreeRunStatus AdvanceSpawn(FInstanceDataType& InstanceData) const;
+	EStateTreeRunStatus AdvanceBatch(FInstanceDataType& InstanceData) const;
 };
 
 // ─── Enemy Patrol Wait ──────────────────────────────────────────────────────

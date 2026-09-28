@@ -2,6 +2,7 @@
 
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
+#include "Character/EnemyCharacterBase.h"
 #include "Character/YogCharacterBase.h"
 #include "Components/SceneComponent.h"
 #include "Components/WidgetComponent.h"
@@ -1423,6 +1424,17 @@ UNiagaraComponent* UEnemyHealthDisplayComponent::CreateHealthBarComponent(AActor
 
 UNiagaraComponent* UEnemyHealthDisplayComponent::ResolveHealthBarComponent()
 {
+	// Bosses get the screen-space HUD bar instead, so the overhead bar is suppressed at this
+	// single choke point. Damage numbers route through ResolveDamageValueSystem and are
+	// deliberately left alone.
+	if (const AEnemyCharacterBase* EnemyOwner = Cast<AEnemyCharacterBase>(GetOwner()))
+	{
+		if (EnemyOwner->GetCombatTier() == EEnemyCombatTier::Boss)
+		{
+			return nullptr;
+		}
+	}
+
 	if (IsValid(HealthBarComponent))
 	{
 		return HealthBarComponent;

@@ -580,6 +580,13 @@ FStateTreeTask_SpawnMob::FStateTreeTask_SpawnMob()
 	bShouldCallTick = true;
 }
 
+void FStateTreeTask_SpawnMob::RollBatchTarget(FInstanceDataType& InstanceData)
+{
+	InstanceData.BatchTarget = FMath::RandRange(
+		InstanceData.TotalCount,
+		FMath::Max(InstanceData.TotalCount, InstanceData.TotalCountMax));
+}
+
 EStateTreeRunStatus FStateTreeTask_SpawnMob::AdvanceSpawn(FInstanceDataType& InstanceData) const
 {
 	AActor* OriginActor = InstanceData.SpawnOriginActor ? InstanceData.SpawnOriginActor.Get() : nullptr;
@@ -609,7 +616,7 @@ EStateTreeRunStatus FStateTreeTask_SpawnMob::AdvanceSpawn(FInstanceDataType& Ins
 			InstanceData.MinSpawnDistance,
 			InstanceData.MaxAttempts);
 
-		// A failed placement must not consume one of TotalCount, or the group
+		// A failed placement must not consume one of the batch, or the group
 		// silently comes out short. But an origin that can never place anything
 		// must not retry forever either.
 		if (++InstanceData.ConsecutiveFailures >= SpawnMob_MaxConsecutiveFailures)
@@ -623,13 +630,41 @@ EStateTreeRunStatus FStateTreeTask_SpawnMob::AdvanceSpawn(FInstanceDataType& Ins
 
 	InstanceData.ConsecutiveFailures = 0;
 	++InstanceData.SpawnedCount;
-	if (InstanceData.SpawnedCount >= InstanceData.TotalCount)
+	if (InstanceData.SpawnedCount >= InstanceData.BatchTarget)
 	{
-		return EStateTreeRunStatus::Succeeded;
+		if (!InstanceData.bRepeatIndefinitely)
+		{
+			return EStateTreeRunStatus::Succeeded;
+		}
+
+		// Scoped to the current batch: a repeating task would otherwise keep hard
+		// references to every mob it ever spawned, pinning dead ones against GC.
+		InstanceData.SpawnedEnemies.Reset();
+		InstanceData.SpawnedCount = 0;
+		RollBatchTarget(InstanceData);
+		InstanceData.TimeUntilNextSpawn = InstanceData.RepeatDelay;
+		return EStateTreeRunStatus::Running;
 	}
 
 	InstanceData.TimeUntilNextSpawn = InstanceData.SpawnInterval;
 	return EStateTreeRunStatus::Running;
+}
+
+// A zero SpawnInterval means "spawn the whole batch at once" -- Tick would
+// otherwise stretch it over one frame per mob. The TimeUntilNextSpawn guard
+// stops the drain at a batch boundary, where AdvanceSpawn has armed the
+// RepeatDelay; without it a repeating task would spawn forever in one frame.
+EStateTreeRunStatus FStateTreeTask_SpawnMob::AdvanceBatch(FInstanceDataType& InstanceData) const
+{
+	EStateTreeRunStatus Status = AdvanceSpawn(InstanceData);
+	while (Status == EStateTreeRunStatus::Running
+		&& InstanceData.SpawnInterval <= 0.f
+		&& InstanceData.TimeUntilNextSpawn <= 0.f)
+	{
+		Status = AdvanceSpawn(InstanceData);
+	}
+
+	return Status;
 }
 
 EStateTreeRunStatus FStateTreeTask_SpawnMob::EnterState(
@@ -646,16 +681,9 @@ EStateTreeRunStatus FStateTreeTask_SpawnMob::EnterState(
 	InstanceData.SpawnedCount = 0;
 	InstanceData.ConsecutiveFailures = 0;
 	InstanceData.TimeUntilNextSpawn = 0.f;
+	RollBatchTarget(InstanceData);
 
-	// A zero interval means "spawn the whole group at once" — Tick would
-	// otherwise stretch it over one frame per mob.
-	EStateTreeRunStatus Status = AdvanceSpawn(InstanceData);
-	while (Status == EStateTreeRunStatus::Running && InstanceData.SpawnInterval <= 0.f)
-	{
-		Status = AdvanceSpawn(InstanceData);
-	}
-
-	return Status;
+	return AdvanceBatch(InstanceData);
 }
 
 EStateTreeRunStatus FStateTreeTask_SpawnMob::Tick(
@@ -669,7 +697,7 @@ EStateTreeRunStatus FStateTreeTask_SpawnMob::Tick(
 		return EStateTreeRunStatus::Running;
 	}
 
-	return AdvanceSpawn(InstanceData);
+	return AdvanceBatch(InstanceData);
 }
 
 EStateTreeRunStatus FStateTreeTask_EnemyPatrolWait::EnterState(

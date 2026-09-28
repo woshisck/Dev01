@@ -39,6 +39,12 @@ public:
 	bool GetActiveWeaponSlotScreenCenter(FVector2D& OutScreenCenter) const;
 	void ApplyWidgetReflectorDebugVisibility();
 
+	// Boss health bar hosted in BossInfoRegion. The bar itself is an instance of the
+	// hand-authored player liquid-bar WBP, recolored for the boss.
+	void ShowBossBar(const FText& BossName, TSubclassOf<ULiquidHealthBarWidget> BarClass);
+	void HideBossBar();
+	void SetBossHealthPercent(float Pct);
+
 protected:
 	// Fired after the weapon panel data refreshes on a switch. Implement in
 	// WBP_HUDRoot to play the weapon-switch animation (art/motion stays in the WBP).
@@ -111,6 +117,7 @@ public:
 private:
 	void ApplyExampleHudLayout();
 	void EnsureWeaponLoadoutPanel();
+	void EnsureBossHealthPanel(TSubclassOf<ULiquidHealthBarWidget> BarClass);
 	void RebindWeaponPanelPlayer();
 	void RefreshWeaponPanel(bool bForce = false);
 
@@ -120,6 +127,15 @@ private:
 
 	UFUNCTION()
 	void HandleWeaponSwitched();
+
+	UPROPERTY(Transient)
+	TObjectPtr<UWidget> BossHealthPanel;
+
+	UPROPERTY(Transient)
+	TObjectPtr<ULiquidHealthBarWidget> BossHealthBar;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> BossNameText;
 
 	UPROPERTY(Transient, meta = (BindWidgetOptional))
 	TObjectPtr<UWidget> WeaponLoadoutPanel;

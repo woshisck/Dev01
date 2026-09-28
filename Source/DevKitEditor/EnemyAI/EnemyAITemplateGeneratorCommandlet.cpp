@@ -51,6 +51,11 @@ namespace EnemyAITemplateGenerator
 	// Deliberately NOT ST_Debugger: that asset is hand-authored and diverged from this
 	// generator (it runs Chase -> Cast Ability). Regenerating over it would delete that work.
 	const FString DebuggerStateTreePath = TEXT("/Game/Code/Enemy/AI/StateTree/ST_Debugger_Default");
+	// Unlike ST_Debugger, ST_Spawner IS regenerated here: its hand-authored version held a
+	// task node with an all-zero GUID, which trips ensure(NodeId.IsValid()) in StateTreeDebug
+	// on every ExitState. Rebuilding through AddTask<T>() is what restores valid node IDs.
+	const FString SpawnerStateTreePath = TEXT("/Game/Code/Enemy/AI/StateTree/ST_Spawner");
+	const FString SpawnerSummonClassPath = TEXT("/Game/Code/Enemy/Minion/Rat/BP_Enemy_Rat_01.BP_Enemy_Rat_01_C");
 	// Phase 2 stat buff. Authored as a GE asset rather than typed into ST_Boss because
 	// RebuildBossStateTree wipes anything set on the StateTree itself.
 	const FString BossPhase2EffectPath = TEXT("/Game/Code/Enemy/AI/Phase/GE_BossPhase2");
@@ -885,7 +890,23 @@ namespace EnemyAITemplateGenerator
 		StateTree.MarkPackageDirty();
 	}
 
-	void RebuildStateTree(UStateTree& StateTree, TArray<FString>& ReportLines)
+	// Optional summoner behavior layered onto the shared melee template.
+	struct FSpawnerSummonConfig
+	{
+		TSubclassOf<AEnemyCharacterBase> EnemyClass;
+		int32 CountMin = 2;
+		int32 CountMax = 3;
+		float RepeatDelay = 3.0f;
+		float SpawnRadius = 900.f;
+		float MinSpawnDistance = 300.f;
+		// Adds stay out of the room-clear tally: the spawn path only calls RegisterEnemy and
+		// never increments TotalAliveEnemies, but a counted death decrements it, so counting
+		// these would drive the room to "clear" while the wave enemies are still alive.
+		bool bCountsForLevelClear = false;
+	};
+
+	void RebuildStateTree(UStateTree& StateTree, TArray<FString>& ReportLines,
+	                      const FSpawnerSummonConfig* Summon = nullptr)
 	{
 		UStateTreeEditorData* EditorData = Cast<UStateTreeEditorData>(StateTree.EditorData);
 		if (!EditorData)
@@ -921,6 +942,26 @@ namespace EnemyAITemplateGenerator
 		TStateTreeEditorNode<FStateTreeCondition_EnemyAIState>& CombatCondition = Combat.AddEnterCondition<FStateTreeCondition_EnemyAIState>();
 		CombatCondition.SetNodeName(TEXT("Enemy AI State Is Combat"));
 		CombatCondition.GetInstanceData().RequiredState = EEnemyAIState::Combat;
+
+		// Summoning lives on the Combat parent, not a child state: StateTree ticks the tasks
+		// of every state in the active chain, so this keeps spawning while the attack and
+		// chase children below run. As a leaf it would block attacking for its whole lifetime.
+		if (Summon)
+		{
+			TStateTreeEditorNode<FStateTreeTask_SpawnMob>& SummonTask =
+				AddNamedTask<FStateTreeTask_SpawnMob>(Combat, TEXT("Summon Adds"));
+			FStateTreeTask_SpawnMobInstanceData& SummonData = SummonTask.GetInstanceData();
+			SummonData.EnemyClass = Summon->EnemyClass;
+			SummonData.TotalCount = Summon->CountMin;
+			SummonData.TotalCountMax = Summon->CountMax;
+			// Zero interval puts the whole batch in one frame; the cadence is RepeatDelay.
+			SummonData.SpawnInterval = 0.f;
+			SummonData.bRepeatIndefinitely = true;
+			SummonData.RepeatDelay = Summon->RepeatDelay;
+			SummonData.SpawnRadius = Summon->SpawnRadius;
+			SummonData.MinSpawnDistance = Summon->MinSpawnDistance;
+			SummonData.bCountsForLevelClear = Summon->bCountsForLevelClear;
+		}
 
 		// Press the advantage: after a connect, retry close melee ahead of the skill
 		// and special-movement branches so landed hits chain into pressure instead of
@@ -1171,13 +1212,15 @@ int32 UEnemyAITemplateGeneratorCommandlet::Main(const FString& Params)
 	const bool bPresetDefaultMelee = Params.Contains(TEXT("Preset=DefaultMelee"), ESearchCase::IgnoreCase)
 		|| !Params.Contains(TEXT("Preset="), ESearchCase::IgnoreCase);
 	const bool bPresetDebugger = Params.Contains(TEXT("Preset=Debugger"), ESearchCase::IgnoreCase);
+	const bool bPresetSpawner = Params.Contains(TEXT("Preset=Spawner"), ESearchCase::IgnoreCase);
 
 	TArray<FString> ReportLines;
 	TArray<UPackage*> DirtyPackages;
 	ReportLines.Add(TEXT("# Enemy AI Template Generator Report"));
 	ReportLines.Add(FString::Printf(TEXT("- Mode: %s"), bDryRun ? TEXT("DryRun") : TEXT("Apply")));
 	ReportLines.Add(FString::Printf(TEXT("- Preset: %s"),
-		bPresetBoss ? TEXT("Boss") : bPresetDebugger ? TEXT("Debugger") : bPresetDefaultMelee ? TEXT("DefaultMelee") : TEXT("Unsupported")));
+		bPresetBoss ? TEXT("Boss") : bPresetDebugger ? TEXT("Debugger") : bPresetSpawner ? TEXT("Spawner")
+			: bPresetDefaultMelee ? TEXT("DefaultMelee") : TEXT("Unsupported")));
 	ReportLines.Add(TEXT(""));
 
 	if (bPresetDebugger)
@@ -1215,9 +1258,45 @@ int32 UEnemyAITemplateGeneratorCommandlet::Main(const FString& Params)
 		ReportLines.Add(TEXT("## Enemy Data"));
 		AssignAIAssetsToEnemyData(BossDataPath, BossStateTree, Blackboard, EDefaultEnemyProfile::Boss, nullptr, nullptr, true, bDryRun, ReportLines, DirtyPackages);
 	}
+	else if (bPresetSpawner)
+	{
+		ReportLines.Add(TEXT("## Blackboard"));
+		UBlackboardData* Blackboard = CreateOrLoadAsset<UBlackboardData>(BlackboardPath, bDryRun, ReportLines, DirtyPackages);
+		if (!bDryRun && Blackboard)
+		{
+			ConfigureBlackboard(*Blackboard);
+			DirtyPackages.AddUnique(Blackboard->GetPackage());
+			ReportLines.Add(TEXT("- Ensured shared enemy blackboard keys."));
+		}
+
+		ReportLines.Add(TEXT(""));
+		ReportLines.Add(TEXT("## StateTree"));
+		ReportLines.Add(TEXT("- Default melee layout (Dead -> Combat -> Alert -> Patrol) plus a Summon Adds task on the Combat parent."));
+		UStateTree* SpawnerStateTree = CreateOrLoadStateTree(SpawnerStateTreePath, bDryRun, ReportLines, DirtyPackages);
+		if (!bDryRun && SpawnerStateTree)
+		{
+			FSpawnerSummonConfig SummonConfig;
+			SummonConfig.EnemyClass = LoadClass<AEnemyCharacterBase>(nullptr, *SpawnerSummonClassPath);
+			if (!SummonConfig.EnemyClass)
+			{
+				ReportLines.Add(FString::Printf(
+					TEXT("- Summon class %s failed to load; aborting so the tree is not rebuilt without it."),
+					*SpawnerSummonClassPath));
+			}
+			else
+			{
+				RebuildStateTree(*SpawnerStateTree, ReportLines, &SummonConfig);
+				ReportLines.Add(FString::Printf(
+					TEXT("- Summons %d-%d x %s every %.1fs while in Combat (excluded from room-clear count)."),
+					SummonConfig.CountMin, SummonConfig.CountMax,
+					*SummonConfig.EnemyClass->GetName(), SummonConfig.RepeatDelay));
+				DirtyPackages.AddUnique(SpawnerStateTree->GetPackage());
+			}
+		}
+	}
 	else if (!bPresetDefaultMelee)
 	{
-		ReportLines.Add(TEXT("- Unsupported preset. Use `-Preset=DefaultMelee` or `-Preset=Boss`."));
+		ReportLines.Add(TEXT("- Unsupported preset. Use `-Preset=DefaultMelee`, `-Preset=Boss`, `-Preset=Debugger` or `-Preset=Spawner`."));
 	}
 	else
 	{
@@ -1274,5 +1353,5 @@ int32 UEnemyAITemplateGeneratorCommandlet::Main(const FString& Params)
 	DevKitEditorCommandletReports::SaveReportLines(TEXT("EnemyAITemplateGeneratorReport.md"), ReportLines, ReportPath, SharedReportPath);
 
 	UE_LOG(LogTemp, Display, TEXT("Enemy AI template generator finished. Report: %s Shared: %s"), *ReportPath, *SharedReportPath);
-	return (bPresetBoss || bPresetDebugger || bPresetDefaultMelee) ? 0 : 1;
+	return (bPresetBoss || bPresetDebugger || bPresetSpawner || bPresetDefaultMelee) ? 0 : 1;
 }

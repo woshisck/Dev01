@@ -22,6 +22,7 @@
 #include "UI/BubbleMessageTypes.h"
 #include "UI/WidgetReflectorDebugUtils.h"
 #include "Character/YogCharacterBase.h"
+#include "Character/EnemyCharacterBase.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Component/BackpackGridComponent.h"
 #include "Component/CombatDeckComponent.h"
@@ -274,6 +275,31 @@ void AYogHUD::BeginPlay()
 			UE_LOG(LogTemp, Warning, TEXT("[YogHUD] WBP_WeaponThumbnailFly 未找到，请在 BP_YogHUD 手动赋值"));
 	}
 
+	// ── Boss 血条 ────────────────────────────────
+	if (!BossHealthBarClass)
+	{
+		BossHealthBarClass = LoadClass<ULiquidHealthBarWidget>(
+			nullptr, TEXT("/Game/UI/Widget/WB_PlayerHealthBar.WB_PlayerHealthBar_C"));
+		if (!BossHealthBarClass)
+			UE_LOG(LogTemp, Warning, TEXT("[YogHUD] WB_PlayerHealthBar 未找到，Boss 血条不会显示"));
+	}
+
+	if (AYogGameMode* GM = Cast<AYogGameMode>(GetWorld()->GetAuthGameMode()))
+	{
+		GM->OnBossRegisteredNative.AddUObject(this, &AYogHUD::HandleBossRegistered);
+
+		// A level-placed boss can register before this HUD exists, so the broadcast is
+		// missed. Catch that case once here.
+		for (AEnemyCharacterBase* Enemy : GM->GetAllAliveEnemies())
+		{
+			if (Enemy && Enemy->GetCombatTier() == EEnemyCombatTier::Boss)
+			{
+				HandleBossRegistered(Enemy);
+				break;
+			}
+		}
+	}
+
 	// ── Portal 进入过场 Blackout PostProcess（独立 Volume，不与 Pause/LevelEnd 互扰）──
 	{
 		FActorSpawnParameters BParams;
@@ -303,6 +329,13 @@ void AYogHUD::BeginPlay()
 			UE_LOG(LogTemp, Log, TEXT("[Portal] 触发下一关 fade-in（线性 PostProcess 反向插值）"));
 		}
 	}
+}
+
+void AYogHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	UnbindBossHealth();
+
+	Super::EndPlay(EndPlayReason);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1101,6 +1134,7 @@ void AYogHUD::Tick(float DeltaSeconds)
 	TickBlackoutFade(DeltaSeconds);
 	TickMajorUIFade(DeltaSeconds);
 	TickWeaponFloatFade(DeltaSeconds);
+	TickBossBarValidity();
 
 	// 关卡结束特效完全接管 PausePPVolume，与暂停菜单系统互不干扰
 	if (bLevelEndEffectActive)
@@ -1505,6 +1539,130 @@ void AYogHUD::OnMaxHealthChanged(const FOnAttributeChangeData& Data)
 			Data.NewValue, CurHP);
 		MainHUDWidget->PlayerHealthBar->SetHealthPercent(CurHP / Data.NewValue);
 	}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Boss 血条
+// ─────────────────────────────────────────────────────────────────────────────
+
+void AYogHUD::HandleBossRegistered(AEnemyCharacterBase* Boss)
+{
+	// One region, one bar. Ignore additional bosses until the bound one is gone.
+	if (!IsValid(Boss) || BoundBoss.IsValid())
+	{
+		return;
+	}
+
+	BindBossHealth(Boss);
+}
+
+void AYogHUD::BindBossHealth(AEnemyCharacterBase* Boss)
+{
+	UAbilitySystemComponent* ASC = Boss->GetAbilitySystemComponent();
+	if (!ASC || !MainHUDWidget)
+	{
+		return;
+	}
+
+	BoundBoss = Boss;
+
+	BossHealthChangedHandle = ASC->GetGameplayAttributeValueChangeDelegate(
+		UBaseAttributeSet::GetHealthAttribute()).AddUObject(this, &AYogHUD::OnBossHealthChanged);
+	BossMaxHealthChangedHandle = ASC->GetGameplayAttributeValueChangeDelegate(
+		UBaseAttributeSet::GetMaxHealthAttribute()).AddUObject(this, &AYogHUD::OnBossMaxHealthChanged);
+	BossDeathStartedHandle = Boss->OnCharacterDeathStartedNative.AddUObject(this, &AYogHUD::HandleBossDeathStarted);
+
+	MainHUDWidget->ShowBossBar(Boss->GetEnemyDisplayName(), BossHealthBarClass);
+	RefreshBossHealthPercent();
+}
+
+void AYogHUD::UnbindBossHealth()
+{
+	AEnemyCharacterBase* Boss = BoundBoss.Get();
+	if (Boss)
+	{
+		if (UAbilitySystemComponent* ASC = Boss->GetAbilitySystemComponent())
+		{
+			if (BossHealthChangedHandle.IsValid())
+			{
+				ASC->GetGameplayAttributeValueChangeDelegate(
+					UBaseAttributeSet::GetHealthAttribute()).Remove(BossHealthChangedHandle);
+			}
+			if (BossMaxHealthChangedHandle.IsValid())
+			{
+				ASC->GetGameplayAttributeValueChangeDelegate(
+					UBaseAttributeSet::GetMaxHealthAttribute()).Remove(BossMaxHealthChangedHandle);
+			}
+		}
+
+		if (BossDeathStartedHandle.IsValid())
+		{
+			Boss->OnCharacterDeathStartedNative.Remove(BossDeathStartedHandle);
+		}
+	}
+
+	BossHealthChangedHandle.Reset();
+	BossMaxHealthChangedHandle.Reset();
+	BossDeathStartedHandle.Reset();
+	BoundBoss.Reset();
+
+	if (MainHUDWidget)
+	{
+		MainHUDWidget->HideBossBar();
+	}
+}
+
+void AYogHUD::RefreshBossHealthPercent()
+{
+	AEnemyCharacterBase* Boss = BoundBoss.Get();
+	if (!IsValid(Boss) || !MainHUDWidget)
+	{
+		UnbindBossHealth();
+		return;
+	}
+
+	UAbilitySystemComponent* ASC = Boss->GetAbilitySystemComponent();
+	if (!ASC)
+	{
+		return;
+	}
+
+	const float MaxHP = ASC->GetNumericAttribute(UBaseAttributeSet::GetMaxHealthAttribute());
+	if (MaxHP > KINDA_SMALL_NUMBER)
+	{
+		const float CurHP = ASC->GetNumericAttribute(UBaseAttributeSet::GetHealthAttribute());
+		MainHUDWidget->SetBossHealthPercent(CurHP / MaxHP);
+	}
+}
+
+void AYogHUD::OnBossHealthChanged(const FOnAttributeChangeData& Data)
+{
+	RefreshBossHealthPercent();
+}
+
+void AYogHUD::OnBossMaxHealthChanged(const FOnAttributeChangeData& Data)
+{
+	RefreshBossHealthPercent();
+}
+
+void AYogHUD::HandleBossDeathStarted(AYogCharacterBase* Character)
+{
+	if (Character == BoundBoss.Get())
+	{
+		UnbindBossHealth();
+	}
+}
+
+void AYogHUD::TickBossBarValidity()
+{
+	// OnCharacterDeathStartedNative only fires from Die(). A boss removed any other way
+	// (level teardown, a direct Destroy()) would otherwise leave the bar frozen on screen.
+	if (BoundBoss.IsExplicitlyNull() || BoundBoss.IsValid())
+	{
+		return;
+	}
+
+	UnbindBossHealth();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

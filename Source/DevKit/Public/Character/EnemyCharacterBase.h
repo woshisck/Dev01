@@ -62,6 +62,16 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Enemy|Weapon")
 	UEnemyWeaponDefinition* GetEquippedEnemyWeaponDefinition() const { return EquippedEnemyWeaponDefinition.Get(); }
 
+	UFUNCTION(BlueprintPure, Category = "Enemy|Identity")
+	UEnemyData* GetEnemyData() const;
+
+	UFUNCTION(BlueprintPure, Category = "Enemy|Identity")
+	EEnemyCombatTier GetCombatTier() const;
+
+	/** Falls back to the actor name when the data asset leaves DisplayName empty. */
+	UFUNCTION(BlueprintPure, Category = "Enemy|Identity")
+	FText GetEnemyDisplayName() const;
+
 	virtual const UWeaponDefinitionBase* GetEffectiveWeaponDefinition() const override;
 	virtual AWeaponInstance* GetEquippedWeaponActor() const override;
 

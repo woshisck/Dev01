@@ -24,8 +24,18 @@
 - 关卡 Buff 摘要优先读取 `RuneInfo -> RuneConfig -> HUDSummaryText`；为空时从完整 `RuneDescription` 自动压缩，避免左侧关卡信息区文本过长。
 - `PlayerCommonInfoHud` 放在底部右侧玩家信息区的上沿，当前显示金币，后续用于关键道具、非战斗资源等通用数量信息。
 - `UCombatItemBarWidget` 运行时放在底部右侧玩家信息区的下沿，与 `PlayerCommonInfoHud` 分层管理，避免资源信息和战斗道具混在一起。
-- `BossInfoRegion` 默认隐藏，后续 Boss 血条或阶段信息放入该区域。
+- `BossInfoRegion` 默认隐藏，Boss 出场时由 `AYogHUD` 运行时填入 Boss 血条（Boss 名称 + 液态血条），Boss 死亡后重新隐藏。阶段信息后续仍可放入该区域。
 - 顶部左右玩家信息区继续预留给未来道具、技能或状态 UI。
+
+Boss 血条配置（策划只需填 DA_Enemy）：
+
+| 字段 | 位置 | 说明 |
+| --- | --- | --- |
+| `CombatTier` | `DA_Enemy -> Enemy\|Identity` | 设为 `Boss` 才会显示屏幕 Boss 血条；同时该敌人的头顶血条会自动隐藏（伤害飘字不受影响） |
+| `DisplayName` | `DA_Enemy -> Enemy\|Identity` | Boss 血条上方显示的名字；留空时回退为 Actor 名 |
+| `BossHealthBarClass` | `BP_YogHUD -> UI\|Boss` | 留空即可，运行时回退到 `WB_PlayerHealthBar` 并按 Boss 配色重绘 |
+
+同一时间只显示一个 Boss 血条；已有 Boss 绑定时，后续 Boss 注册会被忽略。
 
 ## WBP_PlayerCommonInfoHud 命名约定
 

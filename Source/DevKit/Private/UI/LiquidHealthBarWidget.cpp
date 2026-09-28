@@ -43,7 +43,6 @@ void ULiquidHealthBarWidget::SetHealthPercent(float NewPct)
 {
     NewPct = FMath::Clamp(NewPct, 0.f, 1.f);
 
-    const float OldPct = CurrentPct;
     const float Delta = FMath::Abs(NewPct - CurrentPct);
     CurrentPct = NewPct;
 
@@ -52,10 +51,7 @@ void ULiquidHealthBarWidget::SetHealthPercent(float NewPct)
         return;
     }
 
-    const float FillValue = CurrentPct * FillWindowEnd;
-    LiquidDynMat->SetScalarParameterValue(TEXT("FillPercent"), FillValue);
-    UE_LOG(LogTemp, Warning, TEXT("[LiquidHB] SetHealthPercent %.3f -> %.3f | FillPercent=%.3f FillWindowEnd=%.3f"),
-        OldPct, CurrentPct, FillValue, FillWindowEnd);
+    LiquidDynMat->SetScalarParameterValue(TEXT("FillPercent"), CurrentPct * FillWindowEnd);
 
     if (Delta > KINDA_SMALL_NUMBER)
     {

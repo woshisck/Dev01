@@ -38,6 +38,9 @@ class UYogRunSummaryWidgetBase;
 class URoomDataAsset;
 class UTexture2D;
 class UBubbleMessageWidget;
+class ULiquidHealthBarWidget;
+class AEnemyCharacterBase;
+class AYogCharacterBase;
 enum class EYogUIScreenId : uint8;
 enum class EBubbleScreenCorner : uint8;
 
@@ -325,6 +328,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "WeaponGlass")
 	TSubclassOf<UWeaponThumbnailFlyWidget> ThumbnailFlyClass;
 
+	/** Boss 血条 Widget 类。留空时回退到玩家液态血条 WBP（运行时按 Boss 配色重绘）。 */
+	UPROPERTY(EditDefaultsOnly, Category = "UI|Boss")
+	TSubclassOf<ULiquidHealthBarWidget> BossHealthBarClass;
+
 	/** 动画时序 DA */
 	UPROPERTY(EditDefaultsOnly, Category = "WeaponGlass")
 	TObjectPtr<UWeaponGlassAnimDA> WeaponGlassAnimDA;
@@ -352,6 +359,7 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void Tick(float DeltaSeconds) override;
 
 private:
@@ -408,6 +416,21 @@ private:
 
 	void OnHealthChanged(const FOnAttributeChangeData& Data);
 	void OnMaxHealthChanged(const FOnAttributeChangeData& Data);
+
+	// ── Boss health bar ──────────────────────────────────────────────────────
+	void HandleBossRegistered(AEnemyCharacterBase* Boss);
+	void BindBossHealth(AEnemyCharacterBase* Boss);
+	void UnbindBossHealth();
+	void RefreshBossHealthPercent();
+	void OnBossHealthChanged(const FOnAttributeChangeData& Data);
+	void OnBossMaxHealthChanged(const FOnAttributeChangeData& Data);
+	void HandleBossDeathStarted(AYogCharacterBase* Character);
+	void TickBossBarValidity();
+
+	TWeakObjectPtr<AEnemyCharacterBase> BoundBoss;
+	FDelegateHandle BossHealthChangedHandle;
+	FDelegateHandle BossMaxHealthChangedHandle;
+	FDelegateHandle BossDeathStartedHandle;
 
 	bool bHasWeapon = false;
 

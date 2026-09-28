@@ -42,6 +42,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPhaseChanged, ELevelPhase, NewPha
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLootGenerated, const TArray<FLootOption>&, LootOptions);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnCampaignStageEntered, int32, FloorIndex, FGameplayTag, StageTag, FGameplayTagContainer, EventTags, URoomDataAsset*, RoomData);
 DECLARE_MULTICAST_DELEGATE(FOnLootSelected);
+DECLARE_MULTICAST_DELEGATE_OneParam(FBossRegisteredNativeDelegate, AEnemyCharacterBase*);
 
 
 DECLARE_DELEGATE(FCleanAllMobInMap);
@@ -160,6 +161,9 @@ public:
 
 	/** 敌人死亡时注销 */
 	void UnregisterEnemy(AEnemyCharacterBase* Enemy);
+
+	/** Fires from RegisterEnemy for Boss-tier enemies only. Drives the HUD boss health bar. */
+	FBossRegisteredNativeDelegate OnBossRegisteredNative;
 
 	/** Runtime GM 面板使用：在玩家附近 NavMesh 上刷出测试敌人。默认不推进清房计数。 */
 	UFUNCTION(BlueprintCallable, Category = "Runtime GM|Spawn")

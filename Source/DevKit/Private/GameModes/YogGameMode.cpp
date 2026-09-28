@@ -4470,6 +4470,11 @@ void AYogGameMode::RegisterEnemy(AEnemyCharacterBase* Enemy)
 	});
 
 	AliveEnemies.Add(Enemy);
+
+	if (Enemy->GetCombatTier() == EEnemyCombatTier::Boss)
+	{
+		OnBossRegisteredNative.Broadcast(Enemy);
+	}
 }
 
 void AYogGameMode::UnregisterEnemy(AEnemyCharacterBase* Enemy)

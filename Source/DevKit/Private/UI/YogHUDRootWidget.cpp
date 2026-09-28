@@ -18,6 +18,7 @@
 #include "Engine/Texture2D.h"
 #include "Item/Weapon/WeaponDefinition.h"
 #include "Styling/SlateBrush.h"
+#include "UI/LiquidHealthBarWidget.h"
 #include "UI/PlayerCommonInfoWidget.h"
 #include "UI/WidgetReflectorDebugUtils.h"
 #include "UI/WeaponGlassIconWidget.h"
@@ -26,6 +27,14 @@
 
 namespace
 {
+	// The boss bar reuses the player liquid-bar WBP, so it is recolored to stay distinguishable.
+	constexpr float BossHealthBarWidth = 720.f;
+	constexpr float BossHealthBarHeight = 64.f;
+	const FLinearColor BossLiquidColorDeep = FLinearColor(0.24f, 0.03f, 0.30f, 1.f);
+	const FLinearColor BossLiquidColorSurface = FLinearColor(0.62f, 0.10f, 0.72f, 1.f);
+	const FLinearColor BossGlintColor = FLinearColor(0.95f, 0.70f, 1.00f, 1.f);
+	const FLinearColor BossNameTextColor = FLinearColor(0.93f, 0.86f, 0.98f, 1.f);
+
 	void ConfigureWeaponSlotText(UTextBlock* TextBlock, int32 FontSize, const FLinearColor& Color)
 	{
 		if (!TextBlock)
@@ -343,6 +352,108 @@ void UYogHUDRootWidget::ApplyWidgetReflectorDebugVisibility()
 	}
 
 	YogWidgetReflectorDebug::ApplyToWidgetTree(WidgetTree->RootWidget);
+}
+
+void UYogHUDRootWidget::EnsureBossHealthPanel(TSubclassOf<ULiquidHealthBarWidget> BarClass)
+{
+	if (BossHealthPanel || !BossInfoRegion || !WidgetTree || !BarClass)
+	{
+		return;
+	}
+
+	APlayerController* OwningPlayer = GetOwningPlayer();
+	if (!OwningPlayer)
+	{
+		return;
+	}
+
+	UVerticalBox* Stack = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("RuntimeBossHealthPanel"));
+	UTextBlock* NameText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("RuntimeBossNameText"));
+	USizeBox* BarBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("RuntimeBossHealthBarBox"));
+	if (!Stack || !NameText || !BarBox)
+	{
+		return;
+	}
+
+	// The bar is a full WBP class, not a leaf UMG widget, so it needs CreateWidget.
+	ULiquidHealthBarWidget* Bar = CreateWidget<ULiquidHealthBarWidget>(OwningPlayer, BarClass);
+	if (!Bar)
+	{
+		return;
+	}
+
+	// EnsureDynamicMaterial pushes these when it builds the DMI, so they must be set before
+	// the first SetHealthPercent or the bar renders one frame in the player's red.
+	Bar->LiquidColorDeep = BossLiquidColorDeep;
+	Bar->LiquidColorSurface = BossLiquidColorSurface;
+	Bar->GlintColor = BossGlintColor;
+	Bar->ApplyColors();
+
+	ConfigureWeaponSlotText(NameText, 20, BossNameTextColor);
+	if (UVerticalBoxSlot* NameSlot = Stack->AddChildToVerticalBox(NameText))
+	{
+		NameSlot->SetHorizontalAlignment(HAlign_Center);
+		NameSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 4.f));
+	}
+
+	BarBox->SetWidthOverride(BossHealthBarWidth);
+	BarBox->SetHeightOverride(BossHealthBarHeight);
+	BarBox->AddChild(Bar);
+	if (UVerticalBoxSlot* BarSlot = Stack->AddChildToVerticalBox(BarBox))
+	{
+		BarSlot->SetHorizontalAlignment(HAlign_Center);
+	}
+
+	if (UOverlaySlot* PanelSlot = BossInfoRegion->AddChildToOverlay(Stack))
+	{
+		PanelSlot->SetHorizontalAlignment(HAlign_Center);
+		PanelSlot->SetVerticalAlignment(VAlign_Top);
+	}
+
+	BossHealthPanel = Stack;
+	BossHealthBar = Bar;
+	BossNameText = NameText;
+
+	ApplyWidgetReflectorDebugVisibility();
+}
+
+void UYogHUDRootWidget::ShowBossBar(const FText& BossName, TSubclassOf<ULiquidHealthBarWidget> BarClass)
+{
+	EnsureBossHealthPanel(BarClass);
+
+	if (!BossHealthPanel || !BossInfoRegion)
+	{
+		return;
+	}
+
+	if (BossNameText)
+	{
+		BossNameText->SetText(BossName);
+	}
+
+	BossInfoRegion->SetVisibility(YogWidgetReflectorDebug::GetInspectableVisibility(ESlateVisibility::HitTestInvisible));
+	BossHealthPanel->SetVisibility(YogWidgetReflectorDebug::GetInspectableVisibility(ESlateVisibility::HitTestInvisible));
+}
+
+void UYogHUDRootWidget::HideBossBar()
+{
+	if (BossHealthPanel)
+	{
+		BossHealthPanel->SetVisibility(ESlateVisibility::Collapsed);
+	}
+
+	if (BossInfoRegion)
+	{
+		BossInfoRegion->SetVisibility(ESlateVisibility::Collapsed);
+	}
+}
+
+void UYogHUDRootWidget::SetBossHealthPercent(float Pct)
+{
+	if (BossHealthBar)
+	{
+		BossHealthBar->SetHealthPercent(Pct);
+	}
 }
 
 void UYogHUDRootWidget::RebindWeaponPanelPlayer()

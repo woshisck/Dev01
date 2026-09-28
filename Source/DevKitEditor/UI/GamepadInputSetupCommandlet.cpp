@@ -416,7 +416,7 @@ int32 UGamepadInputSetupCommandlet::Main(const FString& Params)
 	TArray<UPackage*> DirtyPackages;
 	ReportLines.Add(TEXT("# Gamepad Input Setup Report"));
 	ReportLines.Add(FString::Printf(TEXT("- Mode: %s"), bDryRun ? TEXT("DryRun") : TEXT("Apply")));
-	ReportLines.Add(TEXT("- Layout: A=Interact/Accept (hold), B=Dash/Back, X=Attack/Secondary/ReverseCard, Y=WeaponSkill/Details, LB=Use item, RB/LT=Use active skill, L3=Switch weapon, RS=Switch active skill, Menu=Pause, View=Backpack."));
+	ReportLines.Add(TEXT("- Layout: A=Interact/Accept (hold), B=Dash/Back, X=Attack/Secondary, Y=WeaponSkill/Details, LB=Use item, RB/LT=Use active skill, RT=Reload, L3=Switch weapon, RS=Switch active skill, Menu=Pause, View=Backpack."));
 	ReportLines.Add(TEXT(""));
 
 	UInputMappingContext* MappingContext = Cast<UInputMappingContext>(LoadObjectByPackagePath(MappingContextPath, UInputMappingContext::StaticClass()));
@@ -433,11 +433,8 @@ int32 UGamepadInputSetupCommandlet::Main(const FString& Params)
 	UInputAction* IA_Attack = LoadOrCreateInputAction(TEXT("IA_Attack"), bDryRun, ReportLines, DirtyPackages);
 	UInputAction* IA_WeaponSkill = LoadOrCreateInputAction(TEXT("IA_WeaponSkill"), bDryRun, ReportLines, DirtyPackages);
 	UInputAction* IA_Dash = LoadOrCreateInputAction(TEXT("IA_Dash"), bDryRun, ReportLines, DirtyPackages);
-	UInputAction* IA_LegacySpecial = Cast<UInputAction>(LoadObjectByPackagePath(ActionRootPath / TEXT("IA_Special"), UInputAction::StaticClass()));
 	UInputAction* IA_LegacyLightAttack = Cast<UInputAction>(LoadObjectByPackagePath(ActionRootPath / TEXT("IA_LightAttack"), UInputAction::StaticClass()));
 	UInputAction* IA_LegacyHeavyAttack = Cast<UInputAction>(LoadObjectByPackagePath(ActionRootPath / TEXT("IA_HeavyAttack"), UInputAction::StaticClass()));
-	UInputAction* IA_LegacyNormalAttack = Cast<UInputAction>(LoadObjectByPackagePath(ActionRootPath / TEXT("IA_NormalAttack"), UInputAction::StaticClass()));
-	UInputAction* IA_LegacySpecialAttack = Cast<UInputAction>(LoadObjectByPackagePath(ActionRootPath / TEXT("IA_SpecialAttack"), UInputAction::StaticClass()));
 	UInputAction* IA_Esc = Cast<UInputAction>(LoadObjectByPackagePath(ActionRootPath / TEXT("IA_Esc"), UInputAction::StaticClass()));
 	UInputAction* IA_OpenBackpack = Cast<UInputAction>(LoadObjectByPackagePath(ActionRootPath / TEXT("IA_OpenBackback"), UInputAction::StaticClass()));
 	UInputAction* IA_Reload = Cast<UInputAction>(LoadObjectByPackagePath(ActionRootPath / TEXT("IA_Reload"), UInputAction::StaticClass()));
@@ -448,29 +445,28 @@ int32 UGamepadInputSetupCommandlet::Main(const FString& Params)
 	UInputAction* IA_UseActiveSkill = LoadOrCreateInputAction(TEXT("IA_UseActiveSkill"), bDryRun, ReportLines, DirtyPackages);
 	UInputAction* IA_SwitchActiveSkill = LoadOrCreateInputAction(TEXT("IA_SwitchActiveSkill"), bDryRun, ReportLines, DirtyPackages);
 	UInputAction* IA_SwitchWeapon = LoadOrCreateInputAction(TEXT("IA_SwitchWeapon"), bDryRun, ReportLines, DirtyPackages);
-	UInputAction* IA_ReverseCard = LoadOrCreateInputAction(TEXT("IA_ReverseCard"), bDryRun, ReportLines, DirtyPackages);
+	UInputAction* IA_LegacyReverseCard = Cast<UInputAction>(LoadObjectByPackagePath(ActionRootPath / TEXT("IA_ReverseCard"), UInputAction::StaticClass()));
+	UInputAction* IA_LegacyCardCache = Cast<UInputAction>(LoadObjectByPackagePath(ActionRootPath / TEXT("IA_CardCache"), UInputAction::StaticClass()));
 
 	EnsureMappings(MappingContext, IA_Interact, TEXT("IA_Interact"), { EKeys::E, EKeys::Gamepad_FaceButton_Bottom }, { EKeys::Gamepad_FaceButton_Right }, bDryRun, ReportLines, DirtyPackages);
 	EnsureHoldTrigger(IA_Interact, TEXT("IA_Interact"), 0.6f, bDryRun, ReportLines, DirtyPackages);
 	EnsureMappings(MappingContext, IA_Attack, TEXT("IA_Attack"), { EKeys::LeftMouseButton, EKeys::Gamepad_FaceButton_Left }, {}, bDryRun, ReportLines, DirtyPackages);
 	EnsureMappings(MappingContext, IA_WeaponSkill, TEXT("IA_WeaponSkill"), { EKeys::RightMouseButton, EKeys::Gamepad_FaceButton_Top }, {}, bDryRun, ReportLines, DirtyPackages);
 	EnsureMappings(MappingContext, IA_Dash, TEXT("IA_Dash"), { EKeys::SpaceBar, EKeys::Gamepad_FaceButton_Right }, { EKeys::Gamepad_FaceButton_Bottom }, bDryRun, ReportLines, DirtyPackages);
-	RemoveActionMappings(MappingContext, IA_LegacySpecial, TEXT("IA_Special"), bDryRun, ReportLines, DirtyPackages);
 	RemoveActionMappings(MappingContext, IA_LegacyLightAttack, TEXT("IA_LightAttack"), bDryRun, ReportLines, DirtyPackages);
 	RemoveActionMappings(MappingContext, IA_LegacyHeavyAttack, TEXT("IA_HeavyAttack"), bDryRun, ReportLines, DirtyPackages);
-	RemoveActionMappings(MappingContext, IA_LegacyNormalAttack, TEXT("IA_NormalAttack"), bDryRun, ReportLines, DirtyPackages);
-	RemoveActionMappings(MappingContext, IA_LegacySpecialAttack, TEXT("IA_SpecialAttack"), bDryRun, ReportLines, DirtyPackages);
 	EnsureMappings(MappingContext, IA_Esc, TEXT("IA_Esc"), { EKeys::Escape, EKeys::Gamepad_Special_Right }, {}, bDryRun, ReportLines, DirtyPackages);
 	EnsureMappings(MappingContext, IA_OpenBackpack, TEXT("IA_OpenBackback"), { EKeys::Tab, EKeys::Gamepad_Special_Left }, {}, bDryRun, ReportLines, DirtyPackages);
-	EnsureMappings(MappingContext, IA_Reload, TEXT("IA_Reload"), {}, { EKeys::R, EKeys::Gamepad_RightShoulder, EKeys::Gamepad_RightThumbstick }, bDryRun, ReportLines, DirtyPackages);
+	EnsureMappings(MappingContext, IA_Reload, TEXT("IA_Reload"), { EKeys::R, EKeys::Gamepad_RightTrigger }, { EKeys::Gamepad_RightShoulder, EKeys::Gamepad_RightThumbstick }, bDryRun, ReportLines, DirtyPackages);
 	EnsureMappings(MappingContext, IA_MouseClick, TEXT("IA_MouseClick"), { EKeys::LeftMouseButton }, {}, bDryRun, ReportLines, DirtyPackages);
 	EnsureMappings(MappingContext, IA_UseCombatItem, TEXT("IA_UseCombatItem"), { EKeys::F, EKeys::Gamepad_LeftShoulder }, {}, bDryRun, ReportLines, DirtyPackages);
 	EnsureMappings(MappingContext, IA_SwitchCombatItemNext, TEXT("IA_SwitchCombatItemNext"), { EKeys::Q, EKeys::Gamepad_DPad_Right }, {}, bDryRun, ReportLines, DirtyPackages);
 	EnsureMappings(MappingContext, IA_SwitchCombatItemPrevious, TEXT("IA_SwitchCombatItemPrevious"), { EKeys::Z, EKeys::Gamepad_DPad_Left }, {}, bDryRun, ReportLines, DirtyPackages);
-	EnsureMappings(MappingContext, IA_UseActiveSkill, TEXT("IA_UseActiveSkill"), { EKeys::R, EKeys::LeftShift, EKeys::Gamepad_RightShoulder, EKeys::Gamepad_LeftTrigger }, {}, bDryRun, ReportLines, DirtyPackages);
+	EnsureMappings(MappingContext, IA_UseActiveSkill, TEXT("IA_UseActiveSkill"), { EKeys::LeftShift, EKeys::Gamepad_RightShoulder, EKeys::Gamepad_LeftTrigger }, { EKeys::R }, bDryRun, ReportLines, DirtyPackages);
 	EnsureMappings(MappingContext, IA_SwitchActiveSkill, TEXT("IA_SwitchActiveSkill"), { EKeys::T, EKeys::Gamepad_RightThumbstick }, {}, bDryRun, ReportLines, DirtyPackages);
 	EnsureMappings(MappingContext, IA_SwitchWeapon, TEXT("IA_SwitchWeapon"), { EKeys::V, EKeys::Gamepad_LeftThumbstick }, {}, bDryRun, ReportLines, DirtyPackages);
-	EnsureMappings(MappingContext, IA_ReverseCard, TEXT("IA_ReverseCard"), { EKeys::R, EKeys::Gamepad_FaceButton_Left }, {}, bDryRun, ReportLines, DirtyPackages);
+	RemoveActionMappings(MappingContext, IA_LegacyReverseCard, TEXT("IA_ReverseCard"), bDryRun, ReportLines, DirtyPackages);
+	RemoveActionMappings(MappingContext, IA_LegacyCardCache, TEXT("IA_CardCache"), bDryRun, ReportLines, DirtyPackages);
 
 	AssignControllerDefaults(
 		MappingContext,
