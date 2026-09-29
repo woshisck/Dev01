@@ -427,18 +427,17 @@ FVector AMobSpawner::GetRandomReachablePoint()
     UWorld* World = GetWorld();
     if (!World) return FVector::ZeroVector;
 
-    //UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World);
-    UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
+    UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World);
     if (!NavSys) return FVector::ZeroVector;
-    // Pick random point in circle
-    FVector Origin = GetActorLocation();
-    // 只在 XY 平面随机，避免测试点落入地下导致 NavMesh 投影失败
-    float Angle = FMath::FRandRange(0.f, 2.f * PI);
-    float Dist  = FMath::FRandRange(0.f, SpawnRadius);
-    FVector RandomPoint = FVector(FMath::Cos(Angle) * Dist, FMath::Sin(Angle) * Dist, 0.f);
-    FVector TestLocation = FVector(Origin.X + RandomPoint.X, Origin.Y + RandomPoint.Y, Origin.Z);
-    FNavLocation NavLocation;
-    bool bFound = NavSys->ProjectPointToNavigation(TestLocation, NavLocation);
-    return bFound ? NavLocation.Location + FVector(0.f, 0.f, SpawnZOffset) : FVector::ZeroVector;
 
+    // Reachability, not just projection: a plain ProjectPointToNavigation can snap onto a
+    // disconnected nav island (a crate top, the far side of a wall), and an enemy spawned
+    // there can never path to the player.
+    FNavLocation NavLocation;
+    if (!NavSys->GetRandomReachablePointInRadius(GetActorLocation(), SpawnRadius, NavLocation))
+    {
+        return FVector::ZeroVector;
+    }
+
+    return NavLocation.Location + FVector(0.f, 0.f, SpawnZOffset);
 }
