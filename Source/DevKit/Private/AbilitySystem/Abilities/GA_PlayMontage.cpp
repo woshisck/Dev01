@@ -15,7 +15,6 @@
 #include "Character/PlayerCharacterBase.h"
 #include "Character/YogCharacterBase.h"
 #include "Component/BufferComponent.h"
-#include "Component/CombatItemComponent.h"
 #include "Component/PlayerActiveSkillComponent.h"
 #include "Component/CharacterDataComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -387,17 +386,6 @@ void UGA_PlayMontage::OnEventReceived(FGameplayTag EventTag, const FGameplayEven
 		// {
 		// 	FiredDamageNotify->ApplyHitSuccessDilation(Owner);
 		// }
-
-		if (APlayerCharacterBase* PlayerOwner = Cast<APlayerCharacterBase>(Owner))
-		{
-			if (PlayerOwner->CombatItemComponent)
-			{
-				for (AActor* HitActor : HitActors)
-				{
-					PlayerOwner->CombatItemComponent->ApplyOilBladeHitToTarget(HitActor);
-				}
-			}
-		}
 
 		for (URuneDataAsset* RuneDA : Owner->PendingAdditionalHitRunes)
 		{

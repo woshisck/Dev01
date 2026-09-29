@@ -7,8 +7,6 @@
 #include "GameplayEffectTypes.h"
 #include "CombatItemComponent.generated.h"
 
-class ACombatItemAreaActor;
-class APlayerCharacterBase;
 class UTexture2D;
 class UYogAbilitySystemComponent;
 
@@ -27,21 +25,6 @@ struct DEVKIT_API FCombatItemSlotView
 	TObjectPtr<UTexture2D> Icon = nullptr;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Combat Item")
-	ECombatItemEffectType EffectType = ECombatItemEffectType::OilBottle;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Combat Item")
-	int32 Charges = 0;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Combat Item")
-	int32 MaxCharges = 0;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Combat Item")
-	float CooldownRemaining = 0.0f;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Combat Item")
-	float CooldownDuration = 0.0f;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Combat Item")
 	bool bSelected = false;
 };
 
@@ -52,12 +35,6 @@ struct DEVKIT_API FRuntimeSlot
 
 	UPROPERTY()
 	FCombatItemConfig Config;
-
-	UPROPERTY()
-	int32 Charges = 0;
-
-	UPROPERTY()
-	float CooldownRemaining = 0.0f;
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCombatItemSlotsChangedDelegate, const TArray<FCombatItemSlotView>&, Slots);
@@ -73,17 +50,9 @@ public:
 	UCombatItemComponent();
 
 	virtual void BeginPlay() override;
-	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
-	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat Item|Loadout")
 	TArray<TObjectPtr<UCombatItemDataAsset>> DefaultItemAssets;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat Item|Loadout")
-	bool bUseBuiltInDefaultItemsWhenEmpty = true;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat Item|Spawn")
-	TSubclassOf<ACombatItemAreaActor> AreaActorClass;
 
 	UPROPERTY(BlueprintAssignable, Category = "Combat Item")
 	FCombatItemSlotsChangedDelegate OnItemSlotsChanged;
@@ -94,6 +63,7 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Combat Item")
 	FCombatItemUseFailedDelegate OnItemUseFailed;
 
+	/** Fires the active item's ActivationTag as a gameplay event, then consumes the slot. */
 	UFUNCTION(BlueprintCallable, Category = "Combat Item")
 	bool UseActiveItem();
 
@@ -112,63 +82,20 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Combat Item")
 	TArray<FCombatItemSlotView> GetSlotViews() const;
 
-	UFUNCTION(BlueprintCallable, Category = "Combat Item|Oil")
-	bool ApplyOilBladeHitToTarget(AActor* TargetActor);
-
-	UFUNCTION(BlueprintCallable, Category = "Combat Item|Smoke")
-	void SetPlayerInsideSmoke(bool bInside, float DodgeBonus);
-
-	UFUNCTION(BlueprintPure, Category = "Combat Item|Oil")
-	static int32 GetStickyOilStackCount(const AActor* TargetActor);
-
-	UFUNCTION(BlueprintPure, Category = "Combat Item|Oil")
-	static float GetStickyOilTurnSpeedMultiplier(const AActor* TargetActor);
-
-	UFUNCTION(BlueprintPure, Category = "Combat Item|Oil")
-	static float GetStickyOilMoveSpeedMultiplier(const AActor* TargetActor);
-
-	static void TryApplyOilFireBonus(UYogAbilitySystemComponent* SourceASC, UYogAbilitySystemComponent* TargetASC, const FGameplayEffectSpec& Spec);
 	static bool IsNoHitReactItemDamage(const FGameplayEffectSpec& Spec);
 	static void ApplyItemPureDamage(AActor* SourceActor, AActor* TargetActor, float Damage, FName DamageType, bool bSuppressHitReact = true);
 
 #if WITH_DEV_AUTOMATION_TESTS
 	void SetSlotsForTest(const TArray<FCombatItemConfig>& InConfigs);
-	void AdvanceCooldownsForTest(float DeltaTime);
 #endif
 
 private:
-	struct FStickyOilRuntimeState
-	{
-		TWeakObjectPtr<AActor> TargetActor;
-		TWeakObjectPtr<UAbilitySystemComponent> ASC;
-		int32 Stacks = 0;
-		float MoveSpeedDelta = 0.0f;
-		float AttackSpeedDelta = 0.0f;
-		FTimerHandle ExpireTimer;
-	};
-
 	UPROPERTY(Transient)
 	TArray<FRuntimeSlot> Slots;
 
 	int32 ActiveSlotIndex = 0;
-	FTimerHandle OilBladeTimer;
-	bool bSmokeDodgeApplied = false;
-	int32 ActiveSmokeAreaCount = 0;
-	float SmokeDodgeAppliedDelta = 0.0f;
-
-	TMap<TObjectKey<AActor>, FStickyOilRuntimeState> StickyOilStates;
 
 	void InitializeDefaultSlots();
 	void BroadcastSlotsChanged() const;
-	bool ExecuteItemEffect(const FRuntimeSlot& Slot);
-	bool ExecuteOilBottle(const FCombatItemConfig& Config);
-	bool ExecuteThunderStone(const FCombatItemConfig& Config);
-	bool ExecuteSmokeBomb(const FCombatItemConfig& Config);
-	void EndOilBlade();
-	void ExpireStickyOil(AActor* TargetActor);
-	void ClearAllStickyOil();
-	void ApplyStickyOilAttributeDeltas(FStickyOilRuntimeState& State, const FCombatItemOilConfig& OilConfig);
-	void RemoveStickyOilAttributeDeltas(FStickyOilRuntimeState& State);
-	APlayerCharacterBase* GetPlayerOwner() const;
 	UYogAbilitySystemComponent* GetOwnerYogASC() const;
 };

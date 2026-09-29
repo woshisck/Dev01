@@ -7,11 +7,9 @@
 #include "Components/Image.h"
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
-#include "Components/ProgressBar.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
-#include "UI/WidgetReflectorDebugUtils.h"
 
 void UCombatItemBarWidget::NativeConstruct()
 {
@@ -114,37 +112,6 @@ void UCombatItemBarWidget::BuildRuntimeLayout()
 		SlotWidget.NameText->SetFont(NameFont);
 		Vertical->AddChildToVerticalBox(SlotWidget.NameText);
 
-		SlotWidget.CountText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), *FString::Printf(TEXT("ItemSlotCount_%d"), Index));
-		SlotWidget.CountText->SetJustification(ETextJustify::Right);
-		SlotWidget.CountText->SetColorAndOpacity(FSlateColor(FLinearColor(1.0f, 0.9f, 0.55f, 1.0f)));
-		FSlateFontInfo CountFont = SlotWidget.CountText->GetFont();
-		CountFont.Size = 14;
-		SlotWidget.CountText->SetFont(CountFont);
-		if (UOverlaySlot* CountSlot = SlotOverlay->AddChildToOverlay(SlotWidget.CountText))
-		{
-			CountSlot->SetHorizontalAlignment(HAlign_Right);
-			CountSlot->SetVerticalAlignment(VAlign_Bottom);
-			CountSlot->SetPadding(FMargin(0.0f, 0.0f, 4.0f, 4.0f));
-		}
-
-		SlotWidget.CooldownBar = WidgetTree->ConstructWidget<UProgressBar>(UProgressBar::StaticClass(), *FString::Printf(TEXT("ItemSlotCooldownBar_%d"), Index));
-		SlotWidget.CooldownBar->SetPercent(0.0f);
-		if (UOverlaySlot* CooldownBarSlot = SlotOverlay->AddChildToOverlay(SlotWidget.CooldownBar))
-		{
-			CooldownBarSlot->SetHorizontalAlignment(HAlign_Fill);
-			CooldownBarSlot->SetVerticalAlignment(VAlign_Bottom);
-			CooldownBarSlot->SetPadding(FMargin(4.0f));
-		}
-
-		SlotWidget.CooldownText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), *FString::Printf(TEXT("ItemSlotCooldownText_%d"), Index));
-		SlotWidget.CooldownText->SetJustification(ETextJustify::Center);
-		SlotWidget.CooldownText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
-		if (UOverlaySlot* CooldownTextSlot = SlotOverlay->AddChildToOverlay(SlotWidget.CooldownText))
-		{
-			CooldownTextSlot->SetHorizontalAlignment(HAlign_Center);
-			CooldownTextSlot->SetVerticalAlignment(VAlign_Center);
-		}
-
 		if (UHorizontalBoxSlot* RootSlot = RuntimeRoot->AddChildToHorizontalBox(SlotWidget.RootBorder))
 		{
 			RootSlot->SetPadding(FMargin(4.0f));
@@ -187,26 +154,6 @@ void UCombatItemBarWidget::UpdateSlotWidgets(const TArray<FCombatItemSlotView>& 
 		{
 			SlotWidget.NameText->SetText(bHasSlot ? GetShortDisplayName(ItemSlot) : FText::GetEmpty());
 		}
-		if (SlotWidget.CountText)
-		{
-			SlotWidget.CountText->SetText(bHasSlot
-				? FText::Format(FText::FromString(TEXT("{0}")), FText::AsNumber(ItemSlot.Charges))
-				: FText::GetEmpty());
-		}
-
-		const bool bCoolingDown = bHasSlot && ItemSlot.CooldownRemaining > 0.0f && ItemSlot.CooldownDuration > 0.0f;
-		if (SlotWidget.CooldownBar)
-		{
-			SlotWidget.CooldownBar->SetVisibility(YogWidgetReflectorDebug::GetInspectableVisibility(
-				bCoolingDown ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed));
-			SlotWidget.CooldownBar->SetPercent(bCoolingDown ? ItemSlot.CooldownRemaining / ItemSlot.CooldownDuration : 0.0f);
-		}
-		if (SlotWidget.CooldownText)
-		{
-			SlotWidget.CooldownText->SetVisibility(YogWidgetReflectorDebug::GetInspectableVisibility(
-				bCoolingDown ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed));
-			SlotWidget.CooldownText->SetText(FText::AsNumber(FMath::CeilToInt(ItemSlot.CooldownRemaining)));
-		}
 	}
 }
 
@@ -217,17 +164,7 @@ FText UCombatItemBarWidget::GetShortDisplayName(const FCombatItemSlotView& ItemS
 		return ItemSlot.DisplayName;
 	}
 
-	switch (ItemSlot.EffectType)
-	{
-	case ECombatItemEffectType::OilBottle:
-		return FText::FromString(TEXT("Oil"));
-	case ECombatItemEffectType::ThunderStone:
-		return FText::FromString(TEXT("Thunder"));
-	case ECombatItemEffectType::SmokeBomb:
-		return FText::FromString(TEXT("Smoke"));
-	default:
-		return FText::FromName(ItemSlot.ItemId);
-	}
+	return FText::FromName(ItemSlot.ItemId);
 }
 
 void UCombatItemBarWidget::HandleItemSlotsChanged(const TArray<FCombatItemSlotView>& Slots)

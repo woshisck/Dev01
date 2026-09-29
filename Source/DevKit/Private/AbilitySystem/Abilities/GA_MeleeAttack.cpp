@@ -1,5 +1,4 @@
 ﻿#include "AbilitySystem/Abilities/GA_MeleeAttack.h"
-#include "Component/CombatItemComponent.h"
 #include "AbilitySystem/Abilities/GA_Knockback.h"
 #include "AbilitySystem/Abilities/YogTargetType.h"
 #include "AbilitySystem/AbilityTask/YogAbilityTask_PlayMontageAndWaitForEvent.h"
@@ -1833,17 +1832,6 @@ void UGA_MeleeAttack::ApplyHitReactions(AYogCharacterBase* Owner, const FYogGame
 				if (AYogPlayerCameraManager* CM = Cast<AYogPlayerCameraManager>(PC->PlayerCameraManager))
 				{
 					CM->PlayShakeLevel(MaxHitShakeLevel);
-				}
-			}
-		}
-
-		if (PlayerOwner)
-		{
-			if (PlayerOwner->CombatItemComponent)
-			{
-				for (AActor* HitActor : HitActors)
-				{
-					PlayerOwner->CombatItemComponent->ApplyOilBladeHitToTarget(HitActor);
 				}
 			}
 		}

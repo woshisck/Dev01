@@ -347,7 +347,6 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 				{
 					SourceYogASC->ReportDealtHealthDamage(HealthDamage, TargetCharacter->GetActorLocation());
 				}
-				UCombatItemComponent::TryApplyOilFireBonus(SourceYogASC, ASC, Data.EffectSpec);
 				const float MaxHealth = TargetBaseSet->GetMaxHealth();
 				float percent = MaxHealth > 0.f ? TargetBaseSet->GetHealth() / MaxHealth : 0.f;
 				TargetCharacter->OnCharacterHealthUpdate.Broadcast(percent, LocalDamageDone);
@@ -546,7 +545,6 @@ void UDamageAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCall
 				{
 					SourceYogASC->ReportDealtHealthDamage(HealthDamage, TargetCharacter->GetActorLocation());
 				}
-				UCombatItemComponent::TryApplyOilFireBonus(SourceYogASC, ASC, Data.EffectSpec);
 				const float MaxHealth = TargetBaseSet->GetMaxHealth();
 				float percent = MaxHealth > 0.f ? TargetBaseSet->GetHealth() / MaxHealth : 0.f;
 				TargetCharacter->OnCharacterHealthUpdate.Broadcast(percent, LocalDamageDone);

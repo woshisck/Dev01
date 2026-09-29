@@ -8,7 +8,6 @@
 #include "BrainComponent.h"
 #include "Character/EnemyCharacterBase.h"
 #include "Component/CharacterDataComponent.h"
-#include "Component/CombatItemComponent.h"
 #include "Data/AbilityData.h"
 #include "GameModes/YogGameMode.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -486,7 +485,7 @@ void AYogAIController::ApplyCrowdTuningFromEnemyData()
 			Movement->bOrientRotationToMovement = Tuning.bUseForwardSteering;
 			if (Tuning.MaxTurnYawSpeed > 0.0f)
 			{
-				Movement->RotationRate.Yaw = Tuning.MaxTurnYawSpeed * UCombatItemComponent::GetStickyOilTurnSpeedMultiplier(ControlledCharacter);
+				Movement->RotationRate.Yaw = Tuning.MaxTurnYawSpeed;
 			}
 			if (Tuning.MaxWalkSpeedOverride > 0.0f)
 			{
@@ -685,8 +684,7 @@ FVector AYogAIController::ApplyForwardSteeringToMoveTarget(const FVector& Desire
 	const float CurrentYaw = CurrentDirection.Rotation().Yaw;
 	const float DesiredYaw = DesiredDirection.Rotation().Yaw;
 	const float DeltaYaw = FMath::FindDeltaAngleDegrees(CurrentYaw, DesiredYaw);
-	const float StickyTurnMultiplier = UCombatItemComponent::GetStickyOilTurnSpeedMultiplier(ControlledPawn);
-	const float MaxYawStep = FMath::Max(Tuning.MaxTurnYawSpeed * StickyTurnMultiplier, 1.0f) * DeltaSeconds;
+	const float MaxYawStep = FMath::Max(Tuning.MaxTurnYawSpeed, 1.0f) * DeltaSeconds;
 	const float AppliedYawDelta = FMath::Clamp(DeltaYaw, -MaxYawStep, MaxYawStep);
 	const float NewYaw = CurrentYaw + AppliedYawDelta;
 

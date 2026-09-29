@@ -6,46 +6,72 @@
 #include "Component/CombatItemComponent.h"
 #include "GameplayEffect.h"
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatItemDefaultSlotViewTest,
-	"DevKit.CombatItem.DefaultSlotViewsExposeCountsAndSelection",
+namespace
+{
+	FCombatItemConfig CombatItemTests_MakeItem(const FName ItemId, const FString& DisplayName)
+	{
+		FCombatItemConfig Config;
+		Config.ItemId = ItemId;
+		Config.DisplayName = FText::FromString(DisplayName);
+		return Config;
+	}
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatItemSlotViewTest,
+	"DevKit.CombatItem.SlotViewsExposeIdentityAndSelection",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FCombatItemDefaultSlotViewTest::RunTest(const FString& Parameters)
+bool FCombatItemSlotViewTest::RunTest(const FString& Parameters)
 {
 	UCombatItemComponent* Component = NewObject<UCombatItemComponent>();
 
-	FCombatItemConfig Oil;
-	Oil.ItemId = TEXT("OilBottle");
-	Oil.DisplayName = FText::FromString(TEXT("Oil"));
-	Oil.EffectType = ECombatItemEffectType::OilBottle;
-	Oil.MaxCharges = 2;
-	Oil.InitialCharges = 2;
-	Oil.Cooldown = 12.0f;
-
-	FCombatItemConfig Thunder = Oil;
-	Thunder.ItemId = TEXT("ThunderStone");
-	Thunder.DisplayName = FText::FromString(TEXT("Thunder"));
-	Thunder.EffectType = ECombatItemEffectType::ThunderStone;
-	Thunder.Cooldown = 16.0f;
-
-	FCombatItemConfig Smoke = Oil;
-	Smoke.ItemId = TEXT("SmokeBomb");
-	Smoke.DisplayName = FText::FromString(TEXT("Smoke"));
-	Smoke.EffectType = ECombatItemEffectType::SmokeBomb;
-	Smoke.Cooldown = 18.0f;
-
-	Component->SetSlotsForTest({Oil, Thunder, Smoke});
+	Component->SetSlotsForTest({
+		CombatItemTests_MakeItem(TEXT("ItemA"), TEXT("A")),
+		CombatItemTests_MakeItem(TEXT("ItemB"), TEXT("B")),
+		CombatItemTests_MakeItem(TEXT("ItemC"), TEXT("C")),
+	});
 
 	TArray<FCombatItemSlotView> Views = Component->GetSlotViews();
 	TestEqual(TEXT("Item bar has three slots"), Views.Num(), 3);
 	TestTrue(TEXT("First slot is selected by default"), Views[0].bSelected);
-	TestEqual(TEXT("Oil starts with two charges"), Views[0].Charges, 2);
+	TestEqual(TEXT("Slot keeps its authored id"), Views[0].ItemId, FName(TEXT("ItemA")));
 
 	Component->SelectNextItem();
 	Views = Component->GetSlotViews();
 	TestFalse(TEXT("First slot is no longer selected"), Views[0].bSelected);
 	TestTrue(TEXT("Second slot becomes selected"), Views[1].bSelected);
-	TestEqual(TEXT("Thunder cooldown uses config"), Views[1].CooldownDuration, 16.0f);
+
+	Component->SelectPreviousItem();
+	TestEqual(TEXT("Selection wraps back to the first slot"), Component->GetActiveSlotIndex(), 0);
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatItemUseDoesNotConsumeOnFailureTest,
+	"DevKit.CombatItem.FailedUseDoesNotConsumeTheItem",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCombatItemUseDoesNotConsumeOnFailureTest::RunTest(const FString& Parameters)
+{
+	UCombatItemComponent* Component = NewObject<UCombatItemComponent>();
+	Component->SetSlotsForTest({CombatItemTests_MakeItem(TEXT("ItemA"), TEXT("A"))});
+
+	// No ActivationTag authored, and no owning ASC to dispatch to: a single-use item must
+	// survive both failures rather than being silently spent.
+	TestFalse(TEXT("Use fails without an activation tag"), Component->UseActiveItem());
+	TestEqual(TEXT("Failed use left the slot in place"), Component->GetSlotViews().Num(), 1);
+
+	FCombatItemConfig Tagged = CombatItemTests_MakeItem(TEXT("ItemB"), TEXT("B"));
+	Tagged.ActivationTag = FGameplayTag::RequestGameplayTag(TEXT("GameplayEvent.CombatItem.Throw"), false);
+	if (!Tagged.ActivationTag.IsValid())
+	{
+		AddError(TEXT("GameplayEvent.CombatItem.Throw gameplay tag is missing."));
+		return false;
+	}
+
+	Component->SetSlotsForTest({Tagged});
+	TestFalse(TEXT("Use fails with no ability system to handle the event"), Component->UseActiveItem());
+	TestEqual(TEXT("Failed dispatch left the slot in place"), Component->GetSlotViews().Num(), 1);
 
 	return true;
 }

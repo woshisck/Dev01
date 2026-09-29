@@ -8,7 +8,6 @@
 class UBorder;
 class UHorizontalBox;
 class UImage;
-class UProgressBar;
 class UTextBlock;
 
 UCLASS()
@@ -45,9 +44,6 @@ private:
 		TObjectPtr<UBorder> RootBorder = nullptr;
 		TObjectPtr<UImage> IconImage = nullptr;
 		TObjectPtr<UTextBlock> NameText = nullptr;
-		TObjectPtr<UTextBlock> CountText = nullptr;
-		TObjectPtr<UTextBlock> CooldownText = nullptr;
-		TObjectPtr<UProgressBar> CooldownBar = nullptr;
 	};
 
 	UPROPERTY()
