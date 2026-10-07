@@ -242,8 +242,6 @@ void UYogTask_PlayMontageAbility::ExternalCancel()
 
 void UYogTask_PlayMontageAbility::OnDestroy(bool AbilityEnded)
 {
-	PhaseTagDriver.Clear(GetTargetASC());
-
 	// Note: Clearing montage end delegate isn't necessary since its not a multicast and will be cleared when the next montage plays.
 	// (If we are destroyed, it will detect this and not do anything)
 
@@ -262,6 +260,7 @@ void UYogTask_PlayMontageAbility::OnDestroy(bool AbilityEnded)
 	{
 		YogAbilitySystemComponent->RemoveGameplayEventTagContainerDelegate(EventTags, EventHandle);
 	}
+	PhaseTagDriver.Clear(YogAbilitySystemComponent);
 
 	Super::OnDestroy(AbilityEnded);
 

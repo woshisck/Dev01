@@ -34,3 +34,8 @@ DerivedDataCache/
 /.github/...
 **.sln
 **/.vs/**
+
+# Local workflow packaging outputs (sources remain versioned)
+/BuildScripts/Workflow/__pycache__/**
+/BuildScripts/Workflow/build/**
+/BuildScripts/Workflow/dist/**

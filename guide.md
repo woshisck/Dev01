@@ -63,13 +63,15 @@ Never change this to follow `#head`. The project changelist, imported Engine cha
 For engine feature, Renderer, Shader, material-interface, or stylized-lighting work, compile and launch the source engine:
 
 ```powershell
-& 'X:\Dev-BuildEngine\Engine\Build\BatchFiles\Build.bat' DevKitEditor Win64 Development '-Project=X:\Project\YogProject\Dev01\DevKit.uproject' -WaitMutex
-& 'X:\Dev-BuildEngine\Engine\Binaries\Win64\UnrealEditor.exe' 'X:\Project\YogProject\Dev01\DevKit.uproject'
+& 'X:\Dev-BuildEngine\Engine\Build\BatchFiles\Build.bat' DevKitEditor Win64 Development '-Project=X:\Dev-ProjectBuilds\Dev01-Workflow\DevKit.uproject' -WaitMutex
+& 'X:\Dev-BuildEngine\Engine\Binaries\Win64\UnrealEditor.exe' 'X:\Dev-ProjectBuilds\Dev01-Workflow\DevKit.uproject'
 ```
 
 Do not launch `X:\Project\YogProject\Dev01\Engine\Binaries\Win64\UnrealEditor.exe` to develop or compile full engine-source changes. That executable is the UGS/Installed Build version and is appropriate only for distribution acceptance and teammate-equivalent testing.
 
-Before an engine release, use the source engine to open `X:\Project\YogProject\Dev01\DevKit.uproject` and manually validate the requested rendering or gameplay effect. Confirm that there are no module-version errors, Shader failures, crashes, or broken asset references before starting publication.
+Do not compile source-engine project/plugin DLLs into the UGS main workspace. Use an independent development project with its own Binaries and Intermediate. The local copy above shares Content via junctions, so asset writes are still shared and require separate review. Keep the source snapshot current through a reviewed whitelist, not an unconditional mirror.
+
+Before an engine release, use the source engine to open the independent development project's `DevKit.uproject` and manually validate the requested rendering or gameplay effect. Confirm that there are no module-version errors, Shader failures, crashes, or broken asset references before starting publication.
 
 ### Engine Release Flow
 
@@ -77,7 +79,7 @@ An engine-source or engine-Shader update requires the full chain below:
 
 1. Inspect both source-engine Git state and project P4 state. Preserve unrelated local changes and identify ownership before staging or opening files.
 2. Modify and compile only in `X:\Dev-BuildEngine`.
-3. Open `DevKit.uproject` with the source-engine `UnrealEditor.exe` and complete visual/runtime acceptance locally.
+3. Open the independent development copy of `DevKit.uproject` with the source-engine `UnrealEditor.exe` and complete visual/runtime acceptance locally. Never overwrite the UGS main workspace's binary set for this validation.
 4. Validate the local release pipeline:
 
    ```powershell
@@ -202,6 +204,16 @@ This is a dated checkpoint, not a permanent configuration. Refresh it from live 
 - The local P4 default changelist contained unrelated character-material, outline, lighting-built-data, and test-map assets during this check. It was not used for this guide update, and no numbered changelist was created.
 
 ## Current Direction
+
+### Unified Tool Workflows (2026-09-20)
+
+- Editor entry: `YogTool -> 开发工作台` or the `开发工作台` toolbar button. The existing material, surface, scene, and gameplay tools are embedded as ordered steps; legacy tool tab IDs remain available under the advanced menu.
+- The workbench lives inside Unreal as a dockable Slate panel. `YogTool -> 构建、发布与数据整理` opens the operations page in that same panel, not an external workbench window. Module / P4 / duplicate-log checks run asynchronously and display results in-editor.
+- `Dev01_Workflow.bat` (also option 0 in `Dev01_Menu.bat`) is only a fallback helper for tasks requiring a closed editor, not the primary workbench. Neither entry implicitly submits changes. Reports/run logs live in `Saved/WorkflowHub`.
+- Canonical tool/navigation/path data: `Build/Dev01WorkflowCatalog.json`. Read `Docs/Dev01_Workflow_Guide.md` before extending workflow or cleanup behavior.
+- Asset organization uses local `Dev01WF_*` Content Browser collections. Keep original asset package paths and authoritative runtime records; do not infer unused assets from duplicate names or generated components.
+- Cleanup is preview-first, limited to old byte-identical generated text in approved Saved folders, with a recoverable archive manifest. Preserve crash-recovery records, backups, autosaves, saves, screenshots, binaries, and release artifacts.
+- The old local Engine publisher depends on a Prepared PCB/JSON marker contract. The workbench exposes this as a manual release handoff until reconciled with the cloud pipeline; do not call it as an unconditional one-click release.
 
 - Player combat input is now four independent actions: Attack, Skill, WeaponSkill, and Dash.
 - Skill is the player-selected active skill handled by `PlayerActiveSkillComponent` / `ActiveSkillDataAsset`; do not route it through the deprecated SpecialAttack system.

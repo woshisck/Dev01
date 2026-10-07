@@ -15,6 +15,7 @@
 #include "Character/PlayerCharacterBase.h"
 #include "Character/YogCharacterBase.h"
 #include "Component/BufferComponent.h"
+#include "Component/CombatItemComponent.h"
 #include "Component/PlayerActiveSkillComponent.h"
 #include "Component/CharacterDataComponent.h"
 #include "Components/SkeletalMeshComponent.h"

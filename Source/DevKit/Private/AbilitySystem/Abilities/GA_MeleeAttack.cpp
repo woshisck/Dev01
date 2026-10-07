@@ -1,4 +1,5 @@
 ﻿#include "AbilitySystem/Abilities/GA_MeleeAttack.h"
+#include "Component/CombatItemComponent.h"
 #include "AbilitySystem/Abilities/GA_Knockback.h"
 #include "AbilitySystem/Abilities/YogTargetType.h"
 #include "AbilitySystem/AbilityTask/YogAbilityTask_PlayMontageAndWaitForEvent.h"
@@ -32,7 +33,6 @@
 #include "Camera/YogPlayerCameraManager.h"
 #include "Component/HitImpactVisualComponent.h"
 #include "Item/Weapon/WeaponDefinition.h"
-#include "Item/Weapon/WeaponInstance.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
@@ -65,6 +65,11 @@ namespace
 	FGameplayTag GetJustComboWindowTag()
 	{
 		return FGameplayTag::RequestGameplayTag(TEXT("Character.State.Window.JustCombo"), false);
+	}
+
+	FGameplayTag GetJustComboTriggerCueTag()
+	{
+		return FGameplayTag::RequestGameplayTag(TEXT("GameplayCue.Character.JustCombo.Trigger"), false);
 	}
 
 	bool IsAttackComboWindowOpen(UAbilitySystemComponent* ASC)
@@ -124,24 +129,6 @@ namespace
 		{
 			ASC->QueueJustComboNextAttackEffects(NextAttackEffects);
 		}
-	}
-
-	void JustCombo_PlayWeaponVFX(UYogAbilitySystemComponent* ASC)
-	{
-		APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(ASC->GetAvatarActor());
-		if (!Player)
-		{
-			return;
-		}
-
-		const UWeaponDefinition* WeaponDef = Player->GetEffectiveEquippedWeaponDefinition();
-		AWeaponInstance* Weapon = Player->GetEquippedWeaponActor();
-		if (!WeaponDef || !Weapon)
-		{
-			return;
-		}
-
-		Weapon->PlayJustComboVFX(WeaponDef->JustComboVFX);
 	}
 
 	constexpr float AttackSpeedDefaultStat = 100.f;
@@ -455,7 +442,15 @@ bool UGA_MeleeAttack::TryQueueJustComboSpeedBonus(UAbilitySystemComponent* ASC)
 	}
 
 	JustCombo_ApplyEarnedWeaponEffects(YogASC);
-	JustCombo_PlayWeaponVFX(YogASC);
+
+	const FGameplayTag TriggerCueTag = GetJustComboTriggerCueTag();
+	if (TriggerCueTag.IsValid())
+	{
+		FGameplayCueParameters CueParams;
+		CueParams.Instigator = ASC->GetAvatarActor();
+		CueParams.EffectCauser = ASC->GetAvatarActor();
+		ASC->ExecuteGameplayCue(TriggerCueTag, CueParams);
+	}
 
 	return true;
 }

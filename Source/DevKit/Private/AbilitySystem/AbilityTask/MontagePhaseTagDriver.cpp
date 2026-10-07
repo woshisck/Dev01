@@ -6,30 +6,23 @@
 
 namespace
 {
-	// Attack montages are split into these sections; the section the playhead is in IS the attack
-	// phase, so boundaries follow the animation instead of duplicating it as authored numbers that
-	// go stale on retime.
-	FGameplayTag MontagePhaseTagDriver_PhaseTagForSection(const FName SectionName)
+	FGameplayTag PhaseTagForSection(const FName SectionName)
 	{
-		static const FGameplayTag TAG_PreAtk  = FGameplayTag::RequestGameplayTag(TEXT("Character.State.Phase.PreAtk"), false);
-		static const FGameplayTag TAG_Atk     = FGameplayTag::RequestGameplayTag(TEXT("Character.State.Phase.Atk"), false);
-		static const FGameplayTag TAG_PostAtk = FGameplayTag::RequestGameplayTag(TEXT("Character.State.Phase.PostAtk"), false);
+		static const FGameplayTag TagPreAtk = FGameplayTag::RequestGameplayTag(TEXT("Character.State.Phase.PreAtk"), false);
+		static const FGameplayTag TagAtk = FGameplayTag::RequestGameplayTag(TEXT("Character.State.Phase.Atk"), false);
+		static const FGameplayTag TagPostAtk = FGameplayTag::RequestGameplayTag(TEXT("Character.State.Phase.PostAtk"), false);
 
-		static const FName NAME_PreAtk(TEXT("PreAtk"));
-		static const FName NAME_Atk(TEXT("Atk"));
-		static const FName NAME_PostAtk(TEXT("PostAtk"));
-
-		if (SectionName == NAME_PreAtk)
+		if (SectionName == FName(TEXT("PreAtk")))
 		{
-			return TAG_PreAtk;
+			return TagPreAtk;
 		}
-		if (SectionName == NAME_Atk)
+		if (SectionName == FName(TEXT("Atk")))
 		{
-			return TAG_Atk;
+			return TagAtk;
 		}
-		if (SectionName == NAME_PostAtk)
+		if (SectionName == FName(TEXT("PostAtk")))
 		{
-			return TAG_PostAtk;
+			return TagPostAtk;
 		}
 
 		return FGameplayTag();
@@ -38,6 +31,12 @@ namespace
 
 void FMontagePhaseTagDriver::Update(UAnimInstance& AnimInstance, UAnimMontage* Montage, UYogAbilitySystemComponent* ASC)
 {
+	if (!Montage)
+	{
+		Clear(ASC);
+		return;
+	}
+
 	const FName SectionName = AnimInstance.Montage_GetCurrentSection(Montage);
 	if (SectionName == CurrentSection)
 	{
@@ -45,26 +44,21 @@ void FMontagePhaseTagDriver::Update(UAnimInstance& AnimInstance, UAnimMontage* M
 	}
 
 	CurrentSection = SectionName;
-
-	const FGameplayTag NewPhaseTag = MontagePhaseTagDriver_PhaseTagForSection(SectionName);
+	const FGameplayTag NewPhaseTag = PhaseTagForSection(SectionName);
 	if (NewPhaseTag == CurrentPhaseTag)
 	{
 		return;
 	}
 
-	// A montage with no authored sections carries the single reserved section 'Default', which is
-	// not a mistake. Any other unmapped name almost always is one, and would otherwise silently
-	// produce no phase at all.
-	static const FName NAME_DefaultSection(TEXT("Default"));
-	if (!NewPhaseTag.IsValid() && !SectionName.IsNone() && SectionName != NAME_DefaultSection)
+	static const FName DefaultSection(TEXT("Default"));
+	if (!NewPhaseTag.IsValid() && !SectionName.IsNone() && SectionName != DefaultSection)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[AttackPhase] Montage=%s section '%s' maps to no phase tag; expected PreAtk/Atk/PostAtk."),
 			*GetNameSafe(Montage), *SectionName.ToString());
 	}
 
 	Clear(ASC);
-
-	if (NewPhaseTag.IsValid() && ASC)
+	if (ASC && NewPhaseTag.IsValid())
 	{
 		ASC->AddLooseGameplayTag(NewPhaseTag);
 		CurrentPhaseTag = NewPhaseTag;
@@ -73,15 +67,11 @@ void FMontagePhaseTagDriver::Update(UAnimInstance& AnimInstance, UAnimMontage* M
 
 void FMontagePhaseTagDriver::Clear(UYogAbilitySystemComponent* ASC)
 {
-	if (!CurrentPhaseTag.IsValid())
-	{
-		return;
-	}
-
-	if (ASC)
+	if (CurrentPhaseTag.IsValid() && ASC)
 	{
 		ASC->RemoveLooseGameplayTag(CurrentPhaseTag);
 	}
 
 	CurrentPhaseTag = FGameplayTag();
+	CurrentSection = NAME_None;
 }

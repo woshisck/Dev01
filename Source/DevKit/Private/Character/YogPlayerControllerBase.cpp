@@ -332,6 +332,7 @@ void AYogPlayerControllerBase::SetupInputComponent()
 		{
 			const FEnhancedInputActionEventBinding& attackBinding = EnhancedInputComp->BindAction(AttackAction, ETriggerEvent::Started, this, &AYogPlayerControllerBase::Attack);
 			AttackInputHandle = attackBinding.GetHandle();
+			EnhancedInputComp->BindAction(AttackAction, ETriggerEvent::Completed, this, &AYogPlayerControllerBase::AttackReleased);
 		}
 		UInputAction* WeaponSkillAction = Input_WeaponSkill.Get();
 		if (WeaponSkillAction)
@@ -1079,6 +1080,22 @@ void AYogPlayerControllerBase::Attack(const FInputActionValue& Value)
 			player->GetASC(),
 			TEXT("Character.State.Skill.Attack"),
 			TEXT("PlayerState.AbilityCast.Attack"));
+	}
+}
+
+void AYogPlayerControllerBase::AttackReleased(const FInputActionValue& Value)
+{
+	if (APlayerCharacterBase* player = Cast<APlayerCharacterBase>(this->GetPawn()))
+	{
+		UAbilitySystemComponent* ASC = player->GetASC();
+		if (!ASC) return;
+
+		FGameplayEventData EventData;
+		EventData.Instigator = player;
+		EventData.Target = player;
+		ASC->HandleGameplayEvent(
+			FGameplayTag::RequestGameplayTag(FName("GameplayEvent.Attack.Release")),
+			&EventData);
 	}
 }
 

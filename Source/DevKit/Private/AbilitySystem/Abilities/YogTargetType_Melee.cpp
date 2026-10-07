@@ -22,7 +22,7 @@ static void DrawHitboxDebug(UWorld* World, const FVector& Loc, float Yaw,
 {
 	if (!World) return;
 
-	const float OuterR = Data.ActRange;
+	const float OuterR = Data.ActRange > 0.f ? Data.ActRange : 400.f;
 
 	if (Data.hitboxTypes.IsEmpty())
 	{
@@ -55,9 +55,8 @@ static void DrawHitboxDebug(UWorld* World, const FVector& Loc, float Yaw,
 			const float YawRad = FMath::DegreesToRadians(Yaw);
 			const FVector CenterLoc = Loc + FVector(FMath::Cos(YawRad), FMath::Sin(YawRad), 0.f) * EffectiveOffset;
 
-			// Matches IsInAnnulus: the outer edge is OuterR verbatim, with no inner_radius
-			// compensation, so the drawn ring is exactly ActRange + AttackRange.
-			const float EffectiveOuterR = OuterR;
+			// bAutoOffset 时圆心后移了 InnerR，外径补偿使前向最终触达 = ActRange（配表直觉一致）
+			const float EffectiveOuterR = (Ann.bAutoOffset && InnerR > 0.f) ? OuterR + InnerR : OuterR;
 
 			constexpr int32 Seg = 24;
 			FVector PrevOuter = FVector::ZeroVector;
@@ -112,18 +111,6 @@ static void DrawHitboxDebug(UWorld* World, const FVector& Loc, float Yaw,
 // ===========================================================
 
 FActionData UYogTargetType_MeleeBase::GetActionData(AYogCharacterBase* TargetingCharacter, const FGameplayEventData& EventData) const
-{
-	FActionData Data = ResolveRawActionData(TargetingCharacter, EventData);
-
-	if (TargetingCharacter)
-	{
-		Data.ActRange = TargetingCharacter->ResolveEffectiveAttackRange(Data.ActRange);
-	}
-
-	return Data;
-}
-
-FActionData UYogTargetType_MeleeBase::ResolveRawActionData(AYogCharacterBase* TargetingCharacter, const FGameplayEventData& EventData) const
 {
 	if (TargetingCharacter)
 	{
@@ -194,10 +181,7 @@ bool UYogTargetType_MeleeBase::ShouldDrawDebugHitbox(const FGameplayEventData& E
 
 bool UYogTargetType_MeleeBase::IsTargetHit(const FVector& CharLoc, float CharYaw, const FActionData& ActionData, const FVector& TargetLoc) const
 {
-	// Used as-is: ActRange already carries the character's AttackRange (see
-	// AYogCharacterBase::ResolveEffectiveAttackRange), and the effective hitbox range must equal
-	// ActRange + AttackRange exactly - no default substitution on top.
-	const float OuterRadius = ActionData.ActRange;
+	const float OuterRadius = ActionData.ActRange > 0.f ? ActionData.ActRange : 400.f;
 
 	if (ActionData.hitboxTypes.IsEmpty())
 	{
@@ -241,12 +225,13 @@ bool UYogTargetType_MeleeBase::IsInAnnulus(
 	const FVector CharForward(FMath::Cos(YawRad), FMath::Sin(YawRad), 0.f);
 	const FVector CenterLoc = CharLoc + CharForward * EffectiveOffset;
 
-	// Distance test against the offset centre, using OuterRadius verbatim so the ring's outer
-	// edge is exactly ActRange + AttackRange. bAutoOffset deliberately no longer compensates by
-	// inner_radius: that made forward reach equal ActRange, but it also put an extra term on the
-	// radius. Forward reach is now OuterRadius - inner_radius.
+	// 距离判断（基于偏移后的圆心）
+	// bAutoOffset 时圆心后移了 inner_radius，外径补偿使前向最终触达 = ActRange（配表直觉一致）
 	const float Dist2D = FVector::Dist2D(CenterLoc, TargetLoc);
-	if (Dist2D < Annulus.inner_radius || Dist2D > OuterRadius)
+	const float EffectiveOuterRadius = (Annulus.bAutoOffset && Annulus.inner_radius > 0.f)
+		? OuterRadius + Annulus.inner_radius
+		: OuterRadius;
+	if (Dist2D < Annulus.inner_radius || Dist2D > EffectiveOuterRadius)
 		return false;
 
 	// 角度判断：圆心 → 目标的方位角，与角色朝向对比
@@ -329,7 +314,7 @@ void UYogTargetType_Enemy::GetTargets_Implementation(
 		ControlYaw = Controller->GetControlRotation().Yaw;
 	}
 	const float CharYaw = ActorYaw;
-	const float    SearchRadius = ActionData.ActRange;
+	const float    SearchRadius = ActionData.ActRange > 0.f ? ActionData.ActRange : 400.f;
 
 	TArray<AActor*> Overlapped;
 	TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes;
@@ -406,7 +391,7 @@ void UYogTargetType_Player::GetTargets_Implementation(
 	const FActionData ActionData = GetActionData(TargetingCharacter, EventData);
 	const FVector  CharLoc     = TargetingCharacter->GetActorLocation();
 	const float    CharYaw     = TargetingCharacter->GetActorRotation().Yaw;
-	const float    SearchRadius = ActionData.ActRange;
+	const float    SearchRadius = ActionData.ActRange > 0.f ? ActionData.ActRange : 400.f;
 
 	TArray<AActor*> Overlapped;
 	TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes;
