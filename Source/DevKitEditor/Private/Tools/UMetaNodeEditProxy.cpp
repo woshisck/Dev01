@@ -88,7 +88,6 @@ void UYogSaveSlotEditProxy::LoadFromSave(UYogSaveGame* Save, int32 InSlotIndex)
 		WeaponInstanceItems.Reset();
 		MapStateData = FYogMapStateData{};
 		SavedCharacter.Reset();
-		TutorialState = ETutorialState::NeedWeaponTutorial;
 		ShownPopupKeys.Reset();
 		TotalRuns = 0;
 		TotalKills = 0;
@@ -127,7 +126,6 @@ void UYogSaveSlotEditProxy::LoadFromSave(UYogSaveGame* Save, int32 InSlotIndex)
 	WeaponInstanceItems = Save->WeaponInstanceItems;
 	MapStateData = Save->MapStateData;
 	SavedCharacter = Save->SavedCharacter;
-	TutorialState = Save->TutorialState;
 	ShownPopupKeys = Save->ShownPopupKeys;
 
 	TotalRuns = Save->Statistics.TotalRuns;
@@ -171,7 +169,6 @@ void UYogSaveSlotEditProxy::ApplyToSave(UYogSaveGame* Save) const
 	Save->WeaponInstanceItems = WeaponInstanceItems;
 	Save->MapStateData = MapStateData;
 	Save->SavedCharacter = SavedCharacter;
-	Save->TutorialState = TutorialState;
 	Save->ShownPopupKeys = ShownPopupKeys;
 
 	Save->Statistics.TotalRuns = FMath::Max(0, TotalRuns);
@@ -212,7 +209,6 @@ FString UYogSaveSlotEditProxy::BuildExportText() const
 	Lines.Add(FString::Printf(TEXT("TotalPlayTimeSeconds,%d"), TotalPlayTimeSeconds));
 	Lines.Add(FString::Printf(TEXT("TotalDeaths,%d"), TotalDeaths));
 	Lines.Add(FString::Printf(TEXT("TotalGoldEarned,%d"), TotalGoldEarned));
-	Lines.Add(FString::Printf(TEXT("TutorialState,%d"), static_cast<int32>(TutorialState)));
 	Lines.Add(FString::Printf(TEXT("MapStateLevelName,%s"), *MapStateData.LevelName.ToString()));
 
 	Lines.Add(TEXT(""));

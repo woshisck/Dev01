@@ -55,7 +55,6 @@
 #include "GameplayEffect.h"
 #include "GameplayTagContainer.h"
 #include "Story/StoryEngineSubsystem.h"
-#include "Tutorial/TutorialManager.h"
 #include "Visual/TimeDilationVisualSubsystem.h"
 #include "YogBlueprintFunctionLibrary.h"
 #include "MotionWarpingComponent.h"
@@ -1500,12 +1499,6 @@ void APlayerCharacterBase::BeginPlay()
 		BackpackGridComponent->InitWithASC(GetAbilitySystemComponent());
 	}
 
-	// 卡牌入组事件：C++ 统一识别卡牌类型并触发一次性教程提
-	if (CombatDeckComponent)
-	{
-		CombatDeckComponent->OnDeckCardsEntered.AddDynamic(
-			this, &APlayerCharacterBase::OnDeckCardsEnteredForTutorial);
-	}
 
 	// 初始化技能充能系
 	if (UYogAbilitySystemComponent* YogASC = Cast<UYogAbilitySystemComponent>(GetAbilitySystemComponent()))
@@ -2047,84 +2040,6 @@ void APlayerCharacterBase::TickPlayerPhaseGlow(float DeltaTime)
 	{
 		PlayerOverlayDynMat->SetScalarParameterValue(TEXT("SweepProgress"), SweepProgress);
 		PlayerOverlayDynMat->SetScalarParameterValue(TEXT("GlowAlpha"), GlowAlpha);
-	}
-}
-
-void APlayerCharacterBase::OnDeckCardsEnteredForTutorial(const TArray<FCombatCardInstance>& Cards)
-{
-	UTutorialManager* TM = GetGameInstance() ? GetGameInstance()->GetSubsystem<UTutorialManager>() : nullptr;
-
-	APlayerController* PC = GetController<APlayerController>();
-	if (!PC) return;
-
-	static const FGameplayTag WeaponSkillFinisherHintTag = FGameplayTag::RequestGameplayTag(TEXT("Tutorial.Hint.WeaponSkillFinisher"));
-	static const FGameplayTag LinkHintTag     = FGameplayTag::RequestGameplayTag(TEXT("Tutorial.Hint.LinkCard"));
-	static const FGameplayTag FinisherHintTag = FGameplayTag::RequestGameplayTag(TEXT("Tutorial.Hint.Finisher"));
-	static const FName WeaponOwnerSource(TEXT("Weapon"));
-	bool bBroadcastedRewardCardEntered = false;
-
-	for (const FCombatCardInstance& Card : Cards)
-	{
-		if (!Card.IsValidCard()) continue;
-		if (Card.OwnerSource == WeaponOwnerSource)
-		{
-			continue;
-		}
-
-		if (!bBroadcastedRewardCardEntered)
-		{
-			if (UStoryEngineSubsystem* StoryEngine = GetGameInstance()
-				? GetGameInstance()->GetSubsystem<UStoryEngineSubsystem>()
-				: nullptr)
-			{
-				StoryEngine->BroadcastStoryEvent(
-					FGameplayTag::RequestGameplayTag(TEXT("Story.Event.FirstRun.FirstRewardCardEntered"), false),
-					PC);
-			}
-			bBroadcastedRewardCardEntered = true;
-		}
-
-		if (!TM)
-		{
-			continue;
-		}
-
-		const bool bIsWeaponSkillFinisherCard =
-			CombatCardHasId(Card.Config, TEXT("Buff.WeaponSkillFinisher"))
-			|| CombatCardHasEffect(Card.Config, TEXT("Buff.Detonate"))
-			|| CombatCardHasId(Card.Config, TEXT("Rune.ID.WeaponSkillFinisher"))
-			|| CombatCardHasEffect(Card.Config, TEXT("Rune.Effect.Detonate"))
-			|| CombatCardHasId(Card.Config, TEXT("Rune.ID.Heavy"))
-			|| CombatCardHasId(Card.Config, TEXT("Card.ID.Heavy"))
-			|| CombatCardHasEffect(Card.Config, TEXT("Rune.Effect.Heavy"))
-			|| CombatCardHasEffect(Card.Config, TEXT("Card.Effect.Heavy"));
-		const bool bIsMoonlightLinkCard =
-			CombatCardHasId(Card.Config, TEXT("Buff.Moonlight"))
-			|| CombatCardHasEffect(Card.Config, TEXT("Buff.Moonlight"))
-			|| CombatCardHasId(Card.Config, TEXT("Rune.ID.Moonlight"))
-			|| CombatCardHasId(Card.Config, TEXT("Card.ID.Moonlight"))
-			|| CombatCardHasEffect(Card.Config, TEXT("Rune.Effect.Moonlight"))
-			|| CombatCardHasEffect(Card.Config, TEXT("Card.Effect.Moonlight"));
-
-		if (bIsWeaponSkillFinisherCard)
-		{
-			TM->TryShowHintOnce(WeaponSkillFinisherHintTag, TEXT("tutorial_weapon_skill_finisher_card"), PC);
-		}
-		else if (bIsMoonlightLinkCard)
-		{
-			TM->NotifyLinkCardEnteredDeck(PC);
-		}
-		// 连携卡（月光等）
-		else if (Card.Config.CardType == ECombatCardType::Link)
-		{
-			TM->TryShowHintOnce(LinkHintTag, TEXT("tutorial_card_link"), PC);
-		}
-		// 终结技
-		else if (!DevKit::Combat::IsFinisherAbilityDeprecated()
-			&& Card.Config.CardType == ECombatCardType::Finisher)
-		{
-			TM->TryShowHintOnce(FinisherHintTag, TEXT("tutorial_finisher"), PC);
-		}
 	}
 }
 

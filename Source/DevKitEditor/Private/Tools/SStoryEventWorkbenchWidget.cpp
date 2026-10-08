@@ -58,8 +58,6 @@ namespace
 		{
 		case EStoryEventActionType::BroadcastOnly:
 			return TEXT("Broadcast");
-		case EStoryEventActionType::TutorialPopup:
-			return TEXT("Tutorial");
 		case EStoryEventActionType::LevelFlow:
 			return TEXT("LevelFlow");
 		case EStoryEventActionType::None:
@@ -119,7 +117,6 @@ public:
 
 		if (ColumnName == TEXT("Registry")) return MakeTextCell(Registry->GetName(), Registry->GetPathName());
 		if (ColumnName == TEXT("Entries")) return MakeTextCell(FString::FromInt(Registry->Entries.Num()));
-		if (ColumnName == TEXT("Tutorial")) return MakeTextCell(FString::FromInt(CountActionType(Registry, EStoryEventActionType::TutorialPopup)));
 		if (ColumnName == TEXT("Flow")) return MakeTextCell(FString::FromInt(CountActionType(Registry, EStoryEventActionType::LevelFlow)));
 		if (ColumnName == TEXT("Broadcast")) return MakeTextCell(FString::FromInt(CountActionType(Registry, EStoryEventActionType::BroadcastOnly)));
 		if (ColumnName == TEXT("Actions"))

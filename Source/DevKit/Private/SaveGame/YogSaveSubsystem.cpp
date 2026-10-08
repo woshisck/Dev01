@@ -26,8 +26,6 @@
 static const int32 GNumSaveSlots    = 3;
 static const int32 GSettingsUserIdx = 0;
 static const FString GSettingsSlot  = TEXT("Settings");
-static const int32 GFirstRunTutorialStageNone = 0;
-static const int32 GFirstRunTutorialStageCompleted = 8;
 
 // =========================================================
 // 初始化
@@ -49,7 +47,6 @@ void UYogSaveSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 	LoadSettings();
 	UYogPerformanceSettingsLibrary::ApplySavedGraphicsSettings(GetGameInstance());
-	EnsureReservedNormalGameSlot();
 
 	if (CurrentSettings && CurrentSettings->LastActiveSlot >= 0 && CurrentSettings->LastActiveSlot < GNumSaveSlots)
 	{
@@ -104,17 +101,7 @@ FString UYogSaveSubsystem::GetSlotName(int32 SlotIndex) const
 
 static const int32 GCurrentSaveFormatVersion = 2;
 
-bool UYogSaveSubsystem::IsNormalGameSlot(int32 SlotIndex) const
-{
-	return FMath::Clamp(SlotIndex, 0, GNumSaveSlots - 1) == GNumSaveSlots - 1;
-}
-
-int32 UYogSaveSubsystem::GetNormalGameSlotIndex() const
-{
-	return GNumSaveSlots - 1;
-}
-
-void UYogSaveSubsystem::InitializeSaveForNewGame(UYogSaveGame* Save, bool bFirstRunTutorial) const
+void UYogSaveSubsystem::InitializeSaveForNewGame(UYogSaveGame* Save) const
 {
 	if (!Save)
 	{
@@ -128,111 +115,13 @@ void UYogSaveSubsystem::InitializeSaveForNewGame(UYogSaveGame* Save, bool bFirst
 	Save->WeaponInstanceItems.Reset();
 	Save->MapStateData = FYogMapStateData{};
 	Save->SavedCharacter.Reset();
-	Save->TutorialState = bFirstRunTutorial ? ETutorialState::NeedWeaponTutorial : ETutorialState::Completed;
-	Save->FirstRunTutorialStage = bFirstRunTutorial
-		? GFirstRunTutorialStageNone
-		: GFirstRunTutorialStageCompleted;
 	Save->ShownPopupKeys.Empty();
 	Save->StoryFlags.Empty();
-
-	const FGameplayTag ActiveTag = FGameplayTag::RequestGameplayTag(TEXT("Story.Flag.FirstRunTutorial.Active"), false);
-	const FGameplayTag CompletedTag = FGameplayTag::RequestGameplayTag(TEXT("Story.Flag.FirstRunTutorial.Completed"), false);
-	if (bFirstRunTutorial)
-	{
-		if (ActiveTag.IsValid())
-		{
-			Save->StoryFlags.Add(ActiveTag, true);
-		}
-		if (CompletedTag.IsValid())
-		{
-			Save->StoryFlags.Remove(CompletedTag);
-		}
-	}
-	else
-	{
-		if (ActiveTag.IsValid())
-		{
-			Save->StoryFlags.Remove(ActiveTag);
-		}
-		if (CompletedTag.IsValid())
-		{
-			Save->StoryFlags.Add(CompletedTag, true);
-		}
-	}
-
 	Save->StoryFiredRuleIds.Empty();
 	Save->StoryQuestTasks.Empty();
 	Save->SlotCreatedTime = FDateTime::Now();
 	Save->SlotLastPlayTime = FDateTime::Now();
 	Save->SaveFormatVersion = GCurrentSaveFormatVersion;
-}
-
-void UYogSaveSubsystem::EnsureReservedNormalGameSlot()
-{
-	const int32 SlotIndex = GNumSaveSlots - 1;
-	const FString SlotName = GetSlotName(SlotIndex);
-	FlushPendingSaves();
-	TArray<uint8> UnsavedBytes;
-	if (WriteProtectedSlots.Contains(SlotIndex)
-		|| (SaveQueue && SaveQueue->GetUnsavedBytes(SlotName, UnsavedBytes)))
-	{
-		return; // Never replace an unsaved session snapshot with an empty reserved slot.
-	}
-	if (UGameplayStatics::DoesSaveGameExist(SlotName, 0))
-	{
-		if (UYogSaveGame* ExistingSave = Cast<UYogSaveGame>(UGameplayStatics::LoadGameFromSlot(SlotName, 0)))
-		{
-			if (ExistingSave->SaveFormatVersion > GCurrentSaveFormatVersion)
-			{
-				WriteProtectedSlots.Add(SlotIndex);
-				ReportSaveFailure(SlotName, TEXT("Load"), TEXT("Newer save format; original file preserved."));
-				return;
-			}
-			bool bChanged = false;
-			if (ExistingSave->TutorialState != ETutorialState::Completed)
-			{
-				ExistingSave->TutorialState = ETutorialState::Completed;
-				bChanged = true;
-			}
-			if (ExistingSave->FirstRunTutorialStage != GFirstRunTutorialStageCompleted)
-			{
-				ExistingSave->FirstRunTutorialStage = GFirstRunTutorialStageCompleted;
-				bChanged = true;
-			}
-			if (const FGameplayTag ActiveTag = FGameplayTag::RequestGameplayTag(TEXT("Story.Flag.FirstRunTutorial.Active"), false);
-				ActiveTag.IsValid())
-			{
-				bChanged |= ExistingSave->StoryFlags.Remove(ActiveTag) > 0;
-			}
-			if (const FGameplayTag CompletedTag = FGameplayTag::RequestGameplayTag(TEXT("Story.Flag.FirstRunTutorial.Completed"), false);
-				CompletedTag.IsValid())
-			{
-				const bool bWasCompleted = ExistingSave->StoryFlags.FindRef(CompletedTag);
-				ExistingSave->StoryFlags.Add(CompletedTag, true);
-				bChanged |= !bWasCompleted;
-			}
-			if (ExistingSave->SaveFormatVersion < GCurrentSaveFormatVersion)
-			{
-				ExistingSave->SaveFormatVersion = GCurrentSaveFormatVersion;
-				bChanged = true;
-			}
-			if (bChanged)
-			{
-				EnqueueSave(ExistingSave, SlotIndex);
-			}
-		}
-		else
-		{
-			WriteProtectedSlots.Add(SlotIndex);
-			ReportSaveFailure(SlotName, TEXT("Load"), TEXT("Unreadable save; original file preserved."));
-		}
-		return;
-	}
-
-	UYogSaveGame* NormalSave = Cast<UYogSaveGame>(
-		UGameplayStatics::CreateSaveGameObject(UYogSaveGame::StaticClass()));
-	InitializeSaveForNewGame(NormalSave, false);
-	EnqueueSave(NormalSave, SlotIndex);
 }
 
 void UYogSaveSubsystem::SelectSlot(int32 SlotIndex)
@@ -276,12 +165,12 @@ UYogSaveGame* UYogSaveSubsystem::SelectSlotInternal(int32 SlotIndex)
 	{
 		CurrentSaveGame = Cast<UYogSaveGame>(
 			UGameplayStatics::CreateSaveGameObject(UYogSaveGame::StaticClass()));
-		InitializeSaveForNewGame(CurrentSaveGame, !IsNormalGameSlot(CurrentSlotIndex));
+		InitializeSaveForNewGame(CurrentSaveGame);
 	}
 	if (!CurrentSaveGame)
 	{
 		CurrentSaveGame = Cast<UYogSaveGame>(UGameplayStatics::CreateSaveGameObject(UYogSaveGame::StaticClass()));
-		InitializeSaveForNewGame(CurrentSaveGame, !IsNormalGameSlot(CurrentSlotIndex));
+		InitializeSaveForNewGame(CurrentSaveGame);
 	}
 	if (CurrentSaveGame->SaveFormatVersion > GCurrentSaveFormatVersion)
 	{
@@ -293,37 +182,6 @@ UYogSaveGame* UYogSaveSubsystem::SelectSlotInternal(int32 SlotIndex)
 	{
 		MigrateSaveGame(CurrentSaveGame, CurrentSaveGame->SaveFormatVersion, GCurrentSaveFormatVersion);
 		DoAsyncSave();
-	}
-
-	if (CurrentSaveGame && IsNormalGameSlot(CurrentSlotIndex))
-	{
-		bool bChanged = false;
-		if (CurrentSaveGame->TutorialState != ETutorialState::Completed)
-		{
-			CurrentSaveGame->TutorialState = ETutorialState::Completed;
-			bChanged = true;
-		}
-		if (CurrentSaveGame->FirstRunTutorialStage != GFirstRunTutorialStageCompleted)
-		{
-			CurrentSaveGame->FirstRunTutorialStage = GFirstRunTutorialStageCompleted;
-			bChanged = true;
-		}
-		if (const FGameplayTag ActiveTag = FGameplayTag::RequestGameplayTag(TEXT("Story.Flag.FirstRunTutorial.Active"), false);
-			ActiveTag.IsValid())
-		{
-			bChanged |= CurrentSaveGame->StoryFlags.Remove(ActiveTag) > 0;
-		}
-		if (const FGameplayTag CompletedTag = FGameplayTag::RequestGameplayTag(TEXT("Story.Flag.FirstRunTutorial.Completed"), false);
-			CompletedTag.IsValid())
-		{
-			const bool bWasCompleted = CurrentSaveGame->StoryFlags.FindRef(CompletedTag);
-			CurrentSaveGame->StoryFlags.Add(CompletedTag, true);
-			bChanged |= !bWasCompleted;
-		}
-		if (bChanged)
-		{
-			DoAsyncSave();
-		}
 	}
 
 	if (CurrentSettings)
@@ -367,14 +225,9 @@ void UYogSaveSubsystem::DeleteSlot(int32 SlotIndex)
 	{
 		CurrentSaveGame = Cast<UYogSaveGame>(
 			UGameplayStatics::CreateSaveGameObject(UYogSaveGame::StaticClass()));
-		InitializeSaveForNewGame(CurrentSaveGame, !IsNormalGameSlot(CurrentSlotIndex));
+		InitializeSaveForNewGame(CurrentSaveGame);
 	}
 	DispatchSaveResults();
-
-	if (IsNormalGameSlot(SlotIndex))
-	{
-		EnsureReservedNormalGameSlot();
-	}
 }
 
 void UYogSaveSubsystem::ResetSlotForNewGame(int32 SlotIndex)
@@ -397,74 +250,8 @@ void UYogSaveSubsystem::ResetSlotForNewGame(int32 SlotIndex)
 	WriteProtectedSlots.Remove(SlotIndex); // Explicit user reset, not automatic repair.
 
 	// 保留 Statistics，清空其余局外数据和存档点
-	InitializeSaveForNewGame(RequestedSave.Get(), !IsNormalGameSlot(SlotIndex));
+	InitializeSaveForNewGame(RequestedSave.Get());
 	EnqueueSave(RequestedSave.Get(), SlotIndex);
-}
-
-bool UYogSaveSubsystem::IsFirstRunTutorialActive() const
-{
-	if (!CurrentSaveGame)
-	{
-		return false;
-	}
-
-	const FGameplayTag ActiveTag = FGameplayTag::RequestGameplayTag(TEXT("Story.Flag.FirstRunTutorial.Active"), false);
-	const FGameplayTag CompletedTag = FGameplayTag::RequestGameplayTag(TEXT("Story.Flag.FirstRunTutorial.Completed"), false);
-	const bool bActive = ActiveTag.IsValid()
-		&& CurrentSaveGame->StoryFlags.FindRef(ActiveTag);
-	const bool bCompleted = CompletedTag.IsValid()
-		&& CurrentSaveGame->StoryFlags.FindRef(CompletedTag);
-	return bActive && !bCompleted;
-}
-
-bool UYogSaveSubsystem::IsFirstRunTutorialCompleted() const
-{
-	if (!CurrentSaveGame)
-	{
-		return false;
-	}
-
-	const FGameplayTag CompletedTag = FGameplayTag::RequestGameplayTag(TEXT("Story.Flag.FirstRunTutorial.Completed"), false);
-	return CompletedTag.IsValid() && CurrentSaveGame->StoryFlags.FindRef(CompletedTag);
-}
-
-void UYogSaveSubsystem::MarkFirstRunTutorialCompleted()
-{
-	if (!CurrentSaveGame)
-	{
-		return;
-	}
-
-	if (const FGameplayTag ActiveTag = FGameplayTag::RequestGameplayTag(TEXT("Story.Flag.FirstRunTutorial.Active"), false);
-		ActiveTag.IsValid())
-	{
-		CurrentSaveGame->StoryFlags.Remove(ActiveTag);
-	}
-	if (const FGameplayTag CompletedTag = FGameplayTag::RequestGameplayTag(TEXT("Story.Flag.FirstRunTutorial.Completed"), false);
-		CompletedTag.IsValid())
-	{
-		CurrentSaveGame->StoryFlags.Add(CompletedTag, true);
-	}
-	CurrentSaveGame->TutorialState = ETutorialState::Completed;
-	CurrentSaveGame->FirstRunTutorialStage = GFirstRunTutorialStageCompleted;
-
-	DoAsyncSave();
-}
-
-void UYogSaveSubsystem::SetFirstRunTutorialStage(int32 Stage)
-{
-	if (!CurrentSaveGame)
-	{
-		return;
-	}
-
-	CurrentSaveGame->FirstRunTutorialStage = Stage;
-	DoAsyncSave();
-}
-
-int32 UYogSaveSubsystem::GetFirstRunTutorialStage() const
-{
-	return CurrentSaveGame ? CurrentSaveGame->FirstRunTutorialStage : 0;
 }
 
 void UYogSaveSubsystem::RequestSlotPreview(int32 SlotIndex, FOnSlotPreviewReady Callback)
@@ -473,10 +260,6 @@ void UYogSaveSubsystem::RequestSlotPreview(int32 SlotIndex, FOnSlotPreviewReady 
 	{
 		Callback.ExecuteIfBound(FSlotPreviewData{});
 		return;
-	}
-	if (IsNormalGameSlot(SlotIndex))
-	{
-		EnsureReservedNormalGameSlot();
 	}
 	FlushPendingSaves();
 
@@ -499,13 +282,6 @@ void UYogSaveSubsystem::RequestSlotPreview(int32 SlotIndex, FOnSlotPreviewReady 
 			Preview.HighestFloor         = Save->Statistics.HighestFloor;
 			Preview.bHasPendingRun       = Save->RunCheckpoint.bIsValid; // 单一事实源
 			Preview.TotalPlayTimeSeconds = Save->Statistics.TotalPlayTimeSeconds;
-
-			const FGameplayTag ActiveTag = FGameplayTag::RequestGameplayTag(TEXT("Story.Flag.FirstRunTutorial.Active"), false);
-			const FGameplayTag CompletedTag = FGameplayTag::RequestGameplayTag(TEXT("Story.Flag.FirstRunTutorial.Completed"), false);
-			Preview.bFirstRunTutorialCompleted = CompletedTag.IsValid() && Save->StoryFlags.FindRef(CompletedTag);
-			Preview.bFirstRunTutorialActive = ActiveTag.IsValid()
-				&& Save->StoryFlags.FindRef(ActiveTag)
-				&& !Preview.bFirstRunTutorialCompleted;
 		}
 		Callback.ExecuteIfBound(Preview);
 	});

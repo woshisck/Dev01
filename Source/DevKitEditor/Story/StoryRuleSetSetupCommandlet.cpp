@@ -68,15 +68,6 @@ namespace StoryRuleSetSetup
 		return Action;
 	}
 
-	FStoryAction ShowTutorial(const TCHAR* EventId)
-	{
-		FStoryAction Action;
-		Action.Type = EStoryActionType::ShowTutorialPopup;
-		Action.TutorialEventId = FName(EventId);
-		Action.bPauseGame = true;
-		return Action;
-	}
-
 	FStoryAction SetQuest(const TCHAR* QuestTag, const TCHAR* Text, const TCHAR* SourceTag)
 	{
 		FStoryAction Action;
@@ -181,121 +172,6 @@ namespace StoryRuleSetSetup
 		return Rules;
 	}
 
-	TArray<FStoryRule> BuildFirstRunRules()
-	{
-		TArray<FStoryRule> Rules;
-
-		FStoryRule Started = MakeRule(
-			TEXT("FirstRun.Started"),
-			TEXT("Story.Event.FirstRun.Started"),
-			100,
-			EStoryRuleFirePolicy::OncePerSave);
-		Started.Actions.Add(SetQuest(
-			TEXT("Story.Quest.Main"),
-			TEXT("进入牢狱深处，取得第一枚符文"),
-			TEXT("Story.Source.Codex")));
-		Rules.Add(Started);
-
-		FStoryRule FirstRune = MakeRule(
-			TEXT("FirstRun.FirstRuneObtained"),
-			TEXT("Story.Event.FirstRun.FirstRuneObtained"),
-			100,
-			EStoryRuleFirePolicy::OncePerSave);
-		FirstRune.Conditions.Add(NotHasSaveFlag(TEXT("Story.Flag.FirstRune.Obtained")));
-		FirstRune.Actions.Add(SetSaveFlag(TEXT("Story.Flag.FirstRune.Obtained")));
-		FirstRune.Actions.Add(SetSaveFlag(TEXT("Story.Encounter.Progress.EM_FirstRun_Tutorial.first_run.weapon_skill_finisher_obtained")));
-		FirstRune.Actions.Add(ShowTutorial(TEXT("tutorial_first_rune")));
-		FirstRune.Actions.Add(SetQuest(
-			TEXT("Story.Quest.Main"),
-			TEXT("打开背包查看你的符文"),
-			TEXT("Story.Source.Codex")));
-		Rules.Add(FirstRune);
-
-		FStoryRule FirstRewardCardEntered = MakeRule(
-			TEXT("FirstRun.FirstRewardCardEntered"),
-			TEXT("Story.Event.FirstRun.FirstRewardCardEntered"),
-			100,
-			EStoryRuleFirePolicy::OncePerSave);
-		FirstRewardCardEntered.Conditions.Add(NotHasSaveFlag(TEXT("Story.Flag.FirstRune.Obtained")));
-		FirstRewardCardEntered.Actions.Add(SetSaveFlag(TEXT("Story.Flag.FirstRune.Obtained")));
-		FirstRewardCardEntered.Actions.Add(SetSaveFlag(TEXT("Story.Encounter.Progress.EM_FirstRun_Tutorial.first_run.weapon_skill_finisher_obtained")));
-		FirstRewardCardEntered.Actions.Add(ShowTutorial(TEXT("tutorial_first_rune")));
-		FirstRewardCardEntered.Actions.Add(SetQuest(
-			TEXT("Story.Quest.Main"),
-			TEXT("打开背包查看你的符文"),
-			TEXT("Story.Source.Codex")));
-		Rules.Add(FirstRewardCardEntered);
-
-		/*
-		FStoryRule LegacyReward = MakeRule(
-			TEXT("FirstRun.LegacyRewardToDeck"),
-			TEXT("Tutorial.RewardToDeck"),
-			90,
-			EStoryRuleFirePolicy::OncePerSave);
-		LegacyReward.Conditions.Add(NotHasSaveFlag(TEXT("Story.Flag.FirstRune.Obtained")));
-		LegacyReward.Actions.Add(SetSaveFlag(TEXT("Story.Flag.FirstRune.Obtained")));
-		LegacyReward.Actions.Add(SetSaveFlag(TEXT("Story.Encounter.Progress.EM_FirstRun_Tutorial.first_run.weapon_skill_finisher_obtained")));
-		LegacyReward.Actions.Add(SetQuest(
-			TEXT("Story.Quest.Main"),
-			TEXT("打开背包查看你的符文"),
-			TEXT("Story.Source.Codex")));
-		*/
-		FStoryRule Backpack = MakeRule(
-			TEXT("FirstRun.FirstBackpackOpened"),
-			TEXT("Story.Event.FirstRun.FirstBackpackOpened"),
-			100,
-			EStoryRuleFirePolicy::OncePerSave);
-		Backpack.Conditions.Add(NotHasSaveFlag(TEXT("Story.Flag.FirstBackpack.Opened")));
-		Backpack.Actions.Add(SetSaveFlag(TEXT("Story.Flag.FirstBackpack.Opened")));
-		Backpack.Actions.Add(ShowTutorial(TEXT("tutorial_backpack")));
-		Backpack.Actions.Add(SetQuest(
-			TEXT("Story.Quest.Main"),
-			TEXT("整理符文后继续前进"),
-			TEXT("Story.Source.Codex")));
-		Rules.Add(Backpack);
-
-		FStoryRule LegacyBackpack = MakeRule(
-			TEXT("FirstRun.LegacyBackpackArrange"),
-			TEXT("Tutorial.BackpackArrange"),
-			90,
-			EStoryRuleFirePolicy::OncePerSave);
-		LegacyBackpack.Conditions.Add(NotHasSaveFlag(TEXT("Story.Flag.FirstBackpack.Opened")));
-		LegacyBackpack.Actions.Add(SetSaveFlag(TEXT("Story.Flag.FirstBackpack.Opened")));
-		LegacyBackpack.Actions.Add(SetQuest(
-			TEXT("Story.Quest.Main"),
-			TEXT("整理符文后继续前进"),
-			TEXT("Story.Source.Codex")));
-		Rules.Add(LegacyBackpack);
-
-		FStoryRule Moonlight = MakeRule(
-			TEXT("FirstRun.MoonlightObtained"),
-			TEXT("Story.Event.FirstRun.MoonlightObtained"),
-			100,
-			EStoryRuleFirePolicy::OncePerSave);
-		Moonlight.Conditions.Add(NotHasSaveFlag(TEXT("Story.Flag.FirstRun.MoonlightObtained")));
-		Moonlight.Actions.Add(SetSaveFlag(TEXT("Story.Flag.FirstRun.MoonlightObtained")));
-		Moonlight.Actions.Add(SetSaveFlag(TEXT("Story.Encounter.Progress.EM_FirstRun_Tutorial.first_run.moonlight_obtained")));
-		Moonlight.Actions.Add(ShowTutorial(TEXT("tutorial_card_link_moonlight")));
-		Moonlight.Actions.Add(SetQuest(
-			TEXT("Story.Quest.Main"),
-			TEXT("调整月光连携卡的方向和顺序"),
-			TEXT("Story.Source.Codex")));
-		Rules.Add(Moonlight);
-
-		FStoryRule Finisher = MakeRule(
-			TEXT("FirstRun.FinisherObtained"),
-			TEXT("Story.Event.FirstRun.FinisherObtained"),
-			100,
-			EStoryRuleFirePolicy::OncePerSave);
-		Finisher.Conditions.Add(NotHasSaveFlag(TEXT("Story.Flag.FirstRun.FinisherObtained")));
-		Finisher.Actions.Add(SetSaveFlag(TEXT("Story.Flag.FirstRun.FinisherObtained")));
-		Finisher.Actions.Add(SetSaveFlag(TEXT("Story.Encounter.Progress.EM_FirstRun_Tutorial.first_run.finisher_obtained")));
-		Finisher.Actions.Add(ShowTutorial(TEXT("tutorial_finisher")));
-		Rules.Add(Finisher);
-
-		return Rules;
-	}
-
 	TArray<FStoryRule> BuildHubOnboardingRules()
 	{
 		TArray<FStoryRule> Rules;
@@ -362,7 +238,7 @@ int32 UStoryRuleSetSetupCommandlet::Main(const FString& Params)
 	UE_LOG(LogTemp, Display, TEXT("[StoryRuleSetSetup] Mode=%s Root=%s"), bDryRun ? TEXT("DryRun") : TEXT("Apply"), *RuleRoot);
 	if (bDryRun)
 	{
-		UE_LOG(LogTemp, Display, TEXT("[StoryRuleSetSetup] Would create/update SR_MemoryTutorial, SR_FirstRun, SR_HubOnboarding."));
+		UE_LOG(LogTemp, Display, TEXT("[StoryRuleSetSetup] Would create/update SR_MemoryTutorial, SR_HubOnboarding."));
 		return 0;
 	}
 
@@ -370,10 +246,6 @@ int32 UStoryRuleSetSetupCommandlet::Main(const FString& Params)
 	WriteRuleSet(
 		LoadOrCreateRuleSet(TEXT("SR_MemoryTutorial"), bDryRun, DirtyPackages),
 		BuildMemoryTutorialRules(),
-		DirtyPackages);
-	WriteRuleSet(
-		LoadOrCreateRuleSet(TEXT("SR_FirstRun"), bDryRun, DirtyPackages),
-		BuildFirstRunRules(),
 		DirtyPackages);
 	WriteRuleSet(
 		LoadOrCreateRuleSet(TEXT("SR_HubOnboarding"), bDryRun, DirtyPackages),

@@ -792,38 +792,6 @@ void UBackpackScreenWidget::NativeOnActivated()
     OnGridNeedsRefresh();
     OnSelectionChanged();
 
-    // Tutorial 鈶細绗竴娆℃墦寮€鑳屽寘鏃跺脊绐楋紙state guard 鍐呴儴鍘婚噸锛?
-    // 涓嬩竴甯у箍鎾?鈥斺€?閬垮厤鍦?backpack 鑷韩 NativeOnActivated 璋冪敤鏍堥噷鍚屾 push TutorialPopup锛?
-    // 瑙﹀彂 CommonUI activatable stack 鎺掗槦锛屽鑷?popup 绛夊埌 backpack 鍏抽棴鍚庢墠鏄剧ず銆?
-    if (UWorld* World = GetWorld())
-    {
-        TWeakObjectPtr<UBackpackScreenWidget> WeakSelf(this);
-        World->GetTimerManager().SetTimerForNextTick(
-            FTimerDelegate::CreateLambda([WeakSelf]()
-            {
-                if (!WeakSelf.IsValid() || !WeakSelf->IsActivated())
-                {
-                    return;
-                }
-                APlayerController* PC = WeakSelf->GetOwningPlayer();
-                if (!PC)
-                {
-                    return;
-                }
-                UGameInstance* GI = WeakSelf->GetGameInstance();
-                if (!GI)
-                {
-                    return;
-                }
-                if (UStoryEngineSubsystem* StoryEngine = GI->GetSubsystem<UStoryEngineSubsystem>())
-                {
-                    StoryEngine->BroadcastStoryEvent(
-                        FGameplayTag::RequestGameplayTag(TEXT("Story.Event.FirstRun.FirstBackpackOpened"), false),
-                        PC);
-                }
-            }));
-    }
-
     if (UWorld* World = GetWorld())
     {
         World->GetTimerManager().SetTimerForNextTick(

@@ -38,7 +38,6 @@ private:
 	bool ShouldSkipForFirePolicy(FName EncounterId, const FStoryEncounterNode& Node) const;
 	void MarkNodeFired(FName EncounterId, const FStoryEncounterNode& Node);
 	bool ExecuteActorEnabledAction(const FStoryEncounterAction& Action, const FStoryEventContext& Context) const;
-	bool ExecuteTutorialAreaHintAction(const FStoryEncounterAction& Action, const FStoryEventContext& Context);
 	bool ExecuteSpawnRewardPickupAction(const FStoryEncounterAction& Action, const FStoryEventContext& Context);
 	bool ExecuteSetRoomRewardOverrideAction(const FStoryEncounterAction& Action, const FStoryEventContext& Context) const;
 	bool ExecuteSetPortalOverrideAction(const FStoryEncounterAction& Action, const FStoryEventContext& Context) const;

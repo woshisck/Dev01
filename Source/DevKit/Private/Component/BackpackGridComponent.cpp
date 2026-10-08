@@ -6,7 +6,6 @@
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "BuffFlow/BuffFlowComponent.h"
 #include "FlowAsset.h"
-#include "Tutorial/TutorialManager.h"
 #include "GameModes/YogGameMode.h"
 #include "GameModes/GameLifecycleTypes.h"
 #include "GameFramework/Pawn.h"

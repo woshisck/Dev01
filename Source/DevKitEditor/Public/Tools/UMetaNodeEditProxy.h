@@ -125,10 +125,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Legacy Player Save")
 	TArray<FCharacterSaveData> SavedCharacter;
 
-	UPROPERTY(EditAnywhere, Category = "Tutorial")
-	ETutorialState TutorialState = ETutorialState::NeedWeaponTutorial;
-
-	UPROPERTY(EditAnywhere, Category = "Tutorial")
+	UPROPERTY(EditAnywhere, Category = "Popups")
 	TSet<FGameplayTag> ShownPopupKeys;
 
 	UPROPERTY(EditAnywhere, Category = "Statistics", meta = (ClampMin = "0"))

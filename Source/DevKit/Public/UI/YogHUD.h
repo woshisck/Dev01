@@ -8,8 +8,6 @@
 #include "MetaProgression/YogMetaProgressionSubsystem.h"
 #include "YogHUD.generated.h"
 
-class UTutorialPopupWidget;
-class UTutorialRegistryDA;
 class UYogSaveGame;
 class APostProcessVolume;
 class UWeaponGlassAnimDA;
@@ -51,18 +49,6 @@ class DEVKIT_API AYogHUD : public AHUD
 	GENERATED_BODY()
 
 public:
-	// ─────────────────────────────────────────
-	//  Tutorial
-	// ─────────────────────────────────────────
-
-	UPROPERTY(EditDefaultsOnly, Category = "Tutorial")
-	TSubclassOf<UTutorialPopupWidget> TutorialPopupClass;
-
-	/** 教程注册表（项目级唯一，配置一次永不再动）。
-	 *  里面的 TMap<FName, UDialogContentDA*> 管理所有 EventID → 弹窗内容的映射。 */
-	UPROPERTY(EditDefaultsOnly, Category = "Tutorial")
-	TObjectPtr<UTutorialRegistryDA> TutorialRegistry;
-
 	// ─────────────────────────────────────────
 	//  主 HUD 容器
 	// ─────────────────────────────────────────
@@ -370,9 +356,6 @@ private:
 	TObjectPtr<UPauseMenuWidget> PauseMenuWidget;
 
 	UPROPERTY()
-	TObjectPtr<UTutorialPopupWidget> TutorialPopupWidget;
-
-	UPROPERTY()
 	TObjectPtr<APostProcessVolume> PausePPVolume;
 
 	int32 PausePopupCount  = 0;
@@ -507,9 +490,6 @@ private:
 	void TickPortalPreview(float DeltaSeconds);
 	void TickBlackoutFade(float DeltaSeconds);
 	void ApplyBlackoutPP();
-
-	UFUNCTION()
-	void OnSaveGameLoaded(UYogSaveGame* SaveGame);
 
 	UFUNCTION()
 	void OnWeaponFlyComplete(UTexture2D* Thumbnail);

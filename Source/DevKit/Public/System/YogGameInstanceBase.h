@@ -296,9 +296,6 @@ public:
 	UPROPERTY(EditDefaultsOnly, Config, BlueprintReadOnly, Category = "Frontend")
 	FSoftObjectPath MainGameMap;
 
-	UPROPERTY(EditDefaultsOnly, Config, BlueprintReadOnly, Category = "Frontend|Tutorial")
-	FSoftObjectPath FirstRunTutorialMap;
-
 	UPROPERTY(EditDefaultsOnly, Config, BlueprintReadOnly, Category = "Frontend")
 	FSoftObjectPath FrontendMap;
 
@@ -328,9 +325,6 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Frontend")
 	void StartNormalRunFromFrontend();
-
-	void QueueFirstRunWorldRewindHint();
-	bool ConsumeFirstRunWorldRewindHint();
 
 	// Continue 按钮：恢复存档点中断的局；若无有效存档点则行为同 StartNewRunFromFrontend
 	UFUNCTION(BlueprintCallable, Category = "Frontend")
@@ -377,8 +371,6 @@ public:
 	TArray<FSequenceStep> Steps;
 	int32 CurrentIndex = 0;
 	FTimerHandle StepTimerHandle;
-
-	bool bPendingFirstRunWorldRewindHint = false;
 
 
 	///////////////////////////////////////////////////////////////////////////////////

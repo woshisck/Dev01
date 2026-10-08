@@ -7,7 +7,6 @@
 #include "SaveGame/YogSaveGame.h"
 #include "SaveGame/YogSaveSubsystem.h"
 #include "Story/StoryEngineSettings.h"
-#include "Tutorial/TutorialManager.h"
 #include "UI/YogHUD.h"
 
 void UStoryEngineSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -475,17 +474,8 @@ bool UStoryEngineSubsystem::EvaluateCondition(const FStoryCondition& Condition, 
 			bResult = false;
 		}
 		break;
-	case EStoryConditionType::TutorialStateEquals:
-		if (const UTutorialManager* TutorialManager = GetGameInstance()
-			? GetGameInstance()->GetSubsystem<UTutorialManager>()
-			: nullptr)
-		{
-			bResult = TutorialManager->GetState() == Condition.TutorialState;
-		}
-		else
-		{
-			bResult = false;
-		}
+	case EStoryConditionType::Deprecated_TutorialStateEquals:
+		bResult = false;
 		break;
 	case EStoryConditionType::RunCountAtLeast:
 		if (const UYogSaveGame* Save = GetCurrentSave())
@@ -542,28 +532,7 @@ void UStoryEngineSubsystem::DispatchAction(const FStoryAction& Action, const FSt
 			}
 		}
 		break;
-	case EStoryActionType::ShowTutorialPopup:
-		if (UTutorialManager* TutorialManager = GetGameInstance()
-			? GetGameInstance()->GetSubsystem<UTutorialManager>()
-			: nullptr)
-		{
-			APlayerController* PC = ResolvePlayerController(Context);
-			// 优先 Registry/DA 路径：DA 里手填的 Illustration 才能正确显示贴图；
-			// inline pages 是 JSON 导入产物，遇到贴图路径解析失败时会静默写 nullptr。
-			// Registry 没条目时退回 inline，inline 也没有再用 EventID 走 BuildFallbackTutorialPages 兜底文字。
-			if (!Action.TutorialEventId.IsNone() && TutorialManager->HasRegisteredEvent(Action.TutorialEventId))
-			{
-				TutorialManager->ShowByEventID(Action.TutorialEventId, PC, Action.bPauseGame);
-			}
-			else if (Action.TutorialPages.Num() > 0)
-			{
-				TutorialManager->ShowInlinePages(Action.TutorialPages, PC, Action.bPauseGame);
-			}
-			else
-			{
-				TutorialManager->ShowByEventID(Action.TutorialEventId, PC, Action.bPauseGame);
-			}
-		}
+	case EStoryActionType::Deprecated_ShowTutorialPopup:
 		break;
 	case EStoryActionType::ShowInfoHint:
 		if (APlayerController* PlayerController = ResolvePlayerController(Context))

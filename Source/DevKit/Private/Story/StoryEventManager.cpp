@@ -5,8 +5,6 @@
 #include "LevelFlow/LevelFlowAsset.h"
 #include "Story/StoryEngineSubsystem.h"
 #include "Story/StoryEventRegistryDA.h"
-#include "Tutorial/TutorialHintDataAsset.h"
-#include "Tutorial/TutorialManager.h"
 
 void UStoryEventManager::SetRegistry(UStoryEventRegistryDA* InRegistry)
 {
@@ -43,9 +41,6 @@ void UStoryEventManager::ProcessCampaignStage(int32 FloorIndex, FGameplayTag Sta
 		}
 
 		Context.ActionType = Entry->ActionType;
-		Context.ResolvedTutorialEventID = Entry->TutorialEventID.IsNone()
-			? FName(*EventTag.ToString())
-			: Entry->TutorialEventID;
 		Context.ResolvedLevelFlow = Entry->LevelFlow;
 
 		if (Entry->bFireOncePerRun && FiredRunEventTags.HasTagExact(EventTag))
@@ -55,18 +50,11 @@ void UStoryEventManager::ProcessCampaignStage(int32 FloorIndex, FGameplayTag Sta
 			continue;
 		}
 
-		if (ShouldSkipForTutorialState(*Entry))
-		{
-			Context.Result = EStoryEventDispatchResult::SkippedTutorialCompleted;
-			OnStoryEventSkipped.Broadcast(Context);
-			continue;
-		}
-
 		bool bHandled = false;
 		switch (Entry->ActionType)
 		{
-		case EStoryEventActionType::TutorialPopup:
-			bHandled = DispatchTutorialPopup(*Entry, Context, PlayerController);
+		case EStoryEventActionType::Deprecated_TutorialPopup:
+			bHandled = false;
 			break;
 		case EStoryEventActionType::LevelFlow:
 			bHandled = DispatchLevelFlow(*Entry, Context);
@@ -114,43 +102,6 @@ FStoryEventRuntimeContext UStoryEventManager::BuildContext(int32 FloorIndex, FGa
 	Context.EventTag = EventTag;
 	Context.RoomData = RoomData;
 	return Context;
-}
-
-bool UStoryEventManager::ShouldSkipForTutorialState(const FStoryEventEntry& Entry) const
-{
-	if (!Entry.bOnlyWhenTutorialIncomplete)
-	{
-		return false;
-	}
-
-	const UTutorialManager* TutorialManager = GetGameInstance()
-		? GetGameInstance()->GetSubsystem<UTutorialManager>()
-		: nullptr;
-	return TutorialManager && TutorialManager->GetState() == ETutorialState::Completed;
-}
-
-bool UStoryEventManager::DispatchTutorialPopup(const FStoryEventEntry& Entry, FStoryEventRuntimeContext& Context,
-	APlayerController* PlayerController)
-{
-	UTutorialManager* TutorialManager = GetGameInstance()
-		? GetGameInstance()->GetSubsystem<UTutorialManager>()
-		: nullptr;
-	if (!TutorialManager || !PlayerController)
-	{
-		return false;
-	}
-	if (!TutorialManager->AreTutorialPopupsEnabled())
-	{
-		UE_LOG(LogTemp, Log, TEXT("[StoryEvent] Tutorial popup skipped because tutorial popups are disabled: %s"),
-			*Entry.EventTag.ToString());
-		return true;
-	}
-
-	const FName TutorialEventID = Entry.TutorialEventID.IsNone()
-		? FName(*Entry.EventTag.ToString())
-		: Entry.TutorialEventID;
-	Context.ResolvedTutorialEventID = TutorialEventID;
-	return TutorialManager->ShowByEventID(TutorialEventID, PlayerController, Entry.bPauseGame);
 }
 
 bool UStoryEventManager::DispatchLevelFlow(const FStoryEventEntry& Entry, FStoryEventRuntimeContext& Context) const

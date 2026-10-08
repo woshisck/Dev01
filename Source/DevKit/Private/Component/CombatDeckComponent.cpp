@@ -9,7 +9,6 @@
 #include "FlowAsset.h"
 #include "Item/Weapon/WeaponDefinition.h"
 #include "SaveGame/YogSaveSubsystem.h"
-#include "Story/FirstRunTutorialDirectorSubsystem.h"
 
 static const FName CombatDeckOwnerSourceWeapon(TEXT("Weapon"));
 static const FName CombatDeckOwnerSourceReward(TEXT("Reward"));
@@ -900,22 +899,7 @@ void UCombatDeckComponent::BuildDefaultWeaponDeckSourceAssets(const UWeaponDefin
 		return;
 	}
 
-	if (UWorld* World = GetWorld())
-	{
-		if (UGameInstance* GameInstance = World->GetGameInstance())
-		{
-			if (const UYogSaveSubsystem* SaveSys = GameInstance->GetSubsystem<UYogSaveSubsystem>();
-				SaveSys && SaveSys->IsFirstRunTutorialCompleted())
-			{
-				UFirstRunTutorialDirectorSubsystem::BuildDefaultPostTutorialDeck(OutSourceAssets);
-			}
-		}
-	}
-
-	if (OutSourceAssets.IsEmpty())
-	{
-		CopyDeckSourceAssets(GetDefaultWeaponDeckSource(WeaponDefinition), OutSourceAssets);
-	}
+	CopyDeckSourceAssets(GetDefaultWeaponDeckSource(WeaponDefinition), OutSourceAssets);
 }
 
 void UCombatDeckComponent::LoadDeckFromSourceAssets(const TArray<URuneDataAsset*>& SourceAssets, float InShuffleCooldownDuration, int32 InMaxActiveSequenceSize)

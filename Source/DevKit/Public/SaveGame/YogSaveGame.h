@@ -10,7 +10,6 @@
 #include "Animation/YogAnimInstance.h"
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "Item/Weapon/WeaponInstance.h"
-#include "Tutorial/TutorialHintDataAsset.h"
 #include "MetaProgression/MetaTypes.h"
 #include "Story/StoryRuleTypes.h"
 #include "YogSaveGame.generated.h"
@@ -301,8 +300,6 @@ struct DEVKIT_API FSlotPreviewData
 	UPROPERTY() FDateTime LastPlayTime;
 	UPROPERTY() int32     HighestFloor        = 0;
 	UPROPERTY() bool      bHasPendingRun      = false; // 派生自 RunCheckpoint.bIsValid
-	UPROPERTY() bool      bFirstRunTutorialActive = false;
-	UPROPERTY() bool      bFirstRunTutorialCompleted = false;
 	UPROPERTY() int32     TotalPlayTimeSeconds = 0;
 };
 
@@ -422,13 +419,6 @@ public:
 	TArray<FCharacterSaveData> SavedCharacter;
 
 	/* Actors stored from a level (currently does not support a specific level and just assumes the demo map) */
-
-	// 教程引导状态（新存档默认 NeedWeaponTutorial，引导完成后 Completed）
-	UPROPERTY()
-	ETutorialState TutorialState = ETutorialState::NeedWeaponTutorial;
-
-	UPROPERTY()
-	int32 FirstRunTutorialStage = 0;
 
 	// 已展示过的 Save-scope 一次性弹窗 key（UYogUIManagerSubsystem::PushScreenOnce 写入）。
 	UPROPERTY()

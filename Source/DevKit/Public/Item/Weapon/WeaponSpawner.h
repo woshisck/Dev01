@@ -33,16 +33,6 @@ class UWeaponDefinition;
 struct FGameplayTag;
 struct FHitResult;
 
-UENUM(BlueprintType)
-enum class EWeaponSpawnerTutorialVisibility : uint8
-{
-	Always UMETA(DisplayName = "Always"),
-	FirstRunTutorialOnly UMETA(DisplayName = "First Run Tutorial Only"),
-	NonTutorialOnly UMETA(DisplayName = "Non Tutorial Only"),
-};
-
-
-
 UCLASS(Blueprintable, BlueprintType)
 class DEVKIT_API AWeaponSpawner : public AActor, public IPlayerInteraction, public IPickupInteractable, public IYogInteractable
 {
@@ -62,24 +52,12 @@ public:
 	virtual void Tick(float DeltaTime) override;
 	void OnConstruction(const FTransform& Transform) override;
 
-	static bool ShouldEnableForFirstRunTutorialState(
-		EWeaponSpawnerTutorialVisibility Visibility,
-		bool bIsFirstRunTutorialActive,
-		bool bHasFirstRunTutorialWeaponTag = false,
-		bool bHasMainRunStartWeaponTag = false);
-
-	UFUNCTION(BlueprintPure, Category = "Story Encounter|First Run Tutorial")
-	bool IsEnabledByFirstRunTutorialState() const { return bEnabledByFirstRunTutorialState; }
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Definition")
 	TObjectPtr<UWeaponDefinition> WeaponDefinition;
 
 	//Delay between when the weapon is made available and when we check for a pawn standing in the spawner. Used to give the bIsWeaponAvailable OnRep time to fire and play FX.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Definition")
 	float CheckExistingOverlapDelay;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Encounter|First Run Tutorial")
-	EWeaponSpawnerTutorialVisibility TutorialVisibility = EWeaponSpawnerTutorialVisibility::Always;
 
 	// --- IPlayerInteraction ---
 	virtual void OnPlayerBeginOverlap(APlayerCharacterBase* Player) override;
@@ -94,7 +72,7 @@ public:
 	// ~ IYogInteractable
 	virtual void TryInteract(APlayerCharacterBase* Player) override { TryPickupWeapon(Player); }
 	virtual int32 GetInteractPriority() const override { return YogInteractPriority::WeaponSpawner; }
-	virtual bool CanInteract(const APlayerCharacterBase* Player) const override { return bEnabledByFirstRunTutorialState && !bPickedUp; }
+	virtual bool CanInteract(const APlayerCharacterBase* Player) const override { return !bPickedUp; }
 
 	UFUNCTION(BlueprintImplementableEvent)
 	void GrantWeapon(APlayerCharacterBase* ReceivingChar);
@@ -189,8 +167,6 @@ public:
 
 private:
 
-	bool bEnabledByFirstRunTutorialState = true;
-
 	// 朝向检测：玩家在范围内时每帧判断是否应显示浮窗
 	bool bPlayerInRange       = false;
 	bool bPickedUp            = false;  // 拾取后浮窗永久隐藏
@@ -202,9 +178,6 @@ private:
 
 	void ApplySpawnDataToWeapon(AWeaponInstance* Weapon, const FWeaponSpawnData& Data);
 	void TriggerPickupStoryEncounter(APlayerCharacterBase* Player);
-	void ActivateFirstRunTutorialSpawners() const;
-	void ApplyTutorialVisibilityEnabled(bool bEnabled);
-	bool ResolveFirstRunTutorialActive() const;
 
 	float BobTimer = 0.f;
 	FVector BaseMeshOffset = FVector::ZeroVector;

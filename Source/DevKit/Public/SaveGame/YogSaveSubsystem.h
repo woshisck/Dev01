@@ -46,21 +46,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SaveGame|Slot")
 	void ResetSlotForNewGame(int32 SlotIndex);
 
-	UFUNCTION(BlueprintPure, Category = "SaveGame|FirstRunTutorial")
-	bool IsFirstRunTutorialActive() const;
-
-	UFUNCTION(BlueprintPure, Category = "SaveGame|FirstRunTutorial")
-	bool IsFirstRunTutorialCompleted() const;
-
-	UFUNCTION(BlueprintCallable, Category = "SaveGame|FirstRunTutorial")
-	void MarkFirstRunTutorialCompleted();
-
-	UFUNCTION(BlueprintCallable, Category = "SaveGame|FirstRunTutorial")
-	void SetFirstRunTutorialStage(int32 Stage);
-
-	UFUNCTION(BlueprintPure, Category = "SaveGame|FirstRunTutorial")
-	int32 GetFirstRunTutorialStage() const;
-
 	// 异步读取槽位预览（不加载全部数据，选档 UI 用）
 	UFUNCTION(BlueprintCallable, Category = "SaveGame|Slot")
 	void RequestSlotPreview(int32 SlotIndex, FOnSlotPreviewReady Callback);
@@ -68,9 +53,6 @@ public:
 	// 获取槽位存档文件名（"SaveSlot_0/1/2"）
 	UFUNCTION(BlueprintPure, Category = "SaveGame|Slot")
 	FString GetSlotName(int32 SlotIndex) const;
-
-	UFUNCTION(BlueprintPure, Category = "SaveGame|Slot")
-	int32 GetNormalGameSlotIndex() const;
 
 	// =========================================================
 	// 存档点（Checkpoint）— 三个触发点
@@ -236,9 +218,7 @@ private:
 
 	void LoadLevelData(UYogSaveGame* SaveGame);
 
-	bool IsNormalGameSlot(int32 SlotIndex) const;
-	void InitializeSaveForNewGame(UYogSaveGame* Save, bool bFirstRunTutorial) const;
-	void EnsureReservedNormalGameSlot();
+	void InitializeSaveForNewGame(UYogSaveGame* Save) const;
 
 	// 存档版本迁移（顺序逐版本升级）
 	void MigrateSaveGame(UYogSaveGame* Save, int32 FromVersion, int32 ToVersion);

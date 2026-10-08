@@ -6,7 +6,6 @@
 #include "Story/StoryRuleTypes.h"
 #include "Story/StoryRewardOverrideTypes.h"
 #include "Story/Flow/StoryFlowAsset.h"
-#include "UI/GameDialogWidget.h"
 #include "StoryEncounterTypes.generated.h"
 
 class ARewardPickup;
@@ -53,8 +52,10 @@ enum class EStoryEncounterActionKind : uint8
 	TeleportToNode UMETA(DisplayName = "跳到节点"),
 	PlayLevelFlow UMETA(DisplayName = "播放流程"),
 	SetActorEnabled UMETA(DisplayName = "设置关卡对象启用"),
-	TutorialPopup UMETA(DisplayName = "教程弹窗"),
-	TutorialAreaHint UMETA(DisplayName = "区域教程提示"),
+	// Slots retained after the tutorial system was removed, so the serialized uint8
+	// indices of the entries below stay stable in existing encounter assets.
+	Deprecated_TutorialPopup UMETA(Hidden),
+	Deprecated_TutorialAreaHint UMETA(Hidden),
 	SpawnRewardPickup UMETA(DisplayName = "Spawn Reward Pickup"),
 	SetRoomRewardOverride UMETA(DisplayName = "Set Room Reward Override"),
 	SetPortalOverride UMETA(DisplayName = "Set Portal Override"),
@@ -109,12 +110,6 @@ struct DEVKIT_API FStoryEncounterAction
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Action", meta = (MultiLine = true))
 	FText GamepadBody;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Action")
-	FName TutorialEventId;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Action")
-	TArray<FTutorialPage> TutorialPages;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Action")
 	bool bPauseGame = true;

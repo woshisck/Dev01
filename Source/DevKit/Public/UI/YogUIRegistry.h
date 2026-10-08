@@ -13,7 +13,9 @@ enum class EYogUIScreenId : uint8
 	Backpack,
 	LootSelection,
 	PauseMenu,
-	TutorialPopup,
+	// Slot retained after the tutorial system was removed: this enum is serialized as a raw
+	// uint8 index inside UYogUIRegistry assets, so deleting it would shift every id below.
+	Deprecated_TutorialPopup UMETA(Hidden),
 	SacrificeGraceOption,
 	InfoPopup,
 	PortalPreview,
@@ -35,8 +37,7 @@ enum class EYogUIScreenId : uint8
 	GameOver,
 	RuntimeGM,
 
-	// Ambient speech bubble / corner toast. Distinct from TutorialPopup: that one is the
-	// full-screen paged modal for onboarding, this one never takes focus or pauses.
+	// Ambient speech bubble / corner toast. Never takes focus or pauses.
 	// Append new ids only — the enum is serialized as uint8 inside the UYogUIRegistry asset.
 	BubbleMessage
 };

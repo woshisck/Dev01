@@ -32,7 +32,6 @@ static bool IsInteractiveManagedScreen(EYogUIScreenId ScreenId)
 	case EYogUIScreenId::Backpack:
 	case EYogUIScreenId::LootSelection:
 	case EYogUIScreenId::PauseMenu:
-	case EYogUIScreenId::TutorialPopup:
 	case EYogUIScreenId::ShopSelection:
 	case EYogUIScreenId::AltarMenu:
 	case EYogUIScreenId::SacrificeSelection:
@@ -245,8 +244,7 @@ FYogUIScreenInputPolicy UYogUIManagerSubsystem::GetInputPolicyForScreen(EYogUISc
 	{
 		Policy.bShowMouseCursor = true;
 		Policy.bPauseGame = true;
-		Policy.bAffectsMajorUI = ScreenId != EYogUIScreenId::TutorialPopup
-			&& ScreenId != EYogUIScreenId::PauseMenu
+		Policy.bAffectsMajorUI = ScreenId != EYogUIScreenId::PauseMenu
 			&& ScreenId != EYogUIScreenId::GameOver;
 	}
 	if (ScreenId == EYogUIScreenId::LootSelection)

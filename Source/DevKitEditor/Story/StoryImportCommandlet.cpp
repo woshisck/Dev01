@@ -19,7 +19,6 @@
 #include "Story/Encounter/StoryEncounterGraphNode.h"
 #include "Story/Encounter/StoryEncounterPointDataAsset.h"
 #include "Story/Flow/StoryFlowAsset.h"
-#include "UI/GameDialogWidget.h"
 #include "Engine/Texture2D.h"
 #include "UObject/Package.h"
 
@@ -152,24 +151,6 @@ FString ToLoadableObjectPath(const FString& AssetPath)
 	return ToObjectPath(AssetPath);
 }
 
-FTutorialPage ParseTutorialPage(const TSharedPtr<FJsonObject>& Object)
-{
-	FTutorialPage Page;
-	Page.Title = FText::FromString(GetString(Object, TEXT("title")));
-	Page.Body = FText::FromString(GetString(Object, TEXT("body")));
-	Page.SubText = FText::FromString(GetString(Object, TEXT("subText")));
-
-	const FString IllustrationPath = GetString(Object, TEXT("illustration"));
-	if (!IllustrationPath.IsEmpty())
-	{
-		Page.Illustration = Cast<UTexture2D>(StaticLoadObject(
-			UTexture2D::StaticClass(),
-			nullptr,
-			*ToLoadableObjectPath(IllustrationPath)));
-	}
-	return Page;
-}
-
 ELootType ParseLootType(const FString& Value)
 {
 	if (Value.Equals(TEXT("Gold"), ESearchCase::IgnoreCase)) return ELootType::Gold;
@@ -239,7 +220,6 @@ EStoryEncounterConditionKind ParseConditionKind(const FString& Value)
 
 EStoryEncounterActionKind ParseActionKind(const FString& Value)
 {
-	if (Value.Equals(TEXT("TutorialAreaHint"), ESearchCase::IgnoreCase)) return EStoryEncounterActionKind::TutorialAreaHint;
 	if (Value.Equals(TEXT("Dialogue"), ESearchCase::IgnoreCase)) return EStoryEncounterActionKind::Dialogue;
 	if (Value.Equals(TEXT("RecordProgress"), ESearchCase::IgnoreCase)) return EStoryEncounterActionKind::RecordProgress;
 	if (Value.Equals(TEXT("UnlockFeature"), ESearchCase::IgnoreCase)) return EStoryEncounterActionKind::UnlockFeature;
@@ -247,7 +227,6 @@ EStoryEncounterActionKind ParseActionKind(const FString& Value)
 	if (Value.Equals(TEXT("TeleportToNode"), ESearchCase::IgnoreCase)) return EStoryEncounterActionKind::TeleportToNode;
 	if (Value.Equals(TEXT("PlayLevelFlow"), ESearchCase::IgnoreCase)) return EStoryEncounterActionKind::PlayLevelFlow;
 	if (Value.Equals(TEXT("SetActorEnabled"), ESearchCase::IgnoreCase)) return EStoryEncounterActionKind::SetActorEnabled;
-	if (Value.Equals(TEXT("TutorialPopup"), ESearchCase::IgnoreCase)) return EStoryEncounterActionKind::TutorialPopup;
 	if (Value.Equals(TEXT("SpawnRewardPickup"), ESearchCase::IgnoreCase)) return EStoryEncounterActionKind::SpawnRewardPickup;
 	if (Value.Equals(TEXT("SetRoomRewardOverride"), ESearchCase::IgnoreCase)) return EStoryEncounterActionKind::SetRoomRewardOverride;
 	if (Value.Equals(TEXT("SetPortalOverride"), ESearchCase::IgnoreCase)) return EStoryEncounterActionKind::SetPortalOverride;
@@ -295,16 +274,7 @@ FStoryEncounterAction ParseAction(const TSharedPtr<FJsonObject>& Object)
 	Action.bUseInputTextVariants = GetBool(Object, TEXT("useInputTextVariants"), !KeyboardMouseBody.IsEmpty() || !GamepadBody.IsEmpty());
 	Action.KeyboardMouseBody = FText::FromString(KeyboardMouseBody);
 	Action.GamepadBody = FText::FromString(GamepadBody);
-	Action.TutorialEventId = FName(*GetString(Object, TEXT("tutorialEventId")));
-	Action.TutorialPages.Reset();
-	for (const TSharedPtr<FJsonValue>& PageValue : GetArray(Object, TEXT("tutorialPages")))
-	{
-		if (const TSharedPtr<FJsonObject>* PageObject = nullptr; PageValue->TryGetObject(PageObject))
-		{
-			Action.TutorialPages.Add(ParseTutorialPage(*PageObject));
-		}
-	}
-	Action.bPauseGame = !GetString(Object, TEXT("pauseGame")).Equals(TEXT("false"), ESearchCase::IgnoreCase);
+	Action.bPauseGame =!GetString(Object, TEXT("pauseGame")).Equals(TEXT("false"), ESearchCase::IgnoreCase);
 	Action.ProgressKey = FName(*GetString(Object, TEXT("progressKey")));
 	Action.ProgressLabel = FText::FromString(GetString(Object, TEXT("progressLabel")));
 	const FString FeatureTag = GetString(Object, TEXT("featureTag"));

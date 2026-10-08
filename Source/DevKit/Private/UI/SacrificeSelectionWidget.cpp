@@ -11,7 +11,6 @@
 #include "Input/CommonUIInputTypes.h"
 #include "InputCoreTypes.h"
 #include "Map/AltarActor.h"
-#include "Story/FirstRunTutorialDirectorSubsystem.h"
 #include "UI/YogHUD.h"
 #include "UI/YogCommonUITextBlock.h"
 #include "UI/YogInputKeyUtils.h"
@@ -226,39 +225,18 @@ void USacrificeSelectionWidget::Setup(UAltarDataAsset* InData, APlayerCharacterB
 	}
 
 	TArray<FAltarSacrificeEntry> Pool = InData->SacrificeRunePool;
-	UFirstRunTutorialDirectorSubsystem* TutorialDirector = GetGameInstance()
-		? GetGameInstance()->GetSubsystem<UFirstRunTutorialDirectorSubsystem>()
-		: nullptr;
 	UE_LOG(LogTemp, Warning,
-		TEXT("[AltarInteractDebug] SacrificeSetup Data=%s Player=%s SourceAltar=%s Director=%s Stage=%d OverrideActive=%d EventRune=%s PoolNum=%d"),
+		TEXT("[AltarInteractDebug] SacrificeSetup Data=%s Player=%s SourceAltar=%s EventRune=%s PoolNum=%d"),
 		*GetNameSafe(InData),
 		*GetNameSafe(InPlayer),
 		*GetNameSafe(InSourceAltar),
-		*GetNameSafe(TutorialDirector),
-		TutorialDirector ? static_cast<int32>(TutorialDirector->GetStage()) : -1,
-		TutorialDirector && TutorialDirector->IsPrayerSacrificeOverrideActive() ? 1 : 0,
 		InData ? *GetNameSafe(InData->EventSacrificeRune.Get()) : TEXT("None"),
 		InData ? InData->SacrificeRunePool.Num() : 0);
-	if (TutorialDirector && TutorialDirector->IsPrayerSacrificeOverrideActive())
-	{
-		FAltarSacrificeEntry TutorialEntry;
-		TutorialEntry.GrantedRune = TutorialDirector->ResolveSacrificeRewardOverride(InData->EventSacrificeRune);
-		TutorialEntry.CostType = ESacrificeOfferingCostType::SacrificeDeckCard;
-		TutorialEntry.CostDescription = GetCostFallbackText(TutorialEntry.CostType);
-		Pool = { TutorialEntry };
-		UE_LOG(LogTemp, Warning,
-			TEXT("[AltarInteractDebug] SacrificeSetup using tutorial finisher override Rune=%s"),
-			*GetNameSafe(TutorialEntry.GrantedRune.Get()));
-	}
 	for (FAltarSacrificeEntry& Entry : Pool)
 	{
 		if (!Entry.GrantedRune)
 		{
 			Entry.GrantedRune = InData->EventSacrificeRune;
-		}
-		if (TutorialDirector)
-		{
-			Entry.GrantedRune = TutorialDirector->ResolveSacrificeRewardOverride(Entry.GrantedRune);
 		}
 		UE_LOG(LogTemp, Warning,
 			TEXT("[AltarInteractDebug] SacrificeSetup option Rune=%s CostType=%d CostDesc=%s"),
@@ -368,14 +346,6 @@ void USacrificeSelectionWidget::ConfirmSacrifice()
 	{
 		GrantedRune = AltarData->EventSacrificeRune;
 	}
-	if (UFirstRunTutorialDirectorSubsystem* Director = GetGameInstance()
-		? GetGameInstance()->GetSubsystem<UFirstRunTutorialDirectorSubsystem>()
-		: nullptr)
-	{
-		GrantedRune = Director->ResolveSacrificeRewardOverride(GrantedRune);
-		Director->HandleSacrificeConfirmed(GrantedRune, OwningPlayer.Get());
-	}
-
 	OnSacrificeFinished(true);
 	if (AAltarActor* Altar = SourceAltar.Get())
 	{
@@ -696,12 +666,6 @@ bool USacrificeSelectionWidget::GrantSelectedRune()
 	if (!Rune && AltarData)
 	{
 		Rune = AltarData->EventSacrificeRune;
-	}
-	if (UFirstRunTutorialDirectorSubsystem* Director = GetGameInstance()
-		? GetGameInstance()->GetSubsystem<UFirstRunTutorialDirectorSubsystem>()
-		: nullptr)
-	{
-		Rune = Director->ResolveSacrificeRewardOverride(Rune);
 	}
 	if (!Rune)
 	{

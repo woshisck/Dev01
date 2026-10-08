@@ -2,8 +2,6 @@
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
-#include "Tutorial/TutorialHintDataAsset.h"
-#include "UI/GameDialogWidget.h"
 #include "StoryRuleTypes.generated.h"
 
 class AActor;
@@ -40,7 +38,9 @@ enum class EStoryConditionType : uint8
 	None UMETA(DisplayName = "None"),
 	HasFlag UMETA(DisplayName = "Has Flag"),
 	FeatureUnlocked UMETA(DisplayName = "Feature Unlocked"),
-	TutorialStateEquals UMETA(DisplayName = "Tutorial State Equals"),
+	// Slot retained after the tutorial system was removed, to keep the serialized
+	// uint8 indices of the entries below stable in existing SR_* rule assets.
+	Deprecated_TutorialStateEquals UMETA(Hidden),
 	RunCountAtLeast UMETA(DisplayName = "Run Count At Least"),
 	EventTagEquals UMETA(DisplayName = "Event Tag Equals"),
 	ContextTagMatches UMETA(DisplayName = "Context Tag Matches"),
@@ -53,7 +53,7 @@ enum class EStoryActionType : uint8
 	SetFlag UMETA(DisplayName = "Set Flag"),
 	ClearFlag UMETA(DisplayName = "Clear Flag"),
 	PlayLevelFlow UMETA(DisplayName = "Play Level Flow"),
-	ShowTutorialPopup UMETA(DisplayName = "Show Tutorial Popup"),
+	Deprecated_ShowTutorialPopup UMETA(Hidden),
 	ShowInfoHint UMETA(DisplayName = "Show Info Hint"),
 	SetQuestTask UMETA(DisplayName = "Set Quest Task"),
 	CompleteQuestTask UMETA(DisplayName = "Complete Quest Task"),
@@ -135,9 +135,6 @@ struct DEVKIT_API FStoryCondition
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story")
 	FGameplayTag FeatureTag;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story")
-	ETutorialState TutorialState = ETutorialState::None;
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story", meta = (ClampMin = "0"))
 	int32 RunCount = 0;
 
@@ -164,12 +161,6 @@ struct DEVKIT_API FStoryAction
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story")
 	bool bStopExistingStoryFlow = true;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story")
-	FName TutorialEventId;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story")
-	TArray<FTutorialPage> TutorialPages;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story")
 	bool bPauseGame = true;

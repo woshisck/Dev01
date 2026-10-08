@@ -34,12 +34,10 @@
 #include "Map/AltarActor.h"
 #include "Map/ShopActor.h"
 #include "UI/LootSelectionWidget.h"
-#include "Tutorial/TutorialManager.h"
 #include "UI/YogHUD.h"
 #include "LevelFlow/LevelFlowAsset.h"
 #include "Story/StoryEngineSubsystem.h"
 #include "Story/StoryEventManager.h"
-#include "Story/FirstRunTutorialDirectorSubsystem.h"
 #include "FlowAsset.h"
 #include "FlowComponent.h"
 #include "Engine/Texture2D.h"
@@ -48,19 +46,6 @@
 #include "MetaProgression/YogMetaProgressionSubsystem.h"
 #include "World/HubFacilityActor.h"
 #include "NavigationSystem.h"
-
-static constexpr const TCHAR* FirstRunForcedSurvivalEnemyDataPath = TEXT("/Game/Docs/Data/Enemy/RottenGuard/DA_RottenGuard.DA_RottenGuard");
-static constexpr const TCHAR* FirstRunRewardBurnRunePath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Burn.DA_Rune512_Burn");
-static constexpr const TCHAR* FirstRunRewardPoisonRunePath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Poison.DA_Rune512_Poison");
-static constexpr const TCHAR* FirstRunRewardKnockbackRunePath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Knockback.DA_Rune512_Knockback");
-static constexpr const TCHAR* FirstRunRewardSplashRunePath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Splash.DA_Rune512_Splash");
-static constexpr const TCHAR* FirstRunGoldIconPath = TEXT("/Game/UI/Playtest_UI/UI_Tex/HUD/T_GoldCoinIcon.T_GoldCoinIcon");
-static constexpr int32 FirstRunInitialGoldRewardAmount = 50;
-
-static UEnemyData* LoadFirstRunForcedSurvivalEnemyData()
-{
-	return LoadObject<UEnemyData>(nullptr, FirstRunForcedSurvivalEnemyDataPath);
-}
 
 static FName ResolveRoomLevelNameForOpen(FName RequestedLevel, const URoomDataAsset* Room)
 {
@@ -180,37 +165,6 @@ static bool PlayerHasEquippedWeapon(const UWorld* World)
 	return Player && (Player->EquippedWeaponDef || Player->EquippedWeaponInstance);
 }
 
-static FLootOption MakeFirstRunGoldLootOption(int32 Amount)
-{
-	FLootOption Option;
-	Option.LootType = ELootType::Gold;
-	Option.Amount = FMath::Max(1, Amount);
-	Option.DisplayName = FText::Format(NSLOCTEXT("FirstRunTutorial", "InitialGoldRewardFmt", "Gold x{0}"), Option.Amount);
-	Option.Icon = LoadObject<UTexture2D>(nullptr, FirstRunGoldIconPath);
-	return Option;
-}
-
-static void ShowFirstRunWorldRewindHint(UObject* Outer, APlayerController* PC)
-{
-	if (!Outer || !PC)
-	{
-		return;
-	}
-
-	AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD());
-	if (!HUD)
-	{
-		return;
-	}
-
-	ULevelInfoPopupDA* Popup = NewObject<ULevelInfoPopupDA>(Outer);
-	Popup->Title = FText::GetEmpty();
-	Popup->Body = NSLOCTEXT("FirstRunTutorial", "WorldRewindHintBody", "世界回溯");
-	Popup->HUDSummaryText = Popup->Body;
-	Popup->DisplayDuration = 3.0f;
-	HUD->ShowInfoPopup(Popup);
-}
-
 AYogGameMode::AYogGameMode(const FObjectInitializer& ObjectInitializer)
 {
 	bAutoSpawnPlayer = false;
@@ -318,17 +272,6 @@ void AYogGameMode::ResolveActiveCampaignData()
 	UCampaignDataAsset* ResolvedCampaign = CampaignData;
 	const TCHAR* Source = TEXT("CampaignData");
 
-	if (UYogSaveSubsystem* SaveSys = GetGameInstance()
-		? GetGameInstance()->GetSubsystem<UYogSaveSubsystem>()
-		: nullptr)
-	{
-		if (SaveSys->IsFirstRunTutorialActive() && FirstRunTutorialCampaignData)
-		{
-			ResolvedCampaign = FirstRunTutorialCampaignData;
-			Source = TEXT("FirstRunTutorialCampaignData");
-		}
-	}
-
 	if (const UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance()))
 	{
 		if (GI->HasCampaignOverride())
@@ -340,11 +283,10 @@ void AYogGameMode::ResolveActiveCampaignData()
 
 	ActiveCampaignData = ResolvedCampaign;
 
-	UE_LOG(LogTemp, Log, TEXT("[Campaign] Active=%s Source=%s Main=%s FirstRun=%s"),
+	UE_LOG(LogTemp, Log, TEXT("[Campaign] Active=%s Source=%s Main=%s"),
 		*GetNameSafe(ActiveCampaignData),
 		Source,
-		*GetNameSafe(CampaignData),
-		*GetNameSafe(FirstRunTutorialCampaignData));
+		*GetNameSafe(CampaignData));
 }
 
 
@@ -762,7 +704,7 @@ void AYogGameMode::ApplyStoryNextRoomPlanForCurrentRoom(const FStoryNextRoomPlan
 	StorySpecialRewardEnemyAuraFX = Plan.SpecialRewardEnemyAuraFX;
 
 	UE_LOG(LogTemp, Log,
-		TEXT("[FirstRunTutorialDirector] Applied story plan to current room. RewardOverride=%d RewardCount=%d SuppressClearReward=%d SpecialEnemy=%d SpecialLootCount=%d"),
+		TEXT("[StoryRewardDebug] Applied story plan to current room. RewardOverride=%d RewardCount=%d SuppressClearReward=%d SpecialEnemy=%d SpecialLootCount=%d"),
 		Plan.bOverrideRewardOptions ? 1 : 0,
 		Plan.RewardOptionsOverride.Num(),
 		bSuppressRoomClearRewardPickup ? 1 : 0,
@@ -790,7 +732,6 @@ void AYogGameMode::EnterArrangementPhase()
 
 	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(
 		UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
-	const bool bUseFirstRunInitialSplitReward = ShouldSpawnFirstRunInitialCardReward();
 
 	if (Player)
 	{
@@ -801,7 +742,7 @@ void AYogGameMode::EnterArrangementPhase()
 		}
 
 		// 发放金币（按当前关卡 FloorConfig 中的范围）
-		if (GetActiveCampaignData() && ActiveGoldMax > 0 && !bHasRoomRewardOptionsOverride && !bUseFirstRunInitialSplitReward)
+		if (GetActiveCampaignData() && ActiveGoldMax > 0 && !bHasRoomRewardOptionsOverride)
 		{
 			const int32 GoldReward = FMath::RandRange(ActiveGoldMin, ActiveGoldMax);
 			if (Player->BackpackGridComponent)
@@ -868,11 +809,6 @@ void AYogGameMode::EnterArrangementPhase()
 					Batch = RoomRewardOptionsOverride;
 					RewardSource = TEXT("RoomRewardOverride");
 				}
-				else if (bUseFirstRunInitialSplitReward)
-				{
-					Batch.Add(MakeFirstRunGoldLootOption(FirstRunInitialGoldRewardAmount));
-					RewardSource = TEXT("FirstRunInitialGold");
-				}
 				else
 				{
 					Batch = (ActiveRoomData && ActiveRoomData->bUseFixedRewardOptions)
@@ -901,10 +837,8 @@ void AYogGameMode::EnterArrangementPhase()
 	}
 	else if (bSuppressRoomClearRewardPickup)
 	{
-		UE_LOG(LogTemp, Log, TEXT("[FirstRunTutorialDirector] Room clear RewardPickup suppressed by story plan."));
+		UE_LOG(LogTemp, Log, TEXT("[StoryRewardDebug] Room clear RewardPickup suppressed by story plan."));
 	}
-
-	SpawnFirstRunInitialCardRewardPickup(LootSpawnLoc);
 
 	// Legacy extra reward pickup roll. Disabled by default while rooms should emit one pickup.
 	SpawnSacrificeEventAltar(LootSpawnLoc);
@@ -1002,11 +936,6 @@ void AYogGameMode::EnterArrangementPhase()
 	}
 
 	// 开启传送门
-	if (UFirstRunTutorialDirectorSubsystem* Director = GetGameInstance()->GetSubsystem<UFirstRunTutorialDirectorSubsystem>())
-	{
-		Director->HandleArrangementPhase(this);
-	}
-
 	ActivatePortals();
 
 	// v3：启用 HUD 传送门引导（单例浮窗 + 屏幕边缘方位箭头）。主城（HubRoom）跳过
@@ -1063,7 +992,6 @@ void AYogGameMode::SelectLoot(int32 LootIndex)
 		}
 	}
 
-	// 512 reward-card tutorial: only trigger when the reward actually entered the combat deck.
 	if (bAddedCombatCardToDeck)
 	{
 		if (UStoryEngineSubsystem* StoryEngine = GetGameInstance()->GetSubsystem<UStoryEngineSubsystem>())
@@ -1077,18 +1005,6 @@ void AYogGameMode::SelectLoot(int32 LootIndex)
 				RuneItemTag,
 				Player,
 				PC);
-			StoryEngine->BroadcastStoryEventWithPayload(
-				FGameplayTag::RequestGameplayTag(TEXT("Story.Event.FirstRun.FirstRuneObtained"), false),
-				RuneItemTag,
-				ActiveGlobalStageTag,
-				RuneItemTag,
-				Player,
-				PC);
-		}
-
-		if (UFirstRunTutorialDirectorSubsystem* Director = GetGameInstance()->GetSubsystem<UFirstRunTutorialDirectorSubsystem>())
-		{
-			Director->HandleRewardRuneAdded(Chosen.RuneAsset, Player);
 		}
 	}
 
@@ -1250,23 +1166,6 @@ void AYogGameMode::SpawnSacrificeEventAltar(const FVector& LootSpawnLoc)
 		Altar->SetSacrificeWidgetClass(ActiveRoomData->SacrificeEventWidgetClass);
 		Altar->SetOpenSacrificeDirectly(true);
 		Altar->EnsureInteractBoxMinimumExtent(FVector(240.f, 240.f, 180.f));
-
-		if (UGameInstance* GI = GetGameInstance())
-		{
-			const UYogSaveSubsystem* SaveSys = GI->GetSubsystem<UYogSaveSubsystem>();
-			if (SaveSys && SaveSys->IsFirstRunTutorialActive())
-			{
-				if (UFirstRunTutorialDirectorSubsystem* Director = GI->GetSubsystem<UFirstRunTutorialDirectorSubsystem>())
-				{
-					Director->SetStage(EFirstRunTutorialStage::PrayerRoom);
-					UE_LOG(LogTemp, Warning,
-						TEXT("[AltarInteractDebug] First-run sacrifice altar configured as PrayerRoom. Room=%s Altar=%s FinisherRune=%s"),
-						*GetNameSafe(ActiveRoomData),
-						*GetNameSafe(Altar),
-						*GetNameSafe(UFirstRunTutorialDirectorSubsystem::LoadFirstRunFinisherRune()));
-				}
-			}
-		}
 
 		Altar->SetAltarActive(true);
 
@@ -1440,7 +1339,6 @@ void AYogGameMode::HandlePlayerDeath(APlayerCharacterBase* Player)
 	TM.ClearTimer(OneByOneTimer);
 	TM.ClearTimer(InitialSpawnDelayTimer);
 	TM.ClearTimer(DemandSpawnTimer);
-	TM.ClearTimer(ForcedSurvivalSpawnTimer);
 
 	if (UStoryEngineSubsystem* StoryEngine = GetGameInstance()->GetSubsystem<UStoryEngineSubsystem>())
 	{
@@ -1464,18 +1362,6 @@ void AYogGameMode::HandlePlayerDeath(APlayerCharacterBase* Player)
 	}
 
 	bScriptedDefeatGameOver = false;
-	if (UFirstRunTutorialDirectorSubsystem* Director = GetGameInstance()->GetSubsystem<UFirstRunTutorialDirectorSubsystem>())
-	{
-		if (Director->ShouldHandleScriptedDefeatDeath())
-		{
-			// Apply tutorial completion side-effects immediately so subsequent map loads
-			// (whichever path the player picks from the death menu) treat the tutorial as finished
-			// and the world-rewind hint fires on the first hub room.
-			Director->HandleScriptedDefeatDeath(this);
-			bScriptedDefeatGameOver = true;
-			bPlayerDeathReviveUsed = true;
-		}
-	}
 
 	if (!bScriptedDefeatGameOver && CanOfferPlayerDeathRevive(bGameOverTriggered, bPlayerDeathReviveUsed) && Player)
 	{
@@ -1701,8 +1587,6 @@ void AYogGameMode::StartLevelSpawning()
 	bStorySpecialRewardEnemyEnabled = false;
 	StorySpecialRewardEnemyLootOptions.Reset();
 	StorySpecialRewardEnemyAuraFX = nullptr;
-	bForcedSurvivalActive = false;
-	GetWorldTimerManager().ClearTimer(ForcedSurvivalSpawnTimer);
 
 	UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance());
 
@@ -1929,11 +1813,6 @@ void AYogGameMode::StartLevelSpawning()
 			{
 				HUD->HideCurrentRoomBuffs();
 			}
-
-			if (GI && GI->ConsumeFirstRunWorldRewindHint())
-			{
-				ShowFirstRunWorldRewindHint(this, PC);
-			}
 		}
 
 		UE_LOG(LogTemp, Log, TEXT("StartLevelSpawning: [HubRoom] %s — 跳过刷怪，立即开启传送门"), *ActiveRoomData->GetName());
@@ -2071,35 +1950,6 @@ void AYogGameMode::StartLevelSpawning()
 
 		SpawnSacrificeEventAltar(EventAnchorLoc);
 
-		// 教程祈祷室：玩家必须先与祭坛交互拿到双手剑终结技，再进入 ForcedSurvival 死亡流程。
-		// 没有这一关，玩家会在献祭前直接走开启的传送门到下一关，跳过整段终结技教学。
-		// 这里仅在 IsPrayerSacrificeOverrideActive() 命中时（教程激活 + 当前 Stage==PrayerRoom
-		// + 终结技 Rune 能加载到）封闭所有传送门；其它事件房保持原行为。
-		bool bGateTutorialPrayerRoomPortals = false;
-		if (UGameInstance* TutorialGI = GetGameInstance())
-		{
-			if (UFirstRunTutorialDirectorSubsystem* Director = TutorialGI->GetSubsystem<UFirstRunTutorialDirectorSubsystem>())
-			{
-				bGateTutorialPrayerRoomPortals = Director->IsPrayerSacrificeOverrideActive();
-			}
-		}
-
-		if (bGateTutorialPrayerRoomPortals)
-		{
-			TArray<AActor*> AllPortalActors;
-			UGameplayStatics::GetAllActorsOfClass(GetWorld(), APortal::StaticClass(), AllPortalActors);
-			for (AActor* PortalActor : AllPortalActors)
-			{
-				if (APortal* Portal = Cast<APortal>(PortalActor))
-				{
-					Portal->MarkUnavailable();
-				}
-			}
-			UE_LOG(LogTemp, Log,
-				TEXT("StartLevelSpawning: [TutorialPrayerRoom] %s — 教程献祭未完成，封闭所有传送门"),
-				*GetNameSafe(ActiveRoomData));
-		}
-		else
 		{
 			ActivatePortals();
 
@@ -2328,7 +2178,7 @@ void AYogGameMode::GenerateWavePlans(int32 TotalScore, int32 MaxWaveCount, URoom
 			SpecialEnemy.SpecialRewardOptions = StorySpecialRewardEnemyLootOptions;
 			SpecialEnemy.SpecialRewardAuraFX = StorySpecialRewardEnemyAuraFX;
 			UE_LOG(LogTemp, Log,
-				TEXT("[FirstRunTutorialDirector] Marked last planned enemy as story special reward enemy. Class=%s LootCount=%d"),
+				TEXT("[StoryRewardDebug] Marked last planned enemy as story special reward enemy. Class=%s LootCount=%d"),
 				*GetNameSafe(SpecialEnemy.EnemyClass),
 				SpecialEnemy.SpecialRewardOptions.Num());
 		}
@@ -3090,11 +2940,6 @@ void AYogGameMode::FallbackToPreplacedEnemies()
 
 void AYogGameMode::CheckLevelComplete()
 {
-	if (bForcedSurvivalActive)
-	{
-		return;
-	}
-
 	if (!bAllWavesSpawned || TotalAliveEnemies > 0 || PendingSpawnCount > 0)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[CheckLevelComplete] 未通过: bAllWavesSpawned=%s TotalAlive=%d PendingSpawn=%d"),
@@ -3366,7 +3211,7 @@ void AYogGameMode::MarkStorySpecialRewardEnemy(AEnemyCharacterBase* Enemy, const
 
 	if (RewardOptions.IsEmpty())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[FirstRunTutorialDirector] Special reward enemy has no loot options. Enemy=%s"),
+		UE_LOG(LogTemp, Warning, TEXT("[StoryRewardDebug] Special reward enemy has no loot options. Enemy=%s"),
 			*GetNameSafe(Enemy));
 		return;
 	}
@@ -3380,7 +3225,7 @@ void AYogGameMode::MarkStorySpecialRewardEnemy(AEnemyCharacterBase* Enemy, const
 		}
 	});
 
-	UE_LOG(LogTemp, Log, TEXT("[FirstRunTutorialDirector] Special reward enemy marked. Enemy=%s LootCount=%d"),
+	UE_LOG(LogTemp, Log, TEXT("[StoryRewardDebug] Special reward enemy marked. Enemy=%s LootCount=%d"),
 		*GetNameSafe(Enemy),
 		RewardOptions.Num());
 }
@@ -3414,7 +3259,7 @@ void AYogGameMode::SpawnStorySpecialRewardPickup(AYogCharacterBase* DeadCharacte
 		return;
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[FirstRunTutorialDirector] Spawned special RewardPickup=%s at %s LootCount=%d"),
+	UE_LOG(LogTemp, Log, TEXT("[StoryRewardDebug] Spawned special RewardPickup=%s at %s LootCount=%d"),
 		*GetNameSafe(Pickup),
 		*SpawnLoc.ToString(),
 		RewardOptions.Num());
@@ -3432,164 +3277,6 @@ ARewardPickup* AYogGameMode::SpawnEnemyKillRewardPickup(AYogCharacterBase* DeadE
 			*GetNameSafe(DeadEnemy));
 	}
 	return Pickup;
-}
-
-void AYogGameMode::StartForcedSurvivalEncounter()
-{
-	if (bForcedSurvivalActive)
-	{
-		return;
-	}
-
-	bForcedSurvivalActive = true;
-	CurrentPhase = ELevelPhase::Combat;
-	OnPhaseChanged.Broadcast(CurrentPhase);
-
-	if (UWorld* World = GetWorld())
-	{
-		TArray<AActor*> PortalActors;
-		UGameplayStatics::GetAllActorsOfClass(World, APortal::StaticClass(), PortalActors);
-		for (AActor* PortalActor : PortalActors)
-		{
-			if (APortal* Portal = Cast<APortal>(PortalActor))
-			{
-				Portal->DisablePortal();
-			}
-		}
-
-		World->GetTimerManager().SetTimer(
-			ForcedSurvivalSpawnTimer,
-			this,
-			&AYogGameMode::SpawnForcedSurvivalEnemy,
-			1.5f,
-			true,
-			0.1f);
-	}
-
-	UE_LOG(LogTemp, Warning, TEXT("[FirstRunTutorialDirector] Forced survival encounter started."));
-}
-
-void AYogGameMode::SpawnForcedSurvivalEnemy()
-{
-	if (!bForcedSurvivalActive || !ActiveRoomData)
-	{
-		return;
-	}
-
-	FPlannedEnemy Planned;
-	for (const FEnemyEntry& Entry : ActiveRoomData->EnemyPool)
-	{
-		if (Entry.EnemyData && Entry.EnemyData->EnemyClass)
-		{
-			Planned.EnemyClass = Entry.EnemyData->EnemyClass;
-			Planned.EnemyData = Entry.EnemyData;
-			Planned.EnemyWeaponDefinition = RollEnemyWeaponDefinition(Entry.EnemyData);
-			Planned.EnemyBuffs.Reset();
-			CollectEnemyBuffs(Entry.EnemyData, Planned.EnemyBuffs);
-			Planned.PreSpawnFX = Entry.EnemyData->PreSpawnFX;
-			Planned.PreSpawnFXDuration = Entry.EnemyData->PreSpawnFXDuration;
-			Planned.SpawnLifecycleFlow = Entry.EnemyData->SpawnLifecycleFlow;
-			Planned.bAllowAnySpawner = true;
-			break;
-		}
-	}
-
-	if (!Planned.EnemyClass && !WavePlans.IsEmpty())
-	{
-		for (const FWavePlan& Wave : WavePlans)
-		{
-			if (!Wave.EnemiesToSpawn.IsEmpty())
-			{
-				Planned = Wave.EnemiesToSpawn[0];
-				Planned.bAllowAnySpawner = true;
-				break;
-			}
-		}
-	}
-
-	if (!Planned.EnemyClass)
-	{
-		if (UEnemyData* FallbackEnemyData = LoadFirstRunForcedSurvivalEnemyData())
-		{
-			Planned.EnemyClass = FallbackEnemyData->EnemyClass;
-			Planned.EnemyData = FallbackEnemyData;
-			Planned.EnemyWeaponDefinition = RollEnemyWeaponDefinition(FallbackEnemyData);
-			Planned.EnemyBuffs.Reset();
-			CollectEnemyBuffs(FallbackEnemyData, Planned.EnemyBuffs);
-			Planned.PreSpawnFX = FallbackEnemyData->PreSpawnFX;
-			Planned.PreSpawnFXDuration = FallbackEnemyData->PreSpawnFXDuration;
-			Planned.SpawnLifecycleFlow = FallbackEnemyData->SpawnLifecycleFlow;
-			Planned.bAllowAnySpawner = true;
-			UE_LOG(LogTemp, Warning, TEXT("[FirstRunTutorialDirector] Forced survival using fallback enemy data %s."),
-				*GetNameSafe(FallbackEnemyData));
-		}
-	}
-
-	if (Planned.EnemyClass)
-	{
-		if (!BeginSpawnEnemyFromPool(Planned))
-		{
-			SpawnForcedSurvivalEnemyWithoutSpawner(Planned);
-		}
-	}
-}
-
-bool AYogGameMode::SpawnForcedSurvivalEnemyWithoutSpawner(const FPlannedEnemy& Planned)
-{
-	if (!bForcedSurvivalActive || !Planned.EnemyClass || !GetWorld())
-	{
-		return false;
-	}
-
-	APawn* PlayerPawn = nullptr;
-	if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
-	{
-		PlayerPawn = PC->GetPawn();
-	}
-
-	const FVector Origin = PlayerPawn ? PlayerPawn->GetActorLocation() : FVector::ZeroVector;
-	const FVector Forward = PlayerPawn ? PlayerPawn->GetActorForwardVector() : FVector::ForwardVector;
-	const FVector Right = PlayerPawn ? PlayerPawn->GetActorRightVector() : FVector::RightVector;
-	const FVector SpawnLocation = Origin
-		+ Forward.GetSafeNormal() * FMath::FRandRange(650.f, 900.f)
-		+ Right.GetSafeNormal() * FMath::FRandRange(-350.f, 350.f)
-		+ FVector(0.f, 0.f, 120.f);
-
-	AEnemyCharacterBase* SpawnedEnemy = GetWorld()->SpawnActorDeferred<AEnemyCharacterBase>(
-		Planned.EnemyClass,
-		FTransform(FRotator::ZeroRotator, SpawnLocation),
-		nullptr,
-		nullptr,
-		ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn);
-	if (!SpawnedEnemy)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[FirstRunTutorialDirector] Forced survival fallback spawn failed. Class=%s Location=%s"),
-			*GetNameSafe(Planned.EnemyClass.Get()),
-			*SpawnLocation.ToCompactString());
-		return false;
-	}
-
-	SpawnedEnemy->SetPendingEnemyWeaponDefinition(Planned.EnemyWeaponDefinition.Get());
-	SpawnedEnemy->FinishSpawning(FTransform(FRotator::ZeroRotator, SpawnLocation));
-
-	if (!SpawnedEnemy->GetController())
-	{
-		SpawnedEnemy->SpawnDefaultController();
-	}
-
-	for (const FBuffEntry& Entry : ActiveRoomBuffs)
-	{
-		ActivateEnemyRune(SpawnedEnemy, Entry.RuneDA.Get(), TEXT("RoomBuff.ForcedSurvivalFallback"));
-	}
-	ActivateEnemyRunes(SpawnedEnemy, Planned.EnemyBuffs, TEXT("EnemyBuff.ForcedSurvivalFallback"));
-	MarkStorySpecialRewardEnemy(SpawnedEnemy, Planned);
-	RegisterEnemy(SpawnedEnemy);
-	++TotalAliveEnemies;
-
-	UE_LOG(LogTemp, Warning, TEXT("[FirstRunTutorialDirector] Forced survival fallback spawned %s without MobSpawner at %s."),
-		*GetNameSafe(SpawnedEnemy),
-		*SpawnLocation.ToCompactString());
-	return true;
 }
 
 AEnemyCharacterBase* AYogGameMode::SpawnGMEnemyNearPlayer(
@@ -3689,88 +3376,6 @@ AEnemyCharacterBase* AYogGameMode::SpawnGMEnemyNearPlayer(
 		*SpawnLocation.ToCompactString(),
 		bCountForLevelClear ? TEXT("true") : TEXT("false"));
 	return SpawnedEnemy;
-}
-
-bool AYogGameMode::ShouldSpawnFirstRunInitialCardReward() const
-{
-	const UYogSaveSubsystem* SaveSys = GetGameInstance()
-		? GetGameInstance()->GetSubsystem<UYogSaveSubsystem>()
-		: nullptr;
-	if (!SaveSys || !SaveSys->IsFirstRunTutorialActive())
-	{
-		return false;
-	}
-
-	return CurrentFloor <= 1
-		&& SaveSys->GetFirstRunTutorialStage() == static_cast<int32>(EFirstRunTutorialStage::None);
-}
-
-void AYogGameMode::SpawnFirstRunInitialCardRewardPickup(const FVector& BaseSpawnLocation)
-{
-	if (!RewardPickupClass || !ShouldSpawnFirstRunInitialCardReward() || !GetWorld())
-	{
-		return;
-	}
-
-	static const TCHAR* CandidateRunePaths[] =
-	{
-		FirstRunRewardSplashRunePath,
-		FirstRunRewardKnockbackRunePath,
-		FirstRunRewardBurnRunePath,
-		FirstRunRewardPoisonRunePath,
-	};
-
-	TArray<URuneDataAsset*> CandidateRunes;
-	for (const TCHAR* RunePath : CandidateRunePaths)
-	{
-		if (URuneDataAsset* RuneAsset = LoadObject<URuneDataAsset>(nullptr, RunePath))
-		{
-			CandidateRunes.Add(RuneAsset);
-		}
-	}
-
-	if (CandidateRunes.IsEmpty())
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[FirstRunTutorialDirector] Initial card reward skipped: no candidate rune assets loaded."));
-		return;
-	}
-
-	TArray<FLootOption> CardOptions;
-	const int32 DesiredOptionCount = FMath::Min(3, CandidateRunes.Num());
-	for (int32 OptionIndex = 0; OptionIndex < DesiredOptionCount; ++OptionIndex)
-	{
-		const int32 RuneIndex = FMath::RandRange(0, CandidateRunes.Num() - 1);
-
-		FLootOption CardOption;
-		CardOption.LootType = ELootType::Rune;
-		CardOption.RuneAsset = CandidateRunes[RuneIndex];
-		CardOptions.Add(CardOption);
-
-		CandidateRunes.RemoveAtSwap(RuneIndex);
-	}
-
-	if (CardOptions.IsEmpty())
-	{
-		return;
-	}
-
-	const FVector SpawnLocation = BaseSpawnLocation + FVector(250.f, 0.f, 0.f);
-	ARewardPickup* CardPickup = GetWorld()->SpawnActor<ARewardPickup>(
-		RewardPickupClass,
-		SpawnLocation,
-		FRotator::ZeroRotator);
-	if (!CardPickup)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[FirstRunTutorialDirector] Initial card reward spawn failed at %s."),
-			*SpawnLocation.ToCompactString());
-		return;
-	}
-
-	CardPickup->AssignLoot(CardOptions);
-	CardPickup->PlaySpawnFocusCue();
-	UE_LOG(LogTemp, Log, TEXT("[FirstRunTutorialDirector] Initial card reward spawned %d options at %s."),
-		CardOptions.Num(),
-		*SpawnLocation.ToCompactString());
 }
 
 TArray<FBuffEntry> AYogGameMode::SelectRoomBuffs(const URoomDataAsset& Room, int32 BuffCount)

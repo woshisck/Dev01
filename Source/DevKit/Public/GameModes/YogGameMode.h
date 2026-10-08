@@ -291,12 +291,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "LevelFlow")
 	void SelectLoot(int32 LootIndex);
 
-	UFUNCTION(BlueprintCallable, Category = "LevelFlow|FirstRunTutorial")
-	void StartForcedSurvivalEncounter();
-
-	UFUNCTION(BlueprintPure, Category = "LevelFlow|FirstRunTutorial")
-	bool IsForcedSurvivalActive() const { return bForcedSurvivalActive; }
-
 	// 整理完成，锁背包并加载下一关（旧系统保留，新系统由 Portal 触发 TransitionToLevel）
 	UFUNCTION(BlueprintCallable, Category = "LevelFlow")
 	void ConfirmArrangementAndTransition();
@@ -305,7 +299,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "LevelFlow")
 	void TransitionToLevel(FName NextLevel, URoomDataAsset* NextRoom = nullptr);
 
-	UFUNCTION(BlueprintCallable, Category = "LevelFlow|FirstRunTutorial")
+	UFUNCTION(BlueprintCallable, Category = "LevelFlow")
 	void NotifyPlayerWeaponEquipped(APlayerCharacterBase* Player);
 
 	UFUNCTION(BlueprintCallable, Category = "GameOver")
@@ -381,10 +375,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Campaign")
 	TObjectPtr<UCampaignDataAsset> CampaignData;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Campaign|FirstRun")
-	TObjectPtr<UCampaignDataAsset> FirstRunTutorialCampaignData;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Campaign|FirstRun")
+	// Hub portals stay sealed until the player is carrying a weapon.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Campaign")
 	bool bInitialRoomPortalsRequireWeapon = true;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Campaign|StoryEvent")
@@ -549,10 +541,8 @@ protected:
 	FTimerHandle InitialSpawnDelayTimer;
 	FTimerHandle DemandSpawnTimer;
 	FTimerHandle TimedClearObjectiveTimer;
-	FTimerHandle ForcedSurvivalSpawnTimer;
 	bool bTimedClearObjectiveActive = false;
 	bool bTimedClearObjectiveExpired = false;
-	bool bForcedSurvivalActive = false;
 	FTimerHandle PlayerDeathGameOverTimer;
 	TArray<FPlannedEnemy> OneByOneSpawnQueue;
 	int32 OneByOneSpawnIndex = 0;
@@ -624,11 +614,6 @@ protected:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UNiagaraSystem> StorySpecialRewardEnemyAuraFX;
-
-	void SpawnForcedSurvivalEnemy();
-	bool SpawnForcedSurvivalEnemyWithoutSpawner(const FPlannedEnemy& Planned);
-	bool ShouldSpawnFirstRunInitialCardReward() const;
-	void SpawnFirstRunInitialCardRewardPickup(const FVector& BaseSpawnLocation);
 
 	// 当前关卡的奖励配置（从 FloorConfig 缓存，整理阶段使用）
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Transient, Category = "LevelFlow|Story Override", meta = (AllowPrivateAccess = "true"))

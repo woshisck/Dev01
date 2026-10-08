@@ -12,7 +12,9 @@ enum class EStoryEventActionType : uint8
 {
 	None UMETA(DisplayName = "None"),
 	BroadcastOnly UMETA(DisplayName = "Broadcast Only"),
-	TutorialPopup UMETA(DisplayName = "Tutorial Popup"),
+	// Slot retained after the tutorial system was removed, to keep the serialized
+	// uint8 index of LevelFlow stable in existing story event registry assets.
+	Deprecated_TutorialPopup UMETA(Hidden),
 	LevelFlow UMETA(DisplayName = "Level Flow"),
 };
 
@@ -22,7 +24,7 @@ enum class EStoryEventDispatchResult : uint8
 	Unconfigured UMETA(DisplayName = "Unconfigured"),
 	Triggered UMETA(DisplayName = "Triggered"),
 	SkippedAlreadyFired UMETA(DisplayName = "Skipped Already Fired"),
-	SkippedTutorialCompleted UMETA(DisplayName = "Skipped Tutorial Completed"),
+	Deprecated_SkippedTutorialCompleted UMETA(Hidden),
 	Failed UMETA(DisplayName = "Failed"),
 };
 
@@ -35,22 +37,13 @@ struct DEVKIT_API FStoryEventEntry
 	FGameplayTag EventTag;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "StoryEvent")
-	EStoryEventActionType ActionType = EStoryEventActionType::TutorialPopup;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "StoryEvent", meta = (EditCondition = "ActionType == EStoryEventActionType::TutorialPopup"))
-	FName TutorialEventID;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "StoryEvent", meta = (EditCondition = "ActionType == EStoryEventActionType::TutorialPopup"))
-	bool bPauseGame = true;
+	EStoryEventActionType ActionType = EStoryEventActionType::BroadcastOnly;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "StoryEvent", meta = (EditCondition = "ActionType == EStoryEventActionType::LevelFlow"))
 	TObjectPtr<ULevelFlowAsset> LevelFlow;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "StoryEvent", meta = (EditCondition = "ActionType == EStoryEventActionType::LevelFlow"))
 	bool bStopExistingStoryFlow = true;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "StoryEvent")
-	bool bOnlyWhenTutorialIncomplete = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "StoryEvent")
 	bool bFireOncePerRun = true;

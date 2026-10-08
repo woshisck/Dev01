@@ -319,21 +319,11 @@ TArray<FStoryEncounterWorkbenchMessage> FStoryEncounterEditorModel::Validate(
 				switch (Action.Kind)
 				{
 				case EStoryEncounterActionKind::WeakHint:
-				case EStoryEncounterActionKind::TutorialAreaHint:
 				case EStoryEncounterActionKind::Dialogue:
 					if (Action.Body.IsEmpty())
 					{
 						AddWorkbenchMessage(Messages, EStoryEncounterWorkbenchMessageSeverity::Warning,
 							FString::Printf(TEXT("%s 缺少显示文本。"), *Prefix),
-							EncounterMap, NAME_None, EncounterMap->EncounterId, Node.NodeId);
-					}
-					break;
-
-				case EStoryEncounterActionKind::TutorialPopup:
-					if (Action.TutorialEventId.IsNone())
-					{
-						AddWorkbenchMessage(Messages, EStoryEncounterWorkbenchMessageSeverity::Error,
-							FString::Printf(TEXT("%s 是教程弹窗，但没有填写教程事件ID。"), *Prefix),
 							EncounterMap, NAME_None, EncounterMap->EncounterId, Node.NodeId);
 					}
 					break;
@@ -849,14 +839,10 @@ FString FStoryEncounterEditorModel::ActionKindToChinese(EStoryEncounterActionKin
 {
 	switch (Kind)
 	{
-	case EStoryEncounterActionKind::TutorialAreaHint:
-		return TEXT("区域教程提示");
 	case EStoryEncounterActionKind::WeakHint:
 		return TEXT("底部操作提示条");
 	case EStoryEncounterActionKind::Dialogue:
 		return TEXT("对话");
-	case EStoryEncounterActionKind::TutorialPopup:
-		return TEXT("教程弹窗");
 	case EStoryEncounterActionKind::RecordProgress:
 		return TEXT("记录进度");
 	case EStoryEncounterActionKind::UnlockFeature:
@@ -919,18 +905,12 @@ FString FStoryEncounterEditorModel::DescribeAction(FName EncounterId, const FSto
 	const FString KindText = ActionKindToChinese(Action.Kind);
 	switch (Action.Kind)
 	{
-	case EStoryEncounterActionKind::TutorialAreaHint:
 	case EStoryEncounterActionKind::WeakHint:
 	case EStoryEncounterActionKind::Dialogue:
 		return FString::Printf(TEXT("%s：%s - %s"),
 			*KindText,
 			*Action.Title.ToString(),
 			*Action.Body.ToString());
-	case EStoryEncounterActionKind::TutorialPopup:
-		return FString::Printf(TEXT("%s：%s%s"),
-			*KindText,
-			*Action.TutorialEventId.ToString(),
-			Action.bPauseGame ? TEXT("（暂停）") : TEXT("（不暂停）"));
 	case EStoryEncounterActionKind::RecordProgress:
 		return FString::Printf(TEXT("%s：%s（隐藏Tag：%s）"),
 			*KindText,

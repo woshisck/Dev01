@@ -388,20 +388,6 @@ bool UStoryEncounterRuntimeSubsystem::ConvertEncounterActionForTest(FName Encoun
 		OutStoryAction.HintDuration = 3.f;
 		return true;
 
-	case EStoryEncounterActionKind::TutorialAreaHint:
-		OutStoryAction.Type = EStoryActionType::ShowInfoHint;
-		OutStoryAction.HintTitle = FText::GetEmpty();
-		OutStoryAction.HintText = EncounterAction.Body;
-		OutStoryAction.HintDuration = 0.f;
-		return true;
-
-	case EStoryEncounterActionKind::TutorialPopup:
-		OutStoryAction.Type = EStoryActionType::ShowTutorialPopup;
-		OutStoryAction.TutorialEventId = EncounterAction.TutorialEventId;
-		OutStoryAction.TutorialPages = EncounterAction.TutorialPages;
-		OutStoryAction.bPauseGame = EncounterAction.bPauseGame;
-		return !OutStoryAction.TutorialEventId.IsNone() || OutStoryAction.TutorialPages.Num() > 0;
-
 	case EStoryEncounterActionKind::RecordProgress:
 		OutStoryAction.Type = EStoryActionType::SetFlag;
 		OutStoryAction.FlagScope = EStoryFlagScope::Save;
@@ -582,74 +568,6 @@ bool UStoryEncounterRuntimeSubsystem::ExecuteActorEnabledAction(
 		*Action.TargetActorTag.ToString(),
 		Action.bActorEnabled ? 1 : 0,
 		MatchedCount);
-	return true;
-}
-
-bool UStoryEncounterRuntimeSubsystem::ExecuteTutorialAreaHintAction(
-	const FStoryEncounterAction& Action,
-	const FStoryEventContext& Context)
-{
-	APlayerController* PlayerController = Context.PlayerController;
-	if (!PlayerController)
-	{
-		PlayerController = ResolveEncounterPlayer(Context.SourceActor);
-	}
-
-	AYogHUD* HUD = PlayerController ? Cast<AYogHUD>(PlayerController->GetHUD()) : nullptr;
-	if (!HUD)
-	{
-		return false;
-	}
-
-	ULevelInfoPopupDA* Popup = NewObject<ULevelInfoPopupDA>(this);
-	Popup->Title = FText::GetEmpty();
-	Popup->Body = ResolveInputAwareBody(Action, Context);
-	if (Popup->Body.IsEmpty())
-	{
-		Popup->Body = Action.Body;
-	}
-	Popup->HUDSummaryText = Popup->Body;
-	const bool bCloseOnExit = Context.SourceActor
-		&& (Context.SourceActor->IsA<ALevelEventTrigger>() || Context.SourceActor->IsA<AStoryEncounterTrigger>());
-	Popup->DisplayDuration = bCloseOnExit ? 0.f : 4.f;
-	Popup->FadeDuration = 0.15f;
-
-	TransientInfoPopups.Add(Popup);
-	if (TransientInfoPopups.Num() > 8)
-	{
-		TransientInfoPopups.RemoveAt(0);
-	}
-
-	HUD->ShowInfoPopup(Popup);
-
-	UInfoPopupWidget* Widget = HUD->GetInfoPopupWidget();
-	if (!Widget)
-	{
-		return true;
-	}
-
-	TWeakObjectPtr<UInfoPopupWidget> WeakWidget(Widget);
-	if (ALevelEventTrigger* Trigger = Cast<ALevelEventTrigger>(Context.SourceActor))
-	{
-		Trigger->OnPlayerExited.AddWeakLambda(this, [WeakWidget]()
-		{
-			if (WeakWidget.IsValid())
-			{
-				WeakWidget->RequestClose();
-			}
-		});
-	}
-	else if (AStoryEncounterTrigger* StoryTrigger = Cast<AStoryEncounterTrigger>(Context.SourceActor))
-	{
-		StoryTrigger->OnPlayerExited.AddWeakLambda(this, [WeakWidget]()
-		{
-			if (WeakWidget.IsValid())
-			{
-				WeakWidget->RequestClose();
-			}
-		});
-	}
-
 	return true;
 }
 
@@ -978,11 +896,6 @@ void UStoryEncounterRuntimeSubsystem::ExecuteEncounterAction(FName EncounterId,
 	if (Action.Kind == EStoryEncounterActionKind::SetActorEnabled)
 	{
 		ExecuteActorEnabledAction(Action, Context);
-		return;
-	}
-	if (Action.Kind == EStoryEncounterActionKind::TutorialAreaHint)
-	{
-		ExecuteTutorialAreaHintAction(Action, Context);
 		return;
 	}
 	if (Action.Kind == EStoryEncounterActionKind::SpawnRewardPickup)

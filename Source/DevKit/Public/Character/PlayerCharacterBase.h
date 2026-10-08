@@ -507,10 +507,6 @@ private:
 	UFUNCTION()
 	void HandleDamageReceivedFeedback(UYogAbilitySystemComponent* SourceASC, float Damage);
 
-	// 卡牌入组时触发教程一次性提示（识别 Heavy / Link / Finisher）
-	UFUNCTION()
-	void OnDeckCardsEnteredForTutorial(const TArray<FCombatCardInstance>& Cards);
-
 	void PlayDamageScreenFlash();
 	void StartDamagePlayerGlow();
 	void TickDamagePlayerGlow(float DeltaTime);

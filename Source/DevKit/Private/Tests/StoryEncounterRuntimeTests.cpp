@@ -24,7 +24,6 @@
 #include "Story/Encounter/StoryEncounterRuntimeSubsystem.h"
 #include "Story/Encounter/StoryProductionBoard.h"
 #include "Types/FlowDataPinResults.h"
-#include "UI/DialogContentDA.h"
 
 namespace StoryEncounterRuntimeTests
 {
@@ -208,58 +207,6 @@ bool FStoryEncounterConvertsWeakHintTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Converts to ShowInfoHint"), StoryAction.Type, EStoryActionType::ShowInfoHint);
 	TestTrue(TEXT("Hint body is retained"), StoryAction.HintText.EqualTo(EncounterAction.Body));
 	TestTrue(TEXT("Weak hint title is editor-only"), StoryAction.HintTitle.IsEmpty());
-	return true;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStoryEncounterConvertsTutorialAreaHintTest,
-	"DevKit.StoryEncounter.ConvertsTutorialAreaHintToPersistentInfoHint",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FStoryEncounterConvertsTutorialAreaHintTest::RunTest(const FString& Parameters)
-{
-	FStoryEncounterAction EncounterAction;
-	EncounterAction.Kind = EStoryEncounterActionKind::TutorialAreaHint;
-	EncounterAction.Body = FText::FromString(TEXT("<input action=\"WeaponSkill\"/>"));
-
-	FStoryAction StoryAction;
-	const bool bConverted = UStoryEncounterRuntimeSubsystem::ConvertEncounterActionForTest(
-		TEXT("EM_FirstRun_Tutorial"),
-		EncounterAction,
-		StoryAction);
-
-	TestTrue(TEXT("Action converts"), bConverted);
-	TestEqual(TEXT("Converts to ShowInfoHint"), StoryAction.Type, EStoryActionType::ShowInfoHint);
-	TestEqual(TEXT("Area hint does not auto-close"), StoryAction.HintDuration, 0.f);
-	TestTrue(TEXT("Area hint body is retained"), StoryAction.HintText.EqualTo(EncounterAction.Body));
-	return true;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStoryEncounterConvertsTutorialPopupTest,
-	"DevKit.StoryEncounter.ConvertsTutorialPopupAction",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FStoryEncounterConvertsTutorialPopupTest::RunTest(const FString& Parameters)
-{
-	FStoryEncounterAction EncounterAction;
-	EncounterAction.Kind = EStoryEncounterActionKind::TutorialPopup;
-	EncounterAction.TutorialEventId = TEXT("tutorial_weapon_pickup");
-	EncounterAction.bPauseGame = false;
-	FTutorialPage InlinePage;
-	InlinePage.Title = FText::FromString(TEXT("Inline"));
-	InlinePage.Body = FText::FromString(TEXT("Inline body"));
-	EncounterAction.TutorialPages.Add(InlinePage);
-
-	FStoryAction StoryAction;
-	const bool bConverted = UStoryEncounterRuntimeSubsystem::ConvertEncounterActionForTest(
-		TEXT("EM_FirstRun_Tutorial"),
-		EncounterAction,
-		StoryAction);
-
-	TestTrue(TEXT("Action converts"), bConverted);
-	TestEqual(TEXT("Converts to ShowTutorialPopup"), StoryAction.Type, EStoryActionType::ShowTutorialPopup);
-	TestEqual(TEXT("Tutorial event id is retained"), StoryAction.TutorialEventId, FName(TEXT("tutorial_weapon_pickup")));
-	TestEqual(TEXT("Inline tutorial pages are retained"), StoryAction.TutorialPages.Num(), 1);
-	TestFalse(TEXT("Pause flag is retained"), StoryAction.bPauseGame);
 	return true;
 }
 
@@ -624,36 +571,6 @@ bool FStoryEncounterDeathListenerRunsNodeEventFlowTest::RunTest(const FString& P
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStoryEncounterPlayLevelFlowNonTriggerRunsViaProxyTest,
 	"DevKit.StoryEncounter.PlayLevelFlowNonTriggerRunsViaProxy",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStoryEncounterWeaponPickupTutorialPointsAtDummyTest,
-	"DevKit.StoryEncounter.FirstRunWeaponPickupTutorialPointsAtDummy",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FStoryEncounterWeaponPickupTutorialPointsAtDummyTest::RunTest(const FString& Parameters)
-{
-	const UDialogContentDA* Tutorial = LoadObject<UDialogContentDA>(
-		nullptr,
-		TEXT("/Game/Docs/UI/Tutorial/DA_Tutorial_WeaponPickup.DA_Tutorial_WeaponPickup"));
-
-	TestNotNull(TEXT("Weapon pickup tutorial asset loads"), Tutorial);
-	if (!Tutorial)
-	{
-		return false;
-	}
-
-	TestTrue(TEXT("Weapon pickup tutorial has an extra dummy-combat page"), Tutorial->Pages.Num() >= 3);
-	if (Tutorial->Pages.Num() < 3)
-	{
-		return false;
-	}
-
-	const FString ThirdPageBody = Tutorial->Pages[2].Body.ToString();
-	TestTrue(TEXT("Third page asks the player to attack the training dummy"),
-		ThirdPageBody.Contains(TEXT("木头人")) || ThirdPageBody.Contains(TEXT("dummy"), ESearchCase::IgnoreCase));
-	TestTrue(TEXT("Third page mentions attacking"),
-		ThirdPageBody.Contains(TEXT("攻击")) || ThirdPageBody.Contains(TEXT("attack"), ESearchCase::IgnoreCase));
-	return true;
-}
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStoryEncounterDummyDeathFlowDropsWeaponSkillFinisherAndHintsPickupTest,
 	"DevKit.StoryEncounter.DummyDeathFlowDropsWeaponSkillFinisherAndHintsPickup",

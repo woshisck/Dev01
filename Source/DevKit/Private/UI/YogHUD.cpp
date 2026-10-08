@@ -12,9 +12,7 @@
 #include "UI/WeaponGlassIconWidget.h"
 #include "UI/BackpackScreenWidget.h"
 #include "UI/LootSelectionWidget.h"
-#include "UI/GameDialogWidget.h"
 #include "UI/YogUIManagerSubsystem.h"
-#include "UI/TutorialRegistryDA.h"
 #include "UI/WeaponThumbnailFlyWidget.h"
 #include "UI/WeaponFloatWidget.h"
 #include "UI/WeaponGlassAnimDA.h"
@@ -29,7 +27,6 @@
 #include "Component/CombatItemComponent.h"
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "GameplayTagContainer.h"
-#include "Tutorial/TutorialManager.h"
 #include "SaveGame/YogSaveSubsystem.h"
 #include "SaveGame/YogSaveGame.h"
 #include "Item/Weapon/WeaponDefinition.h"
@@ -153,7 +150,6 @@ void AYogHUD::BeginPlay()
 	PrimaryActorTick.bCanEverTick       = true;
 	PrimaryActorTick.bTickEvenWhenPaused = true;
 
-	RegisterHUDWidgetClassOverride(this, EYogUIScreenId::TutorialPopup, TutorialPopupClass);
 	RegisterHUDWidgetClassOverride(this, EYogUIScreenId::MainHUD, MainHUDClass);
 	RegisterHUDWidgetClassOverride(this, EYogUIScreenId::PauseMenu, PauseMenuClass);
 	RegisterHUDWidgetClassOverride(this, EYogUIScreenId::Backpack, BackpackScreenClass);
@@ -164,31 +160,6 @@ void AYogHUD::BeginPlay()
 	if (UYogUIManagerSubsystem* UIManager = GetUIManagerFromHUD(this))
 	{
 		UIManager->CreateAutoStartWidgets();
-		TutorialPopupWidget = UIManager->GetTypedWidget<UTutorialPopupWidget>(EYogUIScreenId::TutorialPopup);
-	}
-
-	// ── Tutorial Popup ──────────────────────────
-	if (!TutorialPopupWidget)
-	{
-		if (TSubclassOf<UTutorialPopupWidget> WidgetClass = ResolveManagedWidgetClass(EYogUIScreenId::TutorialPopup, TutorialPopupClass))
-		{
-			if (UYogUIManagerSubsystem* UIManager = GetUIManagerFromHUD(this))
-			{
-				UIManager->SetWidgetClassOverride(EYogUIScreenId::TutorialPopup, WidgetClass);
-				TutorialPopupWidget = Cast<UTutorialPopupWidget>(UIManager->EnsureWidget(EYogUIScreenId::TutorialPopup));
-			}
-		}
-	}
-
-	if (UTutorialManager* TM = GetGameInstance()->GetSubsystem<UTutorialManager>())
-		TM->Init(TutorialPopupWidget, TutorialRegistry);
-
-	// ── Save Game ───────────────────────────────
-	if (UYogSaveSubsystem* SaveSys = GetGameInstance()->GetSubsystem<UYogSaveSubsystem>())
-	{
-		SaveSys->OnSaveGameLoaded.AddDynamic(this, &AYogHUD::OnSaveGameLoaded);
-		if (UYogSaveGame* Current = SaveSys->GetCurrentSave())
-			OnSaveGameLoaded(Current);
 	}
 
 	if (UYogMetaProgressionSubsystem* MetaSys = GetGameInstance()->GetSubsystem<UYogMetaProgressionSubsystem>())
@@ -362,19 +333,6 @@ bool AYogHUD::CloseTopMostOverlay()
 	if (IsPauseMenuOpen())
 	{
 		ClosePauseMenu();
-		return true;
-	}
-
-	if (TutorialPopupWidget && TutorialPopupWidget->IsActivated())
-	{
-		if (UYogUIManagerSubsystem* UIManager = GetUIManagerFromHUD(this))
-		{
-			UIManager->PopScreen(EYogUIScreenId::TutorialPopup);
-		}
-		else
-		{
-			TutorialPopupWidget->DeactivateWidget();
-		}
 		return true;
 	}
 
@@ -1318,12 +1276,6 @@ void AYogHUD::StartRevealAnimation()
 
 	RevealDynMat = ActiveRevealWidget->InitReveal(
 		DA->RevealMaterial, LootUV, DA->RevealEdgeSharpness);
-}
-
-void AYogHUD::OnSaveGameLoaded(UYogSaveGame* SaveGame)
-{
-	if (UTutorialManager* TM = GetGameInstance()->GetSubsystem<UTutorialManager>())
-		TM->LoadFromSave(SaveGame);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

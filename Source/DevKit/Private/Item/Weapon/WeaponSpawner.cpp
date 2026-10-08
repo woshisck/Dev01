@@ -25,8 +25,6 @@
 #include "Component/CharacterDataComponent.h"
 #include "Component/BackpackGridComponent.h"
 #include "Component/CombatDeckComponent.h"
-#include "Map/TutorialMobSpawner.h"
-#include "Tutorial/TutorialManager.h"
 #include "Character/YogPlayerControllerBase.h"
 #include "Engine/GameInstance.h"
 #include "GameModes/YogGameMode.h"
@@ -38,8 +36,6 @@
 #include "Story/Encounter/StoryEncounterRuntimeSubsystem.h"
 
 static constexpr bool bDisableLegacyHeatBackpackRuneForCardTestSpawner = true;
-static const FName FirstRunTutorialWeaponTag(TEXT("Story.FirstRun.DemoWeapon"));
-static const FName MainRunStartWeaponTag(TEXT("Story.MainRun.StartWeapon"));
 
 static AYogHUD* GetYogHUDForPlayer(APlayerCharacterBase* Player)
 {
@@ -92,52 +88,10 @@ AWeaponSpawner::AWeaponSpawner(const FObjectInitializer& ObjectInitializer)
 	InteractPromptComp->PromptHeight = 60.f;
 }
 
-bool AWeaponSpawner::ShouldEnableForFirstRunTutorialState(
-	EWeaponSpawnerTutorialVisibility Visibility,
-	bool bIsFirstRunTutorialActive,
-	bool bHasFirstRunTutorialWeaponTag,
-	bool bHasMainRunStartWeaponTag)
-{
-	if (Visibility == EWeaponSpawnerTutorialVisibility::Always)
-	{
-		if (bHasFirstRunTutorialWeaponTag)
-		{
-			return bIsFirstRunTutorialActive;
-		}
-
-		if (bHasMainRunStartWeaponTag)
-		{
-			return !bIsFirstRunTutorialActive;
-		}
-	}
-
-	switch (Visibility)
-	{
-	case EWeaponSpawnerTutorialVisibility::FirstRunTutorialOnly:
-		return bIsFirstRunTutorialActive;
-	case EWeaponSpawnerTutorialVisibility::NonTutorialOnly:
-		return !bIsFirstRunTutorialActive;
-	case EWeaponSpawnerTutorialVisibility::Always:
-	default:
-		return true;
-	}
-}
-
 // Called when the game starts or when spawned
 void AWeaponSpawner::BeginPlay()
 {
 	Super::BeginPlay();
-
-	bEnabledByFirstRunTutorialState = ShouldEnableForFirstRunTutorialState(
-		TutorialVisibility,
-		ResolveFirstRunTutorialActive(),
-		Tags.Contains(FirstRunTutorialWeaponTag),
-		Tags.Contains(MainRunStartWeaponTag));
-	ApplyTutorialVisibilityEnabled(bEnabledByFirstRunTutorialState);
-	if (!bEnabledByFirstRunTutorialState)
-	{
-		return;
-	}
 
 	// BP 里未赋值时自动按路径兜底，防止 merge 丢失引用
 	if (!WeaponFloatWidgetClass)
@@ -180,10 +134,6 @@ void AWeaponSpawner::EndPlay(const EEndPlayReason::Type EndPlayReason)
 void AWeaponSpawner::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-	if (!bEnabledByFirstRunTutorialState)
-	{
-		return;
-	}
 
 	// 旋转
 	WeaponMesh->AddRelativeRotation(FRotator(
@@ -199,7 +149,7 @@ void AWeaponSpawner::Tick(float DeltaTime)
 		WeaponMesh->SetRelativeLocation(BaseMeshOffset + BobAxis.GetSafeNormal() * BobOffset);
 	}
 
-	// Tutorial 弹窗显示期间、或武器已被拾取后隐藏浮
+	// 武器已被拾取后隐藏浮窗
 	if (bPickedUp)
 	{
 		if (WeaponInfoWidgetComp)
@@ -208,16 +158,6 @@ void AWeaponSpawner::Tick(float DeltaTime)
 			if (AYogHUD* HUD = GetYogHUDForPlayer(NearbyPlayer.Get()))
 				HUD->HideWeaponFloatInfo(WeaponDefinition);
 		return;
-	}
-	if (UTutorialManager* TM = GetGameInstance()->GetSubsystem<UTutorialManager>())
-	{
-		if (TM->IsPopupShowing())
-		{
-			if (WeaponInfoWidgetComp) WeaponInfoWidgetComp->SetVisibility(false);
-			if (AYogHUD* HUD = GetYogHUDForPlayer(NearbyPlayer.Get()))
-				HUD->HideWeaponFloatInfo(WeaponDefinition);
-			return;
-		}
 	}
 
 	// 朝向判断：武器信息由 HUD 固定显示在关卡信息区，避免世界投影浮窗越界
@@ -281,10 +221,6 @@ void AWeaponSpawner::OnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AAct
 
 void AWeaponSpawner::OnPlayerEnterRange(APlayerCharacterBase* Player)
 {
-	if (!bEnabledByFirstRunTutorialState)
-	{
-		return;
-	}
 	if (!Player || !WeaponDefinition || bPickedUp) return;
 
 	Player->RegisterInteractable(this);
@@ -296,10 +232,6 @@ void AWeaponSpawner::OnPlayerEnterRange(APlayerCharacterBase* Player)
 
 void AWeaponSpawner::OnPlayerLeaveRange(APlayerCharacterBase* Player)
 {
-	if (!bEnabledByFirstRunTutorialState)
-	{
-		return;
-	}
 	if (!Player) return;
 
 	Player->UnregisterInteractable(this);
@@ -371,10 +303,6 @@ void AWeaponSpawner::ResetToAvailable()
 
 void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 {
-	if (!bEnabledByFirstRunTutorialState)
-	{
-		return;
-	}
 	if (!Player || !WeaponDefinition) return;
 
 	// ── 预览模式：仅LevelInfoPopup，不执行拾取 ──────────────────
@@ -398,10 +326,6 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 		for (int32 i = 0; i < WeaponMesh->GetNumMaterials(); ++i)
 			WeaponMesh->SetMaterial(i, PickedUpMaterial);
 	}
-
-	// 若教程弹窗仍在显示（玩家在弹窗期间按 E 拾取），强制关闭
-	if (UTutorialManager* TM = GetGameInstance()->GetSubsystem<UTutorialManager>())
-		if (TM->IsPopupShowing()) TM->ForceClosePopup();
 
 	// Route to inactive slot when player already carries a weapon.
 	if (Player->EquippedWeaponDef != nullptr)
@@ -575,20 +499,8 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 
 	UE_LOG(LogTemp, Log, TEXT("WeaponSpawner: 武器已拾[%s]"), *WeaponDefinition->GetName());
 
-	if (UTutorialManager* TM = GetGameInstance()->GetSubsystem<UTutorialManager>())
-	{
-		if (TM->GetState() == ETutorialState::NeedWeaponTutorial)
-		{
-			if (AYogPlayerControllerBase* YogPC = Player->GetController<AYogPlayerControllerBase>())
-			{
-				TM->TryWeaponTutorial(YogPC);
-			}
-		}
-	}
 
-	// The tutorial popup and pickup story hook are independent; first-run uses the hook to activate the dummy spawner.
 	TriggerPickupStoryEncounter(Player);
-	ActivateFirstRunTutorialSpawners();
 	if (AYogGameMode* GameMode = GetWorld() ? Cast<AYogGameMode>(GetWorld()->GetAuthGameMode()) : nullptr)
 	{
 		GameMode->NotifyPlayerWeaponEquipped(Player);
@@ -672,96 +584,6 @@ void AWeaponSpawner::TriggerPickupStoryEncounter(APlayerCharacterBase* Player)
 			*PickupEncounterNodeId.ToString());
 	}
 }
-
-void AWeaponSpawner::ActivateFirstRunTutorialSpawners() const
-{
-	if (!ResolveFirstRunTutorialActive())
-	{
-		return;
-	}
-
-	UWorld* World = GetWorld();
-	if (!World)
-	{
-		return;
-	}
-
-	int32 ActivatedCount = 0;
-	for (TActorIterator<ATutorialMobSpawner> It(World); It; ++It)
-	{
-		It->Activate();
-		++ActivatedCount;
-	}
-
-	if (ActivatedCount <= 0)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[WeaponSpawner] First-run weapon pickup found no TutorialMobSpawner in %s."),
-			*GetNameSafe(World));
-	}
-}
-
-
-bool AWeaponSpawner::ResolveFirstRunTutorialActive() const
-{
-	if (const UGameInstance* GI = GetGameInstance())
-	{
-		if (const UYogSaveSubsystem* SaveSys = GI->GetSubsystem<UYogSaveSubsystem>())
-		{
-			return SaveSys->IsFirstRunTutorialActive();
-		}
-	}
-
-	return false;
-}
-
-void AWeaponSpawner::ApplyTutorialVisibilityEnabled(bool bEnabled)
-{
-	SetActorHiddenInGame(!bEnabled);
-	SetActorTickEnabled(bEnabled);
-	SetActorEnableCollision(bEnabled);
-
-	if (!bEnabled)
-	{
-		TInlineComponentArray<UPrimitiveComponent*> PrimitiveComponents;
-		GetComponents(PrimitiveComponents);
-		for (UPrimitiveComponent* Primitive : PrimitiveComponents)
-		{
-			if (!Primitive)
-			{
-				continue;
-			}
-
-			Primitive->SetGenerateOverlapEvents(false);
-			Primitive->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		}
-	}
-
-	if (WeaponMesh)
-	{
-		WeaponMesh->SetVisibility(bEnabled, true);
-		WeaponMesh->SetHiddenInGame(!bEnabled, true);
-		WeaponMesh->SetCollisionEnabled(bEnabled ? ECollisionEnabled::QueryAndPhysics : ECollisionEnabled::NoCollision);
-	}
-
-	if (WeaponInfoWidgetComp)
-	{
-		WeaponInfoWidgetComp->SetVisibility(false);
-		WeaponInfoWidgetComp->SetHiddenInGame(!bEnabled);
-	}
-
-	if (PlayerInteractVolume)
-	{
-		PlayerInteractVolume->SetGenerateOverlapEvents(bEnabled);
-		PlayerInteractVolume->SetCollisionEnabled(bEnabled ? ECollisionEnabled::QueryOnly : ECollisionEnabled::NoCollision);
-	}
-
-	if (BlockVolume)
-	{
-		BlockVolume->SetGenerateOverlapEvents(false);
-		BlockVolume->SetCollisionEnabled(bEnabled ? ECollisionEnabled::QueryAndPhysics : ECollisionEnabled::NoCollision);
-	}
-}
-
 
 AWeaponInstance* AWeaponSpawner::SpawnWeaponDeferred(UWorld* World, const FTransform& SpawnTransform, const FWeaponSpawnData& SpawnData)
 {

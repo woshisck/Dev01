@@ -80,7 +80,6 @@ UYogGameInstanceBase::UYogGameInstanceBase()
 {
 	bShouldLoadSaveAfterMap = false;
 	MainGameMap = FSoftObjectPath(TEXT("/Game/Art/Map/Map_Data/L1_InitialRoom/InitialRoom.InitialRoom"));
-	FirstRunTutorialMap = MainGameMap;
 	FrontendMap = FSoftObjectPath(TEXT("/Game/Maps/L_EntryMenu.L_EntryMenu"));
 }
 
@@ -513,22 +512,10 @@ void UYogGameInstanceBase::StartNormalRunFromFrontend()
 
 	if (UYogSaveSubsystem* SS = GetSubsystem<UYogSaveSubsystem>())
 	{
-		SS->SelectSlot(SS->GetNormalGameSlotIndex());
+		SS->SelectSlot(0);
 	}
 
 	StartNewRunFromFrontend();
-}
-
-void UYogGameInstanceBase::QueueFirstRunWorldRewindHint()
-{
-	bPendingFirstRunWorldRewindHint = true;
-}
-
-bool UYogGameInstanceBase::ConsumeFirstRunWorldRewindHint()
-{
-	const bool bWasPending = bPendingFirstRunWorldRewindHint;
-	bPendingFirstRunWorldRewindHint = false;
-	return bWasPending;
 }
 
 void UYogGameInstanceBase::HandleEntryOptionsRequested()
@@ -543,19 +530,10 @@ void UYogGameInstanceBase::QuitFromFrontend()
 
 void UYogGameInstanceBase::BeginLoadMainGameMap()
 {
-	const bool bUseFirstRunTutorialMap = [&]()
-	{
-		if (UYogSaveSubsystem* SaveSys = GetSubsystem<UYogSaveSubsystem>())
-		{
-			return SaveSys->IsFirstRunTutorialActive() && FirstRunTutorialMap.IsValid();
-		}
-		return false;
-	}();
-	const FSoftObjectPath& TargetMap = bUseFirstRunTutorialMap ? FirstRunTutorialMap : MainGameMap;
-	const FString PackageName = TargetMap.GetLongPackageName();
+	const FString PackageName = MainGameMap.GetLongPackageName();
 	if (PackageName.IsEmpty())
 	{
-		UE_LOG(LogTemp, Error, TEXT("[Frontend] Could not resolve map package from %s"), *TargetMap.ToString());
+		UE_LOG(LogTemp, Error, TEXT("[Frontend] Could not resolve map package from %s"), *MainGameMap.ToString());
 		return;
 	}
 
@@ -573,25 +551,16 @@ void UYogGameInstanceBase::BeginLoadMainGameMap()
 		World->GetTimerManager().ClearTimer(FrontendLoadingTimerHandle);
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[Frontend] Opening gameplay map %s (FirstRunTutorial=%d)."), *PackageName, bUseFirstRunTutorialMap ? 1 : 0);
+	UE_LOG(LogTemp, Log, TEXT("[Frontend] Opening gameplay map %s."), *PackageName);
 	UGameplayStatics::OpenLevel(this, FName(*PackageName), true);
 }
 
 void UYogGameInstanceBase::HandleMainGameMapPreloaded()
 {
-	const bool bUseFirstRunTutorialMap = [&]()
-	{
-		if (UYogSaveSubsystem* SaveSys = GetSubsystem<UYogSaveSubsystem>())
-		{
-			return SaveSys->IsFirstRunTutorialActive() && FirstRunTutorialMap.IsValid();
-		}
-		return false;
-	}();
-	const FSoftObjectPath& TargetMap = bUseFirstRunTutorialMap ? FirstRunTutorialMap : MainGameMap;
-	const FString PackageName = TargetMap.GetLongPackageName();
+	const FString PackageName = MainGameMap.GetLongPackageName();
 	if (PackageName.IsEmpty())
 	{
-		UE_LOG(LogTemp, Error, TEXT("[Frontend] Could not resolve map package from %s"), *TargetMap.ToString());
+		UE_LOG(LogTemp, Error, TEXT("[Frontend] Could not resolve map package from %s"), *MainGameMap.ToString());
 		return;
 	}
 
