@@ -7,41 +7,38 @@
 #include "Data/WeaponSkillDataAsset.h"
 #include "Item/Weapon/WeaponDefinition.h"
 
-namespace
-{
-	const TCHAR* BasicActionTags[] = {
-		TEXT("Character.State.Skill.Attack.Combo1"),
-		TEXT("Character.State.Skill.Attack.Combo2"),
-		TEXT("Character.State.Skill.Attack.Combo3"),
-		TEXT("Character.State.Skill.Attack.Combo4"),
-		TEXT("Character.State.Movement.Dash"),
-		TEXT("Character.State.Movement.Dash.Combo1"),
-		TEXT("Character.State.Movement.Dash.Combo2"),
-		TEXT("Character.State.Movement.Dash.Combo3"),
-		TEXT("Character.State.Movement.Dash.Combo4"),
-		TEXT("Character.State.Skill.Reload"),
-		TEXT("Character.State.Equipment.SwitchWeapon"),
-	};
+static const TCHAR* BasicActionTags[] = {
+	TEXT("Character.State.Skill.Attack.Combo1"),
+	TEXT("Character.State.Skill.Attack.Combo2"),
+	TEXT("Character.State.Skill.Attack.Combo3"),
+	TEXT("Character.State.Skill.Attack.Combo4"),
+	TEXT("Character.State.Movement.Dash"),
+	TEXT("Character.State.Movement.Dash.Combo1"),
+	TEXT("Character.State.Movement.Dash.Combo2"),
+	TEXT("Character.State.Movement.Dash.Combo3"),
+	TEXT("Character.State.Movement.Dash.Combo4"),
+	TEXT("Character.State.Skill.Reload"),
+	TEXT("Character.State.Equipment.SwitchWeapon"),
+};
 
-	const TCHAR* PassiveReactionTags[] = {
-		TEXT("Action.HitReact.Front"),
-		TEXT("Action.HitReact.Back"),
-		TEXT("Action.HitReact.Blocked"),
-		TEXT("Action.HitReact.Parried"),
-		TEXT("Action.HitReact.Left"),
-		TEXT("Action.HitReact.Right"),
-		TEXT("Action.HitReact.Heavy"),
-		TEXT("Action.Stun"),
-		TEXT("Action.GuardBreak"),
-		TEXT("Action.Knockdown"),
-		TEXT("Action.GetUp"),
-		TEXT("Action.Launch"),
-		TEXT("Action.Landing.Hard"),
-		TEXT("Action.Execution.Victim"),
-		TEXT("Action.Backstab.Victim"),
-		TEXT("Action.Dead"),
-	};
-}
+static const TCHAR* PassiveReactionTags[] = {
+	TEXT("Action.HitReact.Front"),
+	TEXT("Action.HitReact.Back"),
+	TEXT("Action.HitReact.Blocked"),
+	TEXT("Action.HitReact.Parried"),
+	TEXT("Action.HitReact.Left"),
+	TEXT("Action.HitReact.Right"),
+	TEXT("Action.HitReact.Heavy"),
+	TEXT("Action.Stun"),
+	TEXT("Action.GuardBreak"),
+	TEXT("Action.Knockdown"),
+	TEXT("Action.GetUp"),
+	TEXT("Action.Launch"),
+	TEXT("Action.Landing.Hard"),
+	TEXT("Action.Execution.Victim"),
+	TEXT("Action.Backstab.Victim"),
+	TEXT("Action.Dead"),
+};
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 	FWeaponActionAuthoringContractTest,

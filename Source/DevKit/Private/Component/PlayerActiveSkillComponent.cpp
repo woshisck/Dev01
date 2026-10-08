@@ -6,12 +6,9 @@
 #include "Component/CombatDeckComponent.h"
 #include "MetaProgression/YogMetaProgressionSubsystem.h"
 
-namespace
+static FGameplayTag GetSharedSkillCooldownTag()
 {
-	FGameplayTag GetSharedSkillCooldownTag()
-	{
-		return FGameplayTag::RequestGameplayTag(TEXT("PlayerState.Cooldown.SkillShared"), false);
-	}
+	return FGameplayTag::RequestGameplayTag(TEXT("PlayerState.Cooldown.SkillShared"), false);
 }
 
 UPlayerActiveSkillComponent::UPlayerActiveSkillComponent()

@@ -6,38 +6,35 @@
 #include "Character/PlayerCharacterBase.h"
 #include "Components/SkeletalMeshComponent.h"
 
-namespace
+static UGA_SwitchWeapon* FindActiveSwitchWeaponAbility(UAbilitySystemComponent* ASC)
 {
-	UGA_SwitchWeapon* FindActiveSwitchWeaponAbility(UAbilitySystemComponent* ASC)
+	if (!ASC)
 	{
-		if (!ASC)
-		{
-			return nullptr;
-		}
-
-		if (UGA_SwitchWeapon* SwitchAbility = Cast<UGA_SwitchWeapon>(ASC->GetAnimatingAbility()))
-		{
-			return SwitchAbility;
-		}
-
-		for (const FGameplayAbilitySpec& Spec : ASC->GetActivatableAbilities())
-		{
-			if (!Spec.IsActive())
-			{
-				continue;
-			}
-
-			for (UGameplayAbility* AbilityInstance : Spec.GetAbilityInstances())
-			{
-				if (UGA_SwitchWeapon* SwitchAbility = Cast<UGA_SwitchWeapon>(AbilityInstance))
-				{
-					return SwitchAbility;
-				}
-			}
-		}
-
 		return nullptr;
 	}
+
+	if (UGA_SwitchWeapon* SwitchAbility = Cast<UGA_SwitchWeapon>(ASC->GetAnimatingAbility()))
+	{
+		return SwitchAbility;
+	}
+
+	for (const FGameplayAbilitySpec& Spec : ASC->GetActivatableAbilities())
+	{
+		if (!Spec.IsActive())
+		{
+			continue;
+		}
+
+		for (UGameplayAbility* AbilityInstance : Spec.GetAbilityInstances())
+		{
+			if (UGA_SwitchWeapon* SwitchAbility = Cast<UGA_SwitchWeapon>(AbilityInstance))
+			{
+				return SwitchAbility;
+			}
+		}
+	}
+
+	return nullptr;
 }
 
 void UAN_SwitchWeapon::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation,

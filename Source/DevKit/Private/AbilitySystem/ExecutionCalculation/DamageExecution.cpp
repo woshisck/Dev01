@@ -8,41 +8,38 @@
 #include "BuffFlow/BuffFlowComponent.h"
 #include "Character/PlayerCharacterBase.h"
 
-namespace
+static float NormalizeCritRate(float RawRate)
 {
-	float NormalizeCritRate(float RawRate)
+	// Designers may enter either 0.2 or 20 for 20%.
+	const float Normalized = RawRate > 1.f ? RawRate / 100.f : RawRate;
+	return FMath::Clamp(Normalized, 0.f, 1.f);
+}
+
+static float NormalizeCritMultiplier(float RawMultiplier)
+{
+	// Crit_Damage is a final multiplier: 1 = no bonus, 1.5 = 150%, 2 = double.
+	return RawMultiplier > 0.f ? FMath::Max(RawMultiplier, 1.f) : 1.f;
+}
+
+static void RequestPlayerCritFreeze(UYogAbilitySystemComponent* SourceASC)
+{
+	if (!SourceASC) return;
+
+	AActor* SourceActor = SourceASC->GetAvatarActor();
+	APawn* SourcePawn = Cast<APawn>(SourceActor);
+	if (!SourcePawn || !SourcePawn->IsPlayerControlled()) return;
+
+	ACharacter* SourceCharacter = Cast<ACharacter>(SourceActor);
+	UAnimInstance* AnimInst = SourceCharacter && SourceCharacter->GetMesh()
+		? SourceCharacter->GetMesh()->GetAnimInstance()
+		: nullptr;
+	if (!AnimInst) return;
+
+	if (UWorld* World = SourceActor->GetWorld())
 	{
-		// Designers may enter either 0.2 or 20 for 20%.
-		const float Normalized = RawRate > 1.f ? RawRate / 100.f : RawRate;
-		return FMath::Clamp(Normalized, 0.f, 1.f);
-	}
-
-	float NormalizeCritMultiplier(float RawMultiplier)
-	{
-		// Crit_Damage is a final multiplier: 1 = no bonus, 1.5 = 150%, 2 = double.
-		return RawMultiplier > 0.f ? FMath::Max(RawMultiplier, 1.f) : 1.f;
-	}
-
-	void RequestPlayerCritFreeze(UYogAbilitySystemComponent* SourceASC)
-	{
-		if (!SourceASC) return;
-
-		AActor* SourceActor = SourceASC->GetAvatarActor();
-		APawn* SourcePawn = Cast<APawn>(SourceActor);
-		if (!SourcePawn || !SourcePawn->IsPlayerControlled()) return;
-
-		ACharacter* SourceCharacter = Cast<ACharacter>(SourceActor);
-		UAnimInstance* AnimInst = SourceCharacter && SourceCharacter->GetMesh()
-			? SourceCharacter->GetMesh()->GetAnimInstance()
-			: nullptr;
-		if (!AnimInst) return;
-
-		if (UWorld* World = SourceActor->GetWorld())
+		if (UHitStopManager* HitStop = World->GetSubsystem<UHitStopManager>())
 		{
-			if (UHitStopManager* HitStop = World->GetSubsystem<UHitStopManager>())
-			{
-				HitStop->RequestMontageHitStop(AnimInst, 0.06f);
-			}
+			HitStop->RequestMontageHitStop(AnimInst, 0.06f);
 		}
 	}
 }

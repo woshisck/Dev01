@@ -10,14 +10,11 @@
 #include "UI/YogUIManagerSubsystem.h"
 #include "UObject/ConstructorHelpers.h"
 
-namespace
-{
-UYogUIManagerSubsystem* GetShopUIManagerForPlayer(const APlayerCharacterBase* Player)
+static UYogUIManagerSubsystem* GetShopUIManagerForPlayer(const APlayerCharacterBase* Player)
 {
 	const APlayerController* PC = Player ? Player->GetController<APlayerController>() : nullptr;
 	ULocalPlayer* LocalPlayer = PC ? PC->GetLocalPlayer() : nullptr;
 	return LocalPlayer ? LocalPlayer->GetSubsystem<UYogUIManagerSubsystem>() : nullptr;
-}
 }
 
 AShopActor::AShopActor()

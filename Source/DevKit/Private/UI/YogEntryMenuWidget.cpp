@@ -14,9 +14,7 @@
 #include "InputCoreTypes.h"
 #include "UI/YogInputKeyUtils.h"
 
-namespace
-{
-UTextBlock* MakeEntryText(UWidgetTree* Tree, const FName Name, const FText& Text, int32 FontSize)
+static UTextBlock* MakeEntryText(UWidgetTree* Tree, const FName Name, const FText& Text, int32 FontSize)
 {
 	UTextBlock* TextBlock = Tree ? Tree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), Name) : nullptr;
 	if (!TextBlock)
@@ -33,7 +31,7 @@ UTextBlock* MakeEntryText(UWidgetTree* Tree, const FName Name, const FText& Text
 	return TextBlock;
 }
 
-UButton* MakeEntryButton(UWidgetTree* Tree, const FName Name, const FText& Text)
+static UButton* MakeEntryButton(UWidgetTree* Tree, const FName Name, const FText& Text)
 {
 	UButton* Button = Tree ? Tree->ConstructWidget<UButton>(UButton::StaticClass(), Name) : nullptr;
 	if (!Button)
@@ -48,7 +46,6 @@ UButton* MakeEntryButton(UWidgetTree* Tree, const FName Name, const FText& Text)
 	}
 
 	return Button;
-}
 }
 
 void UYogEntryMenuWidget::SetBackgroundTexture(UTexture2D* InTexture)

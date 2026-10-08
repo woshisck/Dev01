@@ -11,418 +11,415 @@
 #include "SaveGame/YogSaveSubsystem.h"
 #include "Story/FirstRunTutorialDirectorSubsystem.h"
 
-namespace
+static const FName CombatDeckOwnerSourceWeapon(TEXT("Weapon"));
+static const FName CombatDeckOwnerSourceReward(TEXT("Reward"));
+static const FName CombatDeckOwnerSourceShop(TEXT("Shop"));
+
+// Derives a stable, collision-free GUID for a card's pre-commit flow slot.
+// XOR on A and D ensures the result never equals the source GUID.
+static FGuid CombatDeck_PreCommitGuid(const FGuid& CardGuid)
 {
-	const FName CombatDeckOwnerSourceWeapon(TEXT("Weapon"));
-	const FName CombatDeckOwnerSourceReward(TEXT("Reward"));
-	const FName CombatDeckOwnerSourceShop(TEXT("Shop"));
+	return FGuid(CardGuid.A ^ 0x50524543u, CardGuid.B, CardGuid.C, CardGuid.D ^ 0x4f4d4954u);
+}
 
-	// Derives a stable, collision-free GUID for a card's pre-commit flow slot.
-	// XOR on A and D ensures the result never equals the source GUID.
-	FGuid CombatDeck_PreCommitGuid(const FGuid& CardGuid)
+static const TArray<TObjectPtr<URuneDataAsset>>* GetDefaultWeaponDeckSource(const UWeaponDefinition* WeaponDefinition)
+{
+	if (!WeaponDefinition)
 	{
-		return FGuid(CardGuid.A ^ 0x50524543u, CardGuid.B, CardGuid.C, CardGuid.D ^ 0x4f4d4954u);
+		return nullptr;
 	}
 
-	const TArray<TObjectPtr<URuneDataAsset>>* GetDefaultWeaponDeckSource(const UWeaponDefinition* WeaponDefinition)
-	{
-		if (!WeaponDefinition)
-		{
-			return nullptr;
-		}
+	return &WeaponDefinition->InitialCombatDeck;
+}
 
-		return &WeaponDefinition->InitialCombatDeck;
+static void CopyDeckSourceAssets(const TArray<TObjectPtr<URuneDataAsset>>* SourceCards, TArray<URuneDataAsset*>& OutSourceAssets)
+{
+	if (!SourceCards)
+	{
+		return;
 	}
 
-	void CopyDeckSourceAssets(const TArray<TObjectPtr<URuneDataAsset>>* SourceCards, TArray<URuneDataAsset*>& OutSourceAssets)
+	OutSourceAssets.Reserve(SourceCards->Num());
+	for (const TObjectPtr<URuneDataAsset>& SourceCard : *SourceCards)
 	{
-		if (!SourceCards)
-		{
-			return;
-		}
+		OutSourceAssets.Add(SourceCard.Get());
+	}
+}
 
-		OutSourceAssets.Reserve(SourceCards->Num());
-		for (const TObjectPtr<URuneDataAsset>& SourceCard : *SourceCards)
-		{
-			OutSourceAssets.Add(SourceCard.Get());
-		}
+static float GetProjectileEventFlowStopDelay(const UFlowAsset* FlowAsset)
+{
+	if (!FlowAsset)
+	{
+		return 0.f;
 	}
 
-	float GetProjectileEventFlowStopDelay(const UFlowAsset* FlowAsset)
+	bool bHasWaitEventNode = false;
+	float MaxProjectileLifetime = 0.f;
+	for (const TPair<FGuid, UFlowNode*>& Pair : FlowAsset->GetNodes())
 	{
-		if (!FlowAsset)
+		if (const UBFNode_WaitGameplayEvent* WaitNode = Cast<UBFNode_WaitGameplayEvent>(Pair.Value))
 		{
-			return 0.f;
+			bHasWaitEventNode = bHasWaitEventNode || WaitNode->EventTag.IsValid();
 		}
 
-		bool bHasWaitEventNode = false;
-		float MaxProjectileLifetime = 0.f;
-		for (const TPair<FGuid, UFlowNode*>& Pair : FlowAsset->GetNodes())
+		if (const UBFNode_SpawnSlashWaveProjectile* ProjectileNode = Cast<UBFNode_SpawnSlashWaveProjectile>(Pair.Value))
 		{
-			if (const UBFNode_WaitGameplayEvent* WaitNode = Cast<UBFNode_WaitGameplayEvent>(Pair.Value))
+			if (!ProjectileNode->HitGameplayEventTag.IsValid() && !ProjectileNode->ExpireGameplayEventTag.IsValid())
 			{
-				bHasWaitEventNode = bHasWaitEventNode || WaitNode->EventTag.IsValid();
-			}
-
-			if (const UBFNode_SpawnSlashWaveProjectile* ProjectileNode = Cast<UBFNode_SpawnSlashWaveProjectile>(Pair.Value))
-			{
-				if (!ProjectileNode->HitGameplayEventTag.IsValid() && !ProjectileNode->ExpireGameplayEventTag.IsValid())
-				{
-					continue;
-				}
-
-				const float Speed = FMath::Max(1.f, ProjectileNode->Speed);
-				int32 MaxSpawnCount = FMath::Max(1, ProjectileNode->ProjectileCount);
-				if (ProjectileNode->bAddComboStacksToProjectileCount)
-				{
-					MaxSpawnCount += FMath::Max(0, ProjectileNode->MaxBonusProjectiles);
-				}
-
-				const float SequentialDelay = ProjectileNode->bSpawnProjectilesSequentially
-					? FMath::Max(0.f, ProjectileNode->SequentialProjectileSpawnInterval) * static_cast<float>(FMath::Max(0, MaxSpawnCount - 1))
-					: 0.f;
-				const float Lifetime = SequentialDelay + FMath::Max(0.f, ProjectileNode->MaxDistance) / Speed;
-				MaxProjectileLifetime = FMath::Max(MaxProjectileLifetime, Lifetime);
 				continue;
 			}
 
-			if (const UBFNode_SpawnBuffFlowProjectile* BuffFlowProjectileNode = Cast<UBFNode_SpawnBuffFlowProjectile>(Pair.Value))
+			const float Speed = FMath::Max(1.f, ProjectileNode->Speed);
+			int32 MaxSpawnCount = FMath::Max(1, ProjectileNode->ProjectileCount);
+			if (ProjectileNode->bAddComboStacksToProjectileCount)
 			{
-				if (!BuffFlowProjectileNode->TriggerGameplayEventTag.Value.IsValid() && !BuffFlowProjectileNode->ExpireGameplayEventTag.Value.IsValid())
-				{
-					continue;
-				}
-
-				int32 MaxSpawnCount = FMath::Max(1, BuffFlowProjectileNode->ProjectileCount.Value);
-				if (BuffFlowProjectileNode->bAddComboStacksToProjectileCount)
-				{
-					MaxSpawnCount += FMath::Max(0, BuffFlowProjectileNode->MaxBonusProjectiles);
-				}
-
-				const float SpawnDelay = FMath::Max(0.f, BuffFlowProjectileNode->SpawnInterval) * static_cast<float>(FMath::Max(0, MaxSpawnCount - 1));
-				const float Lifetime = SpawnDelay + FMath::Max(0.f, BuffFlowProjectileNode->Lifetime.Value);
-				MaxProjectileLifetime = FMath::Max(MaxProjectileLifetime, Lifetime);
+				MaxSpawnCount += FMath::Max(0, ProjectileNode->MaxBonusProjectiles);
 			}
+
+			const float SequentialDelay = ProjectileNode->bSpawnProjectilesSequentially
+				? FMath::Max(0.f, ProjectileNode->SequentialProjectileSpawnInterval) * static_cast<float>(FMath::Max(0, MaxSpawnCount - 1))
+				: 0.f;
+			const float Lifetime = SequentialDelay + FMath::Max(0.f, ProjectileNode->MaxDistance) / Speed;
+			MaxProjectileLifetime = FMath::Max(MaxProjectileLifetime, Lifetime);
+			continue;
 		}
 
-		if (!bHasWaitEventNode || MaxProjectileLifetime <= 0.f)
+		if (const UBFNode_SpawnBuffFlowProjectile* BuffFlowProjectileNode = Cast<UBFNode_SpawnBuffFlowProjectile>(Pair.Value))
 		{
-			return 0.f;
-		}
+			if (!BuffFlowProjectileNode->TriggerGameplayEventTag.Value.IsValid() && !BuffFlowProjectileNode->ExpireGameplayEventTag.Value.IsValid())
+			{
+				continue;
+			}
 
-		return FMath::Clamp(MaxProjectileLifetime + 0.35f, 0.25f, 5.0f);
-	}
+			int32 MaxSpawnCount = FMath::Max(1, BuffFlowProjectileNode->ProjectileCount.Value);
+			if (BuffFlowProjectileNode->bAddComboStacksToProjectileCount)
+			{
+				MaxSpawnCount += FMath::Max(0, BuffFlowProjectileNode->MaxBonusProjectiles);
+			}
 
-	bool CombatDeckCardHasId(const FCombatCardConfig& Config, const TCHAR* TagName)
-	{
-		const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(TagName, false);
-		return Tag.IsValid() && Config.CardIdTag == Tag;
-	}
-
-	bool CombatDeckCardHasEffect(const FCombatCardConfig& Config, const TCHAR* TagName)
-	{
-		const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(TagName, false);
-		return Tag.IsValid() && Config.CardEffectTags.HasTagExact(Tag);
-	}
-
-	FString BuffLeafFromLegacyLeaf(const FString& Leaf, const bool bIdentityTag)
-	{
-		if (Leaf == TEXT("Buff.AttackUp") || Leaf == TEXT("AttackUp"))
-		{
-			return TEXT("AttackUp");
-		}
-		if (Leaf == TEXT("Defense.ReduceDamage") || Leaf == TEXT("ReduceDamage"))
-		{
-			return TEXT("ReduceDamage");
-		}
-		if (Leaf == TEXT("Burn"))
-		{
-			return TEXT("Fire");
-		}
-		if (Leaf == TEXT("Burning"))
-		{
-			return TEXT("Fire");
-		}
-		if (Leaf == TEXT("Poisoned"))
-		{
-			return TEXT("Poison");
-		}
-		if (Leaf == TEXT("Bleeding"))
-		{
-			return TEXT("Bleed");
-		}
-		if (Leaf == TEXT("Frozen"))
-		{
-			return TEXT("Freeze");
-		}
-		if (Leaf == TEXT("Stunned"))
-		{
-			return TEXT("Stun");
-		}
-		if (Leaf == TEXT("Rended"))
-		{
-			return TEXT("Rend");
-		}
-		if (Leaf == TEXT("Wounded"))
-		{
-			return TEXT("Wound");
-		}
-		if (Leaf == TEXT("Feared"))
-		{
-			return TEXT("Fear");
-		}
-		if (Leaf == TEXT("Cursed"))
-		{
-			return TEXT("Curse");
-		}
-		if (Leaf == TEXT("Shielded"))
-		{
-			return TEXT("Shield");
-		}
-		if (Leaf == TEXT("Heavy"))
-		{
-			return bIdentityTag ? TEXT("WeaponSkillFinisher") : TEXT("Detonate");
-		}
-		return Leaf;
-	}
-
-	bool TryExtractLegacyCombatCardLeaf(const FString& TagString, FString& OutLeaf, bool& bOutIdentityTag)
-	{
-		static constexpr const TCHAR* RuneIdPrefix = TEXT("Rune.ID.");
-		static constexpr const TCHAR* CardIdPrefix = TEXT("Card.ID.");
-		static constexpr const TCHAR* RuneEffectPrefix = TEXT("Rune.Effect.");
-		static constexpr const TCHAR* CardEffectPrefix = TEXT("Card.Effect.");
-
-		if (TagString.StartsWith(RuneIdPrefix))
-		{
-			OutLeaf = TagString.RightChop(FCString::Strlen(RuneIdPrefix));
-			bOutIdentityTag = true;
-			return true;
-		}
-		if (TagString.StartsWith(CardIdPrefix))
-		{
-			OutLeaf = TagString.RightChop(FCString::Strlen(CardIdPrefix));
-			bOutIdentityTag = true;
-			return true;
-		}
-		if (TagString.StartsWith(RuneEffectPrefix))
-		{
-			OutLeaf = TagString.RightChop(FCString::Strlen(RuneEffectPrefix));
-			bOutIdentityTag = false;
-			return true;
-		}
-		if (TagString.StartsWith(CardEffectPrefix))
-		{
-			OutLeaf = TagString.RightChop(FCString::Strlen(CardEffectPrefix));
-			bOutIdentityTag = false;
-			return true;
-		}
-
-		return false;
-	}
-
-	void AddRequestedTag(TArray<FGameplayTag>& OutTags, const FString& TagString)
-	{
-		const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*TagString), false);
-		if (Tag.IsValid())
-		{
-			OutTags.AddUnique(Tag);
+			const float SpawnDelay = FMath::Max(0.f, BuffFlowProjectileNode->SpawnInterval) * static_cast<float>(FMath::Max(0, MaxSpawnCount - 1));
+			const float Lifetime = SpawnDelay + FMath::Max(0.f, BuffFlowProjectileNode->Lifetime.Value);
+			MaxProjectileLifetime = FMath::Max(MaxProjectileLifetime, Lifetime);
 		}
 	}
 
-	TArray<FGameplayTag> GetEquivalentCombatCardTags(const FGameplayTag& Tag)
+	if (!bHasWaitEventNode || MaxProjectileLifetime <= 0.f)
 	{
-		TArray<FGameplayTag> EquivalentTags;
-		if (!Tag.IsValid())
-		{
-			return EquivalentTags;
-		}
-
-		const FString TagString = Tag.ToString();
-		FString Leaf;
-		bool bIdentityTag = false;
-		if (TryExtractLegacyCombatCardLeaf(TagString, Leaf, bIdentityTag))
-		{
-			AddRequestedTag(EquivalentTags, FString(TEXT("Buff.")) + BuffLeafFromLegacyLeaf(Leaf, bIdentityTag));
-			AddRequestedTag(EquivalentTags, FString(TEXT("Rune.ID.")) + Leaf);
-			AddRequestedTag(EquivalentTags, FString(TEXT("Card.ID.")) + Leaf);
-			AddRequestedTag(EquivalentTags, FString(TEXT("Rune.Effect.")) + Leaf);
-			AddRequestedTag(EquivalentTags, FString(TEXT("Card.Effect.")) + Leaf);
-			return EquivalentTags;
-		}
-
-		static constexpr const TCHAR* BuffStatusPrefix = TEXT("Buff.Status.");
-		if (TagString.StartsWith(BuffStatusPrefix))
-		{
-			Leaf = TagString.RightChop(FCString::Strlen(BuffStatusPrefix));
-			AddRequestedTag(EquivalentTags, FString(TEXT("Buff.")) + BuffLeafFromLegacyLeaf(Leaf, false));
-			return EquivalentTags;
-		}
-
-		static constexpr const TCHAR* BuffPrefix = TEXT("Buff.");
-		if (TagString.StartsWith(BuffPrefix))
-		{
-			const FString BuffLeaf = TagString.RightChop(FCString::Strlen(BuffPrefix));
-			TArray<FString> LegacyLeaves;
-			TArray<FString> LegacyStatusLeaves;
-			LegacyLeaves.Add(BuffLeaf);
-			if (BuffLeaf == TEXT("Fire"))
-			{
-				LegacyLeaves.Add(TEXT("Burn"));
-				LegacyStatusLeaves.Add(TEXT("Burning"));
-			}
-			else if (BuffLeaf == TEXT("Poison"))
-			{
-				LegacyStatusLeaves.Add(TEXT("Poisoned"));
-			}
-			else if (BuffLeaf == TEXT("Bleed"))
-			{
-				LegacyStatusLeaves.Add(TEXT("Bleeding"));
-			}
-			else if (BuffLeaf == TEXT("Freeze"))
-			{
-				LegacyStatusLeaves.Add(TEXT("Frozen"));
-			}
-			else if (BuffLeaf == TEXT("Stun"))
-			{
-				LegacyStatusLeaves.Add(TEXT("Stunned"));
-			}
-			else if (BuffLeaf == TEXT("Rend"))
-			{
-				LegacyStatusLeaves.Add(TEXT("Rended"));
-			}
-			else if (BuffLeaf == TEXT("Wound"))
-			{
-				LegacyStatusLeaves.Add(TEXT("Wounded"));
-			}
-			else if (BuffLeaf == TEXT("Fear"))
-			{
-				LegacyStatusLeaves.Add(TEXT("Feared"));
-			}
-			else if (BuffLeaf == TEXT("Curse"))
-			{
-				LegacyStatusLeaves.Add(TEXT("Cursed"));
-			}
-			else if (BuffLeaf == TEXT("Shield"))
-			{
-				LegacyStatusLeaves.Add(TEXT("Shielded"));
-			}
-			else if (BuffLeaf == TEXT("ShadowMark"))
-			{
-				LegacyStatusLeaves.Add(TEXT("ShadowMark"));
-			}
-			else if (BuffLeaf == TEXT("Detonate"))
-			{
-				LegacyLeaves.Add(TEXT("Heavy"));
-			}
-			else if (BuffLeaf == TEXT("WeaponSkillFinisher"))
-			{
-				LegacyLeaves.Add(TEXT("Heavy"));
-			}
-			else if (BuffLeaf == TEXT("ReduceDamage"))
-			{
-				LegacyLeaves.Add(TEXT("Defense.ReduceDamage"));
-			}
-
-			for (const FString& LegacyLeaf : LegacyLeaves)
-			{
-				AddRequestedTag(EquivalentTags, FString(TEXT("Rune.ID.")) + LegacyLeaf);
-				AddRequestedTag(EquivalentTags, FString(TEXT("Card.ID.")) + LegacyLeaf);
-				AddRequestedTag(EquivalentTags, FString(TEXT("Rune.Effect.")) + LegacyLeaf);
-				AddRequestedTag(EquivalentTags, FString(TEXT("Card.Effect.")) + LegacyLeaf);
-			}
-			for (const FString& LegacyStatusLeaf : LegacyStatusLeaves)
-			{
-				AddRequestedTag(EquivalentTags, FString(TEXT("Buff.Status.")) + LegacyStatusLeaf);
-			}
-		}
-		return EquivalentTags;
+		return 0.f;
 	}
 
-	FGameplayTag GetFormalCombatCardTag(const FGameplayTag& Tag)
+	return FMath::Clamp(MaxProjectileLifetime + 0.35f, 0.25f, 5.0f);
+}
+
+static bool CombatDeckCardHasId(const FCombatCardConfig& Config, const TCHAR* TagName)
+{
+	const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(TagName, false);
+	return Tag.IsValid() && Config.CardIdTag == Tag;
+}
+
+static bool CombatDeckCardHasEffect(const FCombatCardConfig& Config, const TCHAR* TagName)
+{
+	const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(TagName, false);
+	return Tag.IsValid() && Config.CardEffectTags.HasTagExact(Tag);
+}
+
+static FString BuffLeafFromLegacyLeaf(const FString& Leaf, const bool bIdentityTag)
+{
+	if (Leaf == TEXT("Buff.AttackUp") || Leaf == TEXT("AttackUp"))
 	{
-		if (!Tag.IsValid())
-		{
-			return FGameplayTag();
-		}
-
-		const FString TagString = Tag.ToString();
-		if (TagString.StartsWith(TEXT("Buff.")))
-		{
-			return Tag;
-		}
-
-		FString Leaf;
-		bool bIdentityTag = false;
-		if (TryExtractLegacyCombatCardLeaf(TagString, Leaf, bIdentityTag))
-		{
-			const FString FormalTagString = FString(TEXT("Buff.")) + BuffLeafFromLegacyLeaf(Leaf, bIdentityTag);
-			const FGameplayTag FormalTag = FGameplayTag::RequestGameplayTag(FName(*FormalTagString), false);
-			return FormalTag.IsValid() ? FormalTag : Tag;
-		}
-
-		return Tag;
+		return TEXT("AttackUp");
 	}
-
-	bool ContainerHasTagOrEquivalent(const FGameplayTagContainer& Container, const FGameplayTag& Tag)
+	if (Leaf == TEXT("Defense.ReduceDamage") || Leaf == TEXT("ReduceDamage"))
 	{
-		if (!Tag.IsValid())
-		{
-			return false;
-		}
-
-		if (Container.HasTag(Tag))
-		{
-			return true;
-		}
-
-		for (const FGameplayTag& EquivalentTag : GetEquivalentCombatCardTags(Tag))
-		{
-			if (Container.HasTag(EquivalentTag))
-			{
-				return true;
-			}
-		}
-		return false;
+		return TEXT("ReduceDamage");
 	}
-
-	bool ContainerHasAllTagsOrEquivalent(const FGameplayTagContainer& ActualTags, const FGameplayTagContainer& RequiredTags)
+	if (Leaf == TEXT("Burn"))
 	{
-		for (const FGameplayTag& RequiredTag : RequiredTags)
-		{
-			if (!ContainerHasTagOrEquivalent(ActualTags, RequiredTag))
-			{
-				return false;
-			}
-		}
+		return TEXT("Fire");
+	}
+	if (Leaf == TEXT("Burning"))
+	{
+		return TEXT("Fire");
+	}
+	if (Leaf == TEXT("Poisoned"))
+	{
+		return TEXT("Poison");
+	}
+	if (Leaf == TEXT("Bleeding"))
+	{
+		return TEXT("Bleed");
+	}
+	if (Leaf == TEXT("Frozen"))
+	{
+		return TEXT("Freeze");
+	}
+	if (Leaf == TEXT("Stunned"))
+	{
+		return TEXT("Stun");
+	}
+	if (Leaf == TEXT("Rended"))
+	{
+		return TEXT("Rend");
+	}
+	if (Leaf == TEXT("Wounded"))
+	{
+		return TEXT("Wound");
+	}
+	if (Leaf == TEXT("Feared"))
+	{
+		return TEXT("Fear");
+	}
+	if (Leaf == TEXT("Cursed"))
+	{
+		return TEXT("Curse");
+	}
+	if (Leaf == TEXT("Shielded"))
+	{
+		return TEXT("Shield");
+	}
+	if (Leaf == TEXT("Heavy"))
+	{
+		return bIdentityTag ? TEXT("WeaponSkillFinisher") : TEXT("Detonate");
+	}
+	return Leaf;
+}
 
+static bool TryExtractLegacyCombatCardLeaf(const FString& TagString, FString& OutLeaf, bool& bOutIdentityTag)
+{
+	static constexpr const TCHAR* RuneIdPrefix = TEXT("Rune.ID.");
+	static constexpr const TCHAR* CardIdPrefix = TEXT("Card.ID.");
+	static constexpr const TCHAR* RuneEffectPrefix = TEXT("Rune.Effect.");
+	static constexpr const TCHAR* CardEffectPrefix = TEXT("Card.Effect.");
+
+	if (TagString.StartsWith(RuneIdPrefix))
+	{
+		OutLeaf = TagString.RightChop(FCString::Strlen(RuneIdPrefix));
+		bOutIdentityTag = true;
+		return true;
+	}
+	if (TagString.StartsWith(CardIdPrefix))
+	{
+		OutLeaf = TagString.RightChop(FCString::Strlen(CardIdPrefix));
+		bOutIdentityTag = true;
+		return true;
+	}
+	if (TagString.StartsWith(RuneEffectPrefix))
+	{
+		OutLeaf = TagString.RightChop(FCString::Strlen(RuneEffectPrefix));
+		bOutIdentityTag = false;
+		return true;
+	}
+	if (TagString.StartsWith(CardEffectPrefix))
+	{
+		OutLeaf = TagString.RightChop(FCString::Strlen(CardEffectPrefix));
+		bOutIdentityTag = false;
 		return true;
 	}
 
-	void AddCombatCardEffect(FCombatCardConfig& Config, const TCHAR* TagName)
+	return false;
+}
+
+static void AddRequestedTag(TArray<FGameplayTag>& OutTags, const FString& TagString)
+{
+	const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*TagString), false);
+	if (Tag.IsValid())
 	{
-		const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(TagName, false);
-		if (Tag.IsValid())
-		{
-			Config.CardEffectTags.AddTag(Tag);
-		}
+		OutTags.AddUnique(Tag);
+	}
+}
+
+static TArray<FGameplayTag> GetEquivalentCombatCardTags(const FGameplayTag& Tag)
+{
+	TArray<FGameplayTag> EquivalentTags;
+	if (!Tag.IsValid())
+	{
+		return EquivalentTags;
 	}
 
-	bool IsDeprecatedFinisherCardConfig(const FCombatCardConfig& Config)
+	const FString TagString = Tag.ToString();
+	FString Leaf;
+	bool bIdentityTag = false;
+	if (TryExtractLegacyCombatCardLeaf(TagString, Leaf, bIdentityTag))
 	{
-		if (!DevKit::Combat::IsFinisherAbilityDeprecated())
+		AddRequestedTag(EquivalentTags, FString(TEXT("Buff.")) + BuffLeafFromLegacyLeaf(Leaf, bIdentityTag));
+		AddRequestedTag(EquivalentTags, FString(TEXT("Rune.ID.")) + Leaf);
+		AddRequestedTag(EquivalentTags, FString(TEXT("Card.ID.")) + Leaf);
+		AddRequestedTag(EquivalentTags, FString(TEXT("Rune.Effect.")) + Leaf);
+		AddRequestedTag(EquivalentTags, FString(TEXT("Card.Effect.")) + Leaf);
+		return EquivalentTags;
+	}
+
+	static constexpr const TCHAR* BuffStatusPrefix = TEXT("Buff.Status.");
+	if (TagString.StartsWith(BuffStatusPrefix))
+	{
+		Leaf = TagString.RightChop(FCString::Strlen(BuffStatusPrefix));
+		AddRequestedTag(EquivalentTags, FString(TEXT("Buff.")) + BuffLeafFromLegacyLeaf(Leaf, false));
+		return EquivalentTags;
+	}
+
+	static constexpr const TCHAR* BuffPrefix = TEXT("Buff.");
+	if (TagString.StartsWith(BuffPrefix))
+	{
+		const FString BuffLeaf = TagString.RightChop(FCString::Strlen(BuffPrefix));
+		TArray<FString> LegacyLeaves;
+		TArray<FString> LegacyStatusLeaves;
+		LegacyLeaves.Add(BuffLeaf);
+		if (BuffLeaf == TEXT("Fire"))
+		{
+			LegacyLeaves.Add(TEXT("Burn"));
+			LegacyStatusLeaves.Add(TEXT("Burning"));
+		}
+		else if (BuffLeaf == TEXT("Poison"))
+		{
+			LegacyStatusLeaves.Add(TEXT("Poisoned"));
+		}
+		else if (BuffLeaf == TEXT("Bleed"))
+		{
+			LegacyStatusLeaves.Add(TEXT("Bleeding"));
+		}
+		else if (BuffLeaf == TEXT("Freeze"))
+		{
+			LegacyStatusLeaves.Add(TEXT("Frozen"));
+		}
+		else if (BuffLeaf == TEXT("Stun"))
+		{
+			LegacyStatusLeaves.Add(TEXT("Stunned"));
+		}
+		else if (BuffLeaf == TEXT("Rend"))
+		{
+			LegacyStatusLeaves.Add(TEXT("Rended"));
+		}
+		else if (BuffLeaf == TEXT("Wound"))
+		{
+			LegacyStatusLeaves.Add(TEXT("Wounded"));
+		}
+		else if (BuffLeaf == TEXT("Fear"))
+		{
+			LegacyStatusLeaves.Add(TEXT("Feared"));
+		}
+		else if (BuffLeaf == TEXT("Curse"))
+		{
+			LegacyStatusLeaves.Add(TEXT("Cursed"));
+		}
+		else if (BuffLeaf == TEXT("Shield"))
+		{
+			LegacyStatusLeaves.Add(TEXT("Shielded"));
+		}
+		else if (BuffLeaf == TEXT("ShadowMark"))
+		{
+			LegacyStatusLeaves.Add(TEXT("ShadowMark"));
+		}
+		else if (BuffLeaf == TEXT("Detonate"))
+		{
+			LegacyLeaves.Add(TEXT("Heavy"));
+		}
+		else if (BuffLeaf == TEXT("WeaponSkillFinisher"))
+		{
+			LegacyLeaves.Add(TEXT("Heavy"));
+		}
+		else if (BuffLeaf == TEXT("ReduceDamage"))
+		{
+			LegacyLeaves.Add(TEXT("Defense.ReduceDamage"));
+		}
+
+		for (const FString& LegacyLeaf : LegacyLeaves)
+		{
+			AddRequestedTag(EquivalentTags, FString(TEXT("Rune.ID.")) + LegacyLeaf);
+			AddRequestedTag(EquivalentTags, FString(TEXT("Card.ID.")) + LegacyLeaf);
+			AddRequestedTag(EquivalentTags, FString(TEXT("Rune.Effect.")) + LegacyLeaf);
+			AddRequestedTag(EquivalentTags, FString(TEXT("Card.Effect.")) + LegacyLeaf);
+		}
+		for (const FString& LegacyStatusLeaf : LegacyStatusLeaves)
+		{
+			AddRequestedTag(EquivalentTags, FString(TEXT("Buff.Status.")) + LegacyStatusLeaf);
+		}
+	}
+	return EquivalentTags;
+}
+
+static FGameplayTag GetFormalCombatCardTag(const FGameplayTag& Tag)
+{
+	if (!Tag.IsValid())
+	{
+		return FGameplayTag();
+	}
+
+	const FString TagString = Tag.ToString();
+	if (TagString.StartsWith(TEXT("Buff.")))
+	{
+		return Tag;
+	}
+
+	FString Leaf;
+	bool bIdentityTag = false;
+	if (TryExtractLegacyCombatCardLeaf(TagString, Leaf, bIdentityTag))
+	{
+		const FString FormalTagString = FString(TEXT("Buff.")) + BuffLeafFromLegacyLeaf(Leaf, bIdentityTag);
+		const FGameplayTag FormalTag = FGameplayTag::RequestGameplayTag(FName(*FormalTagString), false);
+		return FormalTag.IsValid() ? FormalTag : Tag;
+	}
+
+	return Tag;
+}
+
+static bool ContainerHasTagOrEquivalent(const FGameplayTagContainer& Container, const FGameplayTag& Tag)
+{
+	if (!Tag.IsValid())
+	{
+		return false;
+	}
+
+	if (Container.HasTag(Tag))
+	{
+		return true;
+	}
+
+	for (const FGameplayTag& EquivalentTag : GetEquivalentCombatCardTags(Tag))
+	{
+		if (Container.HasTag(EquivalentTag))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+static bool ContainerHasAllTagsOrEquivalent(const FGameplayTagContainer& ActualTags, const FGameplayTagContainer& RequiredTags)
+{
+	for (const FGameplayTag& RequiredTag : RequiredTags)
+	{
+		if (!ContainerHasTagOrEquivalent(ActualTags, RequiredTag))
 		{
 			return false;
 		}
-
-		return Config.CardType == ECombatCardType::Finisher
-			|| CombatDeckCardHasId(Config, TEXT("Buff.Finisher"))
-			|| CombatDeckCardHasId(Config, TEXT("Rune.ID.Finisher"))
-			|| CombatDeckCardHasId(Config, TEXT("Card.ID.Finisher"))
-			|| CombatDeckCardHasEffect(Config, TEXT("Buff.Finisher"))
-			|| CombatDeckCardHasEffect(Config, TEXT("Rune.Effect.Finisher"))
-			|| CombatDeckCardHasEffect(Config, TEXT("Card.Effect.Finisher"));
 	}
+
+	return true;
+}
+
+static void AddCombatCardEffect(FCombatCardConfig& Config, const TCHAR* TagName)
+{
+	const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(TagName, false);
+	if (Tag.IsValid())
+	{
+		Config.CardEffectTags.AddTag(Tag);
+	}
+}
+
+static bool IsDeprecatedFinisherCardConfig(const FCombatCardConfig& Config)
+{
+	if (!DevKit::Combat::IsFinisherAbilityDeprecated())
+	{
+		return false;
+	}
+
+	return Config.CardType == ECombatCardType::Finisher
+		|| CombatDeckCardHasId(Config, TEXT("Buff.Finisher"))
+		|| CombatDeckCardHasId(Config, TEXT("Rune.ID.Finisher"))
+		|| CombatDeckCardHasId(Config, TEXT("Card.ID.Finisher"))
+		|| CombatDeckCardHasEffect(Config, TEXT("Buff.Finisher"))
+		|| CombatDeckCardHasEffect(Config, TEXT("Rune.Effect.Finisher"))
+		|| CombatDeckCardHasEffect(Config, TEXT("Card.Effect.Finisher"));
 }
 
 UCombatDeckComponent::UCombatDeckComponent()

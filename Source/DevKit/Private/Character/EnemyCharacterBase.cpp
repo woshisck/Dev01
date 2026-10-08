@@ -23,92 +23,89 @@
 #include "Item/Weapon/WeaponInstance.h"
 #include "BrainComponent.h"
 
-namespace
+// Keeps multiple kill-reward pickups from stacking inside each other's 80cm collision box.
+static constexpr float EnemyCharacter_KillRewardPickupSpacing = 120.0f;
+
+static bool EnemyWeaponHasUsableMontageConfigList(const FAbilityMontageConfigList& ConfigList)
 {
-	// Keeps multiple kill-reward pickups from stacking inside each other's 80cm collision box.
-	constexpr float EnemyCharacter_KillRewardPickupSpacing = 120.0f;
-
-	bool EnemyWeaponHasUsableMontageConfigList(const FAbilityMontageConfigList& ConfigList)
+	for (const FTaggedMontageConfig& Config : ConfigList.Configs)
 	{
-		for (const FTaggedMontageConfig& Config : ConfigList.Configs)
+		if (Config.MontageConfig)
 		{
-			if (Config.MontageConfig)
-			{
-				return true;
-			}
-		}
-
-		return false;
-	}
-
-	bool EnemyWeaponHasUsablePassiveActionData(const FPassiveActionData& PassiveData)
-	{
-		return PassiveData.Montage != nullptr
-			|| !PassiveData.UniqueEffects.IsEmpty()
-			|| PassiveData.DissolveGameplayCueTag.IsValid();
-	}
-
-	void MergeEnemyWeaponAbilityDataInto(UAbilityData& Target, const UAbilityData& Source)
-	{
-		for (const TPair<FGameplayTag, TObjectPtr<UAnimMontage>>& Pair : Source.MontageMap)
-		{
-			if (Pair.Key.IsValid() && Pair.Value)
-			{
-				Target.MontageMap.Add(Pair.Key, Pair.Value);
-			}
-		}
-
-		for (const TPair<FGameplayTag, FAbilityMontageConfigList>& Pair : Source.MontageConfigMap)
-		{
-			if (Pair.Key.IsValid() && EnemyWeaponHasUsableMontageConfigList(Pair.Value))
-			{
-				Target.MontageConfigMap.Add(Pair.Key, Pair.Value);
-			}
-		}
-
-		for (const TPair<FGameplayTag, FPassiveActionData>& Pair : Source.PassiveMap)
-		{
-			if (Pair.Key.IsValid() && EnemyWeaponHasUsablePassiveActionData(Pair.Value))
-			{
-				Target.PassiveMap.Add(Pair.Key, Pair.Value);
-			}
+			return true;
 		}
 	}
 
-	bool EnemyWeaponHasAttributeAdd(const FYogBaseAttributeData& Add)
-	{
-		return !FMath::IsNearlyZero(Add.Attack)
-			|| !FMath::IsNearlyZero(Add.AttackPower)
-			|| !FMath::IsNearlyZero(Add.MaxHealth)
-			|| !FMath::IsNearlyZero(Add.MaxHeat)
-			|| !FMath::IsNearlyZero(Add.Shield)
-			|| !FMath::IsNearlyZero(Add.AttackSpeed)
-			|| !FMath::IsNearlyZero(Add.AttackRange)
-			|| !FMath::IsNearlyZero(Add.Sanity)
-			|| !FMath::IsNearlyZero(Add.MoveSpeed)
-			|| !FMath::IsNearlyZero(Add.Dodge)
-			|| !FMath::IsNearlyZero(Add.Resilience)
-			|| !FMath::IsNearlyZero(Add.Resist)
-			|| !FMath::IsNearlyZero(Add.DmgTaken)
-			|| !FMath::IsNearlyZero(Add.Crit_Rate)
-			|| !FMath::IsNearlyZero(Add.Crit_Damage)
-			|| !FMath::IsNearlyZero(Add.MaxArmorHP);
-	}
+	return false;
+}
 
-	void AddEnemyWeaponAttribute(UAttributeStatComponent* Stats, const FGameplayAttribute& Attribute, float Delta)
+static bool EnemyWeaponHasUsablePassiveActionData(const FPassiveActionData& PassiveData)
+{
+	return PassiveData.Montage != nullptr
+		|| !PassiveData.UniqueEffects.IsEmpty()
+		|| PassiveData.DissolveGameplayCueTag.IsValid();
+}
+
+static void MergeEnemyWeaponAbilityDataInto(UAbilityData& Target, const UAbilityData& Source)
+{
+	for (const TPair<FGameplayTag, TObjectPtr<UAnimMontage>>& Pair : Source.MontageMap)
 	{
-		if (Stats && !FMath::IsNearlyZero(Delta))
+		if (Pair.Key.IsValid() && Pair.Value)
 		{
-			Stats->AddAttribute(Attribute, Delta);
+			Target.MontageMap.Add(Pair.Key, Pair.Value);
 		}
 	}
 
-	void MultiplyEnemyWeaponAttribute(UAttributeStatComponent* Stats, const FGameplayAttribute& Attribute, float Multiplier)
+	for (const TPair<FGameplayTag, FAbilityMontageConfigList>& Pair : Source.MontageConfigMap)
 	{
-		if (Stats && !FMath::IsNearlyEqual(Multiplier, 1.0f))
+		if (Pair.Key.IsValid() && EnemyWeaponHasUsableMontageConfigList(Pair.Value))
 		{
-			Stats->MultiplyAttribute(Attribute, Multiplier);
+			Target.MontageConfigMap.Add(Pair.Key, Pair.Value);
 		}
+	}
+
+	for (const TPair<FGameplayTag, FPassiveActionData>& Pair : Source.PassiveMap)
+	{
+		if (Pair.Key.IsValid() && EnemyWeaponHasUsablePassiveActionData(Pair.Value))
+		{
+			Target.PassiveMap.Add(Pair.Key, Pair.Value);
+		}
+	}
+}
+
+static bool EnemyWeaponHasAttributeAdd(const FYogBaseAttributeData& Add)
+{
+	return !FMath::IsNearlyZero(Add.Attack)
+		|| !FMath::IsNearlyZero(Add.AttackPower)
+		|| !FMath::IsNearlyZero(Add.MaxHealth)
+		|| !FMath::IsNearlyZero(Add.MaxHeat)
+		|| !FMath::IsNearlyZero(Add.Shield)
+		|| !FMath::IsNearlyZero(Add.AttackSpeed)
+		|| !FMath::IsNearlyZero(Add.AttackRange)
+		|| !FMath::IsNearlyZero(Add.Sanity)
+		|| !FMath::IsNearlyZero(Add.MoveSpeed)
+		|| !FMath::IsNearlyZero(Add.Dodge)
+		|| !FMath::IsNearlyZero(Add.Resilience)
+		|| !FMath::IsNearlyZero(Add.Resist)
+		|| !FMath::IsNearlyZero(Add.DmgTaken)
+		|| !FMath::IsNearlyZero(Add.Crit_Rate)
+		|| !FMath::IsNearlyZero(Add.Crit_Damage)
+		|| !FMath::IsNearlyZero(Add.MaxArmorHP);
+}
+
+static void AddEnemyWeaponAttribute(UAttributeStatComponent* Stats, const FGameplayAttribute& Attribute, float Delta)
+{
+	if (Stats && !FMath::IsNearlyZero(Delta))
+	{
+		Stats->AddAttribute(Attribute, Delta);
+	}
+}
+
+static void MultiplyEnemyWeaponAttribute(UAttributeStatComponent* Stats, const FGameplayAttribute& Attribute, float Multiplier)
+{
+	if (Stats && !FMath::IsNearlyEqual(Multiplier, 1.0f))
+	{
+		Stats->MultiplyAttribute(Attribute, Multiplier);
 	}
 }
 

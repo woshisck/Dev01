@@ -12,27 +12,25 @@
 #include "UI/CombatDeckEditWidget.h"
 #include "UI/YogCommonRichTextBlock.h"
 
-namespace
-{
-constexpr float BlockedFeedbackSeconds = 0.22f;
-constexpr float DragVisualOpacity = 0.72f;
-constexpr float DragVisualScale = 1.04f;
-const FLinearColor SelectedColorAndOpacity(0.84f, 0.88f, 0.96f, 1.0f);
-const FLinearColor ForwardLinkHintColor(0.62f, 0.78f, 0.90f, 0.20f);
-const FLinearColor ForwardTargetHintColor(0.62f, 0.78f, 0.90f, 0.13f);
-const FLinearColor ReversedLinkHintColor(0.90f, 0.62f, 0.36f, 0.22f);
-const FLinearColor ReversedTargetHintColor(0.90f, 0.62f, 0.36f, 0.14f);
-const FLinearColor ForwardGemGlowColor(0.48f, 0.82f, 1.00f, 0.58f);
-const FLinearColor ForwardGemCoreColor(0.82f, 0.95f, 1.00f, 0.92f);
-const FLinearColor ForwardGemIdleGlowColor(0.48f, 0.82f, 1.00f, 0.34f);
-const FLinearColor ForwardGemIdleCoreColor(0.72f, 0.88f, 0.96f, 0.76f);
-const FLinearColor ReversedGemGlowColor(1.00f, 0.50f, 0.30f, 0.62f);
-const FLinearColor ReversedGemCoreColor(1.00f, 0.76f, 0.42f, 0.94f);
-const FLinearColor ReversedGemIdleGlowColor(0.90f, 0.45f, 0.28f, 0.36f);
-const FLinearColor ReversedGemIdleCoreColor(0.92f, 0.66f, 0.42f, 0.78f);
-const FVector2D BlockedFeedbackOffset(6.0f, 0.0f);
+static constexpr float BlockedFeedbackSeconds = 0.22f;
+static constexpr float DragVisualOpacity = 0.72f;
+static constexpr float DragVisualScale = 1.04f;
+static const FLinearColor SelectedColorAndOpacity(0.84f, 0.88f, 0.96f, 1.0f);
+static const FLinearColor ForwardLinkHintColor(0.62f, 0.78f, 0.90f, 0.20f);
+static const FLinearColor ForwardTargetHintColor(0.62f, 0.78f, 0.90f, 0.13f);
+static const FLinearColor ReversedLinkHintColor(0.90f, 0.62f, 0.36f, 0.22f);
+static const FLinearColor ReversedTargetHintColor(0.90f, 0.62f, 0.36f, 0.14f);
+static const FLinearColor ForwardGemGlowColor(0.48f, 0.82f, 1.00f, 0.58f);
+static const FLinearColor ForwardGemCoreColor(0.82f, 0.95f, 1.00f, 0.92f);
+static const FLinearColor ForwardGemIdleGlowColor(0.48f, 0.82f, 1.00f, 0.34f);
+static const FLinearColor ForwardGemIdleCoreColor(0.72f, 0.88f, 0.96f, 0.76f);
+static const FLinearColor ReversedGemGlowColor(1.00f, 0.50f, 0.30f, 0.62f);
+static const FLinearColor ReversedGemCoreColor(1.00f, 0.76f, 0.42f, 0.94f);
+static const FLinearColor ReversedGemIdleGlowColor(0.90f, 0.45f, 0.28f, 0.36f);
+static const FLinearColor ReversedGemIdleCoreColor(0.92f, 0.66f, 0.42f, 0.78f);
+static const FVector2D BlockedFeedbackOffset(6.0f, 0.0f);
 
-int32 GetDeckDirectionFromKey(const FKey& Key)
+static int32 GetDeckDirectionFromKey(const FKey& Key)
 {
 	if (Key == EKeys::Gamepad_DPad_Left || Key == EKeys::Gamepad_LeftStick_Left)
 	{
@@ -43,7 +41,6 @@ int32 GetDeckDirectionFromKey(const FKey& Key)
 		return 1;
 	}
 	return 0;
-}
 }
 
 void UCombatDeckEditCardSlotWidget::NativeConstruct()

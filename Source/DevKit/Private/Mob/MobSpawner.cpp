@@ -133,43 +133,40 @@ void AMobSpawner::ApplyStoryHealthOverride(AEnemyCharacterBase* Mob, const FStor
         Options.MaxHealthOverride);
 }
 
-namespace
+static UEnemyData* ResolveEnemyDataFromClass(TSubclassOf<AEnemyCharacterBase> EnemyClass)
 {
-	UEnemyData* ResolveEnemyDataFromClass(TSubclassOf<AEnemyCharacterBase> EnemyClass)
+	const AEnemyCharacterBase* EnemyCDO = EnemyClass ? EnemyClass->GetDefaultObject<AEnemyCharacterBase>() : nullptr;
+	const UCharacterDataComponent* CharacterDataComponent = EnemyCDO ? EnemyCDO->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+	return CharacterDataComponent ? Cast<UEnemyData>(CharacterDataComponent->GetCharacterData()) : nullptr;
+}
+
+static UEnemyWeaponDefinition* ResolveEnemyWeaponForStorySpawn(UEnemyData* EnemyData, UEnemyWeaponDefinition* OverrideWeapon)
+{
+	if (OverrideWeapon)
 	{
-		const AEnemyCharacterBase* EnemyCDO = EnemyClass ? EnemyClass->GetDefaultObject<AEnemyCharacterBase>() : nullptr;
-		const UCharacterDataComponent* CharacterDataComponent = EnemyCDO ? EnemyCDO->FindComponentByClass<UCharacterDataComponent>() : nullptr;
-		return CharacterDataComponent ? Cast<UEnemyData>(CharacterDataComponent->GetCharacterData()) : nullptr;
+		return OverrideWeapon;
+	}
+	if (!EnemyData)
+	{
+		return nullptr;
+	}
+	if (EnemyData->DefaultWeaponDefinition)
+	{
+		return EnemyData->DefaultWeaponDefinition.Get();
 	}
 
-	UEnemyWeaponDefinition* ResolveEnemyWeaponForStorySpawn(UEnemyData* EnemyData, UEnemyWeaponDefinition* OverrideWeapon)
+	TArray<UEnemyWeaponDefinition*> ValidWeapons;
+	for (UEnemyWeaponDefinition* Candidate : EnemyData->AllowedWeaponDefinitions)
 	{
-		if (OverrideWeapon)
+		if (Candidate)
 		{
-			return OverrideWeapon;
+			ValidWeapons.Add(Candidate);
 		}
-		if (!EnemyData)
-		{
-			return nullptr;
-		}
-		if (EnemyData->DefaultWeaponDefinition)
-		{
-			return EnemyData->DefaultWeaponDefinition.Get();
-		}
-
-		TArray<UEnemyWeaponDefinition*> ValidWeapons;
-		for (UEnemyWeaponDefinition* Candidate : EnemyData->AllowedWeaponDefinitions)
-		{
-			if (Candidate)
-			{
-				ValidWeapons.Add(Candidate);
-			}
-		}
-
-		return ValidWeapons.IsEmpty()
-			? nullptr
-			: ValidWeapons[FMath::RandRange(0, ValidWeapons.Num() - 1)];
 	}
+
+	return ValidWeapons.IsEmpty()
+		? nullptr
+		: ValidWeapons[FMath::RandRange(0, ValidWeapons.Num() - 1)];
 }
 
 void AMobSpawner::HandleLifecycleStoryEnemySpawned(AEnemyCharacterBase* SpawnedEnemy, FBuffFlowLifecycleContext& Context)

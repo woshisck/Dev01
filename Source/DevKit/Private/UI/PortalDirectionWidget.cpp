@@ -12,17 +12,14 @@
 #include "GameFramework/Pawn.h"
 #include "UI/WidgetReflectorDebugUtils.h"
 
-namespace
+static FLinearColor GetTypeAccentColor(const FGameplayTag& Tag)
 {
-    FLinearColor GetTypeAccentColor(const FGameplayTag& Tag)
-    {
-        if (!Tag.IsValid()) return FLinearColor(0.95f, 0.85f, 0.55f, 0.92f);
-        const FName Name = Tag.GetTagName();
-        if (Name == FName("Room.Type.Elite"))  return FLinearColor(0.85f, 0.35f, 0.29f, 0.92f);
-        if (Name == FName("Room.Type.Shop"))   return FLinearColor(0.85f, 0.69f, 0.28f, 0.92f);
-        if (Name == FName("Room.Type.Event"))  return FLinearColor(0.48f, 0.36f, 0.79f, 0.92f);
-        return FLinearColor(0.95f, 0.85f, 0.55f, 0.92f);
-    }
+    if (!Tag.IsValid()) return FLinearColor(0.95f, 0.85f, 0.55f, 0.92f);
+    const FName Name = Tag.GetTagName();
+    if (Name == FName("Room.Type.Elite"))  return FLinearColor(0.85f, 0.35f, 0.29f, 0.92f);
+    if (Name == FName("Room.Type.Shop"))   return FLinearColor(0.85f, 0.69f, 0.28f, 0.92f);
+    if (Name == FName("Room.Type.Event"))  return FLinearColor(0.48f, 0.36f, 0.79f, 0.92f);
+    return FLinearColor(0.95f, 0.85f, 0.55f, 0.92f);
 }
 
 void UPortalDirectionWidget::SetActive(bool bInActive, const TArray<APortal*>& OpenPortals)

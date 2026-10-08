@@ -1,11 +1,8 @@
 #include "AbilitySystem/Abilities/GA_EnemyWeaponSkills.h"
 
-namespace
+static FGameplayTag EnemySkillDeadStatusTag()
 {
-	FGameplayTag EnemySkillDeadStatusTag()
-	{
-		return FGameplayTag::RequestGameplayTag(FName(TEXT("Buff.Dead")));
-	}
+	return FGameplayTag::RequestGameplayTag(FName(TEXT("Buff.Dead")));
 }
 
 UGA_Enemy_Skill1::UGA_Enemy_Skill1()

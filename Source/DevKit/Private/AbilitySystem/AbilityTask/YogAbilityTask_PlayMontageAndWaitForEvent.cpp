@@ -9,13 +9,10 @@
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
 
-namespace
-{
-	// Optional montage-authored float curve that scales play rate over the
-	// montage timeline. If the montage has no curve with this name, play rate
-	// is left at the requested Rate (default 1.0).
-	const FName YogAbilityTaskPlayMontageAndWaitForEvent_PlayRateCurveName(TEXT("PlayRate"));
-}
+// Optional montage-authored float curve that scales play rate over the
+// montage timeline. If the montage has no curve with this name, play rate
+// is left at the requested Rate (default 1.0).
+static const FName YogAbilityTaskPlayMontageAndWaitForEvent_PlayRateCurveName(TEXT("PlayRate"));
 
 UYogAbilityTask_PlayMontageAndWaitForEvent::UYogAbilityTask_PlayMontageAndWaitForEvent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

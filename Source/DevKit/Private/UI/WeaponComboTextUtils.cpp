@@ -3,88 +3,85 @@
 #include "Data/AbilityData.h"
 #include "Item/Weapon/WeaponDefinition.h"
 
-namespace
+static FString InputActionMarkup(const TCHAR* InputActionName)
 {
-	FString InputActionMarkup(const TCHAR* InputActionName)
-	{
-		return FString::Printf(TEXT("<input action=\"%s\"/>"), InputActionName);
-	}
+	return FString::Printf(TEXT("<input action=\"%s\"/>"), InputActionName);
+}
 
-	bool HasAnyAbilityData(TConstArrayView<const UAbilityData*> AbilityDataSources)
+static bool HasAnyAbilityData(TConstArrayView<const UAbilityData*> AbilityDataSources)
+{
+	for (const UAbilityData* AbilityData : AbilityDataSources)
 	{
-		for (const UAbilityData* AbilityData : AbilityDataSources)
-		{
-			if (AbilityData)
-			{
-				return true;
-			}
-		}
-		return false;
-	}
-
-	bool HasAbilityInAnyData(TConstArrayView<const UAbilityData*> AbilityDataSources, const FGameplayTag& AbilityTag)
-	{
-		for (const UAbilityData* AbilityData : AbilityDataSources)
-		{
-			if (AbilityData && AbilityTag.IsValid() && AbilityData->HasAbility(AbilityTag))
-			{
-				return true;
-			}
-		}
-		return false;
-	}
-
-	bool HasConfiguredActionForBroadTag(TConstArrayView<const UAbilityData*> AbilityDataSources, const TCHAR* BroadTagName)
-	{
-		const FGameplayTag BroadTag = FGameplayTag::RequestGameplayTag(FName(BroadTagName), false);
-		if (HasAbilityInAnyData(AbilityDataSources, BroadTag))
+		if (AbilityData)
 		{
 			return true;
 		}
-
-		for (int32 ComboIndex = 1; ComboIndex <= 4; ++ComboIndex)
-		{
-			const FString TagName = FString::Printf(TEXT("%s.Combo%d"), BroadTagName, ComboIndex);
-			const FGameplayTag ComboTag = FGameplayTag::RequestGameplayTag(FName(*TagName), false);
-			if (HasAbilityInAnyData(AbilityDataSources, ComboTag))
-			{
-				return true;
-			}
-		}
-
-		return false;
 	}
+	return false;
+}
 
-	bool HasConfiguredAction(
-		TConstArrayView<const UAbilityData*> AbilityDataSources,
-		const TCHAR* BroadTagName,
-		const TCHAR* LegacyBroadTagName = nullptr)
+static bool HasAbilityInAnyData(TConstArrayView<const UAbilityData*> AbilityDataSources, const FGameplayTag& AbilityTag)
+{
+	for (const UAbilityData* AbilityData : AbilityDataSources)
 	{
-		return HasConfiguredActionForBroadTag(AbilityDataSources, BroadTagName)
-			|| (LegacyBroadTagName && HasConfiguredActionForBroadTag(AbilityDataSources, LegacyBroadTagName));
-	}
-
-	void AddActionSlotLine(
-		TArray<FString>& Lines,
-		TConstArrayView<const UAbilityData*> AbilityDataSources,
-		const TCHAR* BroadTagName,
-		const TCHAR* LegacyBroadTagName,
-		const TCHAR* InputActionName,
-		const TCHAR* Label,
-		const TCHAR* Description,
-		int32 MaxLines)
-	{
-		if (!HasConfiguredAction(AbilityDataSources, BroadTagName, LegacyBroadTagName) || (MaxLines > 0 && Lines.Num() >= MaxLines))
+		if (AbilityData && AbilityTag.IsValid() && AbilityData->HasAbility(AbilityTag))
 		{
-			return;
+			return true;
 		}
-
-		Lines.Add(FString::Printf(
-			TEXT("%s   %s  %s"),
-			Label,
-			*InputActionMarkup(InputActionName),
-			Description));
 	}
+	return false;
+}
+
+static bool HasConfiguredActionForBroadTag(TConstArrayView<const UAbilityData*> AbilityDataSources, const TCHAR* BroadTagName)
+{
+	const FGameplayTag BroadTag = FGameplayTag::RequestGameplayTag(FName(BroadTagName), false);
+	if (HasAbilityInAnyData(AbilityDataSources, BroadTag))
+	{
+		return true;
+	}
+
+	for (int32 ComboIndex = 1; ComboIndex <= 4; ++ComboIndex)
+	{
+		const FString TagName = FString::Printf(TEXT("%s.Combo%d"), BroadTagName, ComboIndex);
+		const FGameplayTag ComboTag = FGameplayTag::RequestGameplayTag(FName(*TagName), false);
+		if (HasAbilityInAnyData(AbilityDataSources, ComboTag))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+static bool HasConfiguredAction(
+	TConstArrayView<const UAbilityData*> AbilityDataSources,
+	const TCHAR* BroadTagName,
+	const TCHAR* LegacyBroadTagName = nullptr)
+{
+	return HasConfiguredActionForBroadTag(AbilityDataSources, BroadTagName)
+		|| (LegacyBroadTagName && HasConfiguredActionForBroadTag(AbilityDataSources, LegacyBroadTagName));
+}
+
+static void AddActionSlotLine(
+	TArray<FString>& Lines,
+	TConstArrayView<const UAbilityData*> AbilityDataSources,
+	const TCHAR* BroadTagName,
+	const TCHAR* LegacyBroadTagName,
+	const TCHAR* InputActionName,
+	const TCHAR* Label,
+	const TCHAR* Description,
+	int32 MaxLines)
+{
+	if (!HasConfiguredAction(AbilityDataSources, BroadTagName, LegacyBroadTagName) || (MaxLines > 0 && Lines.Num() >= MaxLines))
+	{
+		return;
+	}
+
+	Lines.Add(FString::Printf(
+		TEXT("%s   %s  %s"),
+		Label,
+		*InputActionMarkup(InputActionName),
+		Description));
 }
 
 FText WeaponComboTextUtils::BuildComboHintText(

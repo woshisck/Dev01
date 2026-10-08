@@ -8,12 +8,9 @@
 #include "TimerManager.h"
 #include "Character/EnemyCharacterBase.h"
 
-namespace
+static FGameplayTag DataDamageTag()
 {
-	FGameplayTag DataDamageTag()
-	{
-		return FGameplayTag::RequestGameplayTag(FName(TEXT("Data.Damage")), false);
-	}
+	return FGameplayTag::RequestGameplayTag(FName(TEXT("Data.Damage")), false);
 }
 
 ABFAreaDamageZone::ABFAreaDamageZone()

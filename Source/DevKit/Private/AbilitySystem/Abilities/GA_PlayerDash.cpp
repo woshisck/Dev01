@@ -31,84 +31,81 @@ static const ECollisionChannel EnemyChannel       = ECC_GameTraceChannel3;
 // ECC_GameTraceChannel5 = DashThrough（可穿越薄墙/家具，冲刺期Overlap
 static const ECollisionChannel DashThroughChannel = ECC_GameTraceChannel5;
 
-namespace
+static constexpr float DashStopPadding = 10.f;
+static constexpr int32 MaxDashAirWallPasses = 8;
+
+static FGameplayTag DashChargeTag()
 {
-	constexpr float DashStopPadding = 10.f;
-	constexpr int32 MaxDashAirWallPasses = 8;
+	return FGameplayTag::RequestGameplayTag(FName(TEXT("Character.State.Movement.Dash")));
+}
 
-	FGameplayTag DashChargeTag()
+static bool IsEnemyOrPawnDashHit(const FHitResult& Hit)
+{
+	if (Cast<APawn>(Hit.GetActor()))
 	{
-		return FGameplayTag::RequestGameplayTag(FName(TEXT("Character.State.Movement.Dash")));
+		return true;
 	}
 
-	bool IsEnemyOrPawnDashHit(const FHitResult& Hit)
-	{
-		if (Cast<APawn>(Hit.GetActor()))
-		{
-			return true;
-		}
+	const UPrimitiveComponent* Comp = Hit.GetComponent();
+	return Comp && (Comp->GetCollisionObjectType() == ECC_Pawn ||
+		Comp->GetCollisionObjectType() == EnemyChannel);
+}
 
-		const UPrimitiveComponent* Comp = Hit.GetComponent();
-		return Comp && (Comp->GetCollisionObjectType() == ECC_Pawn ||
-			Comp->GetCollisionObjectType() == EnemyChannel);
+static bool IsDashTraceBlockingHit(const FHitResult& Hit)
+{
+	const UPrimitiveComponent* Comp = Hit.GetComponent();
+	if (!Comp || !Hit.GetActor() || IsEnemyOrPawnDashHit(Hit))
+	{
+		return false;
 	}
 
-	bool IsDashTraceBlockingHit(const FHitResult& Hit)
+	return Hit.bBlockingHit || Comp->GetCollisionResponseToChannel(DashTraceChannel) == ECR_Block;
+}
+
+static bool RayAabbDistanceRange(const FBox& Box, const FVector& RayStart, const FVector& RayDir, float& OutEnter, float& OutExit)
+{
+	float TMin = -BIG_NUMBER;
+	float TMax = BIG_NUMBER;
+
+	for (int32 Axis = 0; Axis < 3; ++Axis)
 	{
-		const UPrimitiveComponent* Comp = Hit.GetComponent();
-		if (!Comp || !Hit.GetActor() || IsEnemyOrPawnDashHit(Hit))
+		const float StartValue = RayStart[Axis];
+		const float DirValue = RayDir[Axis];
+		const float MinValue = Box.Min[Axis];
+		const float MaxValue = Box.Max[Axis];
+
+		if (FMath::Abs(DirValue) <= KINDA_SMALL_NUMBER)
 		{
-			return false;
-		}
-
-		return Hit.bBlockingHit || Comp->GetCollisionResponseToChannel(DashTraceChannel) == ECR_Block;
-	}
-
-	bool RayAabbDistanceRange(const FBox& Box, const FVector& RayStart, const FVector& RayDir, float& OutEnter, float& OutExit)
-	{
-		float TMin = -BIG_NUMBER;
-		float TMax = BIG_NUMBER;
-
-		for (int32 Axis = 0; Axis < 3; ++Axis)
-		{
-			const float StartValue = RayStart[Axis];
-			const float DirValue = RayDir[Axis];
-			const float MinValue = Box.Min[Axis];
-			const float MaxValue = Box.Max[Axis];
-
-			if (FMath::Abs(DirValue) <= KINDA_SMALL_NUMBER)
-			{
-				if (StartValue < MinValue || StartValue > MaxValue)
-				{
-					return false;
-				}
-				continue;
-			}
-
-			float T1 = (MinValue - StartValue) / DirValue;
-			float T2 = (MaxValue - StartValue) / DirValue;
-			if (T1 > T2)
-			{
-				Swap(T1, T2);
-			}
-
-			TMin = FMath::Max(TMin, T1);
-			TMax = FMath::Min(TMax, T2);
-			if (TMin > TMax)
+			if (StartValue < MinValue || StartValue > MaxValue)
 			{
 				return false;
 			}
+			continue;
 		}
 
-		if (TMax < 0.f)
+		float T1 = (MinValue - StartValue) / DirValue;
+		float T2 = (MaxValue - StartValue) / DirValue;
+		if (T1 > T2)
+		{
+			Swap(T1, T2);
+		}
+
+		TMin = FMath::Max(TMin, T1);
+		TMax = FMath::Min(TMax, T2);
+		if (TMin > TMax)
 		{
 			return false;
 		}
-
-		OutEnter = FMath::Max(0.f, TMin);
-		OutExit = FMath::Max(0.f, TMax);
-		return true;
 	}
+
+	if (TMax < 0.f)
+	{
+		return false;
+	}
+
+	OutEnter = FMath::Max(0.f, TMin);
+	OutExit = FMath::Max(0.f, TMax);
+	return true;
 }
 
 UGA_PlayerDash::UGA_PlayerDash()

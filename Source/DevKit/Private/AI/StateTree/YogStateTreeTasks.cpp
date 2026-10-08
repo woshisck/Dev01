@@ -28,120 +28,117 @@
 
 // ─── Activate Ability By Tag ────────────────────────────────────────────────
 
-namespace
+static bool FindReachableSpawnLocation(
+	UWorld* World,
+	const FVector& Origin,
+	float SpawnRadius,
+	float MinSpawnDistance,
+	int32 MaxAttempts,
+	FVector& OutLocation)
 {
-	bool FindReachableSpawnLocation(
-		UWorld* World,
-		const FVector& Origin,
-		float SpawnRadius,
-		float MinSpawnDistance,
-		int32 MaxAttempts,
-		FVector& OutLocation)
+	if (!World || SpawnRadius <= 0.0f)
 	{
-		if (!World || SpawnRadius <= 0.0f)
-		{
-			return false;
-		}
-
-		UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World);
-		if (!NavSys)
-		{
-			return false;
-		}
-
-		const float SafeMinDistance = FMath::Clamp(MinSpawnDistance, 0.0f, SpawnRadius);
-		const int32 SafeMaxAttempts = FMath::Max(MaxAttempts, 1);
-		for (int32 Attempt = 0; Attempt < SafeMaxAttempts; ++Attempt)
-		{
-			FNavLocation NavLocation;
-			if (!NavSys->GetRandomReachablePointInRadius(Origin, SpawnRadius, NavLocation))
-			{
-				continue;
-			}
-
-			if (SafeMinDistance > 0.0f
-				&& FVector::DistSquared2D(Origin, NavLocation.Location) < FMath::Square(SafeMinDistance))
-			{
-				continue;
-			}
-
-			OutLocation = NavLocation.Location;
-			return true;
-		}
-
 		return false;
 	}
 
-	AEnemyCharacterBase* SpawnEnemyAtLocation(
-		UWorld* World,
-		AActor* SpawnOwner,
-		APawn* InstigatorPawn,
-		TSubclassOf<AEnemyCharacterBase> EnemyClass,
-		const FVector& SpawnLocation)
+	UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World);
+	if (!NavSys)
 	{
-		if (!World || !EnemyClass)
-		{
-			return nullptr;
-		}
-
-		if (AMobSpawner* MobSpawner = Cast<AMobSpawner>(SpawnOwner))
-		{
-			return MobSpawner->SpawnMobAtLocation(EnemyClass, SpawnLocation);
-		}
-
-		AEnemyCharacterBase* Spawned = World->SpawnActorDeferred<AEnemyCharacterBase>(
-			EnemyClass,
-			FTransform(FRotator::ZeroRotator, SpawnLocation),
-			SpawnOwner,
-			InstigatorPawn,
-			ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn);
-		if (!Spawned)
-		{
-			return nullptr;
-		}
-
-		Spawned->FinishSpawning(FTransform(FRotator::ZeroRotator, SpawnLocation));
-		if (!Spawned->GetController())
-		{
-			Spawned->SpawnDefaultController();
-		}
-		if (AYogGameMode* GM = World->GetAuthGameMode<AYogGameMode>())
-		{
-			GM->RegisterEnemy(Spawned);
-		}
-
-		return Spawned;
+		return false;
 	}
 
-	bool SpawnMobStep(FStateTreeTask_SpawnMobInstanceData& InstanceData, AActor* OriginActor, APawn* InstigatorPawn)
+	const float SafeMinDistance = FMath::Clamp(MinSpawnDistance, 0.0f, SpawnRadius);
+	const int32 SafeMaxAttempts = FMath::Max(MaxAttempts, 1);
+	for (int32 Attempt = 0; Attempt < SafeMaxAttempts; ++Attempt)
 	{
-		UWorld* World = OriginActor->GetWorld();
-
-		FVector SpawnLocation = FVector::ZeroVector;
-		if (!FindReachableSpawnLocation(
-				World,
-				OriginActor->GetActorLocation(),
-				InstanceData.SpawnRadius,
-				InstanceData.MinSpawnDistance,
-				InstanceData.MaxAttempts,
-				SpawnLocation))
+		FNavLocation NavLocation;
+		if (!NavSys->GetRandomReachablePointInRadius(Origin, SpawnRadius, NavLocation))
 		{
-			return false;
+			continue;
 		}
 
-		SpawnLocation.Z += InstanceData.SpawnZOffset;
-
-		AEnemyCharacterBase* Spawned = SpawnEnemyAtLocation(
-			World, OriginActor, InstigatorPawn, InstanceData.EnemyClass, SpawnLocation);
-		if (!Spawned)
+		if (SafeMinDistance > 0.0f
+			&& FVector::DistSquared2D(Origin, NavLocation.Location) < FMath::Square(SafeMinDistance))
 		{
-			return false;
+			continue;
 		}
 
-		Spawned->bCountsForLevelClear = InstanceData.bCountsForLevelClear;
-		InstanceData.SpawnedEnemies.Add(Spawned);
+		OutLocation = NavLocation.Location;
 		return true;
 	}
+
+	return false;
+}
+
+static AEnemyCharacterBase* SpawnEnemyAtLocation(
+	UWorld* World,
+	AActor* SpawnOwner,
+	APawn* InstigatorPawn,
+	TSubclassOf<AEnemyCharacterBase> EnemyClass,
+	const FVector& SpawnLocation)
+{
+	if (!World || !EnemyClass)
+	{
+		return nullptr;
+	}
+
+	if (AMobSpawner* MobSpawner = Cast<AMobSpawner>(SpawnOwner))
+	{
+		return MobSpawner->SpawnMobAtLocation(EnemyClass, SpawnLocation);
+	}
+
+	AEnemyCharacterBase* Spawned = World->SpawnActorDeferred<AEnemyCharacterBase>(
+		EnemyClass,
+		FTransform(FRotator::ZeroRotator, SpawnLocation),
+		SpawnOwner,
+		InstigatorPawn,
+		ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn);
+	if (!Spawned)
+	{
+		return nullptr;
+	}
+
+	Spawned->FinishSpawning(FTransform(FRotator::ZeroRotator, SpawnLocation));
+	if (!Spawned->GetController())
+	{
+		Spawned->SpawnDefaultController();
+	}
+	if (AYogGameMode* GM = World->GetAuthGameMode<AYogGameMode>())
+	{
+		GM->RegisterEnemy(Spawned);
+	}
+
+	return Spawned;
+}
+
+static bool SpawnMobStep(FStateTreeTask_SpawnMobInstanceData& InstanceData, AActor* OriginActor, APawn* InstigatorPawn)
+{
+	UWorld* World = OriginActor->GetWorld();
+
+	FVector SpawnLocation = FVector::ZeroVector;
+	if (!FindReachableSpawnLocation(
+			World,
+			OriginActor->GetActorLocation(),
+			InstanceData.SpawnRadius,
+			InstanceData.MinSpawnDistance,
+			InstanceData.MaxAttempts,
+			SpawnLocation))
+	{
+		return false;
+	}
+
+	SpawnLocation.Z += InstanceData.SpawnZOffset;
+
+	AEnemyCharacterBase* Spawned = SpawnEnemyAtLocation(
+		World, OriginActor, InstigatorPawn, InstanceData.EnemyClass, SpawnLocation);
+	if (!Spawned)
+	{
+		return false;
+	}
+
+	Spawned->bCountsForLevelClear = InstanceData.bCountsForLevelClear;
+	InstanceData.SpawnedEnemies.Add(Spawned);
+	return true;
 }
 
 FStateTreeTask_ActivateAbilityByTag::FStateTreeTask_ActivateAbilityByTag()
@@ -570,10 +567,7 @@ EStateTreeRunStatus FStateTreeTask_SpawnMobInReachableNavMesh::EnterState(
 
 // ─── Spawn Mob ──────────────────────────────────────────────────────────────
 
-namespace
-{
-	constexpr int32 SpawnMob_MaxConsecutiveFailures = 10;
-}
+static constexpr int32 SpawnMob_MaxConsecutiveFailures = 10;
 
 FStateTreeTask_SpawnMob::FStateTreeTask_SpawnMob()
 {
@@ -757,60 +751,57 @@ FStateTreeTask_MoveToControllerTarget::FStateTreeTask_MoveToControllerTarget()
 	bShouldCallTick = false;
 }
 
-namespace
+// Slack on top of the move request's reach test before a weave leg counts as issuable. The reach
+// test uses the movement component's nav agent radius, which GetSimpleCollisionRadius only
+// approximates, so leave room for the two to disagree.
+static constexpr float YogStateTree_SnakeLegMargin = 50.0f;
+
+// One leg of the weave: advance toward the player, offset sideways onto whichever side the
+// caller has already chosen in bSnakeToRight. SnakeRandomness jitters both distances here.
+static FVector YogStateTree_ComputeSnakeWaypoint(
+	const APawn& Pawn,
+	const AActor& Player,
+	const FStateTreeTask_ChasePlayerUntilDistanceInstanceData& InstanceData,
+	float MinLegLength)
 {
-	// Slack on top of the move request's reach test before a weave leg counts as issuable. The reach
-	// test uses the movement component's nav agent radius, which GetSimpleCollisionRadius only
-	// approximates, so leave room for the two to disagree.
-	constexpr float YogStateTree_SnakeLegMargin = 50.0f;
+	const FVector PawnLocation = Pawn.GetActorLocation();
+	FVector ToPlayer = Player.GetActorLocation() - PawnLocation;
+	ToPlayer.Z = 0.0f;
 
-	// One leg of the weave: advance toward the player, offset sideways onto whichever side the
-	// caller has already chosen in bSnakeToRight. SnakeRandomness jitters both distances here.
-	FVector YogStateTree_ComputeSnakeWaypoint(
-		const APawn& Pawn,
-		const AActor& Player,
-		const FStateTreeTask_ChasePlayerUntilDistanceInstanceData& InstanceData,
-		float MinLegLength)
+	const float DistanceToPlayer = ToPlayer.Size();
+	if (DistanceToPlayer <= KINDA_SMALL_NUMBER)
 	{
-		const FVector PawnLocation = Pawn.GetActorLocation();
-		FVector ToPlayer = Player.GetActorLocation() - PawnLocation;
-		ToPlayer.Z = 0.0f;
-
-		const float DistanceToPlayer = ToPlayer.Size();
-		if (DistanceToPlayer <= KINDA_SMALL_NUMBER)
-		{
-			return PawnLocation;
-		}
-		ToPlayer /= DistanceToPlayer;
-
-		const float Randomness = FMath::Clamp(InstanceData.SnakeRandomness, 0.0f, 1.0f);
-
-		// Never place a leg past the stop distance, otherwise the weave carries the pawn through
-		// the player.
-		const float ForwardRoom = FMath::Max(DistanceToPlayer - InstanceData.StopDistance, 0.0f);
-		const float LegScale = 1.0f + FMath::FRandRange(-0.6f, 0.6f) * Randomness;
-
-		// A leg shorter than the move request's reach test is answered with AlreadyAtGoal, which
-		// finishes the request without moving the pawn -- so randomness must not be able to shrink a
-		// leg below it. ForwardRoom still wins: overshooting it would weave the pawn past the player.
-		const float LegLength = FMath::Min(
-			FMath::Max(InstanceData.SnakeSegmentLength * LegScale, MinLegLength),
-			ForwardRoom);
-
-		// Randomness only ever narrows the offset, never widens it, so the 45-degree cap below
-		// still holds at full randomness.
-		const float AmplitudeScale = 1.0f - FMath::FRandRange(0.0f, 0.7f) * Randomness;
-
-		// Clamping the sideways offset to the forward progress caps the weave at 45 degrees, which
-		// is what keeps the pawn closing rather than orbiting. It also lets the weave taper off on
-		// its own as the gap shrinks, so a short re-approach still weaves instead of being cut off.
-		const float Amplitude = FMath::Min(InstanceData.SnakeAmplitude * AmplitudeScale, LegLength);
-
-		const FVector Lateral = FVector::CrossProduct(FVector::UpVector, ToPlayer)
-			* (InstanceData.bSnakeToRight ? Amplitude : -Amplitude);
-
-		return PawnLocation + ToPlayer * LegLength + Lateral;
+		return PawnLocation;
 	}
+	ToPlayer /= DistanceToPlayer;
+
+	const float Randomness = FMath::Clamp(InstanceData.SnakeRandomness, 0.0f, 1.0f);
+
+	// Never place a leg past the stop distance, otherwise the weave carries the pawn through
+	// the player.
+	const float ForwardRoom = FMath::Max(DistanceToPlayer - InstanceData.StopDistance, 0.0f);
+	const float LegScale = 1.0f + FMath::FRandRange(-0.6f, 0.6f) * Randomness;
+
+	// A leg shorter than the move request's reach test is answered with AlreadyAtGoal, which
+	// finishes the request without moving the pawn -- so randomness must not be able to shrink a
+	// leg below it. ForwardRoom still wins: overshooting it would weave the pawn past the player.
+	const float LegLength = FMath::Min(
+		FMath::Max(InstanceData.SnakeSegmentLength * LegScale, MinLegLength),
+		ForwardRoom);
+
+	// Randomness only ever narrows the offset, never widens it, so the 45-degree cap below
+	// still holds at full randomness.
+	const float AmplitudeScale = 1.0f - FMath::FRandRange(0.0f, 0.7f) * Randomness;
+
+	// Clamping the sideways offset to the forward progress caps the weave at 45 degrees, which
+	// is what keeps the pawn closing rather than orbiting. It also lets the weave taper off on
+	// its own as the gap shrinks, so a short re-approach still weaves instead of being cut off.
+	const float Amplitude = FMath::Min(InstanceData.SnakeAmplitude * AmplitudeScale, LegLength);
+
+	const FVector Lateral = FVector::CrossProduct(FVector::UpVector, ToPlayer)
+		* (InstanceData.bSnakeToRight ? Amplitude : -Amplitude);
+
+	return PawnLocation + ToPlayer * LegLength + Lateral;
 }
 
 FStateTreeTask_ChasePlayerUntilDistance::FStateTreeTask_ChasePlayerUntilDistance()

@@ -2,322 +2,319 @@
 
 #include "BuffFlow/BuffFlowComponent.h"
 
-namespace
+static const FName PinHasContext(TEXT("bHasContext"));
+static const FName PinEffectMultiplier(TEXT("EffectMultiplier"));
+static const FName PinComboIndex(TEXT("ComboIndex"));
+static const FName PinComboBonusStacks(TEXT("ComboBonusStacks"));
+static const FName PinAttackDamage(TEXT("AttackDamage"));
+static const FName PinFromLink(TEXT("bFromLink"));
+static const FName PinForwardLink(TEXT("bForwardLink"));
+static const FName PinBackwardLink(TEXT("bBackwardLink"));
+static const FName PinPendingBackwardLink(TEXT("bPendingBackwardLink"));
+static const FName PinSourceCardFinisher(TEXT("bSourceCardFinisher"));
+static const FName PinComboActionFinisher(TEXT("bComboActionFinisher"));
+static const FName PinCardIdTag(TEXT("CardIdTag"));
+static const FName PinCardEffectTags(TEXT("CardEffectTags"));
+static const FName PinLinkedSourceCardIdTag(TEXT("LinkedSourceCardIdTag"));
+static const FName PinLinkedSourceEffectTags(TEXT("LinkedSourceEffectTags"));
+static const FName PinLinkedTargetCardIdTag(TEXT("LinkedTargetCardIdTag"));
+static const FName PinLinkedTargetEffectTags(TEXT("LinkedTargetEffectTags"));
+static const FName PinAbilityTag(TEXT("AbilityTag"));
+static const FName PinComboTags(TEXT("ComboTags"));
+static const FName PinActionType(TEXT("ActionType"));
+static const FName PinActionSlot(TEXT("ActionSlot"));
+static const FName PinFlowRole(TEXT("FlowRole"));
+static const FName PinCardType(TEXT("CardType"));
+
+static bool MatchesBoolRequirement(const bool bValue, const EBFCombatCardBoolRequirement Requirement)
 {
-	const FName PinHasContext(TEXT("bHasContext"));
-	const FName PinEffectMultiplier(TEXT("EffectMultiplier"));
-	const FName PinComboIndex(TEXT("ComboIndex"));
-	const FName PinComboBonusStacks(TEXT("ComboBonusStacks"));
-	const FName PinAttackDamage(TEXT("AttackDamage"));
-	const FName PinFromLink(TEXT("bFromLink"));
-	const FName PinForwardLink(TEXT("bForwardLink"));
-	const FName PinBackwardLink(TEXT("bBackwardLink"));
-	const FName PinPendingBackwardLink(TEXT("bPendingBackwardLink"));
-	const FName PinSourceCardFinisher(TEXT("bSourceCardFinisher"));
-	const FName PinComboActionFinisher(TEXT("bComboActionFinisher"));
-	const FName PinCardIdTag(TEXT("CardIdTag"));
-	const FName PinCardEffectTags(TEXT("CardEffectTags"));
-	const FName PinLinkedSourceCardIdTag(TEXT("LinkedSourceCardIdTag"));
-	const FName PinLinkedSourceEffectTags(TEXT("LinkedSourceEffectTags"));
-	const FName PinLinkedTargetCardIdTag(TEXT("LinkedTargetCardIdTag"));
-	const FName PinLinkedTargetEffectTags(TEXT("LinkedTargetEffectTags"));
-	const FName PinAbilityTag(TEXT("AbilityTag"));
-	const FName PinComboTags(TEXT("ComboTags"));
-	const FName PinActionType(TEXT("ActionType"));
-	const FName PinActionSlot(TEXT("ActionSlot"));
-	const FName PinFlowRole(TEXT("FlowRole"));
-	const FName PinCardType(TEXT("CardType"));
-
-	bool MatchesBoolRequirement(const bool bValue, const EBFCombatCardBoolRequirement Requirement)
+	switch (Requirement)
 	{
-		switch (Requirement)
-		{
-		case EBFCombatCardBoolRequirement::RequireFalse:
-			return !bValue;
-		case EBFCombatCardBoolRequirement::RequireTrue:
-			return bValue;
-		case EBFCombatCardBoolRequirement::Ignore:
-		default:
-			return true;
-		}
+	case EBFCombatCardBoolRequirement::RequireFalse:
+		return !bValue;
+	case EBFCombatCardBoolRequirement::RequireTrue:
+		return bValue;
+	case EBFCombatCardBoolRequirement::Ignore:
+	default:
+		return true;
 	}
+}
 
-	FString BuffLeafFromLegacyLeaf(const FString& Leaf, const bool bIdentityTag)
+static FString BuffLeafFromLegacyLeaf(const FString& Leaf, const bool bIdentityTag)
+{
+	if (Leaf == TEXT("Buff.AttackUp") || Leaf == TEXT("AttackUp"))
 	{
-		if (Leaf == TEXT("Buff.AttackUp") || Leaf == TEXT("AttackUp"))
-		{
-			return TEXT("AttackUp");
-		}
-		if (Leaf == TEXT("Defense.ReduceDamage") || Leaf == TEXT("ReduceDamage"))
-		{
-			return TEXT("ReduceDamage");
-		}
-		if (Leaf == TEXT("Burn"))
-		{
-			return TEXT("Fire");
-		}
-		if (Leaf == TEXT("Burning"))
-		{
-			return TEXT("Fire");
-		}
-		if (Leaf == TEXT("Poisoned"))
-		{
-			return TEXT("Poison");
-		}
-		if (Leaf == TEXT("Bleeding"))
-		{
-			return TEXT("Bleed");
-		}
-		if (Leaf == TEXT("Frozen"))
-		{
-			return TEXT("Freeze");
-		}
-		if (Leaf == TEXT("Stunned"))
-		{
-			return TEXT("Stun");
-		}
-		if (Leaf == TEXT("Rended"))
-		{
-			return TEXT("Rend");
-		}
-		if (Leaf == TEXT("Wounded"))
-		{
-			return TEXT("Wound");
-		}
-		if (Leaf == TEXT("Feared"))
-		{
-			return TEXT("Fear");
-		}
-		if (Leaf == TEXT("Cursed"))
-		{
-			return TEXT("Curse");
-		}
-		if (Leaf == TEXT("Shielded"))
-		{
-			return TEXT("Shield");
-		}
-		if (Leaf == TEXT("Heavy"))
-		{
-			return bIdentityTag ? TEXT("WeaponSkillFinisher") : TEXT("Detonate");
-		}
-		return Leaf;
+		return TEXT("AttackUp");
 	}
-
-	bool TryExtractLegacyCombatCardLeaf(const FString& TagString, FString& OutLeaf, bool& bOutIdentityTag)
+	if (Leaf == TEXT("Defense.ReduceDamage") || Leaf == TEXT("ReduceDamage"))
 	{
-		static constexpr const TCHAR* RuneIdPrefix = TEXT("Rune.ID.");
-		static constexpr const TCHAR* CardIdPrefix = TEXT("Card.ID.");
-		static constexpr const TCHAR* RuneEffectPrefix = TEXT("Rune.Effect.");
-		static constexpr const TCHAR* CardEffectPrefix = TEXT("Card.Effect.");
-
-		if (TagString.StartsWith(RuneIdPrefix))
-		{
-			OutLeaf = TagString.RightChop(FCString::Strlen(RuneIdPrefix));
-			bOutIdentityTag = true;
-			return true;
-		}
-		if (TagString.StartsWith(CardIdPrefix))
-		{
-			OutLeaf = TagString.RightChop(FCString::Strlen(CardIdPrefix));
-			bOutIdentityTag = true;
-			return true;
-		}
-		if (TagString.StartsWith(RuneEffectPrefix))
-		{
-			OutLeaf = TagString.RightChop(FCString::Strlen(RuneEffectPrefix));
-			bOutIdentityTag = false;
-			return true;
-		}
-		if (TagString.StartsWith(CardEffectPrefix))
-		{
-			OutLeaf = TagString.RightChop(FCString::Strlen(CardEffectPrefix));
-			bOutIdentityTag = false;
-			return true;
-		}
-
-		return false;
+		return TEXT("ReduceDamage");
 	}
-
-	void AddRequestedTag(TArray<FGameplayTag>& OutTags, const FString& TagString)
+	if (Leaf == TEXT("Burn"))
 	{
-		const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*TagString), false);
-		if (Tag.IsValid())
-		{
-			OutTags.AddUnique(Tag);
-		}
+		return TEXT("Fire");
 	}
-
-	TArray<FGameplayTag> GetEquivalentCombatCardTags(const FGameplayTag& Tag)
+	if (Leaf == TEXT("Burning"))
 	{
-		TArray<FGameplayTag> EquivalentTags;
-		if (!Tag.IsValid())
-		{
-			return EquivalentTags;
-		}
-
-		const FString TagString = Tag.ToString();
-		FString Leaf;
-		bool bIdentityTag = false;
-		if (TryExtractLegacyCombatCardLeaf(TagString, Leaf, bIdentityTag))
-		{
-			AddRequestedTag(EquivalentTags, FString(TEXT("Buff.")) + BuffLeafFromLegacyLeaf(Leaf, bIdentityTag));
-			AddRequestedTag(EquivalentTags, FString(TEXT("Rune.ID.")) + Leaf);
-			AddRequestedTag(EquivalentTags, FString(TEXT("Card.ID.")) + Leaf);
-			AddRequestedTag(EquivalentTags, FString(TEXT("Rune.Effect.")) + Leaf);
-			AddRequestedTag(EquivalentTags, FString(TEXT("Card.Effect.")) + Leaf);
-			return EquivalentTags;
-		}
-
-		static constexpr const TCHAR* BuffStatusPrefix = TEXT("Buff.Status.");
-		if (TagString.StartsWith(BuffStatusPrefix))
-		{
-			Leaf = TagString.RightChop(FCString::Strlen(BuffStatusPrefix));
-			AddRequestedTag(EquivalentTags, FString(TEXT("Buff.")) + BuffLeafFromLegacyLeaf(Leaf, false));
-			return EquivalentTags;
-		}
-
-		static constexpr const TCHAR* BuffPrefix = TEXT("Buff.");
-		if (TagString.StartsWith(BuffPrefix))
-		{
-			const FString BuffLeaf = TagString.RightChop(FCString::Strlen(BuffPrefix));
-			TArray<FString> LegacyLeaves;
-			TArray<FString> LegacyStatusLeaves;
-			LegacyLeaves.Add(BuffLeaf);
-			if (BuffLeaf == TEXT("Fire"))
-			{
-				LegacyLeaves.Add(TEXT("Burn"));
-				LegacyStatusLeaves.Add(TEXT("Burning"));
-			}
-			else if (BuffLeaf == TEXT("Poison"))
-			{
-				LegacyStatusLeaves.Add(TEXT("Poisoned"));
-			}
-			else if (BuffLeaf == TEXT("Bleed"))
-			{
-				LegacyStatusLeaves.Add(TEXT("Bleeding"));
-			}
-			else if (BuffLeaf == TEXT("Freeze"))
-			{
-				LegacyStatusLeaves.Add(TEXT("Frozen"));
-			}
-			else if (BuffLeaf == TEXT("Stun"))
-			{
-				LegacyStatusLeaves.Add(TEXT("Stunned"));
-			}
-			else if (BuffLeaf == TEXT("Rend"))
-			{
-				LegacyStatusLeaves.Add(TEXT("Rended"));
-			}
-			else if (BuffLeaf == TEXT("Wound"))
-			{
-				LegacyStatusLeaves.Add(TEXT("Wounded"));
-			}
-			else if (BuffLeaf == TEXT("Fear"))
-			{
-				LegacyStatusLeaves.Add(TEXT("Feared"));
-			}
-			else if (BuffLeaf == TEXT("Curse"))
-			{
-				LegacyStatusLeaves.Add(TEXT("Cursed"));
-			}
-			else if (BuffLeaf == TEXT("Shield"))
-			{
-				LegacyStatusLeaves.Add(TEXT("Shielded"));
-			}
-			else if (BuffLeaf == TEXT("ShadowMark"))
-			{
-				LegacyStatusLeaves.Add(TEXT("ShadowMark"));
-			}
-			else if (BuffLeaf == TEXT("Detonate") || BuffLeaf == TEXT("WeaponSkillFinisher"))
-			{
-				LegacyLeaves.Add(TEXT("Heavy"));
-			}
-			else if (BuffLeaf == TEXT("ReduceDamage"))
-			{
-				LegacyLeaves.Add(TEXT("Defense.ReduceDamage"));
-			}
-
-			for (const FString& LegacyLeaf : LegacyLeaves)
-			{
-				AddRequestedTag(EquivalentTags, FString(TEXT("Rune.ID.")) + LegacyLeaf);
-				AddRequestedTag(EquivalentTags, FString(TEXT("Card.ID.")) + LegacyLeaf);
-				AddRequestedTag(EquivalentTags, FString(TEXT("Rune.Effect.")) + LegacyLeaf);
-				AddRequestedTag(EquivalentTags, FString(TEXT("Card.Effect.")) + LegacyLeaf);
-			}
-			for (const FString& LegacyStatusLeaf : LegacyStatusLeaves)
-			{
-				AddRequestedTag(EquivalentTags, FString(TEXT("Buff.Status.")) + LegacyStatusLeaf);
-			}
-		}
-		return EquivalentTags;
+		return TEXT("Fire");
 	}
-
-	bool ContainerHasTagOrEquivalent(const FGameplayTagContainer& Container, const FGameplayTag& Tag)
+	if (Leaf == TEXT("Poisoned"))
 	{
-		if (!Tag.IsValid())
-		{
-			return false;
-		}
-
-		if (Container.HasTag(Tag))
-		{
-			return true;
-		}
-
-		for (const FGameplayTag& EquivalentTag : GetEquivalentCombatCardTags(Tag))
-		{
-			if (Container.HasTag(EquivalentTag))
-			{
-				return true;
-			}
-		}
-		return false;
+		return TEXT("Poison");
 	}
-
-	bool MatchesIdRequirement(const FGameplayTag& ActualTag, const FGameplayTagContainer& RequiredTags)
+	if (Leaf == TEXT("Bleeding"))
 	{
-		return RequiredTags.IsEmpty() || (ActualTag.IsValid() && ContainerHasTagOrEquivalent(RequiredTags, ActualTag));
+		return TEXT("Bleed");
 	}
-
-	bool MatchesEffectRequirement(const FGameplayTagContainer& ActualTags, const FGameplayTagContainer& RequiredTags)
+	if (Leaf == TEXT("Frozen"))
 	{
-		if (RequiredTags.IsEmpty())
-		{
-			return true;
-		}
+		return TEXT("Freeze");
+	}
+	if (Leaf == TEXT("Stunned"))
+	{
+		return TEXT("Stun");
+	}
+	if (Leaf == TEXT("Rended"))
+	{
+		return TEXT("Rend");
+	}
+	if (Leaf == TEXT("Wounded"))
+	{
+		return TEXT("Wound");
+	}
+	if (Leaf == TEXT("Feared"))
+	{
+		return TEXT("Fear");
+	}
+	if (Leaf == TEXT("Cursed"))
+	{
+		return TEXT("Curse");
+	}
+	if (Leaf == TEXT("Shielded"))
+	{
+		return TEXT("Shield");
+	}
+	if (Leaf == TEXT("Heavy"))
+	{
+		return bIdentityTag ? TEXT("WeaponSkillFinisher") : TEXT("Detonate");
+	}
+	return Leaf;
+}
 
-		for (const FGameplayTag& RequiredTag : RequiredTags)
-		{
-			if (!ContainerHasTagOrEquivalent(ActualTags, RequiredTag))
-			{
-				return false;
-			}
-		}
+static bool TryExtractLegacyCombatCardLeaf(const FString& TagString, FString& OutLeaf, bool& bOutIdentityTag)
+{
+	static constexpr const TCHAR* RuneIdPrefix = TEXT("Rune.ID.");
+	static constexpr const TCHAR* CardIdPrefix = TEXT("Card.ID.");
+	static constexpr const TCHAR* RuneEffectPrefix = TEXT("Rune.Effect.");
+	static constexpr const TCHAR* CardEffectPrefix = TEXT("Card.Effect.");
 
+	if (TagString.StartsWith(RuneIdPrefix))
+	{
+		OutLeaf = TagString.RightChop(FCString::Strlen(RuneIdPrefix));
+		bOutIdentityTag = true;
+		return true;
+	}
+	if (TagString.StartsWith(CardIdPrefix))
+	{
+		OutLeaf = TagString.RightChop(FCString::Strlen(CardIdPrefix));
+		bOutIdentityTag = true;
+		return true;
+	}
+	if (TagString.StartsWith(RuneEffectPrefix))
+	{
+		OutLeaf = TagString.RightChop(FCString::Strlen(RuneEffectPrefix));
+		bOutIdentityTag = false;
+		return true;
+	}
+	if (TagString.StartsWith(CardEffectPrefix))
+	{
+		OutLeaf = TagString.RightChop(FCString::Strlen(CardEffectPrefix));
+		bOutIdentityTag = false;
 		return true;
 	}
 
-	bool IsAnyLinkTriggered(const FCombatCardResolveResult& Result)
+	return false;
+}
+
+static void AddRequestedTag(TArray<FGameplayTag>& OutTags, const FString& TagString)
+{
+	const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*TagString), false);
+	if (Tag.IsValid())
 	{
-		return Result.bTriggeredLink || Result.bTriggeredForwardLink || Result.bTriggeredBackwardLink;
+		OutTags.AddUnique(Tag);
+	}
+}
+
+static TArray<FGameplayTag> GetEquivalentCombatCardTags(const FGameplayTag& Tag)
+{
+	TArray<FGameplayTag> EquivalentTags;
+	if (!Tag.IsValid())
+	{
+		return EquivalentTags;
 	}
 
-	bool MatchesLinkRequirement(const FCombatCardResolveResult& Result, const EBFCombatCardLinkRequirement Requirement)
+	const FString TagString = Tag.ToString();
+	FString Leaf;
+	bool bIdentityTag = false;
+	if (TryExtractLegacyCombatCardLeaf(TagString, Leaf, bIdentityTag))
 	{
-		switch (Requirement)
+		AddRequestedTag(EquivalentTags, FString(TEXT("Buff.")) + BuffLeafFromLegacyLeaf(Leaf, bIdentityTag));
+		AddRequestedTag(EquivalentTags, FString(TEXT("Rune.ID.")) + Leaf);
+		AddRequestedTag(EquivalentTags, FString(TEXT("Card.ID.")) + Leaf);
+		AddRequestedTag(EquivalentTags, FString(TEXT("Rune.Effect.")) + Leaf);
+		AddRequestedTag(EquivalentTags, FString(TEXT("Card.Effect.")) + Leaf);
+		return EquivalentTags;
+	}
+
+	static constexpr const TCHAR* BuffStatusPrefix = TEXT("Buff.Status.");
+	if (TagString.StartsWith(BuffStatusPrefix))
+	{
+		Leaf = TagString.RightChop(FCString::Strlen(BuffStatusPrefix));
+		AddRequestedTag(EquivalentTags, FString(TEXT("Buff.")) + BuffLeafFromLegacyLeaf(Leaf, false));
+		return EquivalentTags;
+	}
+
+	static constexpr const TCHAR* BuffPrefix = TEXT("Buff.");
+	if (TagString.StartsWith(BuffPrefix))
+	{
+		const FString BuffLeaf = TagString.RightChop(FCString::Strlen(BuffPrefix));
+		TArray<FString> LegacyLeaves;
+		TArray<FString> LegacyStatusLeaves;
+		LegacyLeaves.Add(BuffLeaf);
+		if (BuffLeaf == TEXT("Fire"))
 		{
-		case EBFCombatCardLinkRequirement::NoLink:
-			return !IsAnyLinkTriggered(Result);
-		case EBFCombatCardLinkRequirement::AnyLink:
-			return IsAnyLinkTriggered(Result);
-		case EBFCombatCardLinkRequirement::ForwardLink:
-			return Result.bTriggeredForwardLink;
-		case EBFCombatCardLinkRequirement::BackwardLink:
-			return Result.bTriggeredBackwardLink || Result.bPendingBackwardLink;
-		case EBFCombatCardLinkRequirement::Ignore:
-		default:
+			LegacyLeaves.Add(TEXT("Burn"));
+			LegacyStatusLeaves.Add(TEXT("Burning"));
+		}
+		else if (BuffLeaf == TEXT("Poison"))
+		{
+			LegacyStatusLeaves.Add(TEXT("Poisoned"));
+		}
+		else if (BuffLeaf == TEXT("Bleed"))
+		{
+			LegacyStatusLeaves.Add(TEXT("Bleeding"));
+		}
+		else if (BuffLeaf == TEXT("Freeze"))
+		{
+			LegacyStatusLeaves.Add(TEXT("Frozen"));
+		}
+		else if (BuffLeaf == TEXT("Stun"))
+		{
+			LegacyStatusLeaves.Add(TEXT("Stunned"));
+		}
+		else if (BuffLeaf == TEXT("Rend"))
+		{
+			LegacyStatusLeaves.Add(TEXT("Rended"));
+		}
+		else if (BuffLeaf == TEXT("Wound"))
+		{
+			LegacyStatusLeaves.Add(TEXT("Wounded"));
+		}
+		else if (BuffLeaf == TEXT("Fear"))
+		{
+			LegacyStatusLeaves.Add(TEXT("Feared"));
+		}
+		else if (BuffLeaf == TEXT("Curse"))
+		{
+			LegacyStatusLeaves.Add(TEXT("Cursed"));
+		}
+		else if (BuffLeaf == TEXT("Shield"))
+		{
+			LegacyStatusLeaves.Add(TEXT("Shielded"));
+		}
+		else if (BuffLeaf == TEXT("ShadowMark"))
+		{
+			LegacyStatusLeaves.Add(TEXT("ShadowMark"));
+		}
+		else if (BuffLeaf == TEXT("Detonate") || BuffLeaf == TEXT("WeaponSkillFinisher"))
+		{
+			LegacyLeaves.Add(TEXT("Heavy"));
+		}
+		else if (BuffLeaf == TEXT("ReduceDamage"))
+		{
+			LegacyLeaves.Add(TEXT("Defense.ReduceDamage"));
+		}
+
+		for (const FString& LegacyLeaf : LegacyLeaves)
+		{
+			AddRequestedTag(EquivalentTags, FString(TEXT("Rune.ID.")) + LegacyLeaf);
+			AddRequestedTag(EquivalentTags, FString(TEXT("Card.ID.")) + LegacyLeaf);
+			AddRequestedTag(EquivalentTags, FString(TEXT("Rune.Effect.")) + LegacyLeaf);
+			AddRequestedTag(EquivalentTags, FString(TEXT("Card.Effect.")) + LegacyLeaf);
+		}
+		for (const FString& LegacyStatusLeaf : LegacyStatusLeaves)
+		{
+			AddRequestedTag(EquivalentTags, FString(TEXT("Buff.Status.")) + LegacyStatusLeaf);
+		}
+	}
+	return EquivalentTags;
+}
+
+static bool ContainerHasTagOrEquivalent(const FGameplayTagContainer& Container, const FGameplayTag& Tag)
+{
+	if (!Tag.IsValid())
+	{
+		return false;
+	}
+
+	if (Container.HasTag(Tag))
+	{
+		return true;
+	}
+
+	for (const FGameplayTag& EquivalentTag : GetEquivalentCombatCardTags(Tag))
+	{
+		if (Container.HasTag(EquivalentTag))
+		{
 			return true;
 		}
+	}
+	return false;
+}
+
+static bool MatchesIdRequirement(const FGameplayTag& ActualTag, const FGameplayTagContainer& RequiredTags)
+{
+	return RequiredTags.IsEmpty() || (ActualTag.IsValid() && ContainerHasTagOrEquivalent(RequiredTags, ActualTag));
+}
+
+static bool MatchesEffectRequirement(const FGameplayTagContainer& ActualTags, const FGameplayTagContainer& RequiredTags)
+{
+	if (RequiredTags.IsEmpty())
+	{
+		return true;
+	}
+
+	for (const FGameplayTag& RequiredTag : RequiredTags)
+	{
+		if (!ContainerHasTagOrEquivalent(ActualTags, RequiredTag))
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+static bool IsAnyLinkTriggered(const FCombatCardResolveResult& Result)
+{
+	return Result.bTriggeredLink || Result.bTriggeredForwardLink || Result.bTriggeredBackwardLink;
+}
+
+static bool MatchesLinkRequirement(const FCombatCardResolveResult& Result, const EBFCombatCardLinkRequirement Requirement)
+{
+	switch (Requirement)
+	{
+	case EBFCombatCardLinkRequirement::NoLink:
+		return !IsAnyLinkTriggered(Result);
+	case EBFCombatCardLinkRequirement::AnyLink:
+		return IsAnyLinkTriggered(Result);
+	case EBFCombatCardLinkRequirement::ForwardLink:
+		return Result.bTriggeredForwardLink;
+	case EBFCombatCardLinkRequirement::BackwardLink:
+		return Result.bTriggeredBackwardLink || Result.bPendingBackwardLink;
+	case EBFCombatCardLinkRequirement::Ignore:
+	default:
+		return true;
 	}
 }
 

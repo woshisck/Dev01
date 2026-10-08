@@ -12,19 +12,16 @@ UAnimNotifyState_PostAtkWindow::UAnimNotifyState_PostAtkWindow()
     RecoveryWindowTag = FGameplayTag::RequestGameplayTag(TEXT("Character.State.Window.PostAttackRecovery"), false);
 }
 
-namespace
+static FGameplayTag GetLegacyPostAttackRecoveryTag()
 {
-    FGameplayTag GetLegacyPostAttackRecoveryTag()
-    {
-        return FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.PostAttackRecovery"), false);
-    }
+    return FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.PostAttackRecovery"), false);
+}
 
-    void SetLooseTagCountIfValid(UAbilitySystemComponent* ASC, const FGameplayTag& Tag, int32 Count)
+static void SetLooseTagCountIfValid(UAbilitySystemComponent* ASC, const FGameplayTag& Tag, int32 Count)
+{
+    if (ASC && Tag.IsValid())
     {
-        if (ASC && Tag.IsValid())
-        {
-            ASC->SetLooseGameplayTagCount(Tag, Count);
-        }
+        ASC->SetLooseGameplayTagCount(Tag, Count);
     }
 }
 

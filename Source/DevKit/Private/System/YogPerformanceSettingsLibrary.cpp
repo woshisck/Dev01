@@ -8,8 +8,6 @@
 #include "RVT/DevKitRVTSurfaceInstanceActor.h"
 #include "SaveGame/YogSaveSubsystem.h"
 
-namespace
-{
 static TAutoConsoleVariable<int32> CVarYogDynamicLightQuality(
 	TEXT("r.Yog.DynamicLightQuality"),
 	3,
@@ -55,12 +53,12 @@ static TAutoConsoleVariable<int32> CVarYogVTAtlasQuality_DEPRECATED(
 	3,
 	TEXT("Deprecated alias. Use r.Yog.TextureCollectionQuality; ordinary scene textures stay NoVT and VTAtlas is legacy only."));
 
-int32 ClampQuality(int32 Value)
+static int32 ClampQuality(int32 Value)
 {
 	return FMath::Clamp(Value, 0, 3);
 }
 
-int32 NativeMaterialQualityLevelForProjectQuality(int32 ProjectMaterialQuality)
+static int32 NativeMaterialQualityLevelForProjectQuality(int32 ProjectMaterialQuality)
 {
 	// UE material quality enum order is Low=0, High=1, Medium=2, Epic=3.
 	// Project-facing order remains Low=0, Mid=1, High=2, Epic=3.
@@ -78,7 +76,7 @@ int32 NativeMaterialQualityLevelForProjectQuality(int32 ProjectMaterialQuality)
 	}
 }
 
-EYogPerformanceTargetTier TargetTierForProfile(EYogPerformanceProfile Profile)
+static EYogPerformanceTargetTier TargetTierForProfile(EYogPerformanceProfile Profile)
 {
 	switch (Profile)
 	{
@@ -96,7 +94,7 @@ EYogPerformanceTargetTier TargetTierForProfile(EYogPerformanceProfile Profile)
 	}
 }
 
-EYogPerformanceProfile ProfileForTargetTier(EYogPerformanceTargetTier Tier)
+static EYogPerformanceProfile ProfileForTargetTier(EYogPerformanceTargetTier Tier)
 {
 	switch (Tier)
 	{
@@ -114,7 +112,7 @@ EYogPerformanceProfile ProfileForTargetTier(EYogPerformanceTargetTier Tier)
 	}
 }
 
-void SetCVarInt(const TCHAR* Name, int32 Value)
+static void SetCVarInt(const TCHAR* Name, int32 Value)
 {
 	if (IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(Name))
 	{
@@ -122,7 +120,7 @@ void SetCVarInt(const TCHAR* Name, int32 Value)
 	}
 }
 
-void SetCVarFloat(const TCHAR* Name, float Value)
+static void SetCVarFloat(const TCHAR* Name, float Value)
 {
 	if (IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(Name))
 	{
@@ -130,7 +128,7 @@ void SetCVarFloat(const TCHAR* Name, float Value)
 	}
 }
 
-UGameInstance* GetGameInstanceFromContext(UObject* WorldContextObject)
+static UGameInstance* GetGameInstanceFromContext(UObject* WorldContextObject)
 {
 	if (!WorldContextObject)
 	{
@@ -150,7 +148,7 @@ UGameInstance* GetGameInstanceFromContext(UObject* WorldContextObject)
 	return nullptr;
 }
 
-int32 MaxTextureSetsForMaterialQuality(int32 MaterialQuality)
+static int32 MaxTextureSetsForMaterialQuality(int32 MaterialQuality)
 {
 	switch (ClampQuality(MaterialQuality))
 	{
@@ -165,7 +163,7 @@ int32 MaxTextureSetsForMaterialQuality(int32 MaterialQuality)
 	}
 }
 
-int32 MaxBlendLayersForMaterialQuality(int32 MaterialQuality)
+static int32 MaxBlendLayersForMaterialQuality(int32 MaterialQuality)
 {
 	switch (ClampQuality(MaterialQuality))
 	{
@@ -180,7 +178,7 @@ int32 MaxBlendLayersForMaterialQuality(int32 MaterialQuality)
 	}
 }
 
-int32 MaxOverlayLayersForQuality(int32 DynamicOverlayQuality)
+static int32 MaxOverlayLayersForQuality(int32 DynamicOverlayQuality)
 {
 	switch (ClampQuality(DynamicOverlayQuality))
 	{
@@ -195,7 +193,7 @@ int32 MaxOverlayLayersForQuality(int32 DynamicOverlayQuality)
 	}
 }
 
-UYogSettingsSave* GetSettingsSave(UObject* WorldContextObject)
+static UYogSettingsSave* GetSettingsSave(UObject* WorldContextObject)
 {
 	UGameInstance* GameInstance = GetGameInstanceFromContext(WorldContextObject);
 	UYogSaveSubsystem* SaveSubsystem = GameInstance ? GameInstance->GetSubsystem<UYogSaveSubsystem>() : nullptr;
@@ -212,7 +210,7 @@ UYogSettingsSave* GetSettingsSave(UObject* WorldContextObject)
 	return SaveSubsystem->GetSettings();
 }
 
-void SaveGraphicsSettings(UObject* WorldContextObject, const FYogGraphicsSettings& Settings)
+static void SaveGraphicsSettings(UObject* WorldContextObject, const FYogGraphicsSettings& Settings)
 {
 	UGameInstance* GameInstance = GetGameInstanceFromContext(WorldContextObject);
 	UYogSaveSubsystem* SaveSubsystem = GameInstance ? GameInstance->GetSubsystem<UYogSaveSubsystem>() : nullptr;
@@ -231,7 +229,6 @@ void SaveGraphicsSettings(UObject* WorldContextObject, const FYogGraphicsSetting
 		SettingsSave->GraphicsSettings = Settings;
 		SaveSubsystem->SaveSettings();
 	}
-}
 }
 
 FYogGraphicsSettings UYogPerformanceSettingsLibrary::MakeGraphicsSettingsForProfile(EYogPerformanceProfile Profile)

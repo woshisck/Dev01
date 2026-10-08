@@ -11,75 +11,72 @@
 #include "HAL/IConsoleManager.h"
 #include "Nodes/FlowNode.h"
 
-namespace
+static TAutoConsoleVariable<int32> CVarBuffFlowTrace(
+	TEXT("BuffFlow.Trace"),
+	0,
+	TEXT("Enable compact BuffFlow node execution trace logging and retention."));
+
+static TAutoConsoleVariable<int32> CVarBuffFlowTraceVerbose(
+	TEXT("BuffFlow.TraceVerbose"),
+	0,
+	TEXT("Enable verbose BuffFlow trace log values."));
+
+static const TCHAR* TraceResultToString(EBuffFlowTraceResult Result)
 {
-	TAutoConsoleVariable<int32> CVarBuffFlowTrace(
-		TEXT("BuffFlow.Trace"),
-		0,
-		TEXT("Enable compact BuffFlow node execution trace logging and retention."));
-
-	TAutoConsoleVariable<int32> CVarBuffFlowTraceVerbose(
-		TEXT("BuffFlow.TraceVerbose"),
-		0,
-		TEXT("Enable verbose BuffFlow trace log values."));
-
-	const TCHAR* TraceResultToString(EBuffFlowTraceResult Result)
+	switch (Result)
 	{
-		switch (Result)
-		{
-		case EBuffFlowTraceResult::Success:
-			return TEXT("Success");
-		case EBuffFlowTraceResult::Failed:
-			return TEXT("Failed");
-		case EBuffFlowTraceResult::Skipped:
-			return TEXT("Skipped");
-		default:
-			return TEXT("Unknown");
-		}
+	case EBuffFlowTraceResult::Success:
+		return TEXT("Success");
+	case EBuffFlowTraceResult::Failed:
+		return TEXT("Failed");
+	case EBuffFlowTraceResult::Skipped:
+		return TEXT("Skipped");
+	default:
+		return TEXT("Unknown");
 	}
-
-	void DumpBuffFlowTrace(UWorld* World)
-	{
-		if (!World)
-		{
-			return;
-		}
-
-		APlayerController* PC = World->GetFirstPlayerController();
-		AActor* TraceOwner = PC ? Cast<AActor>(PC->GetPawn()) : nullptr;
-		UBuffFlowComponent* BFC = TraceOwner ? TraceOwner->FindComponentByClass<UBuffFlowComponent>() : nullptr;
-		if (!BFC)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("[BuffFlowTrace] Dump failed: no player BuffFlowComponent."));
-			return;
-		}
-
-		const TArray<FBuffFlowTraceEntry> Entries = BFC->GetTraceEntries();
-		UE_LOG(LogTemp, Warning, TEXT("[BuffFlowTrace] Dump Count=%d Owner=%s"), Entries.Num(), *GetNameSafe(TraceOwner));
-		// Storage is newest-first; print in chronological order (oldest -> newest) for log readability.
-		for (int32 Idx = Entries.Num() - 1; Idx >= 0; --Idx)
-		{
-			const FBuffFlowTraceEntry& Entry = Entries[Idx];
-			UE_LOG(LogTemp, Warning,
-				TEXT("[BuffFlowTrace] t=%.2f Result=%s Flow=%s Node=%s Profile=%s Target=%s Card=%s CardId=%s Msg=%s Values=%s"),
-				Entry.TimeSeconds,
-				TraceResultToString(Entry.Result),
-				*Entry.FlowName.ToString(),
-				*Entry.NodeName.ToString(),
-				*Entry.ProfileName.ToString(),
-				*Entry.TargetName.ToString(),
-				*Entry.CardName.ToString(),
-				*Entry.CardIdTag.ToString(),
-				*Entry.Message,
-				*Entry.Values);
-		}
-	}
-
-	FAutoConsoleCommandWithWorld CmdDumpBuffFlowTrace(
-		TEXT("Yog_DumpBuffFlowTrace"),
-		TEXT("Dump recent BuffFlow trace entries from the current player."),
-		FConsoleCommandWithWorldDelegate::CreateStatic(&DumpBuffFlowTrace));
 }
+
+static void DumpBuffFlowTrace(UWorld* World)
+{
+	if (!World)
+	{
+		return;
+	}
+
+	APlayerController* PC = World->GetFirstPlayerController();
+	AActor* TraceOwner = PC ? Cast<AActor>(PC->GetPawn()) : nullptr;
+	UBuffFlowComponent* BFC = TraceOwner ? TraceOwner->FindComponentByClass<UBuffFlowComponent>() : nullptr;
+	if (!BFC)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[BuffFlowTrace] Dump failed: no player BuffFlowComponent."));
+		return;
+	}
+
+	const TArray<FBuffFlowTraceEntry> Entries = BFC->GetTraceEntries();
+	UE_LOG(LogTemp, Warning, TEXT("[BuffFlowTrace] Dump Count=%d Owner=%s"), Entries.Num(), *GetNameSafe(TraceOwner));
+	// Storage is newest-first; print in chronological order (oldest -> newest) for log readability.
+	for (int32 Idx = Entries.Num() - 1; Idx >= 0; --Idx)
+	{
+		const FBuffFlowTraceEntry& Entry = Entries[Idx];
+		UE_LOG(LogTemp, Warning,
+			TEXT("[BuffFlowTrace] t=%.2f Result=%s Flow=%s Node=%s Profile=%s Target=%s Card=%s CardId=%s Msg=%s Values=%s"),
+			Entry.TimeSeconds,
+			TraceResultToString(Entry.Result),
+			*Entry.FlowName.ToString(),
+			*Entry.NodeName.ToString(),
+			*Entry.ProfileName.ToString(),
+			*Entry.TargetName.ToString(),
+			*Entry.CardName.ToString(),
+			*Entry.CardIdTag.ToString(),
+			*Entry.Message,
+			*Entry.Values);
+	}
+}
+
+static FAutoConsoleCommandWithWorld CmdDumpBuffFlowTrace(
+	TEXT("Yog_DumpBuffFlowTrace"),
+	TEXT("Dump recent BuffFlow trace entries from the current player."),
+	FConsoleCommandWithWorldDelegate::CreateStatic(&DumpBuffFlowTrace));
 
 UBuffFlowComponent::UBuffFlowComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

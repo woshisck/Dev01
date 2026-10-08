@@ -21,9 +21,7 @@
 #include "UI/BackpackStyleDataAsset.h"
 #include "UI/YogUIManagerSubsystem.h"
 
-namespace
-{
-FString CombatDeckCardTypeToString(ECombatCardType CardType)
+static FString CombatDeckCardTypeToString(ECombatCardType CardType)
 {
 	switch (CardType)
 	{
@@ -40,7 +38,7 @@ FString CombatDeckCardTypeToString(ECombatCardType CardType)
 	}
 }
 
-FString DescribeCombatDeckCard(const FCombatCardInstance& Card)
+static FString DescribeCombatDeckCard(const FCombatCardInstance& Card)
 {
 	FString DisplayName = Card.Config.DisplayName.IsEmpty() ? FString() : Card.Config.DisplayName.ToString();
 	if (DisplayName.IsEmpty() && Card.SourceData)
@@ -57,7 +55,6 @@ FString DescribeCombatDeckCard(const FCombatCardInstance& Card)
 		*CombatDeckCardTypeToString(Card.Config.CardType),
 		*Card.Config.CardIdTag.ToString(),
 		*Card.InstanceGuid.ToString(EGuidFormats::Digits));
-}
 }
 
 void UCombatDeckEditWidget::NativeConstruct()

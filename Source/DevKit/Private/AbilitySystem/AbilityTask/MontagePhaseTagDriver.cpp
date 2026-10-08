@@ -4,29 +4,26 @@
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
 
-namespace
+static FGameplayTag PhaseTagForSection(const FName SectionName)
 {
-	FGameplayTag PhaseTagForSection(const FName SectionName)
+	static const FGameplayTag TagPreAtk = FGameplayTag::RequestGameplayTag(TEXT("Character.State.Phase.PreAtk"), false);
+	static const FGameplayTag TagAtk = FGameplayTag::RequestGameplayTag(TEXT("Character.State.Phase.Atk"), false);
+	static const FGameplayTag TagPostAtk = FGameplayTag::RequestGameplayTag(TEXT("Character.State.Phase.PostAtk"), false);
+
+	if (SectionName == FName(TEXT("PreAtk")))
 	{
-		static const FGameplayTag TagPreAtk = FGameplayTag::RequestGameplayTag(TEXT("Character.State.Phase.PreAtk"), false);
-		static const FGameplayTag TagAtk = FGameplayTag::RequestGameplayTag(TEXT("Character.State.Phase.Atk"), false);
-		static const FGameplayTag TagPostAtk = FGameplayTag::RequestGameplayTag(TEXT("Character.State.Phase.PostAtk"), false);
-
-		if (SectionName == FName(TEXT("PreAtk")))
-		{
-			return TagPreAtk;
-		}
-		if (SectionName == FName(TEXT("Atk")))
-		{
-			return TagAtk;
-		}
-		if (SectionName == FName(TEXT("PostAtk")))
-		{
-			return TagPostAtk;
-		}
-
-		return FGameplayTag();
+		return TagPreAtk;
 	}
+	if (SectionName == FName(TEXT("Atk")))
+	{
+		return TagAtk;
+	}
+	if (SectionName == FName(TEXT("PostAtk")))
+	{
+		return TagPostAtk;
+	}
+
+	return FGameplayTag();
 }
 
 void FMontagePhaseTagDriver::Update(UAnimInstance& AnimInstance, UAnimMontage* Montage, UYogAbilitySystemComponent* ASC)

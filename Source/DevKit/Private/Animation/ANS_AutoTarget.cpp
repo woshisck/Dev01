@@ -8,14 +8,11 @@
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetMathLibrary.h"
 
-namespace
+static UClass* AutoTarget_ResolveTargetClass(const ACharacter* Character)
 {
-	UClass* AutoTarget_ResolveTargetClass(const ACharacter* Character)
-	{
-		return Character->IsA<AEnemyCharacterBase>()
-			? APlayerCharacterBase::StaticClass()
-			: AEnemyCharacterBase::StaticClass();
-	}
+	return Character->IsA<AEnemyCharacterBase>()
+		? APlayerCharacterBase::StaticClass()
+		: AEnemyCharacterBase::StaticClass();
 }
 
 void UANS_AutoTarget::NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation,

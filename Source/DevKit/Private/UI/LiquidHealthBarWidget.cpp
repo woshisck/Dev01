@@ -3,10 +3,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
 
-namespace
-{
-    constexpr TCHAR DefaultLiquidHealthBarMaterialPath[] = TEXT("/Game/UI/UI_Material/HUD/M_LiquidHealthBar.M_LiquidHealthBar");
-}
+static constexpr TCHAR DefaultLiquidHealthBarMaterialPath[] = TEXT("/Game/UI/UI_Material/HUD/M_LiquidHealthBar.M_LiquidHealthBar");
 
 void ULiquidHealthBarWidget::NativeConstruct()
 {

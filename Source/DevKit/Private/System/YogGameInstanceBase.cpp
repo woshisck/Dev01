@@ -43,14 +43,12 @@
 #include "Widgets/SOverlay.h"
 #include "Widgets/Text/STextBlock.h"
 
-namespace
-{
-FString DescribeGameInstanceEnumValueForRewardDebug(const UEnum* Enum, int64 Value)
+static FString DescribeGameInstanceEnumValueForRewardDebug(const UEnum* Enum, int64 Value)
 {
 	return Enum ? Enum->GetNameStringByValue(Value) : FString::Printf(TEXT("%lld"), Value);
 }
 
-FString DescribeGameInstanceLootOptionsForRewardDebug(const TArray<FLootOption>& Options)
+static FString DescribeGameInstanceLootOptionsForRewardDebug(const TArray<FLootOption>& Options)
 {
 	if (Options.IsEmpty())
 	{
@@ -74,7 +72,6 @@ FString DescribeGameInstanceLootOptionsForRewardDebug(const TArray<FLootOption>&
 	}
 
 	return FString::Printf(TEXT("Count=%d [%s]"), Options.Num(), *FString::Join(Parts, TEXT("; ")));
-}
 }
 
 UYogGameInstanceBase::UYogGameInstanceBase()

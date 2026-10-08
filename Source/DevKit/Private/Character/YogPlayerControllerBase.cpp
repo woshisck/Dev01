@@ -63,107 +63,104 @@
 #include "Cheater/Cheater.h"
 #endif
 
-namespace
+static const FName AttackMotionWarpTargetName(TEXT("AttackTarget"));
+
+static bool TryActivateAbilityByExactTag(
+	UAbilitySystemComponent* ASC,
+	const FGameplayTag& ExactTag,
+	bool bAllowRemoteActivation = true)
 {
-	const FName AttackMotionWarpTargetName(TEXT("AttackTarget"));
-
-	bool TryActivateAbilityByExactTag(
-		UAbilitySystemComponent* ASC,
-		const FGameplayTag& ExactTag,
-		bool bAllowRemoteActivation = true)
+	if (!ASC || !ExactTag.IsValid())
 	{
-		if (!ASC || !ExactTag.IsValid())
-		{
-			return false;
-		}
-
-		TArray<FGameplayAbilitySpecHandle> MatchingHandles;
-		for (const FGameplayAbilitySpec& Spec : ASC->GetActivatableAbilities())
-		{
-			if (Spec.Ability && Spec.Ability->AbilityTags.HasTagExact(ExactTag))
-			{
-				MatchingHandles.Add(Spec.Handle);
-			}
-		}
-
-		for (const FGameplayAbilitySpecHandle& Handle : MatchingHandles)
-		{
-			if (ASC->TryActivateAbility(Handle, bAllowRemoteActivation))
-			{
-				return true;
-			}
-		}
-
 		return false;
 	}
 
-	bool TryActivateAbilityByExactTagName(
-		UAbilitySystemComponent* ASC,
-		const TCHAR* TagName,
-		bool bAllowRemoteActivation = true)
+	TArray<FGameplayAbilitySpecHandle> MatchingHandles;
+	for (const FGameplayAbilitySpec& Spec : ASC->GetActivatableAbilities())
 	{
-		const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TagName), false);
-		return TryActivateAbilityByExactTag(ASC, Tag, bAllowRemoteActivation);
+		if (Spec.Ability && Spec.Ability->AbilityTags.HasTagExact(ExactTag))
+		{
+			MatchingHandles.Add(Spec.Handle);
+		}
 	}
 
-	bool HasConfiguredAbilityData(APlayerCharacterBase* Player, const TCHAR* TagName)
+	for (const FGameplayAbilitySpecHandle& Handle : MatchingHandles)
 	{
-		if (!Player || !TagName)
+		if (ASC->TryActivateAbility(Handle, bAllowRemoteActivation))
 		{
-			return false;
+			return true;
 		}
-
-		const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TagName), false);
-		if (!Tag.IsValid())
-		{
-			return false;
-		}
-
-		UCharacterDataComponent* CharacterDataComponent = Player->GetCharacterDataComponent();
-		UCharacterData* CharacterData = CharacterDataComponent ? CharacterDataComponent->GetCharacterData() : nullptr;
-		return CharacterData && CharacterData->AbilityData && CharacterData->AbilityData->HasAbility(Tag);
 	}
 
-	bool TryActivateAbilitiesByPrimaryThenFallback(
-		UAbilitySystemComponent* ASC,
-		const TCHAR* PrimaryTagName,
-		const TCHAR* FallbackTagName)
+	return false;
+}
+
+static bool TryActivateAbilityByExactTagName(
+	UAbilitySystemComponent* ASC,
+	const TCHAR* TagName,
+	bool bAllowRemoteActivation = true)
+{
+	const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TagName), false);
+	return TryActivateAbilityByExactTag(ASC, Tag, bAllowRemoteActivation);
+}
+
+static bool HasConfiguredAbilityData(APlayerCharacterBase* Player, const TCHAR* TagName)
+{
+	if (!Player || !TagName)
 	{
-		if (!ASC)
-		{
-			return false;
-		}
-
-		auto TryActivateBySingleTag = [ASC](const TCHAR* TagName) -> bool
-		{
-			return TryActivateAbilityByExactTagName(ASC, TagName, true);
-		};
-
-		return TryActivateBySingleTag(PrimaryTagName) || TryActivateBySingleTag(FallbackTagName);
+		return false;
 	}
 
-	bool TryActivateComboStarterThenFallback(
-		APlayerCharacterBase* Player,
-		const TCHAR* Combo1TagName,
-		const TCHAR* PrimaryTagName,
-		const TCHAR* FallbackTagName)
+	const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TagName), false);
+	if (!Tag.IsValid())
 	{
-		UAbilitySystemComponent* ASC = Player ? Player->GetASC() : nullptr;
-		if (!ASC)
-		{
-			return false;
-		}
-
-		if (HasConfiguredAbilityData(Player, Combo1TagName))
-		{
-			if (TryActivateAbilityByExactTagName(ASC, Combo1TagName, true))
-			{
-				return true;
-			}
-		}
-
-		return TryActivateAbilitiesByPrimaryThenFallback(ASC, PrimaryTagName, FallbackTagName);
+		return false;
 	}
+
+	UCharacterDataComponent* CharacterDataComponent = Player->GetCharacterDataComponent();
+	UCharacterData* CharacterData = CharacterDataComponent ? CharacterDataComponent->GetCharacterData() : nullptr;
+	return CharacterData && CharacterData->AbilityData && CharacterData->AbilityData->HasAbility(Tag);
+}
+
+static bool TryActivateAbilitiesByPrimaryThenFallback(
+	UAbilitySystemComponent* ASC,
+	const TCHAR* PrimaryTagName,
+	const TCHAR* FallbackTagName)
+{
+	if (!ASC)
+	{
+		return false;
+	}
+
+	auto TryActivateBySingleTag = [ASC](const TCHAR* TagName) -> bool
+	{
+		return TryActivateAbilityByExactTagName(ASC, TagName, true);
+	};
+
+	return TryActivateBySingleTag(PrimaryTagName) || TryActivateBySingleTag(FallbackTagName);
+}
+
+static bool TryActivateComboStarterThenFallback(
+	APlayerCharacterBase* Player,
+	const TCHAR* Combo1TagName,
+	const TCHAR* PrimaryTagName,
+	const TCHAR* FallbackTagName)
+{
+	UAbilitySystemComponent* ASC = Player ? Player->GetASC() : nullptr;
+	if (!ASC)
+	{
+		return false;
+	}
+
+	if (HasConfiguredAbilityData(Player, Combo1TagName))
+	{
+		if (TryActivateAbilityByExactTagName(ASC, Combo1TagName, true))
+		{
+			return true;
+		}
+	}
+
+	return TryActivateAbilitiesByPrimaryThenFallback(ASC, PrimaryTagName, FallbackTagName);
 }
 
 

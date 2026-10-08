@@ -6,9 +6,7 @@
 #include "GameplayTagContainer.h"
 #include "Projectile/SlashWaveProjectile.h"
 
-namespace
-{
-bool TryAppendProjectileDirectionFromContext(
+static bool TryAppendProjectileDirectionFromContext(
 	FGameplayEventData& Payload,
 	const FGameplayEffectContextHandle& DamageContext)
 {
@@ -47,7 +45,6 @@ bool TryAppendProjectileDirectionFromContext(
 	}
 
 	return TryAppendFromObject(DamageContext.GetInstigator());
-}
 }
 
 UGA_ActiveSkill_ShieldBurst::UGA_ActiveSkill_ShieldBurst(const FObjectInitializer& ObjectInitializer)

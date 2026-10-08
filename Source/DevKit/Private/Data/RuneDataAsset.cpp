@@ -2,26 +2,23 @@
 
 #include "Math/BasicMathExpressionEvaluator.h"
 
-namespace
+static float EvaluateRuneTuningFormula(const URuneDataAsset* Rune, const FRuneTuningScalar& Scalar)
 {
-	float EvaluateRuneTuningFormula(const URuneDataAsset* Rune, const FRuneTuningScalar& Scalar)
+	FString Expression = Scalar.FormulaExpression;
+	if (Expression.IsEmpty())
 	{
-		FString Expression = Scalar.FormulaExpression;
-		if (Expression.IsEmpty())
-		{
-			return Scalar.Value;
-		}
-
-		const float Level = Rune ? static_cast<float>(Rune->RuneInfo.Level) : 1.f;
-		const float UpgradeLevel = Rune ? static_cast<float>(Rune->RuneInfo.UpgradeLevel) : 0.f;
-		Expression.ReplaceInline(TEXT("UpgradeLevel"), *FString::SanitizeFloat(UpgradeLevel), ESearchCase::IgnoreCase);
-		Expression.ReplaceInline(TEXT("Level"), *FString::SanitizeFloat(Level), ESearchCase::IgnoreCase);
-		Expression.ReplaceInline(TEXT("Value"), *FString::SanitizeFloat(Scalar.Value), ESearchCase::IgnoreCase);
-
-		const FBasicMathExpressionEvaluator Evaluator;
-		const TValueOrError<double, FExpressionError> Result = Evaluator.Evaluate(*Expression, Scalar.Value);
-		return Result.IsValid() ? static_cast<float>(Result.GetValue()) : Scalar.Value;
+		return Scalar.Value;
 	}
+
+	const float Level = Rune ? static_cast<float>(Rune->RuneInfo.Level) : 1.f;
+	const float UpgradeLevel = Rune ? static_cast<float>(Rune->RuneInfo.UpgradeLevel) : 0.f;
+	Expression.ReplaceInline(TEXT("UpgradeLevel"), *FString::SanitizeFloat(UpgradeLevel), ESearchCase::IgnoreCase);
+	Expression.ReplaceInline(TEXT("Level"), *FString::SanitizeFloat(Level), ESearchCase::IgnoreCase);
+	Expression.ReplaceInline(TEXT("Value"), *FString::SanitizeFloat(Scalar.Value), ESearchCase::IgnoreCase);
+
+	const FBasicMathExpressionEvaluator Evaluator;
+	const TValueOrError<double, FExpressionError> Result = Evaluator.Evaluate(*Expression, Scalar.Value);
+	return Result.IsValid() ? static_cast<float>(Result.GetValue()) : Scalar.Value;
 }
 
 float URuneValueCalculation::CalculateValue_Implementation(const URuneDataAsset* Rune, FName Key, float DefaultValue) const

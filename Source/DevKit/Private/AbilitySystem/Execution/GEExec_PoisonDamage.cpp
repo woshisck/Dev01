@@ -4,39 +4,36 @@
 #include "AbilitySystem/Attribute/DamageAttributeSet.h"
 #include "GameplayTagContainer.h"
 
-namespace
+struct FPoisonDamageStatics
 {
-	struct FPoisonDamageStatics
-	{
-		DECLARE_ATTRIBUTE_CAPTUREDEF(MaxHealth);
-		DECLARE_ATTRIBUTE_CAPTUREDEF(Health);
-		DECLARE_ATTRIBUTE_CAPTUREDEF(ArmorHP);
+	DECLARE_ATTRIBUTE_CAPTUREDEF(MaxHealth);
+	DECLARE_ATTRIBUTE_CAPTUREDEF(Health);
+	DECLARE_ATTRIBUTE_CAPTUREDEF(ArmorHP);
 
-		FPoisonDamageStatics()
-		{
-			DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, MaxHealth, Target, false);
-			DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Health, Target, false);
-			DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, ArmorHP, Target, false);
-		}
-	};
-
-	const FPoisonDamageStatics& PoisonStatics()
+	FPoisonDamageStatics()
 	{
-		static FPoisonDamageStatics Statics;
-		return Statics;
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, MaxHealth, Target, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, Health, Target, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UBaseAttributeSet, ArmorHP, Target, false);
+	}
+};
+
+static const FPoisonDamageStatics& PoisonStatics()
+{
+	static FPoisonDamageStatics Statics;
+	return Statics;
+}
+
+static float GetSetByCallerOrDefault(const FGameplayEffectSpec& Spec, const TCHAR* TagName, const float DefaultValue)
+{
+	const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TagName), false);
+	if (!Tag.IsValid())
+	{
+		return DefaultValue;
 	}
 
-	float GetSetByCallerOrDefault(const FGameplayEffectSpec& Spec, const TCHAR* TagName, const float DefaultValue)
-	{
-		const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TagName), false);
-		if (!Tag.IsValid())
-		{
-			return DefaultValue;
-		}
-
-		const float Value = Spec.GetSetByCallerMagnitude(Tag, false, DefaultValue);
-		return Value > 0.f ? Value : DefaultValue;
-	}
+	const float Value = Spec.GetSetByCallerMagnitude(Tag, false, DefaultValue);
+	return Value > 0.f ? Value : DefaultValue;
 }
 
 UGEExec_PoisonDamage::UGEExec_PoisonDamage()

@@ -8,25 +8,22 @@
 #include "Character/YogCharacterBase.h"
 #include "Component/MontageVFXBindingComponent.h"
 
-namespace
+static const UAN_MeleeDamage* FindFirstMeleeDamageNotify(const UAnimSequenceBase* Animation)
 {
-	const UAN_MeleeDamage* FindFirstMeleeDamageNotify(const UAnimSequenceBase* Animation)
+	if (!Animation)
 	{
-		if (!Animation)
-		{
-			return nullptr;
-		}
-
-		for (const FAnimNotifyEvent& Event : Animation->Notifies)
-		{
-			if (const UAN_MeleeDamage* DamageNotify = Cast<UAN_MeleeDamage>(Event.Notify))
-			{
-				return DamageNotify;
-			}
-		}
-
 		return nullptr;
 	}
+
+	for (const FAnimNotifyEvent& Event : Animation->Notifies)
+	{
+		if (const UAN_MeleeDamage* DamageNotify = Cast<UAN_MeleeDamage>(Event.Notify))
+		{
+			return DamageNotify;
+		}
+	}
+
+	return nullptr;
 }
 
 void UANS_MontageVFXBinding::NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation,

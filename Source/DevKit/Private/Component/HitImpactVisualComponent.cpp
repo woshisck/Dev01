@@ -12,19 +12,16 @@
 #include "NiagaraSystem.h"
 #include "Sound/SoundBase.h"
 
-namespace
+static const FGameplayTag& HitImpactVisual_DefaultMaterialTag()
 {
-	const FGameplayTag& HitImpactVisual_DefaultMaterialTag()
-	{
-		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(TEXT("HitReact.Material.Soft"));
-		return Tag;
-	}
+	static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(TEXT("HitReact.Material.Soft"));
+	return Tag;
+}
 
-	const FGameplayTag& HitImpactVisual_ArmoredTag()
-	{
-		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Armored"));
-		return Tag;
-	}
+static const FGameplayTag& HitImpactVisual_ArmoredTag()
+{
+	static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Armored"));
+	return Tag;
 }
 
 UHitImpactVisualComponent::UHitImpactVisualComponent()

@@ -60,31 +60,29 @@
 #include "YogBlueprintFunctionLibrary.h"
 #include "MotionWarpingComponent.h"
 
-namespace
-{
-FGameplayTag GetPostAttackRecoveryTag()
+static FGameplayTag GetPostAttackRecoveryTag()
 {
 	return FGameplayTag::RequestGameplayTag(TEXT("Character.State.Window.PostAttackRecovery"), false);
 }
 
-FGameplayTag GetRecoveryCancelBonusTag()
+static FGameplayTag GetRecoveryCancelBonusTag()
 {
 	return FGameplayTag::RequestGameplayTag(TEXT("Buff.RecoveryCancelBonus"), false);
 }
 
-bool CombatCardHasId(const FCombatCardConfig& Config, const TCHAR* TagName)
+static bool CombatCardHasId(const FCombatCardConfig& Config, const TCHAR* TagName)
 {
 	const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(TagName, false);
 	return Tag.IsValid() && Config.CardIdTag == Tag;
 }
 
-bool CombatCardHasEffect(const FCombatCardConfig& Config, const TCHAR* TagName)
+static bool CombatCardHasEffect(const FCombatCardConfig& Config, const TCHAR* TagName)
 {
 	const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(TagName, false);
 	return Tag.IsValid() && Config.CardEffectTags.HasTagExact(Tag);
 }
 
-void AddSacrificeCostModifier(UGameplayEffect* Effect, const FGameplayAttribute& Attribute, float Delta)
+static void AddSacrificeCostModifier(UGameplayEffect* Effect, const FGameplayAttribute& Attribute, float Delta)
 {
 	if (!Effect || FMath::IsNearlyZero(Delta))
 	{
@@ -98,7 +96,7 @@ void AddSacrificeCostModifier(UGameplayEffect* Effect, const FGameplayAttribute&
 	Effect->Modifiers.Add(Modifier);
 }
 
-bool ApplySacrificeCostStateToASC(UAbilitySystemComponent* ASC, const FSacrificeOfferingCostState& State, UObject* SourceObject)
+static bool ApplySacrificeCostStateToASC(UAbilitySystemComponent* ASC, const FSacrificeOfferingCostState& State, UObject* SourceObject)
 {
 	if (!ASC)
 	{
@@ -127,7 +125,7 @@ bool ApplySacrificeCostStateToASC(UAbilitySystemComponent* ASC, const FSacrifice
 	return ASC->ApplyGameplayEffectSpecToSelf(Spec).IsValid();
 }
 
-void CopyDeckRuntimeStateToRunStateFields(
+static void CopyDeckRuntimeStateToRunStateFields(
 	const FWeaponCombatDeckRuntimeState& DeckState,
 	TArray<TObjectPtr<URuneDataAsset>>& OutCards,
 	TArray<ECombatCardLinkOrientation>& OutOrientations,
@@ -148,7 +146,7 @@ void CopyDeckRuntimeStateToRunStateFields(
 	OutMaxActiveSequenceSize = DeckState.MaxActiveSequenceSize;
 }
 
-void RestoreDeckRuntimeStateFromRunStateFields(
+static void RestoreDeckRuntimeStateFromRunStateFields(
 	FWeaponCombatDeckRuntimeState& DeckState,
 	const TArray<TObjectPtr<URuneDataAsset>>& SourceAssets,
 	const TArray<ECombatCardLinkOrientation>& Orientations,
@@ -163,7 +161,7 @@ void RestoreDeckRuntimeStateFromRunStateFields(
 	DeckState.bInitialized = true;
 }
 
-bool HasUsableMontageConfigList(const FAbilityMontageConfigList& ConfigList)
+static bool HasUsableMontageConfigList(const FAbilityMontageConfigList& ConfigList)
 {
 	for (const FTaggedMontageConfig& Config : ConfigList.Configs)
 	{
@@ -176,14 +174,14 @@ bool HasUsableMontageConfigList(const FAbilityMontageConfigList& ConfigList)
 	return false;
 }
 
-bool HasUsablePassiveActionData(const FPassiveActionData& PassiveData)
+static bool HasUsablePassiveActionData(const FPassiveActionData& PassiveData)
 {
 	return PassiveData.Montage != nullptr
 		|| !PassiveData.UniqueEffects.IsEmpty()
 		|| PassiveData.DissolveGameplayCueTag.IsValid();
 }
 
-void MergeAbilityDataInto(UAbilityData& Target, const UAbilityData& Source)
+static void MergeAbilityDataInto(UAbilityData& Target, const UAbilityData& Source)
 {
 	for (const TPair<FGameplayTag, TObjectPtr<UAnimMontage>>& Pair : Source.MontageMap)
 	{
@@ -208,7 +206,6 @@ void MergeAbilityDataInto(UAbilityData& Target, const UAbilityData& Source)
 			Target.PassiveMap.Add(Pair.Key, Pair.Value);
 		}
 	}
-}
 }
 
 APlayerCharacterBase::APlayerCharacterBase(const FObjectInitializer& ObjectInitializer)

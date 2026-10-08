@@ -16,73 +16,70 @@
 #include "Materials/MaterialInterface.h"
 #include "RVT/DevKitRVTSurfaceInstanceActor.h"
 
-namespace
+/** One derived ISM batch is identified by the source asset and an optional
+ * per-instance material override.  This keeps a preview override isolated
+ * to one instance instead of changing every instance in the source batch. */
+struct FDevKitDerivedBatchKey
 {
-	/** One derived ISM batch is identified by the source asset and an optional
-	 * per-instance material override.  This keeps a preview override isolated
-	 * to one instance instead of changing every instance in the source batch. */
-	struct FDevKitDerivedBatchKey
-	{
-		UDevKitDecalAsset* Asset = nullptr;
-		UMaterialInterface* MaterialOverride = nullptr;
+	UDevKitDecalAsset* Asset = nullptr;
+	UMaterialInterface* MaterialOverride = nullptr;
 
-		bool operator==(const FDevKitDerivedBatchKey& Other) const
-		{
-			return Asset == Other.Asset && MaterialOverride == Other.MaterialOverride;
-		}
-	};
-
-	FORCEINLINE uint32 GetTypeHash(const FDevKitDerivedBatchKey& Key)
+	bool operator==(const FDevKitDerivedBatchKey& Other) const
 	{
-		return HashCombine(GetTypeHash(Key.Asset), GetTypeHash(Key.MaterialOverride));
+		return Asset == Other.Asset && MaterialOverride == Other.MaterialOverride;
 	}
+};
 
-	/**
-	 * Editor-only preview switch for collection rendering.  It deliberately
-	 * lives on the derived component rather than the authored asset: RVT writer
-	 * materials can have no useful main-pass output in the editor/Game View.
-	 * Runtime worlds never consult this switch.
-	 */
-	static TAutoConsoleVariable<int32> CVarDecalCollectionDebugGeometryMaterial(
-		TEXT("r.Yog.DecalCollection.DebugGeometryMaterial"),
-		0,
-		TEXT("Use the engine default surface material for RVT visible-mesh collection editor preview. Disabled by default so artists inspect the authored material; runtime always keeps the authored RVT material."),
-		ECVF_Default);
+static FORCEINLINE uint32 GetTypeHash(const FDevKitDerivedBatchKey& Key)
+{
+	return HashCombine(GetTypeHash(Key.Asset), GetTypeHash(Key.MaterialOverride));
+}
+
+/**
+ * Editor-only preview switch for collection rendering.  It deliberately
+ * lives on the derived component rather than the authored asset: RVT writer
+ * materials can have no useful main-pass output in the editor/Game View.
+ * Runtime worlds never consult this switch.
+ */
+static TAutoConsoleVariable<int32> CVarDecalCollectionDebugGeometryMaterial(
+	TEXT("r.Yog.DecalCollection.DebugGeometryMaterial"),
+	0,
+	TEXT("Use the engine default surface material for RVT visible-mesh collection editor preview. Disabled by default so artists inspect the authored material; runtime always keeps the authored RVT material."),
+	ECVF_Default);
 
 #if WITH_EDITOR
-	static void RefreshCollectionsAfterDiagnosticCVarChange()
+static void RefreshCollectionsAfterDiagnosticCVarChange()
+{
+	static int32 LastValue = INDEX_NONE;
+	const int32 CurrentValue = CVarDecalCollectionDebugGeometryMaterial.GetValueOnAnyThread();
+	if (CurrentValue == LastValue)
 	{
-		static int32 LastValue = INDEX_NONE;
-		const int32 CurrentValue = CVarDecalCollectionDebugGeometryMaterial.GetValueOnAnyThread();
-		if (CurrentValue == LastValue)
+		return;
+	}
+	LastValue = CurrentValue;
+	if (!GEngine)
+	{
+		return;
+	}
+	for (const FWorldContext& WorldContext : GEngine->GetWorldContexts())
+	{
+		if (WorldContext.WorldType != EWorldType::Editor || !WorldContext.World())
 		{
-			return;
+			continue;
 		}
-		LastValue = CurrentValue;
-		if (!GEngine)
+		for (TActorIterator<ADevKitDecalCollectionActor> It(WorldContext.World()); It; ++It)
 		{
-			return;
-		}
-		for (const FWorldContext& WorldContext : GEngine->GetWorldContexts())
-		{
-			if (WorldContext.WorldType != EWorldType::Editor || !WorldContext.World())
+			if (ADevKitDecalCollectionActor* CollectionActor = *It)
 			{
-				continue;
-			}
-			for (TActorIterator<ADevKitDecalCollectionActor> It(WorldContext.World()); It; ++It)
-			{
-				if (ADevKitDecalCollectionActor* CollectionActor = *It)
-				{
-					CollectionActor->RebuildDerivedRendering();
-				}
+				CollectionActor->RebuildDerivedRendering();
 			}
 		}
 	}
-
-	static FAutoConsoleVariableSink DiagnosticCVarSink(
-		FConsoleCommandDelegate::CreateStatic(&RefreshCollectionsAfterDiagnosticCVarChange));
-#endif
 }
+
+static FAutoConsoleVariableSink DiagnosticCVarSink(
+	FConsoleCommandDelegate::CreateStatic(&RefreshCollectionsAfterDiagnosticCVarChange));
+#endif
 
 UDevKitDecalCollectionComponent::UDevKitDecalCollectionComponent()
 {
@@ -879,24 +876,21 @@ void ADevKitDecalCollectionActor::BuildDerivedRendering()
 	SetDerivedInstanceEditingEnabled(bEditSessionActive);
 }
 
-namespace
+static void SyncMovedInstance(UDevKitDecalCollectionISMComponent* Component, const FSMInstanceId& InstanceId)
 {
-	void SyncMovedInstance(UDevKitDecalCollectionISMComponent* Component, const FSMInstanceId& InstanceId)
+	if (!Component || InstanceId.ISMComponent != Component || !Component->GetOwner())
 	{
-		if (!Component || InstanceId.ISMComponent != Component || !Component->GetOwner())
-		{
-			return;
-		}
-		ADevKitDecalCollectionActor* Owner = Cast<ADevKitDecalCollectionActor>(Component->GetOwner());
-		if (!Owner)
-		{
-			return;
-		}
-		FTransform WorldTransform;
-		if (Component->GetInstanceTransform(InstanceId.InstanceIndex, WorldTransform, true))
-		{
-			Owner->UpdateDerivedInstanceTransform(Component, InstanceId.InstanceIndex, WorldTransform);
-		}
+		return;
+	}
+	ADevKitDecalCollectionActor* Owner = Cast<ADevKitDecalCollectionActor>(Component->GetOwner());
+	if (!Owner)
+	{
+		return;
+	}
+	FTransform WorldTransform;
+	if (Component->GetInstanceTransform(InstanceId.InstanceIndex, WorldTransform, true))
+	{
+		Owner->UpdateDerivedInstanceTransform(Component, InstanceId.InstanceIndex, WorldTransform);
 	}
 }
 

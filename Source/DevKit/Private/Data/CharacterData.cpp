@@ -64,13 +64,10 @@ const TArray<TSubclassOf<UAnimInstance>> UCharacterData::GetDefaultAnimeLayers()
 // ── 细粒度访问器实现 ─────────────────────────────────────────
 // 行未配置时回退到 FYogBaseAttributeData 的字段默认值（与构造器一致）。
 
-namespace
+static const FYogBaseAttributeData& ResolveAttrs(const UCharacterData* Self)
 {
-	const FYogBaseAttributeData& ResolveAttrs(const UCharacterData* Self)
-	{
-		const FYogBaseAttributeData* Row = Self ? Self->GetBaseAttributeData() : nullptr;
-		return Row ? *Row : UCharacterData::DefaultCharacterData;
-	}
+	const FYogBaseAttributeData* Row = Self ? Self->GetBaseAttributeData() : nullptr;
+	return Row ? *Row : UCharacterData::DefaultCharacterData;
 }
 
 float UCharacterData::GetMaxHealth() const  { return ResolveAttrs(this).MaxHealth; }

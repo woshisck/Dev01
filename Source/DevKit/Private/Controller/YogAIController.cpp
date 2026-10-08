@@ -23,127 +23,124 @@ DEFINE_LOG_CATEGORY_STATIC(LogEnemyMoveSmooth, Log, All);
 DEFINE_LOG_CATEGORY_STATIC(LogEnemyAIState, Log, All);
 DEFINE_LOG_CATEGORY_STATIC(LogEnemyMovementAttack, Log, All);
 
-namespace
+static TAutoConsoleVariable<int32> CVarEnemyMoveSmoothLog(
+	TEXT("DevKit.EnemyAI.MoveSmoothLog"),
+	0,
+	TEXT("0=off, 1=summary, 2=summary plus MoveTo requests for enemy movement smoothing diagnostics."));
+
+static TAutoConsoleVariable<float> CVarEnemyMoveSmoothLogInterval(
+	TEXT("DevKit.EnemyAI.MoveSmoothLogInterval"),
+	0.35f,
+	TEXT("Seconds between enemy movement smoothing diagnostic summary logs per AI."));
+
+static TAutoConsoleVariable<float> CVarEnemyMoveSmoothWarnTargetJump(
+	TEXT("DevKit.EnemyAI.MoveSmoothWarnTargetJump"),
+	140.0f,
+	TEXT("Move target delta that marks an enemy movement smoothing sample as unstable."));
+
+static TAutoConsoleVariable<float> CVarEnemyMoveSmoothWarnYawDelta(
+	TEXT("DevKit.EnemyAI.MoveSmoothWarnYawDelta"),
+	75.0f,
+	TEXT("Desired yaw delta that marks an enemy movement smoothing sample as unstable."));
+
+static TAutoConsoleVariable<float> CVarEnemyMoveSmoothWarnYawRate(
+	TEXT("DevKit.EnemyAI.MoveSmoothWarnYawRate"),
+	540.0f,
+	TEXT("Actor yaw rate that marks an enemy movement smoothing sample as unstable."));
+
+static TAutoConsoleVariable<int32> CVarEnemyAIStateLog(
+	TEXT("DevKit.EnemyAI.StateLog"),
+	0,
+	TEXT("0=off, 1=state transitions, 2=state transitions plus awareness samples."));
+
+static TAutoConsoleVariable<float> CVarEnemyAIStateLogInterval(
+	TEXT("DevKit.EnemyAI.StateLogInterval"),
+	0.5f,
+	TEXT("Seconds between enemy AI awareness sample logs per AI when DevKit.EnemyAI.StateLog >= 2."));
+
+static TAutoConsoleVariable<int32> CVarEnemyMovementAttackLog(
+	TEXT("DevKit.EnemyAI.MovementAttackLog"),
+	0,
+	TEXT("0=off, 1=log movement attack cooldown activation, reset, and range gating."));
+
+static const TCHAR* EnemyAIStateToString(EEnemyAIState State)
 {
-	TAutoConsoleVariable<int32> CVarEnemyMoveSmoothLog(
-		TEXT("DevKit.EnemyAI.MoveSmoothLog"),
-		0,
-		TEXT("0=off, 1=summary, 2=summary plus MoveTo requests for enemy movement smoothing diagnostics."));
-
-	TAutoConsoleVariable<float> CVarEnemyMoveSmoothLogInterval(
-		TEXT("DevKit.EnemyAI.MoveSmoothLogInterval"),
-		0.35f,
-		TEXT("Seconds between enemy movement smoothing diagnostic summary logs per AI."));
-
-	TAutoConsoleVariable<float> CVarEnemyMoveSmoothWarnTargetJump(
-		TEXT("DevKit.EnemyAI.MoveSmoothWarnTargetJump"),
-		140.0f,
-		TEXT("Move target delta that marks an enemy movement smoothing sample as unstable."));
-
-	TAutoConsoleVariable<float> CVarEnemyMoveSmoothWarnYawDelta(
-		TEXT("DevKit.EnemyAI.MoveSmoothWarnYawDelta"),
-		75.0f,
-		TEXT("Desired yaw delta that marks an enemy movement smoothing sample as unstable."));
-
-	TAutoConsoleVariable<float> CVarEnemyMoveSmoothWarnYawRate(
-		TEXT("DevKit.EnemyAI.MoveSmoothWarnYawRate"),
-		540.0f,
-		TEXT("Actor yaw rate that marks an enemy movement smoothing sample as unstable."));
-
-	TAutoConsoleVariable<int32> CVarEnemyAIStateLog(
-		TEXT("DevKit.EnemyAI.StateLog"),
-		0,
-		TEXT("0=off, 1=state transitions, 2=state transitions plus awareness samples."));
-
-	TAutoConsoleVariable<float> CVarEnemyAIStateLogInterval(
-		TEXT("DevKit.EnemyAI.StateLogInterval"),
-		0.5f,
-		TEXT("Seconds between enemy AI awareness sample logs per AI when DevKit.EnemyAI.StateLog >= 2."));
-
-	TAutoConsoleVariable<int32> CVarEnemyMovementAttackLog(
-		TEXT("DevKit.EnemyAI.MovementAttackLog"),
-		0,
-		TEXT("0=off, 1=log movement attack cooldown activation, reset, and range gating."));
-
-	const TCHAR* EnemyAIStateToString(EEnemyAIState State)
+	switch (State)
 	{
-		switch (State)
-		{
-		case EEnemyAIState::Patrol:
-			return TEXT("Patrol");
-		case EEnemyAIState::Alert:
-			return TEXT("Alert");
-		case EEnemyAIState::Combat:
-			return TEXT("Combat");
-		default:
-			return TEXT("Unknown");
-		}
+	case EEnemyAIState::Patrol:
+		return TEXT("Patrol");
+	case EEnemyAIState::Alert:
+		return TEXT("Alert");
+	case EEnemyAIState::Combat:
+		return TEXT("Combat");
+	default:
+		return TEXT("Unknown");
+	}
+}
+
+static const TCHAR* PathFollowingStatusToString(EPathFollowingStatus::Type Status)
+{
+	switch (Status)
+	{
+	case EPathFollowingStatus::Idle:
+		return TEXT("Idle");
+	case EPathFollowingStatus::Waiting:
+		return TEXT("Waiting");
+	case EPathFollowingStatus::Paused:
+		return TEXT("Paused");
+	case EPathFollowingStatus::Moving:
+		return TEXT("Moving");
+	default:
+		return TEXT("Unknown");
+	}
+}
+
+static const TCHAR* MoveRequestResultToString(int32 ResultCode)
+{
+	switch (static_cast<EPathFollowingRequestResult::Type>(ResultCode))
+	{
+	case EPathFollowingRequestResult::Failed:
+		return TEXT("Failed");
+	case EPathFollowingRequestResult::AlreadyAtGoal:
+		return TEXT("AlreadyAtGoal");
+	case EPathFollowingRequestResult::RequestSuccessful:
+		return TEXT("RequestSuccessful");
+	default:
+		return TEXT("Unknown");
+	}
+}
+
+static FName GetMovementAttackCooldownKey(const FEnemyAIAttackOption& Attack)
+{
+	if (!Attack.AttackName.IsNone())
+	{
+		return Attack.AttackName;
 	}
 
-	const TCHAR* PathFollowingStatusToString(EPathFollowingStatus::Type Status)
+	return FName(*Attack.AbilityTags.ToStringSimple());
+}
+
+static FName GetAttackCooldownKey(const FEnemyAIAttackOption& Attack)
+{
+	return GetMovementAttackCooldownKey(Attack);
+}
+
+static bool HasAnyValidAbilityTag(const UAbilityData* AbilityData, const FEnemyAIAttackOption& Attack)
+{
+	if (!AbilityData || Attack.AbilityTags.IsEmpty())
 	{
-		switch (Status)
-		{
-		case EPathFollowingStatus::Idle:
-			return TEXT("Idle");
-		case EPathFollowingStatus::Waiting:
-			return TEXT("Waiting");
-		case EPathFollowingStatus::Paused:
-			return TEXT("Paused");
-		case EPathFollowingStatus::Moving:
-			return TEXT("Moving");
-		default:
-			return TEXT("Unknown");
-		}
-	}
-
-	const TCHAR* MoveRequestResultToString(int32 ResultCode)
-	{
-		switch (static_cast<EPathFollowingRequestResult::Type>(ResultCode))
-		{
-		case EPathFollowingRequestResult::Failed:
-			return TEXT("Failed");
-		case EPathFollowingRequestResult::AlreadyAtGoal:
-			return TEXT("AlreadyAtGoal");
-		case EPathFollowingRequestResult::RequestSuccessful:
-			return TEXT("RequestSuccessful");
-		default:
-			return TEXT("Unknown");
-		}
-	}
-
-	FName GetMovementAttackCooldownKey(const FEnemyAIAttackOption& Attack)
-	{
-		if (!Attack.AttackName.IsNone())
-		{
-			return Attack.AttackName;
-		}
-
-		return FName(*Attack.AbilityTags.ToStringSimple());
-	}
-
-	FName GetAttackCooldownKey(const FEnemyAIAttackOption& Attack)
-	{
-		return GetMovementAttackCooldownKey(Attack);
-	}
-
-	bool HasAnyValidAbilityTag(const UAbilityData* AbilityData, const FEnemyAIAttackOption& Attack)
-	{
-		if (!AbilityData || Attack.AbilityTags.IsEmpty())
-		{
-			return false;
-		}
-
-		for (const FGameplayTag& Tag : Attack.AbilityTags)
-		{
-			if (AbilityData->HasAbility(Tag))
-			{
-				return true;
-			}
-		}
-
 		return false;
 	}
+
+	for (const FGameplayTag& Tag : Attack.AbilityTags)
+	{
+		if (AbilityData->HasAbility(Tag))
+		{
+			return true;
+		}
+	}
+
+	return false;
 }
 
 

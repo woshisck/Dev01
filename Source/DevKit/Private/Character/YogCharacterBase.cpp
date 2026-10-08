@@ -34,18 +34,15 @@
 #include "FlowAsset.h"
 #include "Materials/MaterialInstanceDynamic.h"
 
-namespace
-{
-	constexpr bool bDisableLegacyOnHitRuneRuntimeForCardTest = true;
-	static const ECollisionChannel DashThroughChannel = ECC_GameTraceChannel5;
+static constexpr bool bDisableLegacyOnHitRuneRuntimeForCardTest = true;
+static const ECollisionChannel DashThroughChannel = ECC_GameTraceChannel5;
 
-	template <typename TAttributeSet>
-	TAttributeSet* GetMutableRegisteredAttributeSet(UAbilitySystemComponent* ASC)
-	{
-		return ASC
-			? const_cast<TAttributeSet*>(Cast<const TAttributeSet>(ASC->GetAttributeSet(TAttributeSet::StaticClass())))
-			: nullptr;
-	}
+template <typename TAttributeSet>
+static TAttributeSet* GetMutableRegisteredAttributeSet(UAbilitySystemComponent* ASC)
+{
+	return ASC
+		? const_cast<TAttributeSet*>(Cast<const TAttributeSet>(ASC->GetAttributeSet(TAttributeSet::StaticClass())))
+		: nullptr;
 }
 
 

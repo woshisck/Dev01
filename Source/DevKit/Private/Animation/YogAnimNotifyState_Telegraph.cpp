@@ -12,153 +12,150 @@
 #include "GameFramework/Actor.h"
 #include "GameFramework/Character.h"
 
-namespace
+static void Telegraph_LogResolvedShape(const TCHAR* Source, const FYogTelegraphShape& Shape)
 {
-	void Telegraph_LogResolvedShape(const TCHAR* Source, const FYogTelegraphShape& Shape)
+	UE_LOG(LogTemp, Log,
+		TEXT("ANS Pre-Attack Telegraph resolved from %s: Shape=%s Radius=%.1f HalfAngle=%.1f "
+			 "InnerRadius=%.1f HalfWidth=%.1f Offset=%s"),
+		Source,
+		*UEnum::GetValueAsString(Shape.ShapeType),
+		Shape.Radius, Shape.HalfAngle, Shape.InnerRadius, Shape.HalfWidth,
+		*Shape.LocalOffset.ToString());
+}
+
+/**
+ * The melee damage notify this telegraph warns about: the earliest one triggering at or after
+ * the window opens. Picking by time rather than "first in the montage" is what lets a
+ * multi-hit combo montage telegraph each swing with that swing's own reach.
+ *
+ * Anchored on the window START deliberately. Anchoring on its end looks tidier but silently
+ * rejects the swing whenever the telegraph overlaps past the damage frame, which is a normal
+ * way to author it.
+ */
+static const UAN_MeleeDamage* Telegraph_FindDamageNotifyFrom(const UAnimSequenceBase* Animation, float WindowStartTime)
+{
+	if (!Animation)
 	{
-		UE_LOG(LogTemp, Log,
-			TEXT("ANS Pre-Attack Telegraph resolved from %s: Shape=%s Radius=%.1f HalfAngle=%.1f "
-				 "InnerRadius=%.1f HalfWidth=%.1f Offset=%s"),
-			Source,
-			*UEnum::GetValueAsString(Shape.ShapeType),
-			Shape.Radius, Shape.HalfAngle, Shape.InnerRadius, Shape.HalfWidth,
-			*Shape.LocalOffset.ToString());
+		return nullptr;
 	}
 
-	/**
-	 * The melee damage notify this telegraph warns about: the earliest one triggering at or after
-	 * the window opens. Picking by time rather than "first in the montage" is what lets a
-	 * multi-hit combo montage telegraph each swing with that swing's own reach.
-	 *
-	 * Anchored on the window START deliberately. Anchoring on its end looks tidier but silently
-	 * rejects the swing whenever the telegraph overlaps past the damage frame, which is a normal
-	 * way to author it.
-	 */
-	const UAN_MeleeDamage* Telegraph_FindDamageNotifyFrom(const UAnimSequenceBase* Animation, float WindowStartTime)
+	const UAN_MeleeDamage* Best = nullptr;
+	float BestTime = TNumericLimits<float>::Max();
+	for (const FAnimNotifyEvent& Event : Animation->Notifies)
 	{
-		if (!Animation)
+		const UAN_MeleeDamage* DamageNotify = Cast<UAN_MeleeDamage>(Event.Notify);
+		if (!DamageNotify)
 		{
-			return nullptr;
+			continue;
 		}
 
-		const UAN_MeleeDamage* Best = nullptr;
-		float BestTime = TNumericLimits<float>::Max();
-		for (const FAnimNotifyEvent& Event : Animation->Notifies)
+		const float TriggerTime = Event.GetTriggerTime();
+		if (TriggerTime < WindowStartTime - KINDA_SMALL_NUMBER)
 		{
-			const UAN_MeleeDamage* DamageNotify = Cast<UAN_MeleeDamage>(Event.Notify);
-			if (!DamageNotify)
-			{
-				continue;
-			}
-
-			const float TriggerTime = Event.GetTriggerTime();
-			if (TriggerTime < WindowStartTime - KINDA_SMALL_NUMBER)
-			{
-				continue;
-			}
-
-			if (TriggerTime < BestTime)
-			{
-				BestTime = TriggerTime;
-				Best = DamageNotify;
-			}
+			continue;
 		}
 
-		return Best;
+		if (TriggerTime < BestTime)
+		{
+			BestTime = TriggerTime;
+			Best = DamageNotify;
+		}
 	}
 
-	/** Trigger times of every melee damage notify on this animation, for diagnostics. */
-	FString Telegraph_DescribeDamageNotifies(const UAnimSequenceBase* Animation)
+	return Best;
+}
+
+/** Trigger times of every melee damage notify on this animation, for diagnostics. */
+static FString Telegraph_DescribeDamageNotifies(const UAnimSequenceBase* Animation)
+{
+	if (!Animation)
 	{
-		if (!Animation)
-		{
-			return TEXT("<null anim>");
-		}
-
-		FString Out;
-		for (const FAnimNotifyEvent& Event : Animation->Notifies)
-		{
-			if (Cast<UAN_MeleeDamage>(Event.Notify))
-			{
-				Out += FString::Printf(TEXT("t=%.3f "), Event.GetTriggerTime());
-			}
-		}
-
-		return Out.IsEmpty() ? FString(TEXT("<none on this animation>")) : Out;
+		return TEXT("<null anim>");
 	}
 
-	bool Telegraph_ResolveShapeFromActionData(const FActionData& ActionData, FYogTelegraphShape& OutShape)
+	FString Out;
+	for (const FAnimNotifyEvent& Event : Animation->Notifies)
 	{
-		const TArray<FYogHitboxType>& Hitboxes = ActionData.hitboxTypes;
-		if (Hitboxes.IsEmpty())
+		if (Cast<UAN_MeleeDamage>(Event.Notify))
 		{
-			return false;
+			Out += FString::Printf(TEXT("t=%.3f "), Event.GetTriggerTime());
 		}
+	}
 
-		// Verbatim, matching IsTargetHit: ActRange already carries the character's AttackRange
-		// and the zone must cover exactly ActRange + AttackRange.
-		const float ActRange = ActionData.ActRange;
+	return Out.IsEmpty() ? FString(TEXT("<none on this animation>")) : Out;
+}
 
-		const FYogHitboxType& Hitbox = Hitboxes[0];
-		FYogTelegraphShape Resolved;
-		Resolved.ShapeType = Hitbox.hitboxType;
+static bool Telegraph_ResolveShapeFromActionData(const FActionData& ActionData, FYogTelegraphShape& OutShape)
+{
+	const TArray<FYogHitboxType>& Hitboxes = ActionData.hitboxTypes;
+	if (Hitboxes.IsEmpty())
+	{
+		return false;
+	}
+
+	// Verbatim, matching IsTargetHit: ActRange already carries the character's AttackRange
+	// and the zone must cover exactly ActRange + AttackRange.
+	const float ActRange = ActionData.ActRange;
+
+	const FYogHitboxType& Hitbox = Hitboxes[0];
+	FYogTelegraphShape Resolved;
+	Resolved.ShapeType = Hitbox.hitboxType;
+	Resolved.Radius = ActRange;
+
+	switch (Hitbox.hitboxType)
+	{
+	case EHitBoxType::Annulus:
+	{
+		const FHitboxAnnulus& Annulus = Hitbox.AnnulusHitbox;
+		const float InnerR = FMath::Max(Annulus.inner_radius, 0.f);
+
+		// Mirror YogTargetType_Melee::IsInAnnulus exactly: bAutoOffset moves the centre back
+		// by InnerR, and the outer radius stays ActRange with no compensation.
 		Resolved.Radius = ActRange;
-
-		switch (Hitbox.hitboxType)
-		{
-		case EHitBoxType::Annulus:
-		{
-			const FHitboxAnnulus& Annulus = Hitbox.AnnulusHitbox;
-			const float InnerR = FMath::Max(Annulus.inner_radius, 0.f);
-
-			// Mirror YogTargetType_Melee::IsInAnnulus exactly: bAutoOffset moves the centre back
-			// by InnerR, and the outer radius stays ActRange with no compensation.
-			Resolved.Radius = ActRange;
-			Resolved.InnerRadius = InnerR;
-			Resolved.HalfAngle = Annulus.degree * 0.5f;
-			Resolved.LocalOffset.X = Annulus.bAutoOffset ? -InnerR : Annulus.OffsetCore;
-			break;
-		}
-
-		case EHitBoxType::Triangle:
-			if (Hitbox.HitboxTriangles.IsEmpty())
-			{
-				return false;
-			}
-			Resolved.HalfAngle = Hitbox.HitboxTriangles[0].Degree * 0.5f;
-			break;
-
-		case EHitBoxType::Square:
-			if (Hitbox.HitboxSquares.IsEmpty())
-			{
-				return false;
-			}
-			Resolved.HalfWidth = Hitbox.HitboxSquares[0].Width * 0.5f;
-			break;
-
-		case EHitBoxType::Circle:
-			Resolved.HalfAngle = 180.f;
-			if (!Hitbox.HitboxCircles.IsEmpty())
-			{
-				Resolved.LocalOffset = Hitbox.HitboxCircles[0].Offset;
-			}
-			break;
-
-		default:
-			return false;
-		}
-
-		// A zero-degree arc renders nothing, so treat it as unauthored and keep the defaults.
-		const bool bNeedsAngle = Hitbox.hitboxType == EHitBoxType::Annulus
-			|| Hitbox.hitboxType == EHitBoxType::Triangle;
-		if (bNeedsAngle && Resolved.HalfAngle <= KINDA_SMALL_NUMBER)
-		{
-			return false;
-		}
-
-		OutShape = Resolved;
-		return true;
+		Resolved.InnerRadius = InnerR;
+		Resolved.HalfAngle = Annulus.degree * 0.5f;
+		Resolved.LocalOffset.X = Annulus.bAutoOffset ? -InnerR : Annulus.OffsetCore;
+		break;
 	}
+
+	case EHitBoxType::Triangle:
+		if (Hitbox.HitboxTriangles.IsEmpty())
+		{
+			return false;
+		}
+		Resolved.HalfAngle = Hitbox.HitboxTriangles[0].Degree * 0.5f;
+		break;
+
+	case EHitBoxType::Square:
+		if (Hitbox.HitboxSquares.IsEmpty())
+		{
+			return false;
+		}
+		Resolved.HalfWidth = Hitbox.HitboxSquares[0].Width * 0.5f;
+		break;
+
+	case EHitBoxType::Circle:
+		Resolved.HalfAngle = 180.f;
+		if (!Hitbox.HitboxCircles.IsEmpty())
+		{
+			Resolved.LocalOffset = Hitbox.HitboxCircles[0].Offset;
+		}
+		break;
+
+	default:
+		return false;
+	}
+
+	// A zero-degree arc renders nothing, so treat it as unauthored and keep the defaults.
+	const bool bNeedsAngle = Hitbox.hitboxType == EHitBoxType::Annulus
+		|| Hitbox.hitboxType == EHitBoxType::Triangle;
+	if (bNeedsAngle && Resolved.HalfAngle <= KINDA_SMALL_NUMBER)
+	{
+		return false;
+	}
+
+	OutShape = Resolved;
+	return true;
 }
 
 FYogTelegraphShape UYogAnimNotifyState_Telegraph::ResolveShape(USkeletalMeshComponent* MeshComp,

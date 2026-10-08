@@ -5,12 +5,9 @@
 #include "Story/StoryEngineSubsystem.h"
 #include "Engine/DataTable.h"
 
-namespace
-{
-FGameplayTag GetMysticPointTag()
+static FGameplayTag GetMysticPointTag()
 {
 	return FGameplayTag::RequestGameplayTag(TEXT("Currency.Meta.MysticPoint"), false);
-}
 }
 
 // =========================================================

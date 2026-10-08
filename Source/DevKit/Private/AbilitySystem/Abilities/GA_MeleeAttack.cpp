@@ -39,364 +39,360 @@
 #include "TimerManager.h"
 #include "UObject/ObjectKey.h"
 
-namespace
+struct FStatBeforeAttackSharedSnapshot
 {
-	struct FStatBeforeAttackSharedSnapshot
+	float Attack = 0.f;
+	float AttackPower = 1.f;
+	int32 ActiveCount = 0;
+};
+
+struct FBroadAttackComboRuntimeState
+{
+	int32 LastResolvedComboSlot = 0;
+	bool bPendingContinuation = false;
+};
+
+static TMap<TObjectKey<UAbilitySystemComponent>, FStatBeforeAttackSharedSnapshot> GStatBeforeAttackSnapshots;
+static TMap<TObjectKey<UAbilitySystemComponent>, FBroadAttackComboRuntimeState> GBroadAttackComboStates;
+
+static FGameplayTag GetComboWindowTag()
+{
+	return FGameplayTag::RequestGameplayTag(TEXT("Character.State.Window.CanCombo"), false);
+}
+
+static FGameplayTag GetJustComboWindowTag()
+{
+	return FGameplayTag::RequestGameplayTag(TEXT("Character.State.Window.JustCombo"), false);
+}
+
+static FGameplayTag GetJustComboTriggerCueTag()
+{
+	return FGameplayTag::RequestGameplayTag(TEXT("GameplayCue.Character.JustCombo.Trigger"), false);
+}
+
+static bool IsAttackComboWindowOpen(UAbilitySystemComponent* ASC)
+{
+	if (!ASC)
 	{
-		float Attack = 0.f;
-		float AttackPower = 1.f;
-		int32 ActiveCount = 0;
-	};
-
-	struct FBroadAttackComboRuntimeState
-	{
-		int32 LastResolvedComboSlot = 0;
-		bool bPendingContinuation = false;
-	};
-
-	TMap<TObjectKey<UAbilitySystemComponent>, FStatBeforeAttackSharedSnapshot> GStatBeforeAttackSnapshots;
-	TMap<TObjectKey<UAbilitySystemComponent>, FBroadAttackComboRuntimeState> GBroadAttackComboStates;
-
-	FGameplayTag GetComboWindowTag()
-	{
-		return FGameplayTag::RequestGameplayTag(TEXT("Character.State.Window.CanCombo"), false);
-	}
-
-	FGameplayTag GetJustComboWindowTag()
-	{
-		return FGameplayTag::RequestGameplayTag(TEXT("Character.State.Window.JustCombo"), false);
-	}
-
-	FGameplayTag GetJustComboTriggerCueTag()
-	{
-		return FGameplayTag::RequestGameplayTag(TEXT("GameplayCue.Character.JustCombo.Trigger"), false);
-	}
-
-	bool IsAttackComboWindowOpen(UAbilitySystemComponent* ASC)
-	{
-		if (!ASC)
-		{
-			return false;
-		}
-
-		const FGameplayTag ComboWindowTag = GetComboWindowTag();
-		const FGameplayTag JustComboWindowTag = GetJustComboWindowTag();
-		return (ComboWindowTag.IsValid() && ASC->GetTagCount(ComboWindowTag) > 0)
-			|| (JustComboWindowTag.IsValid() && ASC->GetTagCount(JustComboWindowTag) > 0);
-	}
-
-	// Splits the equipped weapon's Just Combo payload by lifetime: Duration entries land now and
-	// live by their own duration, NextAttackOnly entries are captured here so they survive a
-	// weapon switch and still carry the effect authored on the weapon that earned them.
-	void JustCombo_ApplyEarnedWeaponEffects(UYogAbilitySystemComponent* ASC)
-	{
-		APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(ASC->GetAvatarActor());
-		if (!Player)
-		{
-			return;
-		}
-
-		const UWeaponDefinition* WeaponDef = Player->GetEffectiveEquippedWeaponDefinition();
-		if (!WeaponDef)
-		{
-			return;
-		}
-
-		TArray<TSubclassOf<UYogGameplayEffect>> NextAttackEffects;
-		for (const FJustComboEffectEntry& Entry : WeaponDef->JustComboEffects)
-		{
-			if (!Entry.Effect)
-			{
-				continue;
-			}
-
-			if (Entry.Lifetime == EJustComboEffectLifetime::NextAttackOnly)
-			{
-				NextAttackEffects.Add(Entry.Effect);
-				continue;
-			}
-
-			FGameplayEffectContextHandle Ctx = ASC->MakeEffectContext();
-			Ctx.AddSourceObject(Player);
-			const FGameplayEffectSpecHandle Spec = ASC->MakeOutgoingSpec(Entry.Effect, 1.f, Ctx);
-			if (Spec.IsValid())
-			{
-				ASC->ApplyGameplayEffectSpecToSelf(*Spec.Data);
-			}
-		}
-
-		if (!NextAttackEffects.IsEmpty())
-		{
-			ASC->QueueJustComboNextAttackEffects(NextAttackEffects);
-		}
-	}
-
-	constexpr float AttackSpeedDefaultStat = 100.f;
-	constexpr float AttackSpeedMaxStat = 200.f;
-	constexpr float AttackSpeedStatToMontageRate = 0.01f;
-	constexpr float JustComboNextAttackSpeedMultiplier = 1.2f;
-
-	float ConvertAttackSpeedStatToMontageRate(float AttackSpeedStat)
-	{
-		if (AttackSpeedStat <= 0.f)
-		{
-			AttackSpeedStat = AttackSpeedDefaultStat;
-		}
-
-		return FMath::Clamp(AttackSpeedStat, 0.f, AttackSpeedMaxStat) * AttackSpeedStatToMontageRate;
-	}
-
-	bool TryFacePlayerAttackTowardCursor(APlayerCharacterBase* Player)
-	{
-		if (!Player)
-		{
-			return false;
-		}
-
-		APlayerController* PC = Cast<APlayerController>(Player->GetController());
-		if (!PC)
-		{
-			return false;
-		}
-
-		FHitResult CursorHit;
-		const ETraceTypeQuery VisibilityTraceType = UEngineTypes::ConvertToTraceType(ECC_Visibility);
-		if (!PC->GetHitResultUnderCursorByChannel(VisibilityTraceType, false, CursorHit))
-		{
-			return false;
-		}
-
-		FVector AttackDirection = CursorHit.ImpactPoint - Player->GetActorLocation();
-		AttackDirection.Z = 0.f;
-		if (!AttackDirection.Normalize())
-		{
-			return false;
-		}
-
-		Player->SetActorRotation(FRotator(0.f, AttackDirection.Rotation().Yaw, 0.f));
-		return true;
-	}
-
-	bool TryActivateAbilityByExactTagName(UAbilitySystemComponent* ASC, const TCHAR* TagName)
-	{
-		if (!ASC || !TagName)
-		{
-			return false;
-		}
-
-		const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TagName), false);
-		if (!Tag.IsValid())
-		{
-			return false;
-		}
-
-		TArray<FGameplayAbilitySpecHandle> MatchingHandles;
-		for (const FGameplayAbilitySpec& Spec : ASC->GetActivatableAbilities())
-		{
-			if (Spec.Ability && Spec.Ability->AbilityTags.HasTagExact(Tag))
-			{
-				MatchingHandles.Add(Spec.Handle);
-			}
-		}
-
-		for (const FGameplayAbilitySpecHandle& MatchingHandle : MatchingHandles)
-		{
-			if (ASC->TryActivateAbility(MatchingHandle, true))
-			{
-				return true;
-			}
-		}
-
 		return false;
 	}
 
-	bool TryActivateBroadAttackAbility(UAbilitySystemComponent* ASC)
+	const FGameplayTag ComboWindowTag = GetComboWindowTag();
+	const FGameplayTag JustComboWindowTag = GetJustComboWindowTag();
+	return (ComboWindowTag.IsValid() && ASC->GetTagCount(ComboWindowTag) > 0)
+		|| (JustComboWindowTag.IsValid() && ASC->GetTagCount(JustComboWindowTag) > 0);
+}
+
+// Splits the equipped weapon's Just Combo payload by lifetime: Duration entries land now and
+// live by their own duration, NextAttackOnly entries are captured here so they survive a
+// weapon switch and still carry the effect authored on the weapon that earned them.
+static void JustCombo_ApplyEarnedWeaponEffects(UYogAbilitySystemComponent* ASC)
+{
+	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(ASC->GetAvatarActor());
+	if (!Player)
 	{
-		return TryActivateAbilityByExactTagName(ASC, TEXT("Character.State.Skill.Attack"))
-			|| TryActivateAbilityByExactTagName(ASC, TEXT("PlayerState.AbilityCast.Attack"));
+		return;
 	}
 
-	bool HasComboAbilityTag(const UGameplayAbility* Ability)
+	const UWeaponDefinition* WeaponDef = Player->GetEffectiveEquippedWeaponDefinition();
+	if (!WeaponDef)
 	{
-		if (!Ability)
+		return;
+	}
+
+	TArray<TSubclassOf<UYogGameplayEffect>> NextAttackEffects;
+	for (const FJustComboEffectEntry& Entry : WeaponDef->JustComboEffects)
+	{
+		if (!Entry.Effect)
 		{
-			return false;
+			continue;
 		}
 
-		for (const FGameplayTag& AbilityTag : Ability->AbilityTags)
+		if (Entry.Lifetime == EJustComboEffectLifetime::NextAttackOnly)
 		{
-			if (AbilityTag.IsValid() && AbilityTag.ToString().Contains(TEXT(".Combo")))
-			{
-				return true;
-			}
+			NextAttackEffects.Add(Entry.Effect);
+			continue;
 		}
 
+		FGameplayEffectContextHandle Ctx = ASC->MakeEffectContext();
+		Ctx.AddSourceObject(Player);
+		const FGameplayEffectSpecHandle Spec = ASC->MakeOutgoingSpec(Entry.Effect, 1.f, Ctx);
+		if (Spec.IsValid())
+		{
+			ASC->ApplyGameplayEffectSpecToSelf(*Spec.Data);
+		}
+	}
+
+	if (!NextAttackEffects.IsEmpty())
+	{
+		ASC->QueueJustComboNextAttackEffects(NextAttackEffects);
+	}
+}
+
+static constexpr float AttackSpeedDefaultStat = 100.f;
+static constexpr float AttackSpeedMaxStat = 200.f;
+static constexpr float AttackSpeedStatToMontageRate = 0.01f;
+static constexpr float JustComboNextAttackSpeedMultiplier = 1.2f;
+
+static float ConvertAttackSpeedStatToMontageRate(float AttackSpeedStat)
+{
+	if (AttackSpeedStat <= 0.f)
+	{
+		AttackSpeedStat = AttackSpeedDefaultStat;
+	}
+
+	return FMath::Clamp(AttackSpeedStat, 0.f, AttackSpeedMaxStat) * AttackSpeedStatToMontageRate;
+}
+
+static bool TryFacePlayerAttackTowardCursor(APlayerCharacterBase* Player)
+{
+	if (!Player)
+	{
 		return false;
 	}
 
-	UGA_MeleeAttack* FindActiveBroadAttackInstance(UAbilitySystemComponent* ASC, FGameplayAbilitySpecHandle& OutHandle)
+	APlayerController* PC = Cast<APlayerController>(Player->GetController());
+	if (!PC)
 	{
-		OutHandle = FGameplayAbilitySpecHandle();
-		if (!ASC)
+		return false;
+	}
+
+	FHitResult CursorHit;
+	const ETraceTypeQuery VisibilityTraceType = UEngineTypes::ConvertToTraceType(ECC_Visibility);
+	if (!PC->GetHitResultUnderCursorByChannel(VisibilityTraceType, false, CursorHit))
+	{
+		return false;
+	}
+
+	FVector AttackDirection = CursorHit.ImpactPoint - Player->GetActorLocation();
+	AttackDirection.Z = 0.f;
+	if (!AttackDirection.Normalize())
+	{
+		return false;
+	}
+
+	Player->SetActorRotation(FRotator(0.f, AttackDirection.Rotation().Yaw, 0.f));
+	return true;
+}
+
+static bool TryActivateAbilityByExactTagName(UAbilitySystemComponent* ASC, const TCHAR* TagName)
+{
+	if (!ASC || !TagName)
+	{
+		return false;
+	}
+
+	const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TagName), false);
+	if (!Tag.IsValid())
+	{
+		return false;
+	}
+
+	TArray<FGameplayAbilitySpecHandle> MatchingHandles;
+	for (const FGameplayAbilitySpec& Spec : ASC->GetActivatableAbilities())
+	{
+		if (Spec.Ability && Spec.Ability->AbilityTags.HasTagExact(Tag))
 		{
-			return nullptr;
+			MatchingHandles.Add(Spec.Handle);
 		}
+	}
 
-		const FGameplayTag CharacterAttackTag =
-			FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.Attack"), false);
-		const FGameplayTag LegacyAttackTag =
-			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Attack"), false);
-
-		for (FGameplayAbilitySpec& Spec : ASC->GetActivatableAbilities())
+	for (const FGameplayAbilitySpecHandle& MatchingHandle : MatchingHandles)
+	{
+		if (ASC->TryActivateAbility(MatchingHandle, true))
 		{
-			if (!Spec.IsActive() || !Spec.Ability)
-			{
-				continue;
-			}
-
-			const bool bAttackSpec =
-				(CharacterAttackTag.IsValid() && Spec.Ability->AbilityTags.HasTagExact(CharacterAttackTag))
-				|| (LegacyAttackTag.IsValid() && Spec.Ability->AbilityTags.HasTagExact(LegacyAttackTag));
-			if (!bAttackSpec)
-			{
-				continue;
-			}
-			if (HasComboAbilityTag(Spec.Ability))
-			{
-				continue;
-			}
-
-			for (UGameplayAbility* AbilityInstance : Spec.GetAbilityInstances())
-			{
-				if (UGA_MeleeAttack* MeleeAttack = Cast<UGA_MeleeAttack>(AbilityInstance))
-				{
-					OutHandle = Spec.Handle;
-					return MeleeAttack;
-				}
-			}
+			return true;
 		}
+	}
 
+	return false;
+}
+
+static bool TryActivateBroadAttackAbility(UAbilitySystemComponent* ASC)
+{
+	return TryActivateAbilityByExactTagName(ASC, TEXT("Character.State.Skill.Attack"))
+		|| TryActivateAbilityByExactTagName(ASC, TEXT("PlayerState.AbilityCast.Attack"));
+}
+
+static bool HasComboAbilityTag(const UGameplayAbility* Ability)
+{
+	if (!Ability)
+	{
+		return false;
+	}
+
+	for (const FGameplayTag& AbilityTag : Ability->AbilityTags)
+	{
+		if (AbilityTag.IsValid() && AbilityTag.ToString().Contains(TEXT(".Combo")))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+static UGA_MeleeAttack* FindActiveBroadAttackInstance(UAbilitySystemComponent* ASC, FGameplayAbilitySpecHandle& OutHandle)
+{
+	OutHandle = FGameplayAbilitySpecHandle();
+	if (!ASC)
+	{
 		return nullptr;
 	}
 
-	FGameplayTag GetComboTagForSlot(const TCHAR* Prefix, int32 ComboSlot)
+	const FGameplayTag CharacterAttackTag =
+		FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.Attack"), false);
+	const FGameplayTag LegacyAttackTag =
+		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Attack"), false);
+
+	for (FGameplayAbilitySpec& Spec : ASC->GetActivatableAbilities())
 	{
-		if (!Prefix || ComboSlot < 1 || ComboSlot > 4)
+		if (!Spec.IsActive() || !Spec.Ability)
 		{
-			return FGameplayTag();
+			continue;
 		}
 
-		return FGameplayTag::RequestGameplayTag(
-			FName(*FString::Printf(TEXT("%s.Combo%d"), Prefix, ComboSlot)),
-			false);
+		const bool bAttackSpec =
+			(CharacterAttackTag.IsValid() && Spec.Ability->AbilityTags.HasTagExact(CharacterAttackTag))
+			|| (LegacyAttackTag.IsValid() && Spec.Ability->AbilityTags.HasTagExact(LegacyAttackTag));
+		if (!bAttackSpec)
+		{
+			continue;
+		}
+		if (HasComboAbilityTag(Spec.Ability))
+		{
+			continue;
+		}
+
+		for (UGameplayAbility* AbilityInstance : Spec.GetAbilityInstances())
+		{
+			if (UGA_MeleeAttack* MeleeAttack = Cast<UGA_MeleeAttack>(AbilityInstance))
+			{
+				OutHandle = Spec.Handle;
+				return MeleeAttack;
+			}
+		}
 	}
 
-	bool IsComboTag(const FGameplayTag& Tag)
+	return nullptr;
+}
+
+static FGameplayTag GetComboTagForSlot(const TCHAR* Prefix, int32 ComboSlot)
+{
+	if (!Prefix || ComboSlot < 1 || ComboSlot > 4)
 	{
-		return Tag.IsValid() && Tag.ToString().Contains(TEXT(".Combo"));
+		return FGameplayTag();
 	}
 
-	FGameplayTag ResolveBroadAttackAbilityDataTag(
-		const UAbilityData* AbilityData,
-		const FGameplayTagContainer& AbilityTags,
-		int32 StartSlot,
-		int32& OutComboSlot,
-		bool& bOutBroadAttack)
+	return FGameplayTag::RequestGameplayTag(
+		FName(*FString::Printf(TEXT("%s.Combo%d"), Prefix, ComboSlot)),
+		false);
+}
+
+static bool IsComboTag(const FGameplayTag& Tag)
+{
+	return Tag.IsValid() && Tag.ToString().Contains(TEXT(".Combo"));
+}
+
+static FGameplayTag ResolveBroadAttackAbilityDataTag(
+	const UAbilityData* AbilityData,
+	const FGameplayTagContainer& AbilityTags,
+	int32 StartSlot,
+	int32& OutComboSlot,
+	bool& bOutBroadAttack)
+{
+	static const FGameplayTag CharacterAttackTag =
+		FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.Attack"), false);
+	static const FGameplayTag LegacyAttackTag =
+		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Attack"), false);
+
+	bOutBroadAttack = false;
+	if ((!CharacterAttackTag.IsValid() || !AbilityTags.HasTagExact(CharacterAttackTag))
+		&& (!LegacyAttackTag.IsValid() || !AbilityTags.HasTagExact(LegacyAttackTag)))
 	{
-		static const FGameplayTag CharacterAttackTag =
-			FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.Attack"), false);
-		static const FGameplayTag LegacyAttackTag =
-			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Attack"), false);
-
-		bOutBroadAttack = false;
-		if ((!CharacterAttackTag.IsValid() || !AbilityTags.HasTagExact(CharacterAttackTag))
-			&& (!LegacyAttackTag.IsValid() || !AbilityTags.HasTagExact(LegacyAttackTag)))
-		{
-			return FGameplayTag();
-		}
-
-		bOutBroadAttack = true;
-		const int32 ClampedStartSlot = FMath::Clamp(StartSlot, 1, 4);
-		const bool bPreferCharacterTag = CharacterAttackTag.IsValid() && AbilityTags.HasTagExact(CharacterAttackTag);
-		const TCHAR* PrimaryPrefix = bPreferCharacterTag
-			? TEXT("Character.State.Skill.Attack")
-			: TEXT("PlayerState.AbilityCast.Attack");
-		const TCHAR* FallbackPrefix = bPreferCharacterTag
-			? TEXT("PlayerState.AbilityCast.Attack")
-			: TEXT("Character.State.Skill.Attack");
-
-		for (int32 Slot = ClampedStartSlot; Slot <= 4; ++Slot)
-		{
-			const FGameplayTag PrimaryComboTag = GetComboTagForSlot(PrimaryPrefix, Slot);
-			if (AbilityData && PrimaryComboTag.IsValid() && AbilityData->HasAbility(PrimaryComboTag))
-			{
-				OutComboSlot = Slot;
-				return PrimaryComboTag;
-			}
-
-			const FGameplayTag FallbackComboTag = GetComboTagForSlot(FallbackPrefix, Slot);
-			if (AbilityData && FallbackComboTag.IsValid() && AbilityData->HasAbility(FallbackComboTag))
-			{
-				OutComboSlot = Slot;
-				return FallbackComboTag;
-			}
-		}
-
-		if (AbilityData && StartSlot > 1)
-		{
-			const FGameplayTag PrimaryCombo1Tag = GetComboTagForSlot(PrimaryPrefix, 1);
-			const FGameplayTag FallbackCombo1Tag = GetComboTagForSlot(FallbackPrefix, 1);
-			bool bOnlyCombo1Configured = false;
-
-			if (PrimaryCombo1Tag.IsValid() && AbilityData->HasAbility(PrimaryCombo1Tag))
-			{
-				bOnlyCombo1Configured = true;
-				for (int32 Slot = 2; Slot <= 4; ++Slot)
-				{
-					const FGameplayTag PrimaryHigherComboTag = GetComboTagForSlot(PrimaryPrefix, Slot);
-					const FGameplayTag FallbackHigherComboTag = GetComboTagForSlot(FallbackPrefix, Slot);
-					if ((PrimaryHigherComboTag.IsValid() && AbilityData->HasAbility(PrimaryHigherComboTag))
-						|| (FallbackHigherComboTag.IsValid() && AbilityData->HasAbility(FallbackHigherComboTag)))
-					{
-						bOnlyCombo1Configured = false;
-						break;
-					}
-				}
-				if (bOnlyCombo1Configured)
-				{
-					OutComboSlot = 1;
-					return PrimaryCombo1Tag;
-				}
-			}
-
-			if (FallbackCombo1Tag.IsValid() && AbilityData->HasAbility(FallbackCombo1Tag))
-			{
-				bOnlyCombo1Configured = true;
-				for (int32 Slot = 2; Slot <= 4; ++Slot)
-				{
-					const FGameplayTag PrimaryHigherComboTag = GetComboTagForSlot(PrimaryPrefix, Slot);
-					const FGameplayTag FallbackHigherComboTag = GetComboTagForSlot(FallbackPrefix, Slot);
-					if ((PrimaryHigherComboTag.IsValid() && AbilityData->HasAbility(PrimaryHigherComboTag))
-						|| (FallbackHigherComboTag.IsValid() && AbilityData->HasAbility(FallbackHigherComboTag)))
-					{
-						bOnlyCombo1Configured = false;
-						break;
-					}
-				}
-				if (bOnlyCombo1Configured)
-				{
-					OutComboSlot = 1;
-					return FallbackCombo1Tag;
-				}
-			}
-		}
-
-		OutComboSlot = 0;
-		return CharacterAttackTag.IsValid() && AbilityTags.HasTagExact(CharacterAttackTag)
-			? CharacterAttackTag
-			: LegacyAttackTag;
+		return FGameplayTag();
 	}
 
+	bOutBroadAttack = true;
+	const int32 ClampedStartSlot = FMath::Clamp(StartSlot, 1, 4);
+	const bool bPreferCharacterTag = CharacterAttackTag.IsValid() && AbilityTags.HasTagExact(CharacterAttackTag);
+	const TCHAR* PrimaryPrefix = bPreferCharacterTag
+		? TEXT("Character.State.Skill.Attack")
+		: TEXT("PlayerState.AbilityCast.Attack");
+	const TCHAR* FallbackPrefix = bPreferCharacterTag
+		? TEXT("PlayerState.AbilityCast.Attack")
+		: TEXT("Character.State.Skill.Attack");
+
+	for (int32 Slot = ClampedStartSlot; Slot <= 4; ++Slot)
+	{
+		const FGameplayTag PrimaryComboTag = GetComboTagForSlot(PrimaryPrefix, Slot);
+		if (AbilityData && PrimaryComboTag.IsValid() && AbilityData->HasAbility(PrimaryComboTag))
+		{
+			OutComboSlot = Slot;
+			return PrimaryComboTag;
+		}
+
+		const FGameplayTag FallbackComboTag = GetComboTagForSlot(FallbackPrefix, Slot);
+		if (AbilityData && FallbackComboTag.IsValid() && AbilityData->HasAbility(FallbackComboTag))
+		{
+			OutComboSlot = Slot;
+			return FallbackComboTag;
+		}
+	}
+
+	if (AbilityData && StartSlot > 1)
+	{
+		const FGameplayTag PrimaryCombo1Tag = GetComboTagForSlot(PrimaryPrefix, 1);
+		const FGameplayTag FallbackCombo1Tag = GetComboTagForSlot(FallbackPrefix, 1);
+		bool bOnlyCombo1Configured = false;
+
+		if (PrimaryCombo1Tag.IsValid() && AbilityData->HasAbility(PrimaryCombo1Tag))
+		{
+			bOnlyCombo1Configured = true;
+			for (int32 Slot = 2; Slot <= 4; ++Slot)
+			{
+				const FGameplayTag PrimaryHigherComboTag = GetComboTagForSlot(PrimaryPrefix, Slot);
+				const FGameplayTag FallbackHigherComboTag = GetComboTagForSlot(FallbackPrefix, Slot);
+				if ((PrimaryHigherComboTag.IsValid() && AbilityData->HasAbility(PrimaryHigherComboTag))
+					|| (FallbackHigherComboTag.IsValid() && AbilityData->HasAbility(FallbackHigherComboTag)))
+				{
+					bOnlyCombo1Configured = false;
+					break;
+				}
+			}
+			if (bOnlyCombo1Configured)
+			{
+				OutComboSlot = 1;
+				return PrimaryCombo1Tag;
+			}
+		}
+
+		if (FallbackCombo1Tag.IsValid() && AbilityData->HasAbility(FallbackCombo1Tag))
+		{
+			bOnlyCombo1Configured = true;
+			for (int32 Slot = 2; Slot <= 4; ++Slot)
+			{
+				const FGameplayTag PrimaryHigherComboTag = GetComboTagForSlot(PrimaryPrefix, Slot);
+				const FGameplayTag FallbackHigherComboTag = GetComboTagForSlot(FallbackPrefix, Slot);
+				if ((PrimaryHigherComboTag.IsValid() && AbilityData->HasAbility(PrimaryHigherComboTag))
+					|| (FallbackHigherComboTag.IsValid() && AbilityData->HasAbility(FallbackHigherComboTag)))
+				{
+					bOnlyCombo1Configured = false;
+					break;
+				}
+			}
+			if (bOnlyCombo1Configured)
+			{
+				OutComboSlot = 1;
+				return FallbackCombo1Tag;
+			}
+		}
+	}
+
+	OutComboSlot = 0;
+	return CharacterAttackTag.IsValid() && AbilityTags.HasTagExact(CharacterAttackTag)
+		? CharacterAttackTag
+		: LegacyAttackTag;
 }
 
 UGA_MeleeAttack::UGA_MeleeAttack()

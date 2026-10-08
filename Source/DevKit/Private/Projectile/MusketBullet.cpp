@@ -15,12 +15,9 @@
 #include "NiagaraFunctionLibrary.h"
 #include "TimerManager.h"
 
-namespace
+static FGameplayTag MusketActDamageTag()
 {
-    FGameplayTag MusketActDamageTag()
-    {
-        return FGameplayTag::RequestGameplayTag(FName(TEXT("Attribute.ActDamage")));
-    }
+    return FGameplayTag::RequestGameplayTag(FName(TEXT("Attribute.ActDamage")));
 }
 
 AMusketBullet::AMusketBullet()

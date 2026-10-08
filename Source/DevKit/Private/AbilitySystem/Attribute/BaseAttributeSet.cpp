@@ -12,16 +12,13 @@
 #include "Component/BackpackGridComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
-namespace
-{
-	constexpr bool bDisableLegacyHeatRuntimeForCardTest = true;
+static constexpr bool bDisableLegacyHeatRuntimeForCardTest = true;
 
-	bool BaseAttributeSetHasInvulnerableTag(const UAbilitySystemComponent* ASC)
-	{
-		static const FGameplayTag InvulnerableTag =
-			FGameplayTag::RequestGameplayTag(TEXT("Buff.Invulnerable"), false);
-		return InvulnerableTag.IsValid() && ASC && ASC->HasMatchingGameplayTag(InvulnerableTag);
-	}
+static bool BaseAttributeSetHasInvulnerableTag(const UAbilitySystemComponent* ASC)
+{
+	static const FGameplayTag InvulnerableTag =
+		FGameplayTag::RequestGameplayTag(TEXT("Buff.Invulnerable"), false);
+	return InvulnerableTag.IsValid() && ASC && ASC->HasMatchingGameplayTag(InvulnerableTag);
 }
 
 UBaseAttributeSet::UBaseAttributeSet()

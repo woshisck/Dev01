@@ -17,24 +17,22 @@
 #include "RuneHudTextUtils.h"
 #include "UI/WidgetReflectorDebugUtils.h"
 
-namespace
-{
-constexpr int32 TitleFontSize = 14;
-constexpr int32 RoomNameFontSize = 12;
-constexpr int32 BuffNameFontSize = 13;
-constexpr int32 BuffDescFontSize = 11;
-constexpr int32 BuffEffectFontSize = 11;
-constexpr int32 BuffSummaryMaxChars = 34;
+static constexpr int32 TitleFontSize = 14;
+static constexpr int32 RoomNameFontSize = 12;
+static constexpr int32 BuffNameFontSize = 13;
+static constexpr int32 BuffDescFontSize = 11;
+static constexpr int32 BuffEffectFontSize = 11;
+static constexpr int32 BuffSummaryMaxChars = 34;
 
-const FLinearColor PanelColor(0.015f, 0.017f, 0.020f, 0.78f);
-const FLinearColor TitleColor(0.96f, 0.93f, 0.82f, 1.0f);
-const FLinearColor RoomNameColor(0.70f, 0.72f, 0.76f, 1.0f);
-const FLinearColor BuffNameColor(0.93f, 0.93f, 0.93f, 1.0f);
-const FLinearColor BuffDescColor(0.78f, 0.78f, 0.80f, 1.0f);
-const FLinearColor BuffEffectColor(0.65f, 0.65f, 0.70f, 1.0f);
-const FLinearColor EmptyColor(0.62f, 0.64f, 0.68f, 1.0f);
+static const FLinearColor PanelColor(0.015f, 0.017f, 0.020f, 0.78f);
+static const FLinearColor TitleColor(0.96f, 0.93f, 0.82f, 1.0f);
+static const FLinearColor RoomNameColor(0.70f, 0.72f, 0.76f, 1.0f);
+static const FLinearColor BuffNameColor(0.93f, 0.93f, 0.93f, 1.0f);
+static const FLinearColor BuffDescColor(0.78f, 0.78f, 0.80f, 1.0f);
+static const FLinearColor BuffEffectColor(0.65f, 0.65f, 0.70f, 1.0f);
+static const FLinearColor EmptyColor(0.62f, 0.64f, 0.68f, 1.0f);
 
-void SetTextSize(UTextBlock* TextBlock, int32 Size)
+static void SetTextSize(UTextBlock* TextBlock, int32 Size)
 {
 	if (!TextBlock) return;
 	FSlateFontInfo Font = TextBlock->GetFont();
@@ -42,7 +40,7 @@ void SetTextSize(UTextBlock* TextBlock, int32 Size)
 	TextBlock->SetFont(Font);
 }
 
-FText ResolveRuneDisplayName(const URuneDataAsset& RuneDA)
+static FText ResolveRuneDisplayName(const URuneDataAsset& RuneDA)
 {
 	const FName RuneName = RuneDA.GetRuneName();
 	if (!RuneName.IsNone())
@@ -61,7 +59,7 @@ FText ResolveRuneDisplayName(const URuneDataAsset& RuneDA)
 #endif
 }
 
-FText ResolveRoomDisplayName(const URoomDataAsset* RoomData)
+static FText ResolveRoomDisplayName(const URoomDataAsset* RoomData)
 {
 	if (!RoomData)
 	{
@@ -73,7 +71,7 @@ FText ResolveRoomDisplayName(const URoomDataAsset* RoomData)
 		: RoomData->DisplayName;
 }
 
-FText FormatGenericEffectLine(const UGenericRuneEffectDA& Effect)
+static FText FormatGenericEffectLine(const UGenericRuneEffectDA& Effect)
 {
 	const bool bHasName = !Effect.DisplayName.IsEmptyOrWhitespace();
 	const bool bHasDesc = !Effect.Description.IsEmptyOrWhitespace();
@@ -97,7 +95,6 @@ FText FormatGenericEffectLine(const UGenericRuneEffectDA& Effect)
 			Effect.Description);
 	}
 	return FText::GetEmpty();
-}
 }
 
 void UCurrentRoomBuffWidget::NativeConstruct()

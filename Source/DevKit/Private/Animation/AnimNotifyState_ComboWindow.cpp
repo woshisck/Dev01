@@ -4,23 +4,20 @@
 #include "AbilitySystemGlobals.h"
 #include "GameplayTagContainer.h"
 
-namespace
+static FGameplayTag GetComboWindowTag()
 {
-	FGameplayTag GetComboWindowTag()
+	return FGameplayTag::RequestGameplayTag(TEXT("Character.State.Window.CanCombo"), false);
+}
+
+static UAbilitySystemComponent* GetASC(USkeletalMeshComponent* MeshComp)
+{
+	if (!MeshComp)
 	{
-		return FGameplayTag::RequestGameplayTag(TEXT("Character.State.Window.CanCombo"), false);
+		return nullptr;
 	}
 
-	UAbilitySystemComponent* GetASC(USkeletalMeshComponent* MeshComp)
-	{
-		if (!MeshComp)
-		{
-			return nullptr;
-		}
-
-		AActor* Owner = MeshComp->GetOwner();
-		return Owner ? UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Owner) : nullptr;
-	}
+	AActor* Owner = MeshComp->GetOwner();
+	return Owner ? UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Owner) : nullptr;
 }
 
 void UAnimNotifyState_ComboWindow::NotifyBegin(USkeletalMeshComponent* MeshComp,

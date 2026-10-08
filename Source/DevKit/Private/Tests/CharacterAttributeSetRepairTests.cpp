@@ -9,15 +9,12 @@
 #include "Character/YogCharacterBase.h"
 #include "Engine/World.h"
 
-namespace
+template <typename TAttributeSet>
+static TAttributeSet* GetMutableRegisteredAttributeSet(UAbilitySystemComponent* ASC)
 {
-	template <typename TAttributeSet>
-	TAttributeSet* GetMutableRegisteredAttributeSet(UAbilitySystemComponent* ASC)
-	{
-		return ASC
-			? const_cast<TAttributeSet*>(Cast<const TAttributeSet>(ASC->GetAttributeSet(TAttributeSet::StaticClass())))
-			: nullptr;
-	}
+	return ASC
+		? const_cast<TAttributeSet*>(Cast<const TAttributeSet>(ASC->GetAttributeSet(TAttributeSet::StaticClass())))
+		: nullptr;
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCharacterAttributeSetRepairRelinksRegisteredSetsTest,

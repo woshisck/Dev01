@@ -15,13 +15,10 @@
 #include "Data/CharacterData.h"
 #include "Data/AbilityData.h"
 
-namespace
-{
-FVector GetHorizontalSafeNormal(FVector Direction)
+static FVector GetHorizontalSafeNormal(FVector Direction)
 {
     Direction.Z = 0.f;
     return Direction.IsNearlyZero() ? FVector::ZeroVector : Direction.GetSafeNormal();
-}
 }
 
 UGA_Knockback::UGA_Knockback(const FObjectInitializer& ObjectInitializer)

@@ -17,9 +17,7 @@
 #include "UI/YogInputKeyUtils.h"
 #include "UI/YogUIManagerSubsystem.h"
 
-namespace
-{
-FText GetSacrificeRuneName(const FAltarSacrificeEntry& Entry)
+static FText GetSacrificeRuneName(const FAltarSacrificeEntry& Entry)
 {
 	if (!Entry.GrantedRune)
 	{
@@ -28,7 +26,7 @@ FText GetSacrificeRuneName(const FAltarSacrificeEntry& Entry)
 	return FText::FromName(Entry.GrantedRune->GetRuneName());
 }
 
-FText GetSacrificeRuneEffectText(const URuneDataAsset* Rune)
+static FText GetSacrificeRuneEffectText(const URuneDataAsset* Rune)
 {
 	if (!Rune)
 	{
@@ -48,7 +46,7 @@ FText GetSacrificeRuneEffectText(const URuneDataAsset* Rune)
 	return NSLOCTEXT("SacrificeSelection", "MissingRuneEffect", "获得后立即生效。");
 }
 
-FText GetSacrificeRuneCardIntroText(const URuneDataAsset* Rune)
+static FText GetSacrificeRuneCardIntroText(const URuneDataAsset* Rune)
 {
 	if (!Rune)
 	{
@@ -61,7 +59,7 @@ FText GetSacrificeRuneCardIntroText(const URuneDataAsset* Rune)
 		GetSacrificeRuneEffectText(Rune));
 }
 
-FText GetSacrificePassiveHintText(const URuneDataAsset* Rune)
+static FText GetSacrificePassiveHintText(const URuneDataAsset* Rune)
 {
 	if (Rune && (Rune->RuneInfo.CombatCard.CardType == ECombatCardType::Passive || Rune->GetTriggerType() == ERuneTriggerType::Passive))
 	{
@@ -71,7 +69,7 @@ FText GetSacrificePassiveHintText(const URuneDataAsset* Rune)
 	return NSLOCTEXT("SacrificeSelection", "DefaultCardHint", "教程提示：确认前请先阅读卡牌效果和献祭代价。");
 }
 
-FText GetCardDisplayName(const FCombatCardInstance& Card)
+static FText GetCardDisplayName(const FCombatCardInstance& Card)
 {
 	if (!Card.SourceData)
 	{
@@ -80,7 +78,7 @@ FText GetCardDisplayName(const FCombatCardInstance& Card)
 	return FText::FromName(Card.SourceData->GetRuneName());
 }
 
-FText GetCostFallbackText(ESacrificeOfferingCostType CostType)
+static FText GetCostFallbackText(ESacrificeOfferingCostType CostType)
 {
 	switch (CostType)
 	{
@@ -94,7 +92,7 @@ FText GetCostFallbackText(ESacrificeOfferingCostType CostType)
 	return FText::GetEmpty();
 }
 
-UTextBlock* MakeText(UWidgetTree* Tree, const FName Name, const FText& Text, int32 FontSize)
+static UTextBlock* MakeText(UWidgetTree* Tree, const FName Name, const FText& Text, int32 FontSize)
 {
 	UTextBlock* TextBlock = Tree->ConstructWidget<UYogCommonUITextBlock>(UYogCommonUITextBlock::StaticClass(), Name);
 	TextBlock->SetText(Text);
@@ -105,7 +103,7 @@ UTextBlock* MakeText(UWidgetTree* Tree, const FName Name, const FText& Text, int
 	return TextBlock;
 }
 
-UButton* MakeTextButton(UWidgetTree* Tree, const FName Name, const FText& Text)
+static UButton* MakeTextButton(UWidgetTree* Tree, const FName Name, const FText& Text)
 {
 	UButton* Button = Tree->ConstructWidget<UButton>(UButton::StaticClass(), Name);
 	const FName LabelName(*FString::Printf(TEXT("%s_Label"), *Name.ToString()));
@@ -113,7 +111,6 @@ UButton* MakeTextButton(UWidgetTree* Tree, const FName Name, const FText& Text)
 	Label->SetJustification(ETextJustify::Center);
 	Button->AddChild(Label);
 	return Button;
-}
 }
 
 TSubclassOf<UTextBlock> USacrificeSelectionWidget::GetMenuTextBlockClassForTests()

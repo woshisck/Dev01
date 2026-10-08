@@ -23,215 +23,212 @@
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
 
-namespace
+static bool IsDefaultMovementBlockStateTag(const FGameplayTag& Tag)
 {
-	bool IsDefaultMovementBlockStateTag(const FGameplayTag& Tag)
+	static const FGameplayTag HitReactTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.HitReact"), false);
+	static const FGameplayTag DeadTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Dead"), false);
+	static const FGameplayTag KnockbackTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Knockback"), false);
+
+	return (HitReactTag.IsValid() && Tag.MatchesTagExact(HitReactTag)) ||
+		(DeadTag.IsValid() && Tag.MatchesTagExact(DeadTag)) ||
+		(KnockbackTag.IsValid() && Tag.MatchesTagExact(KnockbackTag));
+}
+
+static bool IsHitReactStateTag(const FGameplayTag& Tag)
+{
+	static const FGameplayTag HitReactTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.HitReact"), false);
+	return HitReactTag.IsValid() && Tag.MatchesTagExact(HitReactTag);
+}
+
+static bool HasAnyDefaultMovementBlockStateTag(const UAbilitySystemComponent* ASC)
+{
+	if (!ASC)
 	{
-		static const FGameplayTag HitReactTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.HitReact"), false);
-		static const FGameplayTag DeadTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Dead"), false);
-		static const FGameplayTag KnockbackTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Knockback"), false);
-
-		return (HitReactTag.IsValid() && Tag.MatchesTagExact(HitReactTag)) ||
-			(DeadTag.IsValid() && Tag.MatchesTagExact(DeadTag)) ||
-			(KnockbackTag.IsValid() && Tag.MatchesTagExact(KnockbackTag));
-	}
-
-	bool IsHitReactStateTag(const FGameplayTag& Tag)
-	{
-		static const FGameplayTag HitReactTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.HitReact"), false);
-		return HitReactTag.IsValid() && Tag.MatchesTagExact(HitReactTag);
-	}
-
-	bool HasAnyDefaultMovementBlockStateTag(const UAbilitySystemComponent* ASC)
-	{
-		if (!ASC)
-		{
-			return false;
-		}
-
-		static const FGameplayTag HitReactTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.HitReact"), false);
-		static const FGameplayTag DeadTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Dead"), false);
-		static const FGameplayTag KnockbackTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Knockback"), false);
-
-		return (HitReactTag.IsValid() && ASC->HasMatchingGameplayTag(HitReactTag)) ||
-			(DeadTag.IsValid() && ASC->HasMatchingGameplayTag(DeadTag)) ||
-			(KnockbackTag.IsValid() && ASC->HasMatchingGameplayTag(KnockbackTag));
-	}
-
-	bool HasPlayerAttackStateTag(const UAbilitySystemComponent* ASC)
-	{
-		if (!ASC)
-		{
-			return false;
-		}
-
-		static const FName AttackStateTagNames[] = {
-			TEXT("Character.State.Skill.Attack"),
-			TEXT("Character.State.Skill.WeaponSkill"),
-			TEXT("Character.State.Movement.Dash"),
-			TEXT("PlayerState.AbilityCast.Attack"),
-			TEXT("PlayerState.AbilityCast.WeaponSkill"),
-			TEXT("PlayerState.AbilityCast.Dash"),
-		};
-
-		for (const FName& TagName : AttackStateTagNames)
-		{
-			const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(TagName, false);
-			if (Tag.IsValid() && ASC->HasMatchingGameplayTag(Tag))
-			{
-				return true;
-			}
-		}
 		return false;
 	}
 
-	FGameplayTag GetRecentlyDamagedTag()
+	static const FGameplayTag HitReactTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.HitReact"), false);
+	static const FGameplayTag DeadTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Dead"), false);
+	static const FGameplayTag KnockbackTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Knockback"), false);
+
+	return (HitReactTag.IsValid() && ASC->HasMatchingGameplayTag(HitReactTag)) ||
+		(DeadTag.IsValid() && ASC->HasMatchingGameplayTag(DeadTag)) ||
+		(KnockbackTag.IsValid() && ASC->HasMatchingGameplayTag(KnockbackTag));
+}
+
+static bool HasPlayerAttackStateTag(const UAbilitySystemComponent* ASC)
+{
+	if (!ASC)
 	{
-		return FGameplayTag::RequestGameplayTag(TEXT("Buff.RecentlyDamaged"), false);
+		return false;
 	}
 
-	TConstArrayView<FGameplayTag> GetPlayerAttackComboTags()
-	{
-		static const FGameplayTag AttackComboTags[] = {
-			FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.Attack.Combo1"), false),
-			FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.Attack.Combo2"), false),
-			FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.Attack.Combo3"), false),
-			FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.Attack.Combo4"), false),
-			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Attack.Combo1"), false),
-			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Attack.Combo2"), false),
-			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Attack.Combo3"), false),
-			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Attack.Combo4"), false),
-		};
-		return MakeArrayView(AttackComboTags, UE_ARRAY_COUNT(AttackComboTags));
-	}
+	static const FName AttackStateTagNames[] = {
+		TEXT("Character.State.Skill.Attack"),
+		TEXT("Character.State.Skill.WeaponSkill"),
+		TEXT("Character.State.Movement.Dash"),
+		TEXT("PlayerState.AbilityCast.Attack"),
+		TEXT("PlayerState.AbilityCast.WeaponSkill"),
+		TEXT("PlayerState.AbilityCast.Dash"),
+	};
 
-	TConstArrayView<FGameplayTag> GetPlayerWeaponSkillComboTags()
+	for (const FName& TagName : AttackStateTagNames)
 	{
-		static const FGameplayTag WeaponSkillComboTags[] = {
-			FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.WeaponSkill.Combo1"), false),
-			FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.WeaponSkill.Combo2"), false),
-			FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.WeaponSkill.Combo3"), false),
-			FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.WeaponSkill.Combo4"), false),
-			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.WeaponSkill.Combo1"), false),
-			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.WeaponSkill.Combo2"), false),
-			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.WeaponSkill.Combo3"), false),
-			FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.WeaponSkill.Combo4"), false),
-		};
-		return MakeArrayView(WeaponSkillComboTags, UE_ARRAY_COUNT(WeaponSkillComboTags));
-	}
-
-	int32 GetPlayerComboSlotFromTag(const FGameplayTag& Tag)
-	{
-		if (!Tag.IsValid())
+		const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(TagName, false);
+		if (Tag.IsValid() && ASC->HasMatchingGameplayTag(Tag))
 		{
-			return INDEX_NONE;
+			return true;
 		}
+	}
+	return false;
+}
 
-		const FString TagText = Tag.ToString();
-		for (int32 Slot = 1; Slot <= 4; ++Slot)
-		{
-			if (TagText.EndsWith(FString::Printf(TEXT(".Combo%d"), Slot)))
-			{
-				return Slot;
-			}
-		}
+static FGameplayTag GetRecentlyDamagedTag()
+{
+	return FGameplayTag::RequestGameplayTag(TEXT("Buff.RecentlyDamaged"), false);
+}
 
+static TConstArrayView<FGameplayTag> GetPlayerAttackComboTags()
+{
+	static const FGameplayTag AttackComboTags[] = {
+		FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.Attack.Combo1"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.Attack.Combo2"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.Attack.Combo3"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.Attack.Combo4"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Attack.Combo1"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Attack.Combo2"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Attack.Combo3"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.Attack.Combo4"), false),
+	};
+	return MakeArrayView(AttackComboTags, UE_ARRAY_COUNT(AttackComboTags));
+}
+
+static TConstArrayView<FGameplayTag> GetPlayerWeaponSkillComboTags()
+{
+	static const FGameplayTag WeaponSkillComboTags[] = {
+		FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.WeaponSkill.Combo1"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.WeaponSkill.Combo2"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.WeaponSkill.Combo3"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.WeaponSkill.Combo4"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.WeaponSkill.Combo1"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.WeaponSkill.Combo2"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.WeaponSkill.Combo3"), false),
+		FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.WeaponSkill.Combo4"), false),
+	};
+	return MakeArrayView(WeaponSkillComboTags, UE_ARRAY_COUNT(WeaponSkillComboTags));
+}
+
+static int32 GetPlayerComboSlotFromTag(const FGameplayTag& Tag)
+{
+	if (!Tag.IsValid())
+	{
 		return INDEX_NONE;
 	}
 
-	bool IsPlayerComboWindowOpen(const UYogAbilitySystemComponent* ASC)
+	const FString TagText = Tag.ToString();
+	for (int32 Slot = 1; Slot <= 4; ++Slot)
 	{
-		if (!ASC)
+		if (TagText.EndsWith(FString::Printf(TEXT(".Combo%d"), Slot)))
 		{
-			return false;
+			return Slot;
 		}
-
-		static const FGameplayTag CharacterCanComboTag =
-			FGameplayTag::RequestGameplayTag(TEXT("Character.State.Window.CanCombo"), false);
-		static const FGameplayTag CharacterJustComboTag =
-			FGameplayTag::RequestGameplayTag(TEXT("Character.State.Window.JustCombo"), false);
-
-		return (CharacterCanComboTag.IsValid() && ASC->GetTagCount(CharacterCanComboTag) > 0) ||
-			(CharacterJustComboTag.IsValid() && ASC->GetTagCount(CharacterJustComboTag) > 0);
 	}
 
-	bool TryActivateComboAbilityForSlot(
-		UYogAbilitySystemComponent* ASC,
-		TConstArrayView<FGameplayTag> ComboTags,
-		int32 ComboSlot,
-		bool bAllowRemoteActivation)
+	return INDEX_NONE;
+}
+
+static bool IsPlayerComboWindowOpen(const UYogAbilitySystemComponent* ASC)
+{
+	if (!ASC)
 	{
-		if (!ASC || ComboSlot < 1)
-		{
-			return false;
-		}
-
-		for (const FGameplayTag& ComboTag : ComboTags)
-		{
-			if (GetPlayerComboSlotFromTag(ComboTag) == ComboSlot
-				&& ASC->TryActivateAbilityByExactTag(ComboTag, bAllowRemoteActivation))
-			{
-				return true;
-			}
-		}
-
 		return false;
 	}
 
-	bool TryActivateNextComboAbilityFromTags(
-		UYogAbilitySystemComponent* ASC,
-		TConstArrayView<FGameplayTag> ComboTags,
-		bool bRequireComboWindow,
-		bool bAllowRemoteActivation)
+	static const FGameplayTag CharacterCanComboTag =
+		FGameplayTag::RequestGameplayTag(TEXT("Character.State.Window.CanCombo"), false);
+	static const FGameplayTag CharacterJustComboTag =
+		FGameplayTag::RequestGameplayTag(TEXT("Character.State.Window.JustCombo"), false);
+
+	return (CharacterCanComboTag.IsValid() && ASC->GetTagCount(CharacterCanComboTag) > 0) ||
+		(CharacterJustComboTag.IsValid() && ASC->GetTagCount(CharacterJustComboTag) > 0);
+}
+
+static bool TryActivateComboAbilityForSlot(
+	UYogAbilitySystemComponent* ASC,
+	TConstArrayView<FGameplayTag> ComboTags,
+	int32 ComboSlot,
+	bool bAllowRemoteActivation)
+{
+	if (!ASC || ComboSlot < 1)
 	{
-		if (!ASC || ComboTags.Num() <= 0)
-		{
-			return false;
-		}
-
-		int32 ActiveComboSlot = INDEX_NONE;
-		for (const FGameplayTag& ComboTag : ComboTags)
-		{
-			const int32 CandidateSlot = GetPlayerComboSlotFromTag(ComboTag);
-			if (CandidateSlot != INDEX_NONE && ASC->GetTagCount(ComboTag) > 0)
-			{
-				ActiveComboSlot = FMath::Max(ActiveComboSlot, CandidateSlot);
-			}
-		}
-
-		if (ActiveComboSlot != INDEX_NONE)
-		{
-			if (bRequireComboWindow && !IsPlayerComboWindowOpen(ASC))
-			{
-				return false;
-			}
-
-			const int32 NextComboSlot = ActiveComboSlot + 1;
-			return NextComboSlot <= 4
-				? TryActivateComboAbilityForSlot(ASC, ComboTags, NextComboSlot, bAllowRemoteActivation)
-				: false;
-		}
-
-		return TryActivateComboAbilityForSlot(ASC, ComboTags, 1, bAllowRemoteActivation);
-	}
-
-	bool HasActiveComboAbilityTag(UYogAbilitySystemComponent* ASC, TConstArrayView<FGameplayTag> ComboTags)
-	{
-		if (!ASC)
-		{
-			return false;
-		}
-
-		for (const FGameplayTag& ComboTag : ComboTags)
-		{
-			if (ComboTag.IsValid() && ASC->GetTagCount(ComboTag) > 0)
-			{
-				return true;
-			}
-		}
-
 		return false;
 	}
+
+	for (const FGameplayTag& ComboTag : ComboTags)
+	{
+		if (GetPlayerComboSlotFromTag(ComboTag) == ComboSlot
+			&& ASC->TryActivateAbilityByExactTag(ComboTag, bAllowRemoteActivation))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+static bool TryActivateNextComboAbilityFromTags(
+	UYogAbilitySystemComponent* ASC,
+	TConstArrayView<FGameplayTag> ComboTags,
+	bool bRequireComboWindow,
+	bool bAllowRemoteActivation)
+{
+	if (!ASC || ComboTags.Num() <= 0)
+	{
+		return false;
+	}
+
+	int32 ActiveComboSlot = INDEX_NONE;
+	for (const FGameplayTag& ComboTag : ComboTags)
+	{
+		const int32 CandidateSlot = GetPlayerComboSlotFromTag(ComboTag);
+		if (CandidateSlot != INDEX_NONE && ASC->GetTagCount(ComboTag) > 0)
+		{
+			ActiveComboSlot = FMath::Max(ActiveComboSlot, CandidateSlot);
+		}
+	}
+
+	if (ActiveComboSlot != INDEX_NONE)
+	{
+		if (bRequireComboWindow && !IsPlayerComboWindowOpen(ASC))
+		{
+			return false;
+		}
+
+		const int32 NextComboSlot = ActiveComboSlot + 1;
+		return NextComboSlot <= 4
+			? TryActivateComboAbilityForSlot(ASC, ComboTags, NextComboSlot, bAllowRemoteActivation)
+			: false;
+	}
+
+	return TryActivateComboAbilityForSlot(ASC, ComboTags, 1, bAllowRemoteActivation);
+}
+
+static bool HasActiveComboAbilityTag(UYogAbilitySystemComponent* ASC, TConstArrayView<FGameplayTag> ComboTags)
+{
+	if (!ASC)
+	{
+		return false;
+	}
+
+	for (const FGameplayTag& ComboTag : ComboTags)
+	{
+		if (ComboTag.IsValid() && ASC->GetTagCount(ComboTag) > 0)
+		{
+			return true;
+		}
+	}
+
+	return false;
 }
 
 // Sets default values
@@ -302,49 +299,46 @@ void UYogAbilitySystemComponent::SetConflictTable(UStateConflictDataAsset* NewTa
 // 标签反应系统
 // =========================================================
 
-namespace
+static bool TagReaction_IsRuleValid(const FTagReactionRule& Rule, const UObject* SourceTable)
 {
-	bool TagReaction_IsRuleValid(const FTagReactionRule& Rule, const UObject* SourceTable)
+	if (!Rule.TriggerTag.IsValid())
 	{
-		if (!Rule.TriggerTag.IsValid())
-		{
-			UE_LOG(LogTemp, Warning, TEXT("[TagReaction] Rule with invalid TriggerTag found in %s, skipped."),
-				*GetNameSafe(SourceTable));
-			return false;
-		}
-
-		switch (Rule.ReactionType)
-		{
-		case ETagReactionType::StartBuffFlow:
-			if (!Rule.FlowAsset)
-			{
-				UE_LOG(LogTemp, Warning, TEXT("[TagReaction] Tag=%s StartBuffFlow rule has no FlowAsset in %s, skipped."),
-					*Rule.TriggerTag.ToString(), *GetNameSafe(SourceTable));
-				return false;
-			}
-			return true;
-
-		case ETagReactionType::ApplyGameplayEffect:
-			if (!Rule.EffectClass)
-			{
-				UE_LOG(LogTemp, Warning, TEXT("[TagReaction] Tag=%s ApplyGameplayEffect rule has no EffectClass in %s, skipped."),
-					*Rule.TriggerTag.ToString(), *GetNameSafe(SourceTable));
-				return false;
-			}
-			return true;
-
-		case ETagReactionType::ActivateAbility:
-			if (!Rule.AbilityClass)
-			{
-				UE_LOG(LogTemp, Warning, TEXT("[TagReaction] Tag=%s ActivateAbility rule has no AbilityClass in %s, skipped."),
-					*Rule.TriggerTag.ToString(), *GetNameSafe(SourceTable));
-				return false;
-			}
-			return true;
-		}
-
+		UE_LOG(LogTemp, Warning, TEXT("[TagReaction] Rule with invalid TriggerTag found in %s, skipped."),
+			*GetNameSafe(SourceTable));
 		return false;
 	}
+
+	switch (Rule.ReactionType)
+	{
+	case ETagReactionType::StartBuffFlow:
+		if (!Rule.FlowAsset)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[TagReaction] Tag=%s StartBuffFlow rule has no FlowAsset in %s, skipped."),
+				*Rule.TriggerTag.ToString(), *GetNameSafe(SourceTable));
+			return false;
+		}
+		return true;
+
+	case ETagReactionType::ApplyGameplayEffect:
+		if (!Rule.EffectClass)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[TagReaction] Tag=%s ApplyGameplayEffect rule has no EffectClass in %s, skipped."),
+				*Rule.TriggerTag.ToString(), *GetNameSafe(SourceTable));
+			return false;
+		}
+		return true;
+
+	case ETagReactionType::ActivateAbility:
+		if (!Rule.AbilityClass)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[TagReaction] Tag=%s ActivateAbility rule has no AbilityClass in %s, skipped."),
+				*Rule.TriggerTag.ToString(), *GetNameSafe(SourceTable));
+			return false;
+		}
+		return true;
+	}
+
+	return false;
 }
 
 void UYogAbilitySystemComponent::InitTagReactionTable()
@@ -1161,18 +1155,15 @@ void UYogAbilitySystemComponent::AddGameplayTagWithCount(FGameplayTag Tag, int32
 }
 
 // ���� �������� Tag ���� ������������������������������������������������������������������������������������������
-namespace
+static FGameplayTag GetWeaponTypeTag(EWeaponType Type)
 {
-	FGameplayTag GetWeaponTypeTag(EWeaponType Type)
+	static const FGameplayTag MeleeTag  = FGameplayTag::RequestGameplayTag(TEXT("Weapon.Type.Melee"),  false);
+	static const FGameplayTag RangedTag = FGameplayTag::RequestGameplayTag(TEXT("Weapon.Type.Ranged"), false);
+	switch (Type)
 	{
-		static const FGameplayTag MeleeTag  = FGameplayTag::RequestGameplayTag(TEXT("Weapon.Type.Melee"),  false);
-		static const FGameplayTag RangedTag = FGameplayTag::RequestGameplayTag(TEXT("Weapon.Type.Ranged"), false);
-		switch (Type)
-		{
-		case EWeaponType::Melee:  return MeleeTag;
-		case EWeaponType::Ranged: return RangedTag;
-		default:                  return FGameplayTag();
-		}
+	case EWeaponType::Melee:  return MeleeTag;
+	case EWeaponType::Ranged: return RangedTag;
+	default:                  return FGameplayTag();
 	}
 }
 

@@ -13,10 +13,7 @@
 #include "SaveGame/YogSaveSubsystem.h"
 #include "System/YogGameInstanceBase.h"
 
-namespace
-{
-	const TCHAR* DefaultShieldBurstPath = TEXT("/Game/Code/Core/ActiveSkills/DA_ActiveSkill_ShieldBurst.DA_ActiveSkill_ShieldBurst");
-}
+static const TCHAR* DefaultShieldBurstPath = TEXT("/Game/Code/Core/ActiveSkills/DA_ActiveSkill_ShieldBurst.DA_ActiveSkill_ShieldBurst");
 
 UActiveSkillLoadoutWidget::UActiveSkillLoadoutWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

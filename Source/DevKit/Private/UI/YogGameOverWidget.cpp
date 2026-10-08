@@ -20,9 +20,7 @@
 #include "UI/YogInputKeyUtils.h"
 #include "UI/YogUIManagerSubsystem.h"
 
-namespace
-{
-UTextBlock* MakeGameOverText(UWidgetTree* Tree, const FName Name, const FText& Text, int32 FontSize)
+static UTextBlock* MakeGameOverText(UWidgetTree* Tree, const FName Name, const FText& Text, int32 FontSize)
 {
 	UTextBlock* TextBlock = Tree ? Tree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), Name) : nullptr;
 	if (!TextBlock)
@@ -39,7 +37,7 @@ UTextBlock* MakeGameOverText(UWidgetTree* Tree, const FName Name, const FText& T
 	return TextBlock;
 }
 
-UButton* MakeGameOverButton(UWidgetTree* Tree, const FName Name, const FText& Text)
+static UButton* MakeGameOverButton(UWidgetTree* Tree, const FName Name, const FText& Text)
 {
 	UButton* Button = Tree ? Tree->ConstructWidget<UButton>(UButton::StaticClass(), Name) : nullptr;
 	if (!Button)
@@ -57,7 +55,7 @@ UButton* MakeGameOverButton(UWidgetTree* Tree, const FName Name, const FText& Te
 	return Button;
 }
 
-UTextBlock* FindButtonTextBlock(UWidget* Widget)
+static UTextBlock* FindButtonTextBlock(UWidget* Widget)
 {
 	if (!Widget)
 	{
@@ -86,7 +84,6 @@ UTextBlock* FindButtonTextBlock(UWidget* Widget)
 	}
 
 	return nullptr;
-}
 }
 
 void UYogGameOverWidget::BuildDeathMenuActions(bool bInCanRevive, bool bInScriptedDefeat, TArray<EYogGameOverMenuAction>& OutActions)

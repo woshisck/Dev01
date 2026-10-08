@@ -25,195 +25,192 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogEnemyHealthDisplay, Log, All);
 
-namespace
+static constexpr TCHAR DefaultHealthBarMaterialPath[] =
+	TEXT("/Game/UI/Health_NiagaraUI/M_NiagaraUI_Health_Direct.M_NiagaraUI_Health_Direct");
+static constexpr TCHAR DefaultHealthBarSystemPath[] =
+	TEXT("/Game/UI/Health_NiagaraUI/NS_EnemyHealth.NS_EnemyHealth");
+static constexpr TCHAR DefaultDamageValueSystemPath[] =
+	TEXT("/Game/UI/Health_NiagaraUI/NS_EnemyDamageValue.NS_EnemyDamageValue");
+
+static void CollectAttachedNiagaraComponents(USceneComponent* Parent, TArray<UNiagaraComponent*>& OutComponents)
 {
-	constexpr TCHAR DefaultHealthBarMaterialPath[] =
-		TEXT("/Game/UI/Health_NiagaraUI/M_NiagaraUI_Health_Direct.M_NiagaraUI_Health_Direct");
-	constexpr TCHAR DefaultHealthBarSystemPath[] =
-		TEXT("/Game/UI/Health_NiagaraUI/NS_EnemyHealth.NS_EnemyHealth");
-	constexpr TCHAR DefaultDamageValueSystemPath[] =
-		TEXT("/Game/UI/Health_NiagaraUI/NS_EnemyDamageValue.NS_EnemyDamageValue");
-
-	void CollectAttachedNiagaraComponents(USceneComponent* Parent, TArray<UNiagaraComponent*>& OutComponents)
+	if (!Parent)
 	{
-		if (!Parent)
-		{
-			return;
-		}
-
-		for (USceneComponent* Child : Parent->GetAttachChildren())
-		{
-			if (UNiagaraComponent* NiagaraChild = Cast<UNiagaraComponent>(Child))
-			{
-				OutComponents.AddUnique(NiagaraChild);
-			}
-
-			CollectAttachedNiagaraComponents(Child, OutComponents);
-		}
+		return;
 	}
 
-	bool IsHealthBarDiagnosticCandidate(const UNiagaraComponent* NiagaraComponent, FName DesiredName)
+	for (USceneComponent* Child : Parent->GetAttachChildren())
 	{
-		if (!NiagaraComponent)
+		if (UNiagaraComponent* NiagaraChild = Cast<UNiagaraComponent>(Child))
 		{
-			return false;
+			OutComponents.AddUnique(NiagaraChild);
 		}
 
-		const FString ComponentName = NiagaraComponent->GetName();
-		const FString SystemName = GetNameSafe(NiagaraComponent->GetAsset());
-		if ((!DesiredName.IsNone() && NiagaraComponent->GetFName() == DesiredName)
-			|| UEnemyHealthDisplayComponent::IsLikelyHealthBarComponentName(ComponentName, DesiredName)
-			|| UEnemyHealthDisplayComponent::IsLikelyHealthBarSystemName(SystemName))
-		{
-			return true;
-		}
+		CollectAttachedNiagaraComponents(Child, OutComponents);
+	}
+}
 
-		const UMaterialInterface* Material = NiagaraComponent->GetMaterial(0);
-		const FString MaterialName = GetNameSafe(Material);
-		return MaterialName.Contains(TEXT("Health"), ESearchCase::IgnoreCase)
-			|| MaterialName.Contains(TEXT("NiagaraUI"), ESearchCase::IgnoreCase);
+static bool IsHealthBarDiagnosticCandidate(const UNiagaraComponent* NiagaraComponent, FName DesiredName)
+{
+	if (!NiagaraComponent)
+	{
+		return false;
 	}
 
-	FString NiagaraExecutionStateToString(ENiagaraExecutionState State)
+	const FString ComponentName = NiagaraComponent->GetName();
+	const FString SystemName = GetNameSafe(NiagaraComponent->GetAsset());
+	if ((!DesiredName.IsNone() && NiagaraComponent->GetFName() == DesiredName)
+		|| UEnemyHealthDisplayComponent::IsLikelyHealthBarComponentName(ComponentName, DesiredName)
+		|| UEnemyHealthDisplayComponent::IsLikelyHealthBarSystemName(SystemName))
 	{
-		if (const UEnum* ExecutionStateEnum = StaticEnum<ENiagaraExecutionState>())
-		{
-			return ExecutionStateEnum->GetNameStringByValue(static_cast<int64>(State));
-		}
-
-		return FString::FromInt(static_cast<int32>(State));
+		return true;
 	}
 
-	bool ShouldLogNiagaraParameter(const FString& ParameterName)
+	const UMaterialInterface* Material = NiagaraComponent->GetMaterial(0);
+	const FString MaterialName = GetNameSafe(Material);
+	return MaterialName.Contains(TEXT("Health"), ESearchCase::IgnoreCase)
+		|| MaterialName.Contains(TEXT("NiagaraUI"), ESearchCase::IgnoreCase);
+}
+
+static FString NiagaraExecutionStateToString(ENiagaraExecutionState State)
+{
+	if (const UEnum* ExecutionStateEnum = StaticEnum<ENiagaraExecutionState>())
 	{
-		return ParameterName.Contains(TEXT("SpawnBurst_Instantaneous.Spawn Count"), ESearchCase::IgnoreCase)
-			|| ParameterName.Contains(TEXT("DynamicMaterial"), ESearchCase::IgnoreCase)
-			|| ParameterName.Contains(TEXT("Sprite Size"), ESearchCase::IgnoreCase)
-			|| ParameterName.Contains(TEXT("Position Offset"), ESearchCase::IgnoreCase)
-			|| ParameterName.Contains(TEXT("User.new"), ESearchCase::IgnoreCase)
-			|| ParameterName.Contains(TEXT("User.old"), ESearchCase::IgnoreCase)
-			|| ParameterName.Contains(TEXT("User.temp"), ESearchCase::IgnoreCase)
-			|| ParameterName.Contains(TEXT("User.armor"), ESearchCase::IgnoreCase);
+		return ExecutionStateEnum->GetNameStringByValue(static_cast<int64>(State));
 	}
 
-	FString DescribeNiagaraParameterValue(
-		const FNiagaraParameterStore& Parameters,
-		const FNiagaraVariableWithOffset& Parameter)
+	return FString::FromInt(static_cast<int32>(State));
+}
+
+static bool ShouldLogNiagaraParameter(const FString& ParameterName)
+{
+	return ParameterName.Contains(TEXT("SpawnBurst_Instantaneous.Spawn Count"), ESearchCase::IgnoreCase)
+		|| ParameterName.Contains(TEXT("DynamicMaterial"), ESearchCase::IgnoreCase)
+		|| ParameterName.Contains(TEXT("Sprite Size"), ESearchCase::IgnoreCase)
+		|| ParameterName.Contains(TEXT("Position Offset"), ESearchCase::IgnoreCase)
+		|| ParameterName.Contains(TEXT("User.new"), ESearchCase::IgnoreCase)
+		|| ParameterName.Contains(TEXT("User.old"), ESearchCase::IgnoreCase)
+		|| ParameterName.Contains(TEXT("User.temp"), ESearchCase::IgnoreCase)
+		|| ParameterName.Contains(TEXT("User.armor"), ESearchCase::IgnoreCase);
+}
+
+static FString DescribeNiagaraParameterValue(
+	const FNiagaraParameterStore& Parameters,
+	const FNiagaraVariableWithOffset& Parameter)
+{
+	const uint8* Data = Parameters.GetParameterData(Parameter.Offset);
+	if (!Data)
 	{
-		const uint8* Data = Parameters.GetParameterData(Parameter.Offset);
-		if (!Data)
-		{
-			return TEXT("<null>");
-		}
+		return TEXT("<null>");
+	}
 
-		const FNiagaraTypeDefinition& Type = Parameter.GetType();
-		if (Type == FNiagaraTypeDefinition::GetFloatDef())
-		{
-			return FString::Printf(TEXT("%.6f"), *reinterpret_cast<const float*>(Data));
-		}
+	const FNiagaraTypeDefinition& Type = Parameter.GetType();
+	if (Type == FNiagaraTypeDefinition::GetFloatDef())
+	{
+		return FString::Printf(TEXT("%.6f"), *reinterpret_cast<const float*>(Data));
+	}
 
-		if (Type == FNiagaraTypeDefinition::GetIntDef())
-		{
-			return FString::Printf(TEXT("%d"), *reinterpret_cast<const int32*>(Data));
-		}
+	if (Type == FNiagaraTypeDefinition::GetIntDef())
+	{
+		return FString::Printf(TEXT("%d"), *reinterpret_cast<const int32*>(Data));
+	}
 
-		if (Type == FNiagaraTypeDefinition::GetBoolDef())
-		{
-			const FNiagaraBool& Value = *reinterpret_cast<const FNiagaraBool*>(Data);
-			return FString::Printf(TEXT("%d raw=%d"), Value.GetValue() ? 1 : 0, Value.GetRawValue());
-		}
+	if (Type == FNiagaraTypeDefinition::GetBoolDef())
+	{
+		const FNiagaraBool& Value = *reinterpret_cast<const FNiagaraBool*>(Data);
+		return FString::Printf(TEXT("%d raw=%d"), Value.GetValue() ? 1 : 0, Value.GetRawValue());
+	}
 
-		if (Type == FNiagaraTypeDefinition::GetVec2Def())
-		{
-			const FVector2f& Value = *reinterpret_cast<const FVector2f*>(Data);
-			return FString::Printf(TEXT("(X=%.6f,Y=%.6f)"), Value.X, Value.Y);
-		}
+	if (Type == FNiagaraTypeDefinition::GetVec2Def())
+	{
+		const FVector2f& Value = *reinterpret_cast<const FVector2f*>(Data);
+		return FString::Printf(TEXT("(X=%.6f,Y=%.6f)"), Value.X, Value.Y);
+	}
 
-		if (Type == FNiagaraTypeDefinition::GetVec3Def()
-			|| Type == FNiagaraTypeDefinition::GetPositionDef())
-		{
-			const FVector3f& Value = *reinterpret_cast<const FVector3f*>(Data);
-			return FString::Printf(TEXT("(X=%.6f,Y=%.6f,Z=%.6f)"), Value.X, Value.Y, Value.Z);
-		}
+	if (Type == FNiagaraTypeDefinition::GetVec3Def()
+		|| Type == FNiagaraTypeDefinition::GetPositionDef())
+	{
+		const FVector3f& Value = *reinterpret_cast<const FVector3f*>(Data);
+		return FString::Printf(TEXT("(X=%.6f,Y=%.6f,Z=%.6f)"), Value.X, Value.Y, Value.Z);
+	}
 
-		if (Type == FNiagaraTypeDefinition::GetVec4Def())
-		{
-			const FVector4f& Value = *reinterpret_cast<const FVector4f*>(Data);
-			return FString::Printf(
-				TEXT("(X=%.6f,Y=%.6f,Z=%.6f,W=%.6f)"),
-				Value.X,
-				Value.Y,
-				Value.Z,
-				Value.W);
-		}
-
-		if (Type == FNiagaraTypeDefinition::GetColorDef())
-		{
-			const FLinearColor& Value = *reinterpret_cast<const FLinearColor*>(Data);
-			return FString::Printf(
-				TEXT("(R=%.6f,G=%.6f,B=%.6f,A=%.6f)"),
-				Value.R,
-				Value.G,
-				Value.B,
-				Value.A);
-		}
-
+	if (Type == FNiagaraTypeDefinition::GetVec4Def())
+	{
+		const FVector4f& Value = *reinterpret_cast<const FVector4f*>(Data);
 		return FString::Printf(
-			TEXT("<%s bytes=%d>"),
-			*Type.GetName(),
-			Parameter.GetSizeInBytes());
+			TEXT("(X=%.6f,Y=%.6f,Z=%.6f,W=%.6f)"),
+			Value.X,
+			Value.Y,
+			Value.Z,
+			Value.W);
 	}
 
-	void LogNiagaraParameterStoreValues(
-		const TCHAR* OwnerName,
-		const TCHAR* StoreLabel,
-		const FNiagaraParameterStore& Parameters)
+	if (Type == FNiagaraTypeDefinition::GetColorDef())
 	{
-		int32 LoggedParameters = 0;
-		for (const FNiagaraVariableWithOffset& Parameter : Parameters.ReadParameterVariables())
-		{
-			const FString ParameterName = Parameter.GetName().ToString();
-			if (!ShouldLogNiagaraParameter(ParameterName))
-			{
-				continue;
-			}
-
-			++LoggedParameters;
-			UE_LOG(LogEnemyHealthDisplay, Warning,
-				TEXT("[EnemyHealthDisplay][NiagaraRuntime][Param] Owner=%s Store=%s Param=%s Type=%s Value=%s"),
-				OwnerName,
-				StoreLabel,
-				*ParameterName,
-				*Parameter.GetType().GetName(),
-				*DescribeNiagaraParameterValue(Parameters, Parameter));
-		}
-
-		if (LoggedParameters == 0)
-		{
-			UE_LOG(LogEnemyHealthDisplay, Warning,
-				TEXT("[EnemyHealthDisplay][NiagaraRuntime][Param] Owner=%s Store=%s Params=%d InterestingParams=0"),
-				OwnerName,
-				StoreLabel,
-				Parameters.Num());
-		}
+		const FLinearColor& Value = *reinterpret_cast<const FLinearColor*>(Data);
+		return FString::Printf(
+			TEXT("(R=%.6f,G=%.6f,B=%.6f,A=%.6f)"),
+			Value.R,
+			Value.G,
+			Value.B,
+			Value.A);
 	}
 
-	void LogNiagaraParameterStore(
-		const TCHAR* OwnerName,
-		const TCHAR* ScriptLabel,
-		const UNiagaraScript* Script)
+	return FString::Printf(
+		TEXT("<%s bytes=%d>"),
+		*Type.GetName(),
+		Parameter.GetSizeInBytes());
+}
+
+static void LogNiagaraParameterStoreValues(
+	const TCHAR* OwnerName,
+	const TCHAR* StoreLabel,
+	const FNiagaraParameterStore& Parameters)
+{
+	int32 LoggedParameters = 0;
+	for (const FNiagaraVariableWithOffset& Parameter : Parameters.ReadParameterVariables())
 	{
-		if (!Script)
+		const FString ParameterName = Parameter.GetName().ToString();
+		if (!ShouldLogNiagaraParameter(ParameterName))
 		{
-			UE_LOG(LogEnemyHealthDisplay, Warning,
-				TEXT("[EnemyHealthDisplay][NiagaraRuntime][Script] Owner=%s Script=%s NiagaraScript=None"),
-				OwnerName,
-				ScriptLabel);
-			return;
+			continue;
 		}
 
-		LogNiagaraParameterStoreValues(OwnerName, ScriptLabel, Script->RapidIterationParameters);
+		++LoggedParameters;
+		UE_LOG(LogEnemyHealthDisplay, Warning,
+			TEXT("[EnemyHealthDisplay][NiagaraRuntime][Param] Owner=%s Store=%s Param=%s Type=%s Value=%s"),
+			OwnerName,
+			StoreLabel,
+			*ParameterName,
+			*Parameter.GetType().GetName(),
+			*DescribeNiagaraParameterValue(Parameters, Parameter));
 	}
+
+	if (LoggedParameters == 0)
+	{
+		UE_LOG(LogEnemyHealthDisplay, Warning,
+			TEXT("[EnemyHealthDisplay][NiagaraRuntime][Param] Owner=%s Store=%s Params=%d InterestingParams=0"),
+			OwnerName,
+			StoreLabel,
+			Parameters.Num());
+	}
+}
+
+static void LogNiagaraParameterStore(
+	const TCHAR* OwnerName,
+	const TCHAR* ScriptLabel,
+	const UNiagaraScript* Script)
+{
+	if (!Script)
+	{
+		UE_LOG(LogEnemyHealthDisplay, Warning,
+			TEXT("[EnemyHealthDisplay][NiagaraRuntime][Script] Owner=%s Script=%s NiagaraScript=None"),
+			OwnerName,
+			ScriptLabel);
+		return;
+	}
+
+	LogNiagaraParameterStoreValues(OwnerName, ScriptLabel, Script->RapidIterationParameters);
 }
 
 UEnemyHealthDisplayComponent::UEnemyHealthDisplayComponent()

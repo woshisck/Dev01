@@ -72,12 +72,63 @@ private:
 #include "Character/..."
 #include "Component/..."
 
-// 文件局部辅助（匿名命名空间）
-namespace
+// 文件局部辅助函数 / 常量 —— 直接用 static
+static bool MyClass_IsTargetValid(const AActor* Actor)
 {
-    // helper structs / free functions
+    return IsValid(Actor);
+}
+
+// 文件局部类型 —— 直接裸写，用文件名前缀保证全局唯一
+struct FMyClassLocalHelper
+{
+    int32 Index = INDEX_NONE;
+};
+```
+
+### 禁止匿名命名空间
+
+**`.cpp` 里一律不准写匿名 `namespace {}`。** 这是硬性规定，没有例外。
+
+过去的规范要求把文件局部 helper 包进匿名命名空间，结果整个代码库里堆了 176 个这样的块，
+读代码时每个文件都要多扒一层缩进，收益却几乎为零。现在全部改掉。
+
+替代写法：
+
+| 文件局部的东西 | 写法 |
+|---|---|
+| 函数、模板函数 | `static`（模板写在 `template <...>` 行之后） |
+| 常量、变量 | `static`（`static constexpr` / `static const`） |
+| `struct` / `class` / `enum` / `using` / `typedef` | 裸写，不包任何命名空间；靠**文件名前缀**保证名字全局唯一 |
+
+```cpp
+template <typename TAttributeSet>
+static TAttributeSet* GetMutableRegisteredAttributeSet(UAbilitySystemComponent* ASC)
+{
+    ...
 }
 ```
+
+#### 为什么类型要加文件名前缀
+
+`DevKit` 运行时模块启用了 Unity 构建（`bUseUnity` 默认 `true`），多个 `.cpp` 会被拼成同一个
+翻译单元。函数和变量有 `static` 兜底，重名也不会冲突；但 `static` 不能作用于类型，所以文件
+局部的 `struct` 一旦和别的 `.cpp` 里的同名 `struct` 撞上，就会在 Unity 块里重定义——这种报错
+只在部分构建配置下出现，单文件重编时又会消失，极难排查。
+
+所以文件局部类型必须带上所属文件/系统的前缀，让名字天然唯一：
+
+```cpp
+// PortalPreviewWidget.cpp
+struct FPortalPreviewRoomTypeStyle { ... };   // 不是 FRoomTypeStyle
+
+// GA_MeleeAttack.cpp
+struct FMeleeAttackComboEntry { ... };        // 不是 FComboEntry
+```
+
+函数命名同样沿用 `ModuleName_FuncName`，便于在调试器和 Profiler 里区分同名 helper。
+
+> 命名空间本身没有被全面禁止：头文件里用具名 `namespace`（如 `YogStateTree`、
+> `CombatVFXCascade`）给一组公开 API 做分组仍然可以。被禁的只是 `.cpp` 里的匿名命名空间。
 
 ---
 
@@ -290,5 +341,5 @@ TObjectPtr<UAN_MeleeDamage> CachedDamageNotify;
 | `CanActivateAbility` 里修改状态 | 禁止，是 `const` 方法；需缓存则用 `mutable` |
 | 跨帧裸 UObject* | 改用 `TWeakObjectPtr` + `IsValid` 检查 |
 | 高频 `RequestGameplayTag` 字符串查找 | 缓存为 `static const FGameplayTag` |
-| 文件局部 helper 污染全局命名空间 | 包在匿名 `namespace {}` 内 |
+| 在 `.cpp` 里写匿名 `namespace {}` | 禁止；函数 / 常量用 `static`，局部类型裸写并加文件名前缀 |
 | `float` 除法前未检查除数 | 用 `> KINDA_SMALL_NUMBER` 判断 |

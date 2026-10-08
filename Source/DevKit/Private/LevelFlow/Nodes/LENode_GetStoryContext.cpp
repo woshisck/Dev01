@@ -3,14 +3,11 @@
 #include "FlowAsset.h"
 #include "Story/Encounter/StoryFlowProxy.h"
 
-namespace
-{
-const FName PinIn(TEXT("In"));
-const FName PinOut(TEXT("Out"));
-const FName PinSourceActor(TEXT("SourceActor"));
-const FName PinContextTransform(TEXT("ContextTransform"));
-const FName PinPlayerController(TEXT("PlayerController"));
-}
+static const FName PinIn(TEXT("In"));
+static const FName PinOut(TEXT("Out"));
+static const FName PinSourceActor(TEXT("SourceActor"));
+static const FName PinContextTransform(TEXT("ContextTransform"));
+static const FName PinPlayerController(TEXT("PlayerController"));
 
 ULENode_GetStoryContext::ULENode_GetStoryContext(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

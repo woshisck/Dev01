@@ -6,22 +6,19 @@
 #include "Data/EnemyData.h"
 #include "StateTree.h"
 
-namespace
-{
 template <typename T>
-T* LoadTestAsset(const TCHAR* ObjectPath)
+static T* LoadTestAsset(const TCHAR* ObjectPath)
 {
 	return Cast<T>(StaticLoadObject(T::StaticClass(), nullptr, ObjectPath));
 }
 
-const FEnemyAIAttackOption* FindAttackByTag(const FEnemyAIAttackProfile& AttackProfile, const FGameplayTag& AbilityTag)
+static const FEnemyAIAttackOption* FindAttackByTag(const FEnemyAIAttackProfile& AttackProfile, const FGameplayTag& AbilityTag)
 {
 	return AttackProfile.Attacks.FindByPredicate(
 		[AbilityTag](const FEnemyAIAttackOption& Attack)
 		{
 			return Attack.AbilityTags.HasTagExact(AbilityTag);
 		});
-}
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEnemyAIDefaultTemplateTest,

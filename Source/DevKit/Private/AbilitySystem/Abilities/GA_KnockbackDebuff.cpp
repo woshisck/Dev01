@@ -6,9 +6,7 @@
 #include "GameFramework/Controller.h"
 #include "Projectile/SlashWaveProjectile.h"
 
-namespace
-{
-bool TryAppendProjectileDirection(
+static bool TryAppendProjectileDirection(
 	FGameplayEventData& KnockbackPayload,
 	const FGameplayEventData& DamagePayload)
 {
@@ -59,7 +57,7 @@ bool TryAppendProjectileDirection(
 	return TryAppendFromObject(DamagePayload.Instigator.Get());
 }
 
-const AActor* ResolveDamageDirectionSource(const FGameplayEventData& DamagePayload)
+static const AActor* ResolveDamageDirectionSource(const FGameplayEventData& DamagePayload)
 {
 	const AActor* DirectionSource = DamagePayload.ContextHandle.IsValid()
 		? DamagePayload.ContextHandle.GetInstigator()
@@ -78,7 +76,6 @@ const AActor* ResolveDamageDirectionSource(const FGameplayEventData& DamagePaylo
 	}
 
 	return DirectionSource;
-}
 }
 
 UGA_KnockbackDebuff::UGA_KnockbackDebuff(const FObjectInitializer& ObjectInitializer)

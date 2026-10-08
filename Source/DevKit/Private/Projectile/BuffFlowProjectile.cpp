@@ -14,17 +14,14 @@
 #include "GameplayEffect.h"
 #include "TimerManager.h"
 
-namespace
+static FGameplayTag DefaultActDamageTag()
 {
-	FGameplayTag DefaultActDamageTag()
-	{
-		return FGameplayTag::RequestGameplayTag(FName(TEXT("Attribute.ActDamage")));
-	}
+	return FGameplayTag::RequestGameplayTag(FName(TEXT("Attribute.ActDamage")));
+}
 
-	float ClampPositive(float Value, float Fallback)
-	{
-		return Value > KINDA_SMALL_NUMBER ? Value : Fallback;
-	}
+static float ClampPositive(float Value, float Fallback)
+{
+	return Value > KINDA_SMALL_NUMBER ? Value : Fallback;
 }
 
 ABuffFlowProjectile::ABuffFlowProjectile()

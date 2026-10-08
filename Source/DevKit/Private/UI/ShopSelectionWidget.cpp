@@ -16,9 +16,7 @@
 #include "UI/YogInputKeyUtils.h"
 #include "UI/YogUIManagerSubsystem.h"
 
-namespace
-{
-UTextBlock* MakeShopText(UWidgetTree* Tree, const FName Name, const FText& Text, int32 FontSize)
+static UTextBlock* MakeShopText(UWidgetTree* Tree, const FName Name, const FText& Text, int32 FontSize)
 {
 	UTextBlock* TextBlock = Tree ? Tree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), Name) : nullptr;
 	if (!TextBlock)
@@ -33,7 +31,7 @@ UTextBlock* MakeShopText(UWidgetTree* Tree, const FName Name, const FText& Text,
 	return TextBlock;
 }
 
-UButton* MakeShopTextButton(UWidgetTree* Tree, const FName Name, const FText& Text)
+static UButton* MakeShopTextButton(UWidgetTree* Tree, const FName Name, const FText& Text)
 {
 	UButton* Button = Tree ? Tree->ConstructWidget<UButton>(UButton::StaticClass(), Name) : nullptr;
 	if (!Button)
@@ -49,7 +47,6 @@ UButton* MakeShopTextButton(UWidgetTree* Tree, const FName Name, const FText& Te
 		Button->AddChild(Label);
 	}
 	return Button;
-}
 }
 
 void UShopSelectionWidget::NativeConstruct()

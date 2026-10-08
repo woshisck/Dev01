@@ -5,16 +5,13 @@
 #include "SaveGame/YogSaveSubsystem.h"
 #include "System/YogGameInstanceBase.h"
 
-namespace
-{
-FString FormatDuration(int32 TotalSeconds)
+static FString FormatDuration(int32 TotalSeconds)
 {
 	TotalSeconds = FMath::Max(0, TotalSeconds);
 	const int32 Hours = TotalSeconds / 3600;
 	const int32 Minutes = (TotalSeconds / 60) % 60;
 	const int32 Seconds = TotalSeconds % 60;
 	return FString::Printf(TEXT("%02d:%02d:%02d"), Hours, Minutes, Seconds);
-}
 }
 
 FText UYogSlotSelectWidgetBase::BuildPreviewSummary(const FSlotPreviewData& Preview)

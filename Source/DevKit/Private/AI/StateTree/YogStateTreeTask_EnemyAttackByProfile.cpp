@@ -16,51 +16,48 @@
 #include "StateTreeAsyncExecutionContext.h"
 #include "StateTreeExecutionContext.h"
 
-namespace
+// Candidate attack considered during weighted selection.
+struct FEnemyAttackByProfileCandidate
 {
-	// Candidate attack considered during weighted selection.
-	struct FAttackCandidate
+	int32 AttackIndex = INDEX_NONE;
+	float Weight = 0.f;
+	FGameplayTagContainer ValidTags;
+};
+
+static bool StateTreeFacePawnTowardsTarget(APawn& Pawn, const AActor* TargetActor)
+{
+	if (!TargetActor)
 	{
-		int32 AttackIndex = INDEX_NONE;
-		float Weight = 0.f;
-		FGameplayTagContainer ValidTags;
-	};
-
-	bool StateTreeFacePawnTowardsTarget(APawn& Pawn, const AActor* TargetActor)
-	{
-		if (!TargetActor)
-		{
-			return false;
-		}
-
-		FVector Direction = TargetActor->GetActorLocation() - Pawn.GetActorLocation();
-		Direction.Z = 0.0f;
-		if (Direction.IsNearlyZero())
-		{
-			return false;
-		}
-
-		const FRotator FaceTargetRotation(0.0f, Direction.Rotation().Yaw, 0.0f);
-		Pawn.SetActorRotation(FaceTargetRotation);
-		if (AController* Controller = Pawn.GetController())
-		{
-			Controller->SetControlRotation(FaceTargetRotation);
-		}
-		return true;
+		return false;
 	}
 
-	bool StateTreeTargetHasSmokeAttackBlock(const AActor* TargetActor)
+	FVector Direction = TargetActor->GetActorLocation() - Pawn.GetActorLocation();
+	Direction.Z = 0.0f;
+	if (Direction.IsNearlyZero())
 	{
-		const IAbilitySystemInterface* ASCInterface = Cast<IAbilitySystemInterface>(TargetActor);
-		const UAbilitySystemComponent* TargetASC = ASCInterface ? ASCInterface->GetAbilitySystemComponent() : nullptr;
-		const FGameplayTag InSmokeTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.InSmoke"), false);
-		return TargetASC && InSmokeTag.IsValid() && TargetASC->HasMatchingGameplayTag(InSmokeTag);
+		return false;
 	}
 
-	float StateTreeResolveHealthPercent(const UAbilitySystemComponent* ASC)
+	const FRotator FaceTargetRotation(0.0f, Direction.Rotation().Yaw, 0.0f);
+	Pawn.SetActorRotation(FaceTargetRotation);
+	if (AController* Controller = Pawn.GetController())
 	{
-		return YogStateTree::ResolveHealthPercent(ASC);
+		Controller->SetControlRotation(FaceTargetRotation);
 	}
+	return true;
+}
+
+static bool StateTreeTargetHasSmokeAttackBlock(const AActor* TargetActor)
+{
+	const IAbilitySystemInterface* ASCInterface = Cast<IAbilitySystemInterface>(TargetActor);
+	const UAbilitySystemComponent* TargetASC = ASCInterface ? ASCInterface->GetAbilitySystemComponent() : nullptr;
+	const FGameplayTag InSmokeTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.InSmoke"), false);
+	return TargetASC && InSmokeTag.IsValid() && TargetASC->HasMatchingGameplayTag(InSmokeTag);
+}
+
+static float StateTreeResolveHealthPercent(const UAbilitySystemComponent* ASC)
+{
+	return YogStateTree::ResolveHealthPercent(ASC);
 }
 
 FStateTreeTask_EnemyAttackByProfile::FStateTreeTask_EnemyAttackByProfile()
@@ -158,7 +155,7 @@ EStateTreeRunStatus FStateTreeTask_EnemyAttackByProfile::EnterState(
 		}
 	}
 
-	TArray<FAttackCandidate> Candidates;
+	TArray<FEnemyAttackByProfileCandidate> Candidates;
 	float TotalWeight = 0.0f;
 	for (int32 AttackIndex = 0; AttackIndex < EnemyData->AttackProfile.Attacks.Num(); ++AttackIndex)
 	{
@@ -232,7 +229,7 @@ EStateTreeRunStatus FStateTreeTask_EnemyAttackByProfile::EnterState(
 			continue;
 		}
 
-		FAttackCandidate& Candidate = Candidates.AddDefaulted_GetRef();
+		FEnemyAttackByProfileCandidate& Candidate = Candidates.AddDefaulted_GetRef();
 		Candidate.AttackIndex = AttackIndex;
 		Candidate.Weight = Attack.Weight;
 		Candidate.ValidTags = MoveTemp(ValidTags);
@@ -246,7 +243,7 @@ EStateTreeRunStatus FStateTreeTask_EnemyAttackByProfile::EnterState(
 		&& EnemyData->AttackProfile.RepeatAttackWeightMultiplier < 1.0f)
 	{
 		TotalWeight = 0.0f;
-		for (FAttackCandidate& Candidate : Candidates)
+		for (FEnemyAttackByProfileCandidate& Candidate : Candidates)
 		{
 			const FEnemyAIAttackOption& CandidateAttack = EnemyData->AttackProfile.Attacks[Candidate.AttackIndex];
 			float RepeatAge = 0.0f;
@@ -263,9 +260,9 @@ EStateTreeRunStatus FStateTreeTask_EnemyAttackByProfile::EnterState(
 		return EStateTreeRunStatus::Failed;
 	}
 
-	const FAttackCandidate* ChosenCandidate = nullptr;
+	const FEnemyAttackByProfileCandidate* ChosenCandidate = nullptr;
 	float Pick = FMath::FRandRange(0.0f, TotalWeight);
-	for (const FAttackCandidate& Candidate : Candidates)
+	for (const FEnemyAttackByProfileCandidate& Candidate : Candidates)
 	{
 		Pick -= Candidate.Weight;
 		if (Pick <= 0.0f)

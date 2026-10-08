@@ -4,9 +4,7 @@
 #include "Data/MontageConfigDA.h"
 #include "GameplayTagsManager.h"
 
-namespace
-{
-FGameplayTag GetEquivalentPlayerActionTag(const FGameplayTag& Tag)
+static FGameplayTag GetEquivalentPlayerActionTag(const FGameplayTag& Tag)
 {
 	if (!Tag.IsValid())
 	{
@@ -115,7 +113,7 @@ FGameplayTag GetEquivalentPlayerActionTag(const FGameplayTag& Tag)
 		: FGameplayTag::RequestGameplayTag(FName(*EquivalentTagString), false);
 }
 
-void AddLookupCandidate(TArray<FGameplayTag>& OutCandidates, const FGameplayTag& Tag)
+static void AddLookupCandidate(TArray<FGameplayTag>& OutCandidates, const FGameplayTag& Tag)
 {
 	if (Tag.IsValid())
 	{
@@ -123,12 +121,12 @@ void AddLookupCandidate(TArray<FGameplayTag>& OutCandidates, const FGameplayTag&
 	}
 }
 
-void AddLookupCandidateByName(TArray<FGameplayTag>& OutCandidates, const TCHAR* TagName)
+static void AddLookupCandidateByName(TArray<FGameplayTag>& OutCandidates, const TCHAR* TagName)
 {
 	AddLookupCandidate(OutCandidates, FGameplayTag::RequestGameplayTag(FName(TagName), false));
 }
 
-TArray<FGameplayTag> BuildPlayerActionLookupCandidates(const FGameplayTag& Key)
+static TArray<FGameplayTag> BuildPlayerActionLookupCandidates(const FGameplayTag& Key)
 {
 	TArray<FGameplayTag> Candidates;
 	AddLookupCandidate(Candidates, Key);
@@ -159,7 +157,7 @@ TArray<FGameplayTag> BuildPlayerActionLookupCandidates(const FGameplayTag& Key)
 	return Candidates;
 }
 
-bool HasUsableMontageConfigList(const FAbilityMontageConfigList& ConfigList)
+static bool HasUsableMontageConfigList(const FAbilityMontageConfigList& ConfigList)
 {
 	for (const FTaggedMontageConfig& Candidate : ConfigList.Configs)
 	{
@@ -171,7 +169,7 @@ bool HasUsableMontageConfigList(const FAbilityMontageConfigList& ConfigList)
 	return false;
 }
 
-const FAbilityMontageConfigList* FindMontageConfigListWithFallback(
+static const FAbilityMontageConfigList* FindMontageConfigListWithFallback(
 	const TMap<FGameplayTag, FAbilityMontageConfigList>& MontageConfigMap,
 	const FGameplayTag& Key)
 {
@@ -186,7 +184,7 @@ const FAbilityMontageConfigList* FindMontageConfigListWithFallback(
 	return nullptr;
 }
 
-TObjectPtr<UAnimMontage> const* FindMontageWithFallback(
+static TObjectPtr<UAnimMontage> const* FindMontageWithFallback(
 	const TMap<FGameplayTag, TObjectPtr<UAnimMontage>>& MontageMap,
 	const FGameplayTag& Key)
 {
@@ -199,7 +197,6 @@ TObjectPtr<UAnimMontage> const* FindMontageWithFallback(
 		}
 	}
 	return nullptr;
-}
 }
 
 UAnimMontage* UAbilityData::GetMontage(const FGameplayTag& Key) const

@@ -10,10 +10,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
 
-namespace
-{
-	const TCHAR* InteractPrompt_HoldRingMaterialPath = TEXT("/Game/UI/Playtest_UI/Interact/M_InteractHoldRing.M_InteractHoldRing");
-}
+static const TCHAR* InteractPrompt_HoldRingMaterialPath = TEXT("/Game/UI/Playtest_UI/Interact/M_InteractHoldRing.M_InteractHoldRing");
 
 void UInteractPromptWidget::NativeOnInitialized()
 {

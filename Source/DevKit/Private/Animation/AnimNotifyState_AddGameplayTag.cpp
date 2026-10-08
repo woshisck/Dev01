@@ -8,28 +8,25 @@
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
 
-namespace
+static void DestroyNiagaraForMesh(
+	TMap<TObjectKey<USkeletalMeshComponent>, TWeakObjectPtr<UNiagaraComponent>>& ActiveComponents,
+	USkeletalMeshComponent* MeshComp)
 {
-	void DestroyNiagaraForMesh(
-		TMap<TObjectKey<USkeletalMeshComponent>, TWeakObjectPtr<UNiagaraComponent>>& ActiveComponents,
-		USkeletalMeshComponent* MeshComp)
+	if (!MeshComp)
 	{
-		if (!MeshComp)
-		{
-			return;
-		}
-
-		const TObjectKey<USkeletalMeshComponent> MeshKey(MeshComp);
-		TWeakObjectPtr<UNiagaraComponent>* Found = ActiveComponents.Find(MeshKey);
-		UNiagaraComponent* NiagaraComp = Found ? Found->Get() : nullptr;
-		if (NiagaraComp)
-		{
-			NiagaraComp->Deactivate();
-			NiagaraComp->DestroyComponent();
-		}
-
-		ActiveComponents.Remove(MeshKey);
+		return;
 	}
+
+	const TObjectKey<USkeletalMeshComponent> MeshKey(MeshComp);
+	TWeakObjectPtr<UNiagaraComponent>* Found = ActiveComponents.Find(MeshKey);
+	UNiagaraComponent* NiagaraComp = Found ? Found->Get() : nullptr;
+	if (NiagaraComp)
+	{
+		NiagaraComp->Deactivate();
+		NiagaraComp->DestroyComponent();
+	}
+
+	ActiveComponents.Remove(MeshKey);
 }
 
 UAbilitySystemComponent* UAnimNotifyState_AddGameplayTag::GetASC(const USkeletalMeshComponent* MeshComp)

@@ -12,13 +12,10 @@
 #include "Kismet/GameplayStatics.h"
 #include "StateTreeExecutionContext.h"
 
-namespace
+static const UAbilitySystemComponent* YogStateTreeGetASC(const AActor* Actor)
 {
-	const UAbilitySystemComponent* YogStateTreeGetASC(const AActor* Actor)
-	{
-		const IAbilitySystemInterface* ASCInterface = Cast<IAbilitySystemInterface>(Actor);
-		return ASCInterface ? ASCInterface->GetAbilitySystemComponent() : nullptr;
-	}
+	const IAbilitySystemInterface* ASCInterface = Cast<IAbilitySystemInterface>(Actor);
+	return ASCInterface ? ASCInterface->GetAbilitySystemComponent() : nullptr;
 }
 
 bool FStateTreeCondition_EnemyAIState::TestCondition(FStateTreeExecutionContext& Context) const

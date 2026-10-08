@@ -9,10 +9,7 @@
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "Data/WeaponSkillDataAsset.h"
 
-namespace
-{
-	constexpr bool bDisableLegacyHeatBackpackRuneForCardTest = true;
-}
+static constexpr bool bDisableLegacyHeatBackpackRuneForCardTest = true;
 
 void UWeaponDefinition::SetupWeaponToCharacter(USkeletalMeshComponent* AttachTarget, APlayerCharacterBase* ReceivingChar)
 {

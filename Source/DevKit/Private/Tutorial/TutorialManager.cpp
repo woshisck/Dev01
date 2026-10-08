@@ -14,144 +14,141 @@
 #include "UI/YogUIManagerSubsystem.h"
 #include "Visual/TimeDilationVisualSubsystem.h"
 
-namespace
+static FName TutorialEventID(const TCHAR* EventID)
 {
-	FName TutorialEventID(const TCHAR* EventID)
+	return FName(EventID);
+}
+
+static const FName WeaponPickupTutorialKey(TEXT("tutorial_weapon_pickup"));
+static const FName LinkCardTutorialEventID(TEXT("tutorial_card_link"));
+static const FName MoonlightLinkCardTutorialEventID(TEXT("tutorial_card_link_moonlight"));
+
+static FGameplayTag GetMoonlightLinkCardHintTag()
+{
+	return FGameplayTag::RequestGameplayTag(TEXT("Tutorial.Hint.MoonlightLinkCard"), false);
+}
+
+static bool HasRegisteredTutorialPages(const UTutorialRegistryDA* InRegistry, FName EventID)
+{
+	if (!InRegistry)
 	{
-		return FName(EventID);
+		return false;
 	}
 
-	const FName WeaponPickupTutorialKey(TEXT("tutorial_weapon_pickup"));
-	const FName LinkCardTutorialEventID(TEXT("tutorial_card_link"));
-	const FName MoonlightLinkCardTutorialEventID(TEXT("tutorial_card_link_moonlight"));
+	const TArray<FTutorialPage>* Pages = InRegistry->FindPages(EventID);
+	return Pages && !Pages->IsEmpty();
+}
 
-	FGameplayTag GetMoonlightLinkCardHintTag()
+static FName ResolveLinkCardTutorialEventIdFromRegistry(const UTutorialRegistryDA* InRegistry)
+{
+	if (!InRegistry)
 	{
-		return FGameplayTag::RequestGameplayTag(TEXT("Tutorial.Hint.MoonlightLinkCard"), false);
+		return MoonlightLinkCardTutorialEventID;
 	}
 
-	bool HasRegisteredTutorialPages(const UTutorialRegistryDA* InRegistry, FName EventID)
-	{
-		if (!InRegistry)
-		{
-			return false;
-		}
+	return HasRegisteredTutorialPages(InRegistry, MoonlightLinkCardTutorialEventID)
+		? MoonlightLinkCardTutorialEventID
+		: LinkCardTutorialEventID;
+}
 
-		const TArray<FTutorialPage>* Pages = InRegistry->FindPages(EventID);
-		return Pages && !Pages->IsEmpty();
+static FTutorialPage MakeTutorialPage(const TCHAR* Title, const TCHAR* Body, const TCHAR* SubText = TEXT(""))
+{
+	FTutorialPage Page;
+	Page.Title = FText::FromString(Title);
+	Page.Body = FText::FromString(Body);
+	Page.SubText = FText::FromString(SubText);
+	return Page;
+}
+
+static TArray<FTutorialPage> BuildFallbackTutorialPages(FName EventID)
+{
+	TArray<FTutorialPage> Pages;
+	if (EventID == TEXT("tutorial_heavy_card") || EventID == TEXT("tutorial_weapon_skill_finisher_card"))
+	{
+		Pages.Add(MakeTutorialPage(
+			TEXT("获得重击卡"),
+			TEXT("你拾取了 [重击]。这是一张普通稀有卡，已经进入背包，并追加到当前战斗卡组中。"),
+			TEXT("打开背包后，可以拖动卡牌调整触发顺序。")));
+		Pages.Add(MakeTutorialPage(
+			TEXT("重击协调"),
+			TEXT("重击卡可以被 <input action=\"Attack\"/> 正常打出，造成额外伤害和击退。它的协调需求是 <input action=\"WeaponSkill\"/>：用武器技能打出时，额外伤害和击退距离会大幅提升。")));
+	}
+	else if (EventID == MoonlightLinkCardTutorialEventID)
+	{
+		Pages.Add(MakeTutorialPage(
+			TEXT("获得月光"),
+			TEXT("[月光] 是连携卡。连携卡会进入背包和战斗卡组，需要和相邻卡牌形成条件才会打出连携效果。")));
+		Pages.Add(MakeTutorialPage(
+			TEXT("正向连携"),
+			TEXT("正向连携会读取前一张已打出的卡牌。把月光放在攻击卡之后，可以让月光根据前一张卡获得额外效果。")));
+		Pages.Add(MakeTutorialPage(
+			TEXT("反向连携"),
+			TEXT("反向连携会影响后一张卡牌。把月光放在攻击卡之前，可以让下一张符合条件的卡获得月光连携效果。")));
+	}
+	else if (EventID == LinkCardTutorialEventID)
+	{
+		Pages.Add(MakeTutorialPage(
+			TEXT("连携卡"),
+			TEXT("连携卡会检查相邻卡牌。调整它在卡组中的位置，可以改变正向或反向连携的触发对象。")));
+	}
+	else if (EventID == TEXT("tutorial_backpack"))
+	{
+		Pages.Add(MakeTutorialPage(
+			TEXT("背包与卡组"),
+			TEXT("新获得的卡牌会进入背包，并追加到当前战斗卡组。打开背包后，可以查看和调整卡牌顺序。")));
+	}
+	else if (EventID == TEXT("tutorial_finisher"))
+	{
+		Pages.Add(MakeTutorialPage(
+			TEXT("获得双手剑终结技"),
+			TEXT("你在祭坛上献祭后获得了 [双手剑终结技]。这是一张终结技卡，已自动进入背包和当前战斗卡组。")));
+		Pages.Add(MakeTutorialPage(
+			TEXT("终结技卡牌"),
+			TEXT("终结技卡进入卡组后，会在合适的攻击节奏里提供一个终结技准备窗口。窗口出现时，画面会出现专属的终结技提示。")));
+		Pages.Add(MakeTutorialPage(
+			TEXT("协调需求"),
+			TEXT("终结技的协调需求是 <input action=\"WeaponSkill\"/>：在准备窗口出现时按武器技能完成引爆确认，触发终结技额外伤害。"),
+			TEXT("没有在窗口内确认会让窗口关闭，需要再次触发节奏才会重新开启。")));
 	}
 
-	FName ResolveLinkCardTutorialEventIdFromRegistry(const UTutorialRegistryDA* InRegistry)
-	{
-		if (!InRegistry)
-		{
-			return MoonlightLinkCardTutorialEventID;
-		}
+	return Pages;
+}
 
-		return HasRegisteredTutorialPages(InRegistry, MoonlightLinkCardTutorialEventID)
-			? MoonlightLinkCardTutorialEventID
-			: LinkCardTutorialEventID;
+static uint32 HashTutorialPage(const FTutorialPage& Page)
+{
+	uint32 Hash = GetTypeHash(Page.Title.ToString());
+	Hash = HashCombine(Hash, GetTypeHash(Page.Body.ToString()));
+	Hash = HashCombine(Hash, GetTypeHash(Page.SubText.ToString()));
+	Hash = HashCombine(Hash, GetTypeHash(GetPathNameSafe(Page.Illustration.Get())));
+	return Hash;
+}
+
+static UYogUIManagerSubsystem* PrepareTutorialPopupManager(UTutorialPopupWidget* FallbackWidget, APlayerController* PC, bool bPauseGame)
+{
+	if (!PC)
+	{
+		return nullptr;
 	}
 
-	FTutorialPage MakeTutorialPage(const TCHAR* Title, const TCHAR* Body, const TCHAR* SubText = TEXT(""))
+	ULocalPlayer* LocalPlayer = PC->GetLocalPlayer();
+	UYogUIManagerSubsystem* UIManager = LocalPlayer ? LocalPlayer->GetSubsystem<UYogUIManagerSubsystem>() : nullptr;
+	if (!UIManager)
 	{
-		FTutorialPage Page;
-		Page.Title = FText::FromString(Title);
-		Page.Body = FText::FromString(Body);
-		Page.SubText = FText::FromString(SubText);
-		return Page;
+		return nullptr;
 	}
 
-	TArray<FTutorialPage> BuildFallbackTutorialPages(FName EventID)
-	{
-		TArray<FTutorialPage> Pages;
-		if (EventID == TEXT("tutorial_heavy_card") || EventID == TEXT("tutorial_weapon_skill_finisher_card"))
-		{
-			Pages.Add(MakeTutorialPage(
-				TEXT("获得重击卡"),
-				TEXT("你拾取了 [重击]。这是一张普通稀有卡，已经进入背包，并追加到当前战斗卡组中。"),
-				TEXT("打开背包后，可以拖动卡牌调整触发顺序。")));
-			Pages.Add(MakeTutorialPage(
-				TEXT("重击协调"),
-				TEXT("重击卡可以被 <input action=\"Attack\"/> 正常打出，造成额外伤害和击退。它的协调需求是 <input action=\"WeaponSkill\"/>：用武器技能打出时，额外伤害和击退距离会大幅提升。")));
-		}
-		else if (EventID == MoonlightLinkCardTutorialEventID)
-		{
-			Pages.Add(MakeTutorialPage(
-				TEXT("获得月光"),
-				TEXT("[月光] 是连携卡。连携卡会进入背包和战斗卡组，需要和相邻卡牌形成条件才会打出连携效果。")));
-			Pages.Add(MakeTutorialPage(
-				TEXT("正向连携"),
-				TEXT("正向连携会读取前一张已打出的卡牌。把月光放在攻击卡之后，可以让月光根据前一张卡获得额外效果。")));
-			Pages.Add(MakeTutorialPage(
-				TEXT("反向连携"),
-				TEXT("反向连携会影响后一张卡牌。把月光放在攻击卡之前，可以让下一张符合条件的卡获得月光连携效果。")));
-		}
-		else if (EventID == LinkCardTutorialEventID)
-		{
-			Pages.Add(MakeTutorialPage(
-				TEXT("连携卡"),
-				TEXT("连携卡会检查相邻卡牌。调整它在卡组中的位置，可以改变正向或反向连携的触发对象。")));
-		}
-		else if (EventID == TEXT("tutorial_backpack"))
-		{
-			Pages.Add(MakeTutorialPage(
-				TEXT("背包与卡组"),
-				TEXT("新获得的卡牌会进入背包，并追加到当前战斗卡组。打开背包后，可以查看和调整卡牌顺序。")));
-		}
-		else if (EventID == TEXT("tutorial_finisher"))
-		{
-			Pages.Add(MakeTutorialPage(
-				TEXT("获得双手剑终结技"),
-				TEXT("你在祭坛上献祭后获得了 [双手剑终结技]。这是一张终结技卡，已自动进入背包和当前战斗卡组。")));
-			Pages.Add(MakeTutorialPage(
-				TEXT("终结技卡牌"),
-				TEXT("终结技卡进入卡组后，会在合适的攻击节奏里提供一个终结技准备窗口。窗口出现时，画面会出现专属的终结技提示。")));
-			Pages.Add(MakeTutorialPage(
-				TEXT("协调需求"),
-				TEXT("终结技的协调需求是 <input action=\"WeaponSkill\"/>：在准备窗口出现时按武器技能完成引爆确认，触发终结技额外伤害。"),
-				TEXT("没有在窗口内确认会让窗口关闭，需要再次触发节奏才会重新开启。")));
-		}
+	FYogUIScreenInputPolicy Policy;
+	Policy.bShowMouseCursor = true;
+	Policy.bPauseGame = bPauseGame;
+	Policy.bAffectsMajorUI = false;
+	UIManager->SetInputPolicyOverride(EYogUIScreenId::TutorialPopup, Policy);
 
-		return Pages;
+	if (FallbackWidget)
+	{
+		UIManager->SetWidgetClassOverride(EYogUIScreenId::TutorialPopup, FallbackWidget->GetClass());
 	}
 
-	uint32 HashTutorialPage(const FTutorialPage& Page)
-	{
-		uint32 Hash = GetTypeHash(Page.Title.ToString());
-		Hash = HashCombine(Hash, GetTypeHash(Page.Body.ToString()));
-		Hash = HashCombine(Hash, GetTypeHash(Page.SubText.ToString()));
-		Hash = HashCombine(Hash, GetTypeHash(GetPathNameSafe(Page.Illustration.Get())));
-		return Hash;
-	}
-
-	UYogUIManagerSubsystem* PrepareTutorialPopupManager(UTutorialPopupWidget* FallbackWidget, APlayerController* PC, bool bPauseGame)
-	{
-		if (!PC)
-		{
-			return nullptr;
-		}
-
-		ULocalPlayer* LocalPlayer = PC->GetLocalPlayer();
-		UYogUIManagerSubsystem* UIManager = LocalPlayer ? LocalPlayer->GetSubsystem<UYogUIManagerSubsystem>() : nullptr;
-		if (!UIManager)
-		{
-			return nullptr;
-		}
-
-		FYogUIScreenInputPolicy Policy;
-		Policy.bShowMouseCursor = true;
-		Policy.bPauseGame = bPauseGame;
-		Policy.bAffectsMajorUI = false;
-		UIManager->SetInputPolicyOverride(EYogUIScreenId::TutorialPopup, Policy);
-
-		if (FallbackWidget)
-		{
-			UIManager->SetWidgetClassOverride(EYogUIScreenId::TutorialPopup, FallbackWidget->GetClass());
-		}
-
-		return UIManager;
-	}
+	return UIManager;
 }
 
 void UTutorialManager::Deinitialize()

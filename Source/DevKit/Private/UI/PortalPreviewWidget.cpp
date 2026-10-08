@@ -17,248 +17,245 @@
 #include "Engine/Texture2D.h"
 #include "UI/WidgetReflectorDebugUtils.h"
 
-namespace
+// 类型徽章颜色映射（v3 决策：.cpp 静态映射，不建 DA）
+// Tag 名 → 文字 + 颜色
+struct FPortalPreviewRoomTypeStyle
 {
-    // 类型徽章颜色映射（v3 决策：.cpp 静态映射，不建 DA）
-    // Tag 名 → 文字 + 颜色
-    struct FRoomTypeStyle
-    {
-        FText DisplayName;
-        FLinearColor BadgeColor;
-    };
+    FText DisplayName;
+    FLinearColor BadgeColor;
+};
 
-    const FRoomTypeStyle& GetRoomTypeStyle(const FGameplayTag& Tag)
-    {
-        static const FRoomTypeStyle Normal = { NSLOCTEXT("Portal", "RoomTypeNormal", "普通"),  FLinearColor(0.60f, 0.60f, 0.60f, 0.92f) };
-        static const FRoomTypeStyle Elite  = { NSLOCTEXT("Portal", "RoomTypeElite",  "精英"),  FLinearColor(0.85f, 0.35f, 0.29f, 0.92f) };
-        static const FRoomTypeStyle Shop   = { NSLOCTEXT("Portal", "RoomTypeShop",   "商店"),  FLinearColor(0.85f, 0.69f, 0.28f, 0.92f) };
-        static const FRoomTypeStyle Event  = { NSLOCTEXT("Portal", "RoomTypeEvent",  "事件"),  FLinearColor(0.48f, 0.36f, 0.79f, 0.92f) };
-        static const FRoomTypeStyle Unknown= { NSLOCTEXT("Portal", "RoomTypeUnknown","未知"),  FLinearColor(0.30f, 0.30f, 0.30f, 0.92f) };
+static const FPortalPreviewRoomTypeStyle& GetRoomTypeStyle(const FGameplayTag& Tag)
+{
+    static const FPortalPreviewRoomTypeStyle Normal = { NSLOCTEXT("Portal", "RoomTypeNormal", "普通"),  FLinearColor(0.60f, 0.60f, 0.60f, 0.92f) };
+    static const FPortalPreviewRoomTypeStyle Elite  = { NSLOCTEXT("Portal", "RoomTypeElite",  "精英"),  FLinearColor(0.85f, 0.35f, 0.29f, 0.92f) };
+    static const FPortalPreviewRoomTypeStyle Shop   = { NSLOCTEXT("Portal", "RoomTypeShop",   "商店"),  FLinearColor(0.85f, 0.69f, 0.28f, 0.92f) };
+    static const FPortalPreviewRoomTypeStyle Event  = { NSLOCTEXT("Portal", "RoomTypeEvent",  "事件"),  FLinearColor(0.48f, 0.36f, 0.79f, 0.92f) };
+    static const FPortalPreviewRoomTypeStyle Unknown= { NSLOCTEXT("Portal", "RoomTypeUnknown","未知"),  FLinearColor(0.30f, 0.30f, 0.30f, 0.92f) };
 
-        if (!Tag.IsValid()) return Unknown;
-        const FName Name = Tag.GetTagName();
-        if (Name == FName("Room.Type.Elite")) return Elite;
-        if (Name == FName("Room.Type.Shop"))  return Shop;
-        if (Name == FName("Room.Type.Event")) return Event;
-        if (Name == FName("Room.Type.Normal"))return Normal;
-        return Unknown;
+    if (!Tag.IsValid()) return Unknown;
+    const FName Name = Tag.GetTagName();
+    if (Name == FName("Room.Type.Elite")) return Elite;
+    if (Name == FName("Room.Type.Shop"))  return Shop;
+    if (Name == FName("Room.Type.Event")) return Event;
+    if (Name == FName("Room.Type.Normal"))return Normal;
+    return Unknown;
+}
+
+// ── BuffListBox 行样式（v3 决策：.cpp 静态常量，不建 DA）──
+static constexpr int32   PortalBuffNameFontSize     = 13;
+static constexpr int32   PortalBuffDescFontSize     = 11;
+static constexpr int32   PortalBuffEffectFontSize   = 11;
+static constexpr int32   PortalBuffSummaryMaxChars  = 34;
+static const FLinearColor PortalBuffNameColor       = FLinearColor(0.93f, 0.93f, 0.93f, 1.0f); // #ECECEC
+static const FLinearColor PortalBuffDescColor       = FLinearColor(0.78f, 0.78f, 0.80f, 1.0f); // 次级灰
+static const FLinearColor PortalBuffEffectColor     = FLinearColor(0.65f, 0.65f, 0.70f, 1.0f); // 更淡
+static const FLinearColor PortalPanelFillColor      = FLinearColor(0.025f, 0.030f, 0.038f, 0.84f);
+static const FLinearColor PortalPanelBorderColor    = FLinearColor(0.74f, 0.70f, 0.58f, 0.86f);
+static constexpr float   PortalPanelCornerRadius   = 3.f;
+static constexpr float   PortalPanelBorderWidth    = 2.f;
+static constexpr float   BuffRowSpacing       = 6.f;
+static constexpr float   BuffSubLineSpacing   = 2.f;
+
+// 字号微调：保留原字体 / 字重，只改 Size，避免默认字体被覆盖
+static void SetPortalTextSize(UTextBlock* TB, int32 Size)
+{
+    if (!TB) return;
+    FSlateFontInfo Font = TB->GetFont();
+    Font.Size = Size;
+    TB->SetFont(Font);
+}
+
+static void ConfigurePortalPanelBorder(UBorder* Border)
+{
+    if (!Border)
+    {
+        return;
     }
 
-    // ── BuffListBox 行样式（v3 决策：.cpp 静态常量，不建 DA）──
-    constexpr int32   PortalBuffNameFontSize     = 13;
-    constexpr int32   PortalBuffDescFontSize     = 11;
-    constexpr int32   PortalBuffEffectFontSize   = 11;
-    constexpr int32   PortalBuffSummaryMaxChars  = 34;
-    const FLinearColor PortalBuffNameColor       = FLinearColor(0.93f, 0.93f, 0.93f, 1.0f); // #ECECEC
-    const FLinearColor PortalBuffDescColor       = FLinearColor(0.78f, 0.78f, 0.80f, 1.0f); // 次级灰
-    const FLinearColor PortalBuffEffectColor     = FLinearColor(0.65f, 0.65f, 0.70f, 1.0f); // 更淡
-    const FLinearColor PortalPanelFillColor      = FLinearColor(0.025f, 0.030f, 0.038f, 0.84f);
-    const FLinearColor PortalPanelBorderColor    = FLinearColor(0.74f, 0.70f, 0.58f, 0.86f);
-    constexpr float   PortalPanelCornerRadius   = 3.f;
-    constexpr float   PortalPanelBorderWidth    = 2.f;
-    constexpr float   BuffRowSpacing       = 6.f;
-    constexpr float   BuffSubLineSpacing   = 2.f;
+    Border->SetBrush(FSlateRoundedBoxBrush(
+        PortalPanelFillColor,
+        PortalPanelCornerRadius,
+        PortalPanelBorderColor,
+        PortalPanelBorderWidth));
+    Border->SetPadding(FMargin(16.f, 14.f));
+}
 
-    // 字号微调：保留原字体 / 字重，只改 Size，避免默认字体被覆盖
-    void SetPortalTextSize(UTextBlock* TB, int32 Size)
+static UTexture2D* LoadPortalRewardTexture(const TCHAR* TexturePath)
+{
+    return TexturePath ? LoadObject<UTexture2D>(nullptr, TexturePath) : nullptr;
+}
+
+static UTexture2D* ResolvePortalRewardIcon(const FLootOption& Option)
+{
+    if (Option.LootType != ELootType::Rune && Option.Icon)
     {
-        if (!TB) return;
-        FSlateFontInfo Font = TB->GetFont();
-        Font.Size = Size;
-        TB->SetFont(Font);
+        return Option.Icon;
     }
 
-    void ConfigurePortalPanelBorder(UBorder* Border)
+    switch (Option.LootType)
     {
-        if (!Border)
-        {
-            return;
-        }
+    case ELootType::Gold:
+        return LoadPortalRewardTexture(TEXT("/Game/UI/Playtest_UI/UI_Tex/HUD/T_GoldCoinIcon.T_GoldCoinIcon"));
+    case ELootType::Rune:
+        return LoadPortalRewardTexture(TEXT("/Game/Docs/UI/RunCard/BackpackInspect/T_BackpackInspect_TarotCardFrame.T_BackpackInspect_TarotCardFrame"));
+    case ELootType::Material:
+    default:
+        return LoadPortalRewardTexture(TEXT("/Game/UI/Playtest_UI/UI_Tex/HUD/T_MaterialQuestionIcon.T_MaterialQuestionIcon"));
+    }
+}
 
-        Border->SetBrush(FSlateRoundedBoxBrush(
-            PortalPanelFillColor,
-            PortalPanelCornerRadius,
-            PortalPanelBorderColor,
-            PortalPanelBorderWidth));
-        Border->SetPadding(FMargin(16.f, 14.f));
+static FString DescribePortalPreviewEnumValueForRewardDebug(const UEnum* Enum, int64 Value)
+{
+    return Enum ? Enum->GetNameStringByValue(Value) : FString::Printf(TEXT("%lld"), Value);
+}
+
+static FString DescribePortalPreviewLootOptionsForRewardDebug(const TArray<FLootOption>& Options)
+{
+    if (Options.IsEmpty())
+    {
+        return TEXT("Count=0 []");
     }
 
-    UTexture2D* LoadPortalRewardTexture(const TCHAR* TexturePath)
+    TArray<FString> Parts;
+    Parts.Reserve(Options.Num());
+    for (int32 Index = 0; Index < Options.Num(); ++Index)
     {
-        return TexturePath ? LoadObject<UTexture2D>(nullptr, TexturePath) : nullptr;
+        const FLootOption& Option = Options[Index];
+        Parts.Add(FString::Printf(
+            TEXT("#%d{Type=%s,Amount=%d,Display=%s,Rune=%s,Icon=%s,Meta=%s}"),
+            Index,
+            *DescribePortalPreviewEnumValueForRewardDebug(StaticEnum<ELootType>(), static_cast<int64>(Option.LootType)),
+            Option.Amount,
+            *Option.DisplayName.ToString(),
+            *GetNameSafe(Option.RuneAsset.Get()),
+            *GetNameSafe(Option.Icon.Get()),
+            *Option.MetaCurrencyTag.ToString()));
     }
 
-    UTexture2D* ResolvePortalRewardIcon(const FLootOption& Option)
-    {
-        if (Option.LootType != ELootType::Rune && Option.Icon)
-        {
-            return Option.Icon;
-        }
+    return FString::Printf(TEXT("Count=%d [%s]"), Options.Num(), *FString::Join(Parts, TEXT("; ")));
+}
 
-        switch (Option.LootType)
-        {
-        case ELootType::Gold:
-            return LoadPortalRewardTexture(TEXT("/Game/UI/Playtest_UI/UI_Tex/HUD/T_GoldCoinIcon.T_GoldCoinIcon"));
-        case ELootType::Rune:
-            return LoadPortalRewardTexture(TEXT("/Game/Docs/UI/RunCard/BackpackInspect/T_BackpackInspect_TarotCardFrame.T_BackpackInspect_TarotCardFrame"));
-        case ELootType::Material:
-        default:
-            return LoadPortalRewardTexture(TEXT("/Game/UI/Playtest_UI/UI_Tex/HUD/T_MaterialQuestionIcon.T_MaterialQuestionIcon"));
-        }
+static FString DescribeLootOptionForRewardDebug(const FLootOption& Option)
+{
+    TArray<FLootOption> Options;
+    Options.Add(Option);
+    return DescribePortalPreviewLootOptionsForRewardDebug(Options);
+}
+
+static FText ResolvePortalRewardLabel(const FLootOption& Option)
+{
+    if (!Option.DisplayName.IsEmptyOrWhitespace())
+    {
+        return Option.DisplayName;
     }
 
-    FString DescribePortalPreviewEnumValueForRewardDebug(const UEnum* Enum, int64 Value)
+    switch (Option.LootType)
     {
-        return Enum ? Enum->GetNameStringByValue(Value) : FString::Printf(TEXT("%lld"), Value);
+    case ELootType::Gold:
+        return NSLOCTEXT("Portal", "RewardGold", "金币");
+    case ELootType::Rune:
+        return NSLOCTEXT("Portal", "RewardRune", "卡牌");
+    case ELootType::Material:
+    default:
+        return NSLOCTEXT("Portal", "RewardMaterial", "材料");
+    }
+}
+
+static void AddPortalRewardIcon(UHorizontalBox* IconBox, const FLootOption& Option)
+{
+    if (!IconBox)
+    {
+        return;
     }
 
-    FString DescribePortalPreviewLootOptionsForRewardDebug(const TArray<FLootOption>& Options)
+    USizeBox* SlotBox = NewObject<USizeBox>(IconBox);
+    SlotBox->SetWidthOverride(34.f);
+    SlotBox->SetHeightOverride(34.f);
+    SlotBox->SetToolTipText(ResolvePortalRewardLabel(Option));
+
+    UImage* Icon = NewObject<UImage>(SlotBox);
+    UTexture2D* Texture = ResolvePortalRewardIcon(Option);
+    UE_LOG(LogTemp, Log,
+        TEXT("[StoryRewardDebug] PortalPreviewWidget AddPortalRewardIcon IconBox=%s Option=%s ResolvedTexture=%s"),
+        *GetNameSafe(IconBox),
+        *DescribeLootOptionForRewardDebug(Option),
+        *GetNameSafe(Texture));
+    if (Texture)
     {
-        if (Options.IsEmpty())
-        {
-            return TEXT("Count=0 []");
-        }
+        Icon->SetBrushFromTexture(Texture, true);
+    }
+    else
+    {
+        Icon->SetColorAndOpacity(FLinearColor(0.18f, 0.18f, 0.20f, 1.f));
+    }
+    SlotBox->AddChild(Icon);
 
-        TArray<FString> Parts;
-        Parts.Reserve(Options.Num());
-        for (int32 Index = 0; Index < Options.Num(); ++Index)
-        {
-            const FLootOption& Option = Options[Index];
-            Parts.Add(FString::Printf(
-                TEXT("#%d{Type=%s,Amount=%d,Display=%s,Rune=%s,Icon=%s,Meta=%s}"),
-                Index,
-                *DescribePortalPreviewEnumValueForRewardDebug(StaticEnum<ELootType>(), static_cast<int64>(Option.LootType)),
-                Option.Amount,
-                *Option.DisplayName.ToString(),
-                *GetNameSafe(Option.RuneAsset.Get()),
-                *GetNameSafe(Option.Icon.Get()),
-                *Option.MetaCurrencyTag.ToString()));
-        }
+    UHorizontalBoxSlot* IconSlot = IconBox->AddChildToHorizontalBox(SlotBox);
+    IconSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+    IconSlot->SetVerticalAlignment(VAlign_Center);
+    IconSlot->SetPadding(FMargin(0.f, 0.f, 8.f, 0.f));
+}
 
-        return FString::Printf(TEXT("Count=%d [%s]"), Options.Num(), *FString::Join(Parts, TEXT("; ")));
+static FText BuildPortalRewardFallbackText(const TArray<FLootOption>& Options)
+{
+    if (Options.IsEmpty())
+    {
+        return NSLOCTEXT("Portal", "LootSummaryUnknown", "战利品");
     }
 
-    FString DescribeLootOptionForRewardDebug(const FLootOption& Option)
+    TArray<FString> Labels;
+    Labels.Reserve(Options.Num());
+    for (const FLootOption& Option : Options)
     {
-        TArray<FLootOption> Options;
-        Options.Add(Option);
-        return DescribePortalPreviewLootOptionsForRewardDebug(Options);
+        Labels.Add(ResolvePortalRewardLabel(Option).ToString());
     }
+    return FText::FromString(FString::Printf(TEXT("战利品: %s"), *FString::Join(Labels, TEXT("、"))));
+}
 
-    FText ResolvePortalRewardLabel(const FLootOption& Option)
+// RuneName 漏配兜底：开发期暴露资产名定位漏配，Shipping 显示"未命名"
+static FText ResolvePortalRuneDisplayName(const URuneDataAsset& RuneDA)
+{
+    const FName RuneName = RuneDA.GetRuneName();
+    if (!RuneName.IsNone())
     {
-        if (!Option.DisplayName.IsEmptyOrWhitespace())
-        {
-            return Option.DisplayName;
-        }
-
-        switch (Option.LootType)
-        {
-        case ELootType::Gold:
-            return NSLOCTEXT("Portal", "RewardGold", "金币");
-        case ELootType::Rune:
-            return NSLOCTEXT("Portal", "RewardRune", "卡牌");
-        case ELootType::Material:
-        default:
-            return NSLOCTEXT("Portal", "RewardMaterial", "材料");
-        }
+        return FText::FromName(RuneName);
     }
-
-    void AddPortalRewardIcon(UHorizontalBox* IconBox, const FLootOption& Option)
-    {
-        if (!IconBox)
-        {
-            return;
-        }
-
-        USizeBox* SlotBox = NewObject<USizeBox>(IconBox);
-        SlotBox->SetWidthOverride(34.f);
-        SlotBox->SetHeightOverride(34.f);
-        SlotBox->SetToolTipText(ResolvePortalRewardLabel(Option));
-
-        UImage* Icon = NewObject<UImage>(SlotBox);
-        UTexture2D* Texture = ResolvePortalRewardIcon(Option);
-        UE_LOG(LogTemp, Log,
-            TEXT("[StoryRewardDebug] PortalPreviewWidget AddPortalRewardIcon IconBox=%s Option=%s ResolvedTexture=%s"),
-            *GetNameSafe(IconBox),
-            *DescribeLootOptionForRewardDebug(Option),
-            *GetNameSafe(Texture));
-        if (Texture)
-        {
-            Icon->SetBrushFromTexture(Texture, true);
-        }
-        else
-        {
-            Icon->SetColorAndOpacity(FLinearColor(0.18f, 0.18f, 0.20f, 1.f));
-        }
-        SlotBox->AddChild(Icon);
-
-        UHorizontalBoxSlot* IconSlot = IconBox->AddChildToHorizontalBox(SlotBox);
-        IconSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
-        IconSlot->SetVerticalAlignment(VAlign_Center);
-        IconSlot->SetPadding(FMargin(0.f, 0.f, 8.f, 0.f));
-    }
-
-    FText BuildPortalRewardFallbackText(const TArray<FLootOption>& Options)
-    {
-        if (Options.IsEmpty())
-        {
-            return NSLOCTEXT("Portal", "LootSummaryUnknown", "战利品");
-        }
-
-        TArray<FString> Labels;
-        Labels.Reserve(Options.Num());
-        for (const FLootOption& Option : Options)
-        {
-            Labels.Add(ResolvePortalRewardLabel(Option).ToString());
-        }
-        return FText::FromString(FString::Printf(TEXT("战利品: %s"), *FString::Join(Labels, TEXT("、"))));
-    }
-
-    // RuneName 漏配兜底：开发期暴露资产名定位漏配，Shipping 显示"未命名"
-    FText ResolvePortalRuneDisplayName(const URuneDataAsset& RuneDA)
-    {
-        const FName RuneName = RuneDA.GetRuneName();
-        if (!RuneName.IsNone())
-        {
-            return FText::FromName(RuneName);
-        }
 #if !UE_BUILD_SHIPPING
-        UE_LOG(LogTemp, Warning,
-            TEXT("PortalPreview: RuneDA '%s' 缺少 RuneConfig.RuneName，临时显示资产名"),
-            *RuneDA.GetName());
-        return FText::FromString(RuneDA.GetName());
+    UE_LOG(LogTemp, Warning,
+        TEXT("PortalPreview: RuneDA '%s' 缺少 RuneConfig.RuneName，临时显示资产名"),
+        *RuneDA.GetName());
+    return FText::FromString(RuneDA.GetName());
 #else
-        UE_LOG(LogTemp, Warning, TEXT("PortalPreview: RuneDA 缺少 RuneConfig.RuneName"));
-        return NSLOCTEXT("Portal", "UnnamedRune", "未命名符文");
+    UE_LOG(LogTemp, Warning, TEXT("PortalPreview: RuneDA 缺少 RuneConfig.RuneName"));
+    return NSLOCTEXT("Portal", "UnnamedRune", "未命名符文");
 #endif
-    }
+}
 
-    // GenericEffect 单条文本格式化（4 种情况降级，避免空冒号 / 空行）
-    FText FormatPortalGenericEffectLine(const UGenericRuneEffectDA& Effect)
+// GenericEffect 单条文本格式化（4 种情况降级，避免空冒号 / 空行）
+static FText FormatPortalGenericEffectLine(const UGenericRuneEffectDA& Effect)
+{
+    const bool bHasName = !Effect.DisplayName.IsEmptyOrWhitespace();
+    const bool bHasDesc = !Effect.Description.IsEmptyOrWhitespace();
+    if (bHasName && bHasDesc)
     {
-        const bool bHasName = !Effect.DisplayName.IsEmptyOrWhitespace();
-        const bool bHasDesc = !Effect.Description.IsEmptyOrWhitespace();
-        if (bHasName && bHasDesc)
-        {
-            return FText::Format(
-                NSLOCTEXT("Portal", "BulletNameDesc", "• {0}：{1}"),
-                Effect.DisplayName, Effect.Description);
-        }
-        if (bHasName)
-        {
-            return FText::Format(
-                NSLOCTEXT("Portal", "BulletNameOnly", "• {0}"),
-                Effect.DisplayName);
-        }
-        if (bHasDesc)
-        {
-            return FText::Format(
-                NSLOCTEXT("Portal", "BulletDescOnly", "• {0}"),
-                Effect.Description);
-        }
-        return FText::GetEmpty();
+        return FText::Format(
+            NSLOCTEXT("Portal", "BulletNameDesc", "• {0}：{1}"),
+            Effect.DisplayName, Effect.Description);
     }
+    if (bHasName)
+    {
+        return FText::Format(
+            NSLOCTEXT("Portal", "BulletNameOnly", "• {0}"),
+            Effect.DisplayName);
+    }
+    if (bHasDesc)
+    {
+        return FText::Format(
+            NSLOCTEXT("Portal", "BulletDescOnly", "• {0}"),
+            Effect.Description);
+    }
+    return FText::GetEmpty();
 }
 
 TArray<FLootOption> UPortalPreviewWidget::BuildAggregatedRewardPreviewOptions(const TArray<FLootOption>& Options)
@@ -463,7 +460,7 @@ void UPortalPreviewWidget::SetPreviewInfo(const FPortalPreviewInfo& Info)
     }
 
     // 类型徽章 + 文字
-    const FRoomTypeStyle& Style = GetRoomTypeStyle(Info.RoomTypeTag);
+    const FPortalPreviewRoomTypeStyle& Style = GetRoomTypeStyle(Info.RoomTypeTag);
     if (RoomTypeBadge)
     {
         RoomTypeBadge->SetBrushColor(Style.BadgeColor);

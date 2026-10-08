@@ -21,31 +21,28 @@
 #include "Kismet/GameplayStatics.h"
 #include "Nodes/FlowNode.h"
 
-namespace
+static FGameplayTag TagOrFallback(const FGameplayTag& ConfiguredTag, const TCHAR* FallbackTagName)
 {
-	FGameplayTag TagOrFallback(const FGameplayTag& ConfiguredTag, const TCHAR* FallbackTagName)
+	if (ConfiguredTag.IsValid())
 	{
-		if (ConfiguredTag.IsValid())
-		{
-			return ConfiguredTag;
-		}
-		return FGameplayTag::RequestGameplayTag(FName(FallbackTagName), false);
+		return ConfiguredTag;
 	}
+	return FGameplayTag::RequestGameplayTag(FName(FallbackTagName), false);
+}
 
-	float DistancePointToSegment2D(const FVector& Point, const FVector& SegmentStart, const FVector& SegmentEnd)
+static float DistancePointToSegment2D(const FVector& Point, const FVector& SegmentStart, const FVector& SegmentEnd)
+{
+	const FVector A(SegmentStart.X, SegmentStart.Y, 0.0f);
+	const FVector B(SegmentEnd.X, SegmentEnd.Y, 0.0f);
+	const FVector P(Point.X, Point.Y, 0.0f);
+	const FVector AB = B - A;
+	const float LengthSq = AB.SizeSquared();
+	if (LengthSq <= KINDA_SMALL_NUMBER)
 	{
-		const FVector A(SegmentStart.X, SegmentStart.Y, 0.0f);
-		const FVector B(SegmentEnd.X, SegmentEnd.Y, 0.0f);
-		const FVector P(Point.X, Point.Y, 0.0f);
-		const FVector AB = B - A;
-		const float LengthSq = AB.SizeSquared();
-		if (LengthSq <= KINDA_SMALL_NUMBER)
-		{
-			return FVector::Dist2D(Point, SegmentStart);
-		}
-		const float T = FMath::Clamp(FVector::DotProduct(P - A, AB) / LengthSq, 0.0f, 1.0f);
-		return FVector::Dist2D(P, A + AB * T);
+		return FVector::Dist2D(Point, SegmentStart);
 	}
+	const float T = FMath::Clamp(FVector::DotProduct(P - A, AB) / LengthSq, 0.0f, 1.0f);
+	return FVector::Dist2D(P, A + AB * T);
 }
 
 USacrificeRuneComponent::USacrificeRuneComponent()

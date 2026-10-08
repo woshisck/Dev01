@@ -11,27 +11,24 @@
 #include "UI/YogUIManagerSubsystem.h"
 #include "UI/YogUIRegistry.h"
 
-namespace
+/** Registry-authored WBP if one is configured, else the C++ class and its fallback layout. */
+static TSubclassOf<UBubbleMessageWidget> BubbleMessage_ResolveWidgetClass(const UWorld* World)
 {
-	/** Registry-authored WBP if one is configured, else the C++ class and its fallback layout. */
-	TSubclassOf<UBubbleMessageWidget> BubbleMessage_ResolveWidgetClass(const UWorld* World)
+	const APlayerController* PC = World ? World->GetFirstPlayerController() : nullptr;
+	if (const ULocalPlayer* LocalPlayer = PC ? PC->GetLocalPlayer() : nullptr)
 	{
-		const APlayerController* PC = World ? World->GetFirstPlayerController() : nullptr;
-		if (const ULocalPlayer* LocalPlayer = PC ? PC->GetLocalPlayer() : nullptr)
+		if (UYogUIManagerSubsystem* UI = LocalPlayer->GetSubsystem<UYogUIManagerSubsystem>())
 		{
-			if (UYogUIManagerSubsystem* UI = LocalPlayer->GetSubsystem<UYogUIManagerSubsystem>())
+			TSubclassOf<UBubbleMessageWidget> Resolved =
+				UI->GetTypedWidgetClass<UBubbleMessageWidget>(EYogUIScreenId::BubbleMessage);
+			if (Resolved)
 			{
-				TSubclassOf<UBubbleMessageWidget> Resolved =
-					UI->GetTypedWidgetClass<UBubbleMessageWidget>(EYogUIScreenId::BubbleMessage);
-				if (Resolved)
-				{
-					return Resolved;
-				}
+				return Resolved;
 			}
 		}
-
-		return UBubbleMessageWidget::StaticClass();
 	}
+
+	return UBubbleMessageWidget::StaticClass();
 }
 
 UBubbleMessageComponent::UBubbleMessageComponent()

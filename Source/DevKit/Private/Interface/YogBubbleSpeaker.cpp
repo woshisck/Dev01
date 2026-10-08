@@ -5,20 +5,17 @@
 #include "System/YogBubbleSubsystem.h"
 #include "UI/BubbleMessageTypes.h"
 
-namespace
+/** _getUObject is the only route from the interface back to the actor that implements it. */
+static AActor* YogBubbleSpeaker_GetActor(const IYogBubbleSpeaker* Self)
 {
-	/** _getUObject is the only route from the interface back to the actor that implements it. */
-	AActor* YogBubbleSpeaker_GetActor(const IYogBubbleSpeaker* Self)
-	{
-		UObject* AsObject = const_cast<IYogBubbleSpeaker*>(Self)->_getUObject();
-		return Cast<AActor>(AsObject);
-	}
+	UObject* AsObject = const_cast<IYogBubbleSpeaker*>(Self)->_getUObject();
+	return Cast<AActor>(AsObject);
+}
 
-	UYogBubbleSubsystem* YogBubbleSpeaker_GetSubsystem(const AActor* Actor)
-	{
-		const UWorld* World = Actor ? Actor->GetWorld() : nullptr;
-		return World ? World->GetSubsystem<UYogBubbleSubsystem>() : nullptr;
-	}
+static UYogBubbleSubsystem* YogBubbleSpeaker_GetSubsystem(const AActor* Actor)
+{
+	const UWorld* World = Actor ? Actor->GetWorld() : nullptr;
+	return World ? World->GetSubsystem<UYogBubbleSubsystem>() : nullptr;
 }
 
 void IYogBubbleSpeaker::ShowBubble(const FDataTableRowHandle& RowHandle, FGameplayTag DedupTag)

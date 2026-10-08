@@ -4,13 +4,10 @@
 #include "BuffFlow/BuffFlowComponent.h"
 #include "FlowAsset.h"
 
-namespace
+static const FGameplayTag& MontagePhaseFlow_PhaseRootTag()
 {
-	const FGameplayTag& MontagePhaseFlow_PhaseRootTag()
-	{
-		static const FGameplayTag TAG_PhaseRoot = FGameplayTag::RequestGameplayTag(TEXT("Character.State.Phase"), false);
-		return TAG_PhaseRoot;
-	}
+	static const FGameplayTag TAG_PhaseRoot = FGameplayTag::RequestGameplayTag(TEXT("Character.State.Phase"), false);
+	return TAG_PhaseRoot;
 }
 
 UMontagePhaseFlowComponent::UMontagePhaseFlowComponent()

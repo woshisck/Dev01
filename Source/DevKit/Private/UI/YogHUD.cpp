@@ -57,60 +57,57 @@
 #include "CommonActivatableWidget.h"
 #include "GameFramework/Pawn.h"
 
-namespace
+static UYogUIManagerSubsystem* GetUIManagerFromHUD(const AHUD* HUD)
 {
-	UYogUIManagerSubsystem* GetUIManagerFromHUD(const AHUD* HUD)
+	if (!HUD) return nullptr;
+	const APlayerController* PC = HUD->GetOwningPlayerController();
+	if (!PC) return nullptr;
+	ULocalPlayer* LP = PC->GetLocalPlayer();
+	return LP ? LP->GetSubsystem<UYogUIManagerSubsystem>() : nullptr;
+}
+
+template<typename WidgetT>
+static void RegisterHUDWidgetClassOverride(const AHUD* HUD, EYogUIScreenId ScreenId, TSubclassOf<WidgetT> WidgetClass)
+{
+	if (!WidgetClass)
 	{
-		if (!HUD) return nullptr;
-		const APlayerController* PC = HUD->GetOwningPlayerController();
-		if (!PC) return nullptr;
-		ULocalPlayer* LP = PC->GetLocalPlayer();
-		return LP ? LP->GetSubsystem<UYogUIManagerSubsystem>() : nullptr;
+		return;
+	}
+	if (UYogUIManagerSubsystem* UIManager = GetUIManagerFromHUD(HUD))
+	{
+		UIManager->SetWidgetClassOverride(ScreenId, WidgetClass);
+	}
+}
+
+static FString DescribeHUDEnumValueForRewardDebug(const UEnum* Enum, int64 Value)
+{
+	return Enum ? Enum->GetNameStringByValue(Value) : FString::Printf(TEXT("%lld"), Value);
+}
+
+static FString DescribeHUDLootOptionsForRewardDebug(const TArray<FLootOption>& Options)
+{
+	if (Options.IsEmpty())
+	{
+		return TEXT("Count=0 []");
 	}
 
-	template<typename WidgetT>
-	void RegisterHUDWidgetClassOverride(const AHUD* HUD, EYogUIScreenId ScreenId, TSubclassOf<WidgetT> WidgetClass)
+	TArray<FString> Parts;
+	Parts.Reserve(Options.Num());
+	for (int32 Index = 0; Index < Options.Num(); ++Index)
 	{
-		if (!WidgetClass)
-		{
-			return;
-		}
-		if (UYogUIManagerSubsystem* UIManager = GetUIManagerFromHUD(HUD))
-		{
-			UIManager->SetWidgetClassOverride(ScreenId, WidgetClass);
-		}
+		const FLootOption& Option = Options[Index];
+		Parts.Add(FString::Printf(
+			TEXT("#%d{Type=%s,Amount=%d,Display=%s,Rune=%s,Icon=%s,Meta=%s}"),
+			Index,
+			*DescribeHUDEnumValueForRewardDebug(StaticEnum<ELootType>(), static_cast<int64>(Option.LootType)),
+			Option.Amount,
+			*Option.DisplayName.ToString(),
+			*GetNameSafe(Option.RuneAsset.Get()),
+			*GetNameSafe(Option.Icon.Get()),
+			*Option.MetaCurrencyTag.ToString()));
 	}
 
-	FString DescribeHUDEnumValueForRewardDebug(const UEnum* Enum, int64 Value)
-	{
-		return Enum ? Enum->GetNameStringByValue(Value) : FString::Printf(TEXT("%lld"), Value);
-	}
-
-	FString DescribeHUDLootOptionsForRewardDebug(const TArray<FLootOption>& Options)
-	{
-		if (Options.IsEmpty())
-		{
-			return TEXT("Count=0 []");
-		}
-
-		TArray<FString> Parts;
-		Parts.Reserve(Options.Num());
-		for (int32 Index = 0; Index < Options.Num(); ++Index)
-		{
-			const FLootOption& Option = Options[Index];
-			Parts.Add(FString::Printf(
-				TEXT("#%d{Type=%s,Amount=%d,Display=%s,Rune=%s,Icon=%s,Meta=%s}"),
-				Index,
-				*DescribeHUDEnumValueForRewardDebug(StaticEnum<ELootType>(), static_cast<int64>(Option.LootType)),
-				Option.Amount,
-				*Option.DisplayName.ToString(),
-				*GetNameSafe(Option.RuneAsset.Get()),
-				*GetNameSafe(Option.Icon.Get()),
-				*Option.MetaCurrencyTag.ToString()));
-		}
-
-		return FString::Printf(TEXT("Count=%d [%s]"), Options.Num(), *FString::Join(Parts, TEXT("; ")));
-	}
+	return FString::Printf(TEXT("Count=%d [%s]"), Options.Num(), *FString::Join(Parts, TEXT("; ")));
 }
 
 template<typename WidgetT>

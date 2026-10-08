@@ -11,21 +11,19 @@
 #include "FlowAsset.h"
 #include "GameplayEffect.h"
 
-namespace
-{
-constexpr float FearlessHealthThreshold = 0.75f;
-constexpr float FearlessDmgTakenMultiplier = 1.5f;
-constexpr const TCHAR* FearlessRunePath =
+static constexpr float FearlessHealthThreshold = 0.75f;
+static constexpr float FearlessDmgTakenMultiplier = 1.5f;
+static constexpr const TCHAR* FearlessRunePath =
 	TEXT("/Game/Docs/BuffDocs/Playtest_GA/Fearless/DA_Rune_Fearless.DA_Rune_Fearless");
 
-bool IsDmgTakenVulnerabilityModifier(const FGameplayAttribute& Attribute, EGameplayModOp::Type ModOp, const float Value)
+static bool IsDmgTakenVulnerabilityModifier(const FGameplayAttribute& Attribute, EGameplayModOp::Type ModOp, const float Value)
 {
 	return Attribute == UBaseAttributeSet::GetDmgTakenAttribute()
 		&& ModOp == EGameplayModOp::Multiplicitive
 		&& FMath::IsNearlyEqual(Value, FearlessDmgTakenMultiplier);
 }
 
-bool GameplayEffectHasFearlessVulnerability(const UGameplayEffect* Effect)
+static bool GameplayEffectHasFearlessVulnerability(const UGameplayEffect* Effect)
 {
 	if (!Effect)
 	{
@@ -45,10 +43,9 @@ bool GameplayEffectHasFearlessVulnerability(const UGameplayEffect* Effect)
 	return false;
 }
 
-bool GameplayEffectGrantsTag(const UGameplayEffect* Effect, const FGameplayTag& Tag)
+static bool GameplayEffectGrantsTag(const UGameplayEffect* Effect, const FGameplayTag& Tag)
 {
 	return Effect && Tag.IsValid() && Effect->InheritableOwnedTagsContainer.CombinedTags.HasTagExact(Tag);
-}
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFearlessRuneLowHealthTradeoffTest,

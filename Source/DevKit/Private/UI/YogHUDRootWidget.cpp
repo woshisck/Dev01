@@ -25,93 +25,90 @@
 #include "UI/WeaponComboTextUtils.h"
 #include "UI/YogCommonRichTextBlock.h"
 
-namespace
+// The boss bar reuses the player liquid-bar WBP, so it is recolored to stay distinguishable.
+static constexpr float BossHealthBarWidth = 720.f;
+static constexpr float BossHealthBarHeight = 64.f;
+static const FLinearColor BossLiquidColorDeep = FLinearColor(0.24f, 0.03f, 0.30f, 1.f);
+static const FLinearColor BossLiquidColorSurface = FLinearColor(0.62f, 0.10f, 0.72f, 1.f);
+static const FLinearColor BossGlintColor = FLinearColor(0.95f, 0.70f, 1.00f, 1.f);
+static const FLinearColor BossNameTextColor = FLinearColor(0.93f, 0.86f, 0.98f, 1.f);
+
+static void ConfigureWeaponSlotText(UTextBlock* TextBlock, int32 FontSize, const FLinearColor& Color)
 {
-	// The boss bar reuses the player liquid-bar WBP, so it is recolored to stay distinguishable.
-	constexpr float BossHealthBarWidth = 720.f;
-	constexpr float BossHealthBarHeight = 64.f;
-	const FLinearColor BossLiquidColorDeep = FLinearColor(0.24f, 0.03f, 0.30f, 1.f);
-	const FLinearColor BossLiquidColorSurface = FLinearColor(0.62f, 0.10f, 0.72f, 1.f);
-	const FLinearColor BossGlintColor = FLinearColor(0.95f, 0.70f, 1.00f, 1.f);
-	const FLinearColor BossNameTextColor = FLinearColor(0.93f, 0.86f, 0.98f, 1.f);
-
-	void ConfigureWeaponSlotText(UTextBlock* TextBlock, int32 FontSize, const FLinearColor& Color)
+	if (!TextBlock)
 	{
-		if (!TextBlock)
-		{
-			return;
-		}
-
-		TextBlock->SetColorAndOpacity(FSlateColor(Color));
-		TextBlock->SetJustification(ETextJustify::Center);
-		TextBlock->SetAutoWrapText(false);
-		TextBlock->SetClipping(EWidgetClipping::ClipToBounds);
-		TextBlock->SetShadowOffset(FVector2D(1.f, 1.f));
-		TextBlock->SetShadowColorAndOpacity(FLinearColor(0.f, 0.f, 0.f, 0.85f));
-
-		FSlateFontInfo FontInfo = TextBlock->GetFont();
-		FontInfo.Size = FontSize;
-		TextBlock->SetFont(FontInfo);
+		return;
 	}
 
-	void ConfigureWeaponIcon(UImage* Icon)
-	{
-		if (!Icon)
-		{
-			return;
-		}
+	TextBlock->SetColorAndOpacity(FSlateColor(Color));
+	TextBlock->SetJustification(ETextJustify::Center);
+	TextBlock->SetAutoWrapText(false);
+	TextBlock->SetClipping(EWidgetClipping::ClipToBounds);
+	TextBlock->SetShadowOffset(FVector2D(1.f, 1.f));
+	TextBlock->SetShadowColorAndOpacity(FLinearColor(0.f, 0.f, 0.f, 0.85f));
 
-		Icon->SetVisibility(YogWidgetReflectorDebug::GetInspectableVisibility(ESlateVisibility::HitTestInvisible));
-		Icon->SetColorAndOpacity(FLinearColor(0.26f, 0.28f, 0.32f, 1.f));
+	FSlateFontInfo FontInfo = TextBlock->GetFont();
+	FontInfo.Size = FontSize;
+	TextBlock->SetFont(FontInfo);
+}
+
+static void ConfigureWeaponIcon(UImage* Icon)
+{
+	if (!Icon)
+	{
+		return;
 	}
 
-	FText GetWeaponDisplayName(const UWeaponDefinition* WeaponDefinition)
+	Icon->SetVisibility(YogWidgetReflectorDebug::GetInspectableVisibility(ESlateVisibility::HitTestInvisible));
+	Icon->SetColorAndOpacity(FLinearColor(0.26f, 0.28f, 0.32f, 1.f));
+}
+
+static FText GetWeaponDisplayName(const UWeaponDefinition* WeaponDefinition)
+{
+	if (!WeaponDefinition)
 	{
-		if (!WeaponDefinition)
-		{
-			return FText::GetEmpty();
-		}
-
-		if (!WeaponDefinition->WeaponName.IsEmpty())
-		{
-			return WeaponDefinition->WeaponName;
-		}
-
-		return FText::FromString(WeaponDefinition->GetName());
+		return FText::GetEmpty();
 	}
 
-	UTexture2D* GetWeaponThumbnail(const UWeaponDefinition* WeaponDefinition)
+	if (!WeaponDefinition->WeaponName.IsEmpty())
 	{
-		return WeaponDefinition ? WeaponDefinition->Thumbnail.Get() : nullptr;
+		return WeaponDefinition->WeaponName;
 	}
 
-	void UpdateWeaponSlot(UWidget* Slot, UImage* Icon, UTextBlock* NameText, const UWeaponDefinition* WeaponDefinition, bool bActive)
+	return FText::FromString(WeaponDefinition->GetName());
+}
+
+static UTexture2D* GetWeaponThumbnail(const UWeaponDefinition* WeaponDefinition)
+{
+	return WeaponDefinition ? WeaponDefinition->Thumbnail.Get() : nullptr;
+}
+
+static void UpdateWeaponSlot(UWidget* Slot, UImage* Icon, UTextBlock* NameText, const UWeaponDefinition* WeaponDefinition, bool bActive)
+{
+	if (Slot)
 	{
-		if (Slot)
-		{
-			Slot->SetRenderOpacity(WeaponDefinition ? (bActive ? 1.f : 0.68f) : 0.35f);
-		}
+		Slot->SetRenderOpacity(WeaponDefinition ? (bActive ? 1.f : 0.68f) : 0.35f);
+	}
 
-		if (Icon)
+	if (Icon)
+	{
+		if (UTexture2D* Thumbnail = GetWeaponThumbnail(WeaponDefinition))
 		{
-			if (UTexture2D* Thumbnail = GetWeaponThumbnail(WeaponDefinition))
-			{
-				Icon->SetBrushFromTexture(Thumbnail, true);
-				Icon->SetColorAndOpacity(bActive ? FLinearColor::White : FLinearColor(0.72f, 0.76f, 0.82f, 1.f));
-			}
-			else
-			{
-				Icon->SetBrush(FSlateBrush());
-				Icon->SetColorAndOpacity(bActive
-					? FLinearColor(0.34f, 0.30f, 0.24f, 1.f)
-					: FLinearColor(0.18f, 0.20f, 0.24f, 1.f));
-			}
+			Icon->SetBrushFromTexture(Thumbnail, true);
+			Icon->SetColorAndOpacity(bActive ? FLinearColor::White : FLinearColor(0.72f, 0.76f, 0.82f, 1.f));
 		}
+		else
+		{
+			Icon->SetBrush(FSlateBrush());
+			Icon->SetColorAndOpacity(bActive
+				? FLinearColor(0.34f, 0.30f, 0.24f, 1.f)
+				: FLinearColor(0.18f, 0.20f, 0.24f, 1.f));
+		}
+	}
 
-		if (NameText)
-		{
-			NameText->SetText(WeaponDefinition ? GetWeaponDisplayName(WeaponDefinition) : FText::FromString(TEXT("Empty")));
-		}
+	if (NameText)
+	{
+		NameText->SetText(WeaponDefinition ? GetWeaponDisplayName(WeaponDefinition) : FText::FromString(TEXT("Empty")));
 	}
 }
 

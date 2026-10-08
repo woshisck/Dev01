@@ -13,216 +13,213 @@
 #include "GameplayEffectExtension.h"
 #include "AbilitySystemBlueprintLibrary.h"
 
-namespace
+static bool EffectGrantsTag(const FGameplayEffectSpec& Spec, const TCHAR* TagName)
 {
-	bool EffectGrantsTag(const FGameplayEffectSpec& Spec, const TCHAR* TagName)
+	const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TagName), false);
+	return Tag.IsValid() && Spec.Def && Spec.Def->GetGrantedTags().HasTagExact(Tag);
+}
+
+static bool ShouldSuppressDamageFeedbackForEffect(const FGameplayEffectSpec& Spec)
+{
+	return UCombatItemComponent::IsNoHitReactItemDamage(Spec) ||
+		EffectGrantsTag(Spec, TEXT("Buff.Fire")) ||
+		EffectGrantsTag(Spec, TEXT("Buff.Poison")) ||
+		EffectGrantsTag(Spec, TEXT("Buff.Bleed"));
+}
+
+static bool HasDamageAttributeInvulnerableTag(const UAbilitySystemComponent* ASC)
+{
+	static const FGameplayTag InvulnerableTag =
+		FGameplayTag::RequestGameplayTag(TEXT("Buff.Invulnerable"), false);
+	return InvulnerableTag.IsValid() && ASC && ASC->HasMatchingGameplayTag(InvulnerableTag);
+}
+
+static UAbilitySystemComponent* GetTargetASC(const FGameplayEffectModCallbackData& Data)
+{
+	return Data.Target.AbilityActorInfo.IsValid()
+		? Data.Target.AbilityActorInfo->AbilitySystemComponent.Get()
+		: nullptr;
+}
+
+static UBaseAttributeSet* GetValidTargetBaseSet(
+	const FGameplayEffectModCallbackData& Data,
+	AYogCharacterBase* TargetCharacter,
+	const TCHAR* DamagePath)
+{
+	if (!TargetCharacter || !IsValid(TargetCharacter->BaseAttributeSet))
 	{
-		const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TagName), false);
-		return Tag.IsValid() && Spec.Def && Spec.Def->GetGrantedTags().HasTagExact(Tag);
+		UE_LOG(LogTemp, Warning, TEXT("[DamageAttributeSet] %s skipped: Target=%s has no BaseAttributeSet."),
+			DamagePath,
+			*GetNameSafe(TargetCharacter));
+		return nullptr;
 	}
 
-	bool ShouldSuppressDamageFeedbackForEffect(const FGameplayEffectSpec& Spec)
+	UAbilitySystemComponent* TargetASC = GetTargetASC(Data);
+	if (TargetASC &&
+		(!TargetASC->HasAttributeSetForAttribute(UBaseAttributeSet::GetHealthAttribute()) ||
+		 !TargetASC->HasAttributeSetForAttribute(UBaseAttributeSet::GetMaxHealthAttribute())))
 	{
-		return UCombatItemComponent::IsNoHitReactItemDamage(Spec) ||
-			EffectGrantsTag(Spec, TEXT("Buff.Fire")) ||
-			EffectGrantsTag(Spec, TEXT("Buff.Poison")) ||
-			EffectGrantsTag(Spec, TEXT("Buff.Bleed"));
+		UE_LOG(LogTemp, Warning, TEXT("[DamageAttributeSet] %s skipped: Target=%s ASC is missing Health/MaxHealth attributes."),
+			DamagePath,
+			*GetNameSafe(TargetCharacter));
+		return nullptr;
 	}
 
-	bool HasDamageAttributeInvulnerableTag(const UAbilitySystemComponent* ASC)
+	return TargetCharacter->BaseAttributeSet;
+}
+
+struct FDamageAbsorptionResult
+{
+	float HealthDamage = 0.0f;
+	float ArmorDamage = 0.0f;
+	float ShieldDamage = 0.0f;
+};
+
+static void BroadcastDamageValues(AYogCharacterBase* TargetCharacter, const FDamageAbsorptionResult& Result)
+{
+	if (!TargetCharacter)
 	{
-		static const FGameplayTag InvulnerableTag =
-			FGameplayTag::RequestGameplayTag(TEXT("Buff.Invulnerable"), false);
-		return InvulnerableTag.IsValid() && ASC && ASC->HasMatchingGameplayTag(InvulnerableTag);
+		return;
 	}
 
-	UAbilitySystemComponent* GetTargetASC(const FGameplayEffectModCallbackData& Data)
+	if (Result.ArmorDamage > 0.0f)
 	{
-		return Data.Target.AbilityActorInfo.IsValid()
-			? Data.Target.AbilityActorInfo->AbilitySystemComponent.Get()
-			: nullptr;
+		TargetCharacter->OnCharacterDamageValue.Broadcast(Result.ArmorDamage, EYogDamageValueType::Armor);
 	}
 
-	UBaseAttributeSet* GetValidTargetBaseSet(
-		const FGameplayEffectModCallbackData& Data,
-		AYogCharacterBase* TargetCharacter,
-		const TCHAR* DamagePath)
+	const float RedDamage = Result.HealthDamage + Result.ShieldDamage;
+	if (RedDamage > 0.0f)
 	{
-		if (!TargetCharacter || !IsValid(TargetCharacter->BaseAttributeSet))
-		{
-			UE_LOG(LogTemp, Warning, TEXT("[DamageAttributeSet] %s skipped: Target=%s has no BaseAttributeSet."),
-				DamagePath,
-				*GetNameSafe(TargetCharacter));
-			return nullptr;
-		}
+		TargetCharacter->OnCharacterDamageValue.Broadcast(RedDamage, EYogDamageValueType::Health);
+	}
+}
 
-		UAbilitySystemComponent* TargetASC = GetTargetASC(Data);
-		if (TargetASC &&
-			(!TargetASC->HasAttributeSetForAttribute(UBaseAttributeSet::GetHealthAttribute()) ||
-			 !TargetASC->HasAttributeSetForAttribute(UBaseAttributeSet::GetMaxHealthAttribute())))
-		{
-			UE_LOG(LogTemp, Warning, TEXT("[DamageAttributeSet] %s skipped: Target=%s ASC is missing Health/MaxHealth attributes."),
-				DamagePath,
-				*GetNameSafe(TargetCharacter));
-			return nullptr;
-		}
-
-		return TargetCharacter->BaseAttributeSet;
+static void RemoveShieldGameplayEffects(UAbilitySystemComponent* ASC)
+{
+	if (!ASC)
+	{
+		return;
 	}
 
-	struct FDamageAbsorptionResult
+	FGameplayTagContainer ShieldStatusTags;
+	const FGameplayTag ShieldedTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Shield"), false);
+	if (ShieldedTag.IsValid())
 	{
-		float HealthDamage = 0.0f;
-		float ArmorDamage = 0.0f;
-		float ShieldDamage = 0.0f;
-	};
-
-	void BroadcastDamageValues(AYogCharacterBase* TargetCharacter, const FDamageAbsorptionResult& Result)
-	{
-		if (!TargetCharacter)
-		{
-			return;
-		}
-
-		if (Result.ArmorDamage > 0.0f)
-		{
-			TargetCharacter->OnCharacterDamageValue.Broadcast(Result.ArmorDamage, EYogDamageValueType::Armor);
-		}
-
-		const float RedDamage = Result.HealthDamage + Result.ShieldDamage;
-		if (RedDamage > 0.0f)
-		{
-			TargetCharacter->OnCharacterDamageValue.Broadcast(RedDamage, EYogDamageValueType::Health);
-		}
+		ShieldStatusTags.AddTag(ShieldedTag);
 	}
 
-	void RemoveShieldGameplayEffects(UAbilitySystemComponent* ASC)
+	if (!ShieldStatusTags.IsEmpty())
 	{
-		if (!ASC)
-		{
-			return;
-		}
-
-		FGameplayTagContainer ShieldStatusTags;
-		const FGameplayTag ShieldedTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Shield"), false);
-		if (ShieldedTag.IsValid())
-		{
-			ShieldStatusTags.AddTag(ShieldedTag);
-		}
-
-		if (!ShieldStatusTags.IsEmpty())
-		{
-			ASC->RemoveActiveEffectsWithGrantedTags(ShieldStatusTags);
-		}
-
-		FGameplayTagContainer ShieldEffectTags;
-		const FGameplayTag ShieldEffectTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Effect.Shield"), false);
-		if (ShieldEffectTag.IsValid())
-		{
-			ShieldEffectTags.AddTag(ShieldEffectTag);
-		}
-
-		if (!ShieldEffectTags.IsEmpty())
-		{
-			ASC->RemoveActiveEffectsWithTags(ShieldEffectTags);
-		}
+		ASC->RemoveActiveEffectsWithGrantedTags(ShieldStatusTags);
 	}
 
-	FDamageAbsorptionResult AbsorbDamageWithShieldAndArmor(
-		const FGameplayEffectModCallbackData& Data,
-		AYogCharacterBase* TargetCharacter,
-		float DamageAmount,
-		bool bAllowArmorAbsorption)
+	FGameplayTagContainer ShieldEffectTags;
+	const FGameplayTag ShieldEffectTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Effect.Shield"), false);
+	if (ShieldEffectTag.IsValid())
 	{
-		if (DamageAmount <= 0.f || !TargetCharacter || !TargetCharacter->BaseAttributeSet)
+		ShieldEffectTags.AddTag(ShieldEffectTag);
+	}
+
+	if (!ShieldEffectTags.IsEmpty())
+	{
+		ASC->RemoveActiveEffectsWithTags(ShieldEffectTags);
+	}
+}
+
+static FDamageAbsorptionResult AbsorbDamageWithShieldAndArmor(
+	const FGameplayEffectModCallbackData& Data,
+	AYogCharacterBase* TargetCharacter,
+	float DamageAmount,
+	bool bAllowArmorAbsorption)
+{
+	if (DamageAmount <= 0.f || !TargetCharacter || !TargetCharacter->BaseAttributeSet)
+	{
+		return { FMath::Max(0.0f, DamageAmount), 0.0f, 0.0f };
+	}
+
+	UAbilitySystemComponent* TargetASC = GetTargetASC(Data);
+	UBaseAttributeSet* BaseSet = TargetCharacter->BaseAttributeSet;
+
+	float RemainingDamage = DamageAmount;
+	float ArmorDamage = 0.0f;
+	float ShieldDamage = 0.0f;
+
+	const float CurrentShield = FMath::Max(0.f, BaseSet->GetShield());
+	if (CurrentShield > 0.f)
+	{
+		const float ShieldAbsorbed = FMath::Min(RemainingDamage, CurrentShield);
+		if (TargetASC)
 		{
-			return { FMath::Max(0.0f, DamageAmount), 0.0f, 0.0f };
+			// Drain by changing the base value so active Infinite/Additive shield GEs are consumed too.
+			TargetASC->ApplyModToAttributeUnsafe(
+				UBaseAttributeSet::GetShieldAttribute(),
+				EGameplayModOp::Additive,
+				-ShieldAbsorbed);
+		}
+		else
+		{
+			BaseSet->SetShield(FMath::Max(0.f, CurrentShield - ShieldAbsorbed));
 		}
 
-		UAbilitySystemComponent* TargetASC = GetTargetASC(Data);
-		UBaseAttributeSet* BaseSet = TargetCharacter->BaseAttributeSet;
+		RemainingDamage -= ShieldAbsorbed;
+		ShieldDamage += ShieldAbsorbed;
+		const float NewShield = TargetASC
+			? FMath::Max(0.f, TargetASC->GetNumericAttribute(UBaseAttributeSet::GetShieldAttribute()))
+			: FMath::Max(0.f, BaseSet->GetShield());
 
-		float RemainingDamage = DamageAmount;
-		float ArmorDamage = 0.0f;
-		float ShieldDamage = 0.0f;
+		UE_LOG(LogTemp, Warning, TEXT("[Shield] Absorb Target=%s Damage=%.1f Shield %.1f -> %.1f Remaining=%.1f"),
+			*GetNameSafe(TargetCharacter),
+			DamageAmount,
+			CurrentShield,
+			NewShield,
+			RemainingDamage);
 
-		const float CurrentShield = FMath::Max(0.f, BaseSet->GetShield());
-		if (CurrentShield > 0.f)
+		if (NewShield <= KINDA_SMALL_NUMBER)
 		{
-			const float ShieldAbsorbed = FMath::Min(RemainingDamage, CurrentShield);
+			RemoveShieldGameplayEffects(TargetASC);
 			if (TargetASC)
 			{
-				// Drain by changing the base value so active Infinite/Additive shield GEs are consumed too.
-				TargetASC->ApplyModToAttributeUnsafe(
-					UBaseAttributeSet::GetShieldAttribute(),
-					EGameplayModOp::Additive,
-					-ShieldAbsorbed);
+				TargetASC->SetNumericAttributeBase(UBaseAttributeSet::GetShieldAttribute(), 0.f);
 			}
 			else
 			{
-				BaseSet->SetShield(FMath::Max(0.f, CurrentShield - ShieldAbsorbed));
+				BaseSet->SetShield(0.f);
 			}
+		}
 
-			RemainingDamage -= ShieldAbsorbed;
-			ShieldDamage += ShieldAbsorbed;
-			const float NewShield = TargetASC
-				? FMath::Max(0.f, TargetASC->GetNumericAttribute(UBaseAttributeSet::GetShieldAttribute()))
-				: FMath::Max(0.f, BaseSet->GetShield());
+		if (RemainingDamage <= 0.f)
+		{
+			return { 0.0f, 0.0f, ShieldDamage };
+		}
+	}
 
-			UE_LOG(LogTemp, Warning, TEXT("[Shield] Absorb Target=%s Damage=%.1f Shield %.1f -> %.1f Remaining=%.1f"),
+	if (bAllowArmorAbsorption)
+	{
+		const float CurrentArmor = BaseSet->GetArmorHP();
+		if (CurrentArmor > 0.f)
+		{
+			const float ArmorAbsorbed = FMath::Min(RemainingDamage, CurrentArmor);
+			const float NewArmor = FMath::Max(0.f, CurrentArmor - ArmorAbsorbed);
+			if (TargetASC)
+			{
+				TargetASC->SetNumericAttributeBase(UBaseAttributeSet::GetArmorHPAttribute(), NewArmor);
+			}
+			else
+			{
+				BaseSet->SetArmorHP(NewArmor);
+			}
+			RemainingDamage -= ArmorAbsorbed;
+			ArmorDamage += ArmorAbsorbed;
+			UE_LOG(LogTemp, Warning, TEXT("[EnemyRune][Armor] Absorb Target=%s Damage=%.1f Armor %.1f -> %.1f HealthDamage=%.1f"),
 				*GetNameSafe(TargetCharacter),
 				DamageAmount,
-				CurrentShield,
-				NewShield,
+				CurrentArmor,
+				NewArmor,
 				RemainingDamage);
-
-			if (NewShield <= KINDA_SMALL_NUMBER)
-			{
-				RemoveShieldGameplayEffects(TargetASC);
-				if (TargetASC)
-				{
-					TargetASC->SetNumericAttributeBase(UBaseAttributeSet::GetShieldAttribute(), 0.f);
-				}
-				else
-				{
-					BaseSet->SetShield(0.f);
-				}
-			}
-
-			if (RemainingDamage <= 0.f)
-			{
-				return { 0.0f, 0.0f, ShieldDamage };
-			}
 		}
-
-		if (bAllowArmorAbsorption)
-		{
-			const float CurrentArmor = BaseSet->GetArmorHP();
-			if (CurrentArmor > 0.f)
-			{
-				const float ArmorAbsorbed = FMath::Min(RemainingDamage, CurrentArmor);
-				const float NewArmor = FMath::Max(0.f, CurrentArmor - ArmorAbsorbed);
-				if (TargetASC)
-				{
-					TargetASC->SetNumericAttributeBase(UBaseAttributeSet::GetArmorHPAttribute(), NewArmor);
-				}
-				else
-				{
-					BaseSet->SetArmorHP(NewArmor);
-				}
-				RemainingDamage -= ArmorAbsorbed;
-				ArmorDamage += ArmorAbsorbed;
-				UE_LOG(LogTemp, Warning, TEXT("[EnemyRune][Armor] Absorb Target=%s Damage=%.1f Armor %.1f -> %.1f HealthDamage=%.1f"),
-					*GetNameSafe(TargetCharacter),
-					DamageAmount,
-					CurrentArmor,
-					NewArmor,
-					RemainingDamage);
-			}
-		}
-
-		return { FMath::Max(0.f, RemainingDamage), ArmorDamage, ShieldDamage };
 	}
+
+	return { FMath::Max(0.f, RemainingDamage), ArmorDamage, ShieldDamage };
 }
 
 

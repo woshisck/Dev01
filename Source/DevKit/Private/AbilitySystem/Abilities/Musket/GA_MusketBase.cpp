@@ -14,12 +14,9 @@
 #include "AbilitySystemBlueprintLibrary.h"
 #include "Component/CombatDeckComponent.h"
 
-namespace
+static FGameplayTag MusketCueTag(const TCHAR* TagName)
 {
-	FGameplayTag MusketCueTag(const TCHAR* TagName)
-	{
-		return FGameplayTag::RequestGameplayTag(FName(TagName));
-	}
+	return FGameplayTag::RequestGameplayTag(FName(TagName));
 }
 
 UGA_MusketBase::UGA_MusketBase()

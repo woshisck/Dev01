@@ -22,29 +22,26 @@
 #include "NiagaraSystem.h"
 
 #if WITH_EDITORONLY_DATA
-namespace
+static bool FindEnemyHealthRapidParameter(
+	const UNiagaraScript* Script,
+	const FString& NameContains,
+	const FNiagaraVariableWithOffset*& OutParameter)
 {
-	bool FindEnemyHealthRapidParameter(
-		const UNiagaraScript* Script,
-		const FString& NameContains,
-		const FNiagaraVariableWithOffset*& OutParameter)
+	if (!Script)
 	{
-		if (!Script)
-		{
-			return false;
-		}
-
-		for (const FNiagaraVariableWithOffset& Parameter : Script->RapidIterationParameters.ReadParameterVariables())
-		{
-			if (Parameter.GetName().ToString().Contains(NameContains))
-			{
-				OutParameter = &Parameter;
-				return true;
-			}
-		}
-
 		return false;
 	}
+
+	for (const FNiagaraVariableWithOffset& Parameter : Script->RapidIterationParameters.ReadParameterVariables())
+	{
+		if (Parameter.GetName().ToString().Contains(NameContains))
+		{
+			OutParameter = &Parameter;
+			return true;
+		}
+	}
+
+	return false;
 }
 #endif
 

@@ -13,25 +13,23 @@
 #include "Story/StoryEngineSubsystem.h"
 #include "System/YogGameInstanceBase.h"
 
-namespace
-{
-constexpr const TCHAR* BurnRunePath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Burn.DA_Rune512_Burn");
-constexpr const TCHAR* KnockbackRunePath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Knockback.DA_Rune512_Knockback");
-constexpr const TCHAR* MoonlightRunePath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Moonlight_Forward.DA_Rune512_Moonlight_Forward");
-constexpr const TCHAR* MoonlightFallbackRunePath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Moonlight_Forward.DA_Rune512_Moonlight_Forward");
-constexpr const TCHAR* FinisherRunePath = TEXT("/Game/YogRuneEditor/Runes/DA_Rune_Finisher.DA_Rune_Finisher");
-constexpr const TCHAR* PrayerRoomDataPath = TEXT("/Game/Art/Map/Map_Data/L1_CommonLevel_PrayRoom/DA_PrayRoom.DA_PrayRoom");
+static constexpr const TCHAR* BurnRunePath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Burn.DA_Rune512_Burn");
+static constexpr const TCHAR* KnockbackRunePath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Knockback.DA_Rune512_Knockback");
+static constexpr const TCHAR* MoonlightRunePath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Moonlight_Forward.DA_Rune512_Moonlight_Forward");
+static constexpr const TCHAR* MoonlightFallbackRunePath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Moonlight_Forward.DA_Rune512_Moonlight_Forward");
+static constexpr const TCHAR* FinisherRunePath = TEXT("/Game/YogRuneEditor/Runes/DA_Rune_Finisher.DA_Rune_Finisher");
+static constexpr const TCHAR* PrayerRoomDataPath = TEXT("/Game/Art/Map/Map_Data/L1_CommonLevel_PrayRoom/DA_PrayRoom.DA_PrayRoom");
 
-constexpr const TCHAR* MaterialIconPath = TEXT("/Game/UI/Playtest_UI/UI_Tex/HUD/T_MaterialQuestionIcon.T_MaterialQuestionIcon");
-constexpr const TCHAR* MoonlightIconPath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/Icons/T_Rune512_THSword_Moonlight.T_Rune512_THSword_Moonlight");
+static constexpr const TCHAR* MaterialIconPath = TEXT("/Game/UI/Playtest_UI/UI_Tex/HUD/T_MaterialQuestionIcon.T_MaterialQuestionIcon");
+static constexpr const TCHAR* MoonlightIconPath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/Icons/T_Rune512_THSword_Moonlight.T_Rune512_THSword_Moonlight");
 
 template <typename T>
-T* LoadTutorialAsset(const TCHAR* Path)
+static T* LoadTutorialAsset(const TCHAR* Path)
 {
 	return LoadObject<T>(nullptr, Path);
 }
 
-FLootOption MakeRuneLootOption(const TCHAR* RunePath, const TCHAR* DisplayName, const TCHAR* IconPath)
+static FLootOption MakeRuneLootOption(const TCHAR* RunePath, const TCHAR* DisplayName, const TCHAR* IconPath)
 {
 	FLootOption Option;
 	Option.LootType = ELootType::Rune;
@@ -41,7 +39,7 @@ FLootOption MakeRuneLootOption(const TCHAR* RunePath, const TCHAR* DisplayName, 
 	return Option;
 }
 
-FLootOption MakeMoonlightLootOption()
+static FLootOption MakeMoonlightLootOption()
 {
 	FLootOption Option = MakeRuneLootOption(MoonlightRunePath, TEXT("Moonlight"), MoonlightIconPath);
 	if (!Option.RuneAsset)
@@ -56,7 +54,7 @@ FLootOption MakeMoonlightLootOption()
 	return Option;
 }
 
-FLootOption MakeMaterialLootOption(int32 Amount)
+static FLootOption MakeMaterialLootOption(int32 Amount)
 {
 	FLootOption Option;
 	Option.LootType = ELootType::Material;
@@ -67,18 +65,16 @@ FLootOption MakeMaterialLootOption(int32 Amount)
 	return Option;
 }
 
-bool CombatCardHasId(const FCombatCardConfig& Config, const TCHAR* TagName)
+static bool CombatCardHasId(const FCombatCardConfig& Config, const TCHAR* TagName)
 {
 	const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(TagName, false);
 	return Tag.IsValid() && Config.CardIdTag == Tag;
 }
 
-bool CombatCardHasEffect(const FCombatCardConfig& Config, const TCHAR* TagName)
+static bool CombatCardHasEffect(const FCombatCardConfig& Config, const TCHAR* TagName)
 {
 	const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(TagName, false);
 	return Tag.IsValid() && Config.CardEffectTags.HasTagExact(Tag);
-}
-
 }
 
 void UFirstRunTutorialDirectorSubsystem::SetStage(EFirstRunTutorialStage InStage)

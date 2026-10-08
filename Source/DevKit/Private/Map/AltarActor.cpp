@@ -12,22 +12,20 @@
 #include "TimerManager.h"
 #include "UObject/ConstructorHelpers.h"
 
-namespace
-{
-UYogUIManagerSubsystem* GetAltarUIManagerForPlayer(const APlayerCharacterBase* Player)
+static UYogUIManagerSubsystem* GetAltarUIManagerForPlayer(const APlayerCharacterBase* Player)
 {
 	const APlayerController* PC = Player ? Player->GetController<APlayerController>() : nullptr;
 	ULocalPlayer* LocalPlayer = PC ? PC->GetLocalPlayer() : nullptr;
 	return LocalPlayer ? LocalPlayer->GetSubsystem<UYogUIManagerSubsystem>() : nullptr;
 }
 
-APlayerCharacterBase* GetFirstLocalPlayerCharacter(const UWorld* World)
+static APlayerCharacterBase* GetFirstLocalPlayerCharacter(const UWorld* World)
 {
 	const APlayerController* PC = World ? World->GetFirstPlayerController() : nullptr;
 	return PC ? Cast<APlayerCharacterBase>(PC->GetPawn()) : nullptr;
 }
 
-bool IsPlayerWithinAltarFallbackRange(const UBoxComponent* Box, const APlayerCharacterBase* Player, float& OutDist2D)
+static bool IsPlayerWithinAltarFallbackRange(const UBoxComponent* Box, const APlayerCharacterBase* Player, float& OutDist2D)
 {
 	OutDist2D = TNumericLimits<float>::Max();
 	if (!Box || !Player)
@@ -45,7 +43,6 @@ bool IsPlayerWithinAltarFallbackRange(const UBoxComponent* Box, const APlayerCha
 	const bool bNearCenter = OutDist2D <= FMath::Max(Extent.X, Extent.Y) + 180.f
 		&& FMath::Abs(PlayerLocation.Z - BoxLocation.Z) <= Extent.Z + 240.f;
 	return bInsideExpandedBox || bNearCenter;
-}
 }
 
 AAltarActor::AAltarActor()

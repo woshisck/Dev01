@@ -506,12 +506,9 @@ void ULootSelectionWidget::FinishAndNotifyHUD()
 
 // 鼠标点击通过 CardToOptionIndex 映射到原始 Options 索引，
 // 与键盘/手柄确认路径一致 — 处理 Options 中含无效项被跳过时索引错位的情况
-namespace
+static int32 ResolveCardToOption(const TArray<int32>& Map, int32 CardIdx)
 {
-	int32 ResolveCardToOption(const TArray<int32>& Map, int32 CardIdx)
-	{
-		return Map.IsValidIndex(CardIdx) ? Map[CardIdx] : -1;
-	}
+	return Map.IsValidIndex(CardIdx) ? Map[CardIdx] : -1;
 }
 
 bool ULootSelectionWidget::ShouldUseFocusedCardForClick() const

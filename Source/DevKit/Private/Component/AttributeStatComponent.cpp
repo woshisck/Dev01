@@ -16,9 +16,7 @@ UAttributeStatComponent::UAttributeStatComponent()
 	// ...
 }
 
-namespace
-{
-UAbilitySystemComponent* GetOwnerAbilitySystemComponent(const UActorComponent* Component)
+static UAbilitySystemComponent* GetOwnerAbilitySystemComponent(const UActorComponent* Component)
 {
 	AActor* Owner = Component ? Component->GetOwner() : nullptr;
 	if (!IsValid(Owner))
@@ -29,7 +27,7 @@ UAbilitySystemComponent* GetOwnerAbilitySystemComponent(const UActorComponent* C
 	return UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Owner);
 }
 
-bool HasAttributeSet(const UActorComponent* Component, const UAbilitySystemComponent* ASC, const FGameplayAttribute& Attribute)
+static bool HasAttributeSet(const UActorComponent* Component, const UAbilitySystemComponent* ASC, const FGameplayAttribute& Attribute)
 {
 	if (!ASC)
 	{
@@ -47,7 +45,6 @@ bool HasAttributeSet(const UActorComponent* Component, const UAbilitySystemCompo
 	}
 
 	return true;
-}
 }
 
 

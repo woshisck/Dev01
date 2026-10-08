@@ -11,23 +11,20 @@
 #include "Data/RangedProjectileDefinition.h"
 #include "Projectile/YogBulletManagerSubsystem.h"
 
-namespace
+// Snapshot of the fire-time damage magnitude, mirroring the old GA_RangeAttack path.
+static float AN_FireProjectile_ComputeMagnitude(const URangedProjectileDefinition* Def, UAbilitySystemComponent* ASC)
 {
-	// Snapshot of the fire-time damage magnitude, mirroring the old GA_RangeAttack path.
-	float AN_FireProjectile_ComputeMagnitude(const URangedProjectileDefinition* Def, UAbilitySystemComponent* ASC)
+	if (!ASC)
 	{
-		if (!ASC)
-		{
-			return Def->BaseEffectMagnitude;
-		}
-
-		const float Attack      = ASC->GetNumericAttribute(UBaseAttributeSet::GetAttackAttribute());
-		const float AttackPower = ASC->GetNumericAttribute(UBaseAttributeSet::GetAttackPowerAttribute());
-
-		return Def->BaseEffectMagnitude
-			+ Attack      * Def->CreatorAttackMagnitudeScale
-			+ AttackPower * Def->CreatorAttackPowerMagnitudeScale;
+		return Def->BaseEffectMagnitude;
 	}
+
+	const float Attack      = ASC->GetNumericAttribute(UBaseAttributeSet::GetAttackAttribute());
+	const float AttackPower = ASC->GetNumericAttribute(UBaseAttributeSet::GetAttackPowerAttribute());
+
+	return Def->BaseEffectMagnitude
+		+ Attack      * Def->CreatorAttackMagnitudeScale
+		+ AttackPower * Def->CreatorAttackPowerMagnitudeScale;
 }
 
 UAN_FireProjectile::UAN_FireProjectile()

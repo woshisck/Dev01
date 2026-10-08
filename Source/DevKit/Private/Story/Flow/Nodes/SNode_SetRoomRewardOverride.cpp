@@ -5,14 +5,12 @@
 #include "Kismet/GameplayStatics.h"
 #include "System/YogGameInstanceBase.h"
 
-namespace
-{
-FString DescribeRewardOverrideNodeEnumValueForRewardDebug(const UEnum* Enum, int64 Value)
+static FString DescribeRewardOverrideNodeEnumValueForRewardDebug(const UEnum* Enum, int64 Value)
 {
 	return Enum ? Enum->GetNameStringByValue(Value) : FString::Printf(TEXT("%lld"), Value);
 }
 
-FString DescribeRewardOverrideNodeLootOptionsForRewardDebug(const TArray<FLootOption>& Options)
+static FString DescribeRewardOverrideNodeLootOptionsForRewardDebug(const TArray<FLootOption>& Options)
 {
 	if (Options.IsEmpty())
 	{
@@ -36,7 +34,6 @@ FString DescribeRewardOverrideNodeLootOptionsForRewardDebug(const TArray<FLootOp
 	}
 
 	return FString::Printf(TEXT("Count=%d [%s]"), Options.Num(), *FString::Join(Parts, TEXT("; ")));
-}
 }
 
 USNode_SetRoomRewardOverride::USNode_SetRoomRewardOverride(const FObjectInitializer& ObjectInitializer)

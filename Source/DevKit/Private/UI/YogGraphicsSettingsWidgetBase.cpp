@@ -14,9 +14,7 @@
 #include "Input/CommonUIInputTypes.h"
 #include "System/YogPerformanceSettingsLibrary.h"
 
-namespace
-{
-UTextBlock* MakeSettingsText(UWidgetTree* Tree, const FName Name, const FText& Text, int32 FontSize)
+static UTextBlock* MakeSettingsText(UWidgetTree* Tree, const FName Name, const FText& Text, int32 FontSize)
 {
 	UTextBlock* TextBlock = Tree ? Tree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), Name) : nullptr;
 	if (!TextBlock)
@@ -32,7 +30,7 @@ UTextBlock* MakeSettingsText(UWidgetTree* Tree, const FName Name, const FText& T
 	return TextBlock;
 }
 
-UButton* MakeSettingsButton(UWidgetTree* Tree, const FName Name, const FText& Label)
+static UButton* MakeSettingsButton(UWidgetTree* Tree, const FName Name, const FText& Label)
 {
 	UButton* Button = Tree ? Tree->ConstructWidget<UButton>(UButton::StaticClass(), Name) : nullptr;
 	if (!Button)
@@ -44,7 +42,7 @@ UButton* MakeSettingsButton(UWidgetTree* Tree, const FName Name, const FText& La
 	return Button;
 }
 
-void AddRow(UVerticalBox* Root, UWidget* Widget, const FMargin& Padding = FMargin(0.f, 0.f, 0.f, 10.f))
+static void AddRow(UVerticalBox* Root, UWidget* Widget, const FMargin& Padding = FMargin(0.f, 0.f, 0.f, 10.f))
 {
 	if (Root && Widget)
 	{
@@ -56,7 +54,7 @@ void AddRow(UVerticalBox* Root, UWidget* Widget, const FMargin& Padding = FMargi
 	}
 }
 
-void AddInline(UHorizontalBox* Row, UWidget* Widget)
+static void AddInline(UHorizontalBox* Row, UWidget* Widget)
 {
 	if (Row && Widget)
 	{
@@ -68,17 +66,17 @@ void AddInline(UHorizontalBox* Row, UWidget* Widget)
 	}
 }
 
-int32 ClampQuality(int32 Quality)
+static int32 ClampQuality(int32 Quality)
 {
 	return FMath::Clamp(Quality, 0, 3);
 }
 
-int32 RoundQuality(float Quality)
+static int32 RoundQuality(float Quality)
 {
 	return ClampQuality(FMath::RoundToInt(Quality));
 }
 
-FText QualityDisplayName(int32 Quality)
+static FText QualityDisplayName(int32 Quality)
 {
 	switch (ClampQuality(Quality))
 	{
@@ -94,7 +92,7 @@ FText QualityDisplayName(int32 Quality)
 	}
 }
 
-int32 LightInfoCountForMaterialLightQuality(int32 Quality)
+static int32 LightInfoCountForMaterialLightQuality(int32 Quality)
 {
 	switch (ClampQuality(Quality))
 	{
@@ -110,7 +108,7 @@ int32 LightInfoCountForMaterialLightQuality(int32 Quality)
 	}
 }
 
-void ConfigureQualitySlider(USlider* Slider)
+static void ConfigureQualitySlider(USlider* Slider)
 {
 	if (!Slider)
 	{
@@ -122,14 +120,13 @@ void ConfigureQualitySlider(USlider* Slider)
 	Slider->SetStepSize(1.f / 3.f);
 }
 
-FText FormatQualityText(const FText& Label, int32 Quality)
+static FText FormatQualityText(const FText& Label, int32 Quality)
 {
 	return FText::Format(
 		NSLOCTEXT("DevKitGraphicsSettings", "QualityLabel", "{0}: {1} ({2})"),
 		Label,
 		QualityDisplayName(Quality),
 		FText::AsNumber(ClampQuality(Quality)));
-}
 }
 
 TArray<FName> UYogGraphicsSettingsWidgetBase::GetRequiredDesignerWidgetNames()

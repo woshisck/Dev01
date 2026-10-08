@@ -5,44 +5,41 @@
 #include "Data/CombatVFXCascade.h"
 #include "GameplayTagContainer.h"
 
-namespace
+struct FCascadeTestRow
 {
-	struct FCascadeTestRow
-	{
-		FCombatVFXMatchRule Rule;
-		int32 Payload = 0;
-	};
+	FCombatVFXMatchRule Rule;
+	int32 Payload = 0;
+};
 
-	const FCombatVFXMatchRule& CombatVFXCascadeTests_GetRule(const FCascadeTestRow& Row)
-	{
-		return Row.Rule;
-	}
+static const FCombatVFXMatchRule& CombatVFXCascadeTests_GetRule(const FCascadeTestRow& Row)
+{
+	return Row.Rule;
+}
 
-	FCombatVFXCascadeResult CombatVFXCascadeTests_Resolve(
-		const TArray<FCascadeTestRow>& Rows,
-		const FGameplayTagContainer& ContextTags,
-		int32 MaxAdditiveLayers = CombatVFXCascade::DefaultMaxAdditiveLayers)
-	{
-		return CombatVFXCascade::Resolve(Rows, &CombatVFXCascadeTests_GetRule, ContextTags, MaxAdditiveLayers);
-	}
+static FCombatVFXCascadeResult CombatVFXCascadeTests_Resolve(
+	const TArray<FCascadeTestRow>& Rows,
+	const FGameplayTagContainer& ContextTags,
+	int32 MaxAdditiveLayers = CombatVFXCascade::DefaultMaxAdditiveLayers)
+{
+	return CombatVFXCascade::Resolve(Rows, &CombatVFXCascadeTests_GetRule, ContextTags, MaxAdditiveLayers);
+}
 
-	FGameplayTag CombatVFXCascadeTests_Tag(const TCHAR* TagName)
-	{
-		return FGameplayTag::RequestGameplayTag(FName(TagName), /*ErrorIfNotFound=*/false);
-	}
+static FGameplayTag CombatVFXCascadeTests_Tag(const TCHAR* TagName)
+{
+	return FGameplayTag::RequestGameplayTag(FName(TagName), /*ErrorIfNotFound=*/false);
+}
 
-	FCascadeTestRow CombatVFXCascadeTests_MakeRow(const FGameplayTag& MatchTag, int32 Priority, bool bIsAdditive, int32 Payload)
+static FCascadeTestRow CombatVFXCascadeTests_MakeRow(const FGameplayTag& MatchTag, int32 Priority, bool bIsAdditive, int32 Payload)
+{
+	FCascadeTestRow Row;
+	if (MatchTag.IsValid())
 	{
-		FCascadeTestRow Row;
-		if (MatchTag.IsValid())
-		{
-			Row.Rule.MatchTags.AddTag(MatchTag);
-		}
-		Row.Rule.Priority = Priority;
-		Row.Rule.bIsAdditive = bIsAdditive;
-		Row.Payload = Payload;
-		return Row;
+		Row.Rule.MatchTags.AddTag(MatchTag);
 	}
+	Row.Rule.Priority = Priority;
+	Row.Rule.bIsAdditive = bIsAdditive;
+	Row.Payload = Payload;
+	return Row;
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatVFXCascadeBasePriorityTest,

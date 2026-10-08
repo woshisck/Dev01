@@ -20,223 +20,220 @@
 
 // ─── 内部辅助 ─────────────────────────────────────────────────────────────────
 
-namespace
+static const TCHAR* GYogMoonlightLinkCardPaths[] = {
+	TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Moonlight_Forward.DA_Rune512_Moonlight_Forward"),
+	TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Moonlight_Reversed.DA_Rune512_Moonlight_Reversed"),
+	TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Burn.DA_Rune512_Burn"),
+	TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Poison.DA_Rune512_Poison"),
+	TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Shield.DA_Rune512_Shield"),
+	TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Pierce.DA_Rune512_Pierce"),
+	TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Attack.DA_Rune512_Attack"),
+	TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_ReduceDamage.DA_Rune512_ReduceDamage"),
+	TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Splash.DA_Rune512_Splash"),
+	TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Split.DA_Rune512_Split"),
+};
+
+static APlayerCharacterBase* FindCheatPlayer(UWorld* World)
 {
-	const TCHAR* GYogMoonlightLinkCardPaths[] = {
-		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Moonlight_Forward.DA_Rune512_Moonlight_Forward"),
-		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Moonlight_Reversed.DA_Rune512_Moonlight_Reversed"),
-		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Burn.DA_Rune512_Burn"),
-		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Poison.DA_Rune512_Poison"),
-		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Shield.DA_Rune512_Shield"),
-		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Pierce.DA_Rune512_Pierce"),
-		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Attack.DA_Rune512_Attack"),
-		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_ReduceDamage.DA_Rune512_ReduceDamage"),
-		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Splash.DA_Rune512_Splash"),
-		TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Split.DA_Rune512_Split"),
-	};
+	APlayerController* PC = World ? World->GetFirstPlayerController() : nullptr;
+	return PC ? Cast<APlayerCharacterBase>(PC->GetPawn()) : nullptr;
+}
 
-	APlayerCharacterBase* FindCheatPlayer(UWorld* World)
+static void GiveMoonlightLinkCardsToWorld(UWorld* World)
+{
+	APlayerCharacterBase* Char = FindCheatPlayer(World);
+	UCombatDeckComponent* CombatDeck = Char ? Char->CombatDeckComponent : nullptr;
+	if (!CombatDeck)
 	{
-		APlayerController* PC = World ? World->GetFirstPlayerController() : nullptr;
-		return PC ? Cast<APlayerCharacterBase>(PC->GetPawn()) : nullptr;
-	}
-
-	void GiveMoonlightLinkCardsToWorld(UWorld* World)
-	{
-		APlayerCharacterBase* Char = FindCheatPlayer(World);
-		UCombatDeckComponent* CombatDeck = Char ? Char->CombatDeckComponent : nullptr;
-		if (!CombatDeck)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("[GM] Yog_GiveMoonlightLinkCards: CombatDeckComponent not found."));
-			if (GEngine)
-			{
-				GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("[GM] Moonlight cards failed: no combat deck."));
-			}
-			return;
-		}
-
-		int32 AddedCount = 0;
-		TArray<FString> MissingCards;
-		for (const TCHAR* CardPath : GYogMoonlightLinkCardPaths)
-		{
-			URuneDataAsset* RuneAsset = LoadObject<URuneDataAsset>(nullptr, CardPath);
-			if (!RuneAsset)
-			{
-				MissingCards.Add(CardPath);
-				UE_LOG(LogTemp, Warning, TEXT("[GM] Yog_GiveMoonlightLinkCards: failed to load %s"), CardPath);
-				continue;
-			}
-
-			if (CombatDeck->AddCardFromRuneReward(RuneAsset))
-			{
-				++AddedCount;
-			}
-			else
-			{
-				MissingCards.Add(CardPath);
-				UE_LOG(LogTemp, Warning, TEXT("[GM] Yog_GiveMoonlightLinkCards: failed to add %s"), CardPath);
-			}
-		}
-
-		CombatDeck->RefreshDeckView();
-
-		const FString Message = FString::Printf(
-			TEXT("[GM] Moonlight link cards added: %d/%d"),
-			AddedCount,
-			UE_ARRAY_COUNT(GYogMoonlightLinkCardPaths));
-		UE_LOG(LogTemp, Log, TEXT("%s"), *Message);
-		if (!MissingCards.IsEmpty())
-		{
-			UE_LOG(LogTemp, Warning, TEXT("[GM] Missing moonlight cards: %s"), *FString::Join(MissingCards, TEXT(", ")));
-		}
+		UE_LOG(LogTemp, Warning, TEXT("[GM] Yog_GiveMoonlightLinkCards: CombatDeckComponent not found."));
 		if (GEngine)
 		{
-			GEngine->AddOnScreenDebugMessage(
-				-1,
-				6.f,
-				MissingCards.IsEmpty() ? FColor::Green : FColor::Yellow,
-				Message);
+			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("[GM] Moonlight cards failed: no combat deck."));
+		}
+		return;
+	}
+
+	int32 AddedCount = 0;
+	TArray<FString> MissingCards;
+	for (const TCHAR* CardPath : GYogMoonlightLinkCardPaths)
+	{
+		URuneDataAsset* RuneAsset = LoadObject<URuneDataAsset>(nullptr, CardPath);
+		if (!RuneAsset)
+		{
+			MissingCards.Add(CardPath);
+			UE_LOG(LogTemp, Warning, TEXT("[GM] Yog_GiveMoonlightLinkCards: failed to load %s"), CardPath);
+			continue;
+		}
+
+		if (CombatDeck->AddCardFromRuneReward(RuneAsset))
+		{
+			++AddedCount;
+		}
+		else
+		{
+			MissingCards.Add(CardPath);
+			UE_LOG(LogTemp, Warning, TEXT("[GM] Yog_GiveMoonlightLinkCards: failed to add %s"), CardPath);
 		}
 	}
 
-	void SetLevelEndedForWorld(UWorld* World)
+	CombatDeck->RefreshDeckView();
+
+	const FString Message = FString::Printf(
+		TEXT("[GM] Moonlight link cards added: %d/%d"),
+		AddedCount,
+		UE_ARRAY_COUNT(GYogMoonlightLinkCardPaths));
+	UE_LOG(LogTemp, Log, TEXT("%s"), *Message);
+	if (!MissingCards.IsEmpty())
 	{
-		AYogGameMode* GameMode = World ? World->GetAuthGameMode<AYogGameMode>() : nullptr;
-		if (!GameMode)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("[GM] Yog_SetLevelEnded: GameMode not found."));
-			if (GEngine)
-			{
-				GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("[GM] Level end failed: no GameMode."));
-			}
-			return;
-		}
+		UE_LOG(LogTemp, Warning, TEXT("[GM] Missing moonlight cards: %s"), *FString::Join(MissingCards, TEXT(", ")));
+	}
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(
+			-1,
+			6.f,
+			MissingCards.IsEmpty() ? FColor::Green : FColor::Yellow,
+			Message);
+	}
+}
 
-		if (GameMode->CurrentPhase != ELevelPhase::Arrangement)
-		{
-			GameMode->CurrentPhase = ELevelPhase::Combat;
-			GameMode->EnterArrangementPhase();
-		}
-
-		APlayerCharacterBase* Char = FindCheatPlayer(World);
-		if (UBackpackGridComponent* Backpack = Char ? Char->GetBackpackGridComponent() : nullptr)
-		{
-			Backpack->SetLocked(false);
-		}
-
-		const FString Message = TEXT("[GM] Level set to ended / Arrangement phase.");
-		UE_LOG(LogTemp, Log, TEXT("%s"), *Message);
+static void SetLevelEndedForWorld(UWorld* World)
+{
+	AYogGameMode* GameMode = World ? World->GetAuthGameMode<AYogGameMode>() : nullptr;
+	if (!GameMode)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GM] Yog_SetLevelEnded: GameMode not found."));
 		if (GEngine)
 		{
-			GEngine->AddOnScreenDebugMessage(-1, 6.f, FColor::Green, Message);
+			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("[GM] Level end failed: no GameMode."));
 		}
+		return;
 	}
 
-	APlayerController* FindRuntimeGMPlayerControllerInWorld(UWorld* World)
+	if (GameMode->CurrentPhase != ELevelPhase::Arrangement)
 	{
-		if (!World)
-		{
-			return nullptr;
-		}
-
-		return World->GetFirstPlayerController();
+		GameMode->CurrentPhase = ELevelPhase::Combat;
+		GameMode->EnterArrangementPhase();
 	}
 
-	bool IsRuntimeGMPlayableWorld(const UWorld* World)
+	APlayerCharacterBase* Char = FindCheatPlayer(World);
+	if (UBackpackGridComponent* Backpack = Char ? Char->GetBackpackGridComponent() : nullptr)
 	{
-		return World
-			&& (World->WorldType == EWorldType::PIE
-				|| World->WorldType == EWorldType::Game
-				|| World->WorldType == EWorldType::GamePreview);
+		Backpack->SetLocked(false);
 	}
 
-	APlayerController* FindRuntimeGMPlayerController(UWorld* PreferredWorld)
+	const FString Message = TEXT("[GM] Level set to ended / Arrangement phase.");
+	UE_LOG(LogTemp, Log, TEXT("%s"), *Message);
+	if (GEngine)
 	{
-		if (IsRuntimeGMPlayableWorld(PreferredWorld))
-		{
-			if (APlayerController* PC = FindRuntimeGMPlayerControllerInWorld(PreferredWorld))
-			{
-				return PC;
-			}
-		}
+		GEngine->AddOnScreenDebugMessage(-1, 6.f, FColor::Green, Message);
+	}
+}
 
-		if (!GEngine)
-		{
-			return nullptr;
-		}
-
-		for (const FWorldContext& WorldContext : GEngine->GetWorldContexts())
-		{
-			UWorld* CandidateWorld = WorldContext.World();
-			if (CandidateWorld == PreferredWorld || !IsRuntimeGMPlayableWorld(CandidateWorld))
-			{
-				continue;
-			}
-
-			if (APlayerController* PC = FindRuntimeGMPlayerControllerInWorld(CandidateWorld))
-			{
-				return PC;
-			}
-		}
-
+static APlayerController* FindRuntimeGMPlayerControllerInWorld(UWorld* World)
+{
+	if (!World)
+	{
 		return nullptr;
 	}
 
-	void ToggleRuntimeGMPanelForWorld(UWorld* World)
-	{
-#if !UE_BUILD_SHIPPING
-		APlayerController* PC = FindRuntimeGMPlayerController(World);
-		UGameInstance* GameInstance = PC ? PC->GetGameInstance() : nullptr;
-		UYogRuntimeGMSubsystem* RuntimeGM = GameInstance ? GameInstance->GetSubsystem<UYogRuntimeGMSubsystem>() : nullptr;
-		if (!PC || !RuntimeGM)
-		{
-			UE_LOG(LogTemp, Warning,
-				TEXT("[RuntimeGM] Yog.GM failed: PlayerController or RuntimeGM subsystem not found. CommandWorld=%s WorldType=%d"),
-				*GetNameSafe(World),
-				World ? static_cast<int32>(World->WorldType) : -1);
-			if (GEngine)
-			{
-				GEngine->AddOnScreenDebugMessage(-1, 4.f, FColor::Red, TEXT("[RuntimeGM] Yog.GM failed: no playable world."));
-			}
-			return;
-		}
+	return World->GetFirstPlayerController();
+}
 
-		RuntimeGM->ToggleGMPanel(PC);
-#endif
+static bool IsRuntimeGMPlayableWorld(const UWorld* World)
+{
+	return World
+		&& (World->WorldType == EWorldType::PIE
+			|| World->WorldType == EWorldType::Game
+			|| World->WorldType == EWorldType::GamePreview);
+}
+
+static APlayerController* FindRuntimeGMPlayerController(UWorld* PreferredWorld)
+{
+	if (IsRuntimeGMPlayableWorld(PreferredWorld))
+	{
+		if (APlayerController* PC = FindRuntimeGMPlayerControllerInWorld(PreferredWorld))
+		{
+			return PC;
+		}
 	}
 
-	FAutoConsoleCommandWithWorld GGiveMoonlightLinkCardsCommand(
-		TEXT("Yog_GiveMoonlightLinkCards"),
-		TEXT("Adds Moonlight link test cards directly to the current player's combat deck."),
-		FConsoleCommandWithWorldDelegate::CreateStatic(&GiveMoonlightLinkCardsToWorld));
+	if (!GEngine)
+	{
+		return nullptr;
+	}
 
-	FAutoConsoleCommandWithWorld GGiveMoonlightLinkCardsAliasCommand(
-		TEXT("Yog.GiveMoonlightLinkCards"),
-		TEXT("Adds Moonlight link test cards directly to the current player's combat deck."),
-		FConsoleCommandWithWorldDelegate::CreateStatic(&GiveMoonlightLinkCardsToWorld));
+	for (const FWorldContext& WorldContext : GEngine->GetWorldContexts())
+	{
+		UWorld* CandidateWorld = WorldContext.World();
+		if (CandidateWorld == PreferredWorld || !IsRuntimeGMPlayableWorld(CandidateWorld))
+		{
+			continue;
+		}
 
-	FAutoConsoleCommandWithWorld GSetLevelEndedCommand(
-		TEXT("Yog_SetLevelEnded"),
-		TEXT("Forces the current level into ended / Arrangement phase for card and backpack testing."),
-		FConsoleCommandWithWorldDelegate::CreateStatic(&SetLevelEndedForWorld));
+		if (APlayerController* PC = FindRuntimeGMPlayerControllerInWorld(CandidateWorld))
+		{
+			return PC;
+		}
+	}
 
-	FAutoConsoleCommandWithWorld GSetLevelEndedAliasCommand(
-		TEXT("Yog.SetLevelEnded"),
-		TEXT("Forces the current level into ended / Arrangement phase for card and backpack testing."),
-		FConsoleCommandWithWorldDelegate::CreateStatic(&SetLevelEndedForWorld));
+	return nullptr;
+}
 
+static void ToggleRuntimeGMPanelForWorld(UWorld* World)
+{
 #if !UE_BUILD_SHIPPING
-	FAutoConsoleCommandWithWorld GToggleRuntimeGMPanelCommand(
-		TEXT("Yog.GM"),
-		TEXT("Toggles the Runtime GM panel for the current PIE, Standalone, or Development game world."),
-		FConsoleCommandWithWorldDelegate::CreateStatic(&ToggleRuntimeGMPanelForWorld));
+	APlayerController* PC = FindRuntimeGMPlayerController(World);
+	UGameInstance* GameInstance = PC ? PC->GetGameInstance() : nullptr;
+	UYogRuntimeGMSubsystem* RuntimeGM = GameInstance ? GameInstance->GetSubsystem<UYogRuntimeGMSubsystem>() : nullptr;
+	if (!PC || !RuntimeGM)
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("[RuntimeGM] Yog.GM failed: PlayerController or RuntimeGM subsystem not found. CommandWorld=%s WorldType=%d"),
+			*GetNameSafe(World),
+			World ? static_cast<int32>(World->WorldType) : -1);
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(-1, 4.f, FColor::Red, TEXT("[RuntimeGM] Yog.GM failed: no playable world."));
+		}
+		return;
+	}
 
-	FAutoConsoleCommandWithWorld GToggleRuntimeGMPanelAliasCommand(
-		TEXT("Yog.GM.Toggle"),
-		TEXT("Alias for Yog.GM. Toggles the Runtime GM panel for the current game world."),
-		FConsoleCommandWithWorldDelegate::CreateStatic(&ToggleRuntimeGMPanelForWorld));
+	RuntimeGM->ToggleGMPanel(PC);
 #endif
 }
+
+static FAutoConsoleCommandWithWorld GGiveMoonlightLinkCardsCommand(
+	TEXT("Yog_GiveMoonlightLinkCards"),
+	TEXT("Adds Moonlight link test cards directly to the current player's combat deck."),
+	FConsoleCommandWithWorldDelegate::CreateStatic(&GiveMoonlightLinkCardsToWorld));
+
+static FAutoConsoleCommandWithWorld GGiveMoonlightLinkCardsAliasCommand(
+	TEXT("Yog.GiveMoonlightLinkCards"),
+	TEXT("Adds Moonlight link test cards directly to the current player's combat deck."),
+	FConsoleCommandWithWorldDelegate::CreateStatic(&GiveMoonlightLinkCardsToWorld));
+
+static FAutoConsoleCommandWithWorld GSetLevelEndedCommand(
+	TEXT("Yog_SetLevelEnded"),
+	TEXT("Forces the current level into ended / Arrangement phase for card and backpack testing."),
+	FConsoleCommandWithWorldDelegate::CreateStatic(&SetLevelEndedForWorld));
+
+static FAutoConsoleCommandWithWorld GSetLevelEndedAliasCommand(
+	TEXT("Yog.SetLevelEnded"),
+	TEXT("Forces the current level into ended / Arrangement phase for card and backpack testing."),
+	FConsoleCommandWithWorldDelegate::CreateStatic(&SetLevelEndedForWorld));
+
+#if !UE_BUILD_SHIPPING
+static FAutoConsoleCommandWithWorld GToggleRuntimeGMPanelCommand(
+	TEXT("Yog.GM"),
+	TEXT("Toggles the Runtime GM panel for the current PIE, Standalone, or Development game world."),
+	FConsoleCommandWithWorldDelegate::CreateStatic(&ToggleRuntimeGMPanelForWorld));
+
+static FAutoConsoleCommandWithWorld GToggleRuntimeGMPanelAliasCommand(
+	TEXT("Yog.GM.Toggle"),
+	TEXT("Alias for Yog.GM. Toggles the Runtime GM panel for the current game world."),
+	FConsoleCommandWithWorldDelegate::CreateStatic(&ToggleRuntimeGMPanelForWorld));
+#endif
 
 APlayerCharacterBase* UYogCheatManager::GetPlayerChar() const
 {

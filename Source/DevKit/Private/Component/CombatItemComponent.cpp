@@ -4,35 +4,32 @@
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "GameplayEffect.h"
 
-namespace
+static FGameplayTag CombatItem_TagNoHitReactDamage()
 {
-	FGameplayTag CombatItem_TagNoHitReactDamage()
+	return FGameplayTag::RequestGameplayTag(TEXT("Item.Damage.NoHitReact"), false);
+}
+
+static bool CombatItem_SpecHasTag(const FGameplayEffectSpec& Spec, const FGameplayTag& Tag)
+{
+	if (!Tag.IsValid())
 	{
-		return FGameplayTag::RequestGameplayTag(TEXT("Item.Damage.NoHitReact"), false);
+		return false;
 	}
 
-	bool CombatItem_SpecHasTag(const FGameplayEffectSpec& Spec, const FGameplayTag& Tag)
+	if (Spec.GetDynamicAssetTags().HasTag(Tag))
 	{
-		if (!Tag.IsValid())
-		{
-			return false;
-		}
+		return true;
+	}
 
-		if (Spec.GetDynamicAssetTags().HasTag(Tag))
+	if (Spec.Def)
+	{
+		if (Spec.Def->GetAssetTags().HasTag(Tag) || Spec.Def->GetGrantedTags().HasTag(Tag))
 		{
 			return true;
 		}
-
-		if (Spec.Def)
-		{
-			if (Spec.Def->GetAssetTags().HasTag(Tag) || Spec.Def->GetGrantedTags().HasTag(Tag))
-			{
-				return true;
-			}
-		}
-
-		return false;
 	}
+
+	return false;
 }
 
 UCombatItemComponent::UCombatItemComponent()

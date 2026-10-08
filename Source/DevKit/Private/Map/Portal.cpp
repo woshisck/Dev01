@@ -16,100 +16,97 @@
 #include "Data/RuneDataAsset.h"
 #include "UI/YogHUD.h"
 
-namespace
+static FText GetPortalRewardTypeDisplayName(ELootType LootType)
 {
-	FText GetPortalRewardTypeDisplayName(ELootType LootType)
+	switch (LootType)
 	{
-		switch (LootType)
-		{
-		case ELootType::Gold:
-			return NSLOCTEXT("Portal", "PreviewRewardGold", "金币");
-		case ELootType::Rune:
-			return NSLOCTEXT("Portal", "PreviewRewardCard", "卡牌");
-		case ELootType::Material:
-		default:
-			return NSLOCTEXT("Portal", "PreviewRewardMaterial", "材料");
-		}
+	case ELootType::Gold:
+		return NSLOCTEXT("Portal", "PreviewRewardGold", "金币");
+	case ELootType::Rune:
+		return NSLOCTEXT("Portal", "PreviewRewardCard", "卡牌");
+	case ELootType::Material:
+	default:
+		return NSLOCTEXT("Portal", "PreviewRewardMaterial", "材料");
+	}
+}
+
+static FLootOption MakePortalRewardTypePreviewOption(ELootType LootType)
+{
+	FLootOption Option;
+	Option.LootType = LootType;
+	Option.DisplayName = GetPortalRewardTypeDisplayName(LootType);
+	return Option;
+}
+
+static FString DescribePortalEnumValueForRewardDebug(const UEnum* Enum, int64 Value)
+{
+	return Enum ? Enum->GetNameStringByValue(Value) : FString::Printf(TEXT("%lld"), Value);
+}
+
+static FString DescribePortalLootOptionsForRewardDebug(const TArray<FLootOption>& Options)
+{
+	if (Options.IsEmpty())
+	{
+		return TEXT("Count=0 []");
 	}
 
-	FLootOption MakePortalRewardTypePreviewOption(ELootType LootType)
+	TArray<FString> Parts;
+	Parts.Reserve(Options.Num());
+	for (int32 Index = 0; Index < Options.Num(); ++Index)
 	{
-		FLootOption Option;
-		Option.LootType = LootType;
-		Option.DisplayName = GetPortalRewardTypeDisplayName(LootType);
-		return Option;
+		const FLootOption& Option = Options[Index];
+		Parts.Add(FString::Printf(
+			TEXT("#%d{Type=%s,Amount=%d,Display=%s,Rune=%s,Icon=%s,Meta=%s}"),
+			Index,
+			*DescribePortalEnumValueForRewardDebug(StaticEnum<ELootType>(), static_cast<int64>(Option.LootType)),
+			Option.Amount,
+			*Option.DisplayName.ToString(),
+			*GetNameSafe(Option.RuneAsset.Get()),
+			*GetNameSafe(Option.Icon.Get()),
+			*Option.MetaCurrencyTag.ToString()));
 	}
 
-	FString DescribePortalEnumValueForRewardDebug(const UEnum* Enum, int64 Value)
+	return FString::Printf(TEXT("Count=%d [%s]"), Options.Num(), *FString::Join(Parts, TEXT("; ")));
+}
+
+static void AddPortalRewardTypePreviewOption(
+	TArray<FLootOption>& OutOptions,
+	TSet<ELootType>& AddedTypes,
+	ELootType LootType)
+{
+	if (AddedTypes.Contains(LootType))
 	{
-		return Enum ? Enum->GetNameStringByValue(Value) : FString::Printf(TEXT("%lld"), Value);
+		return;
 	}
 
-	FString DescribePortalLootOptionsForRewardDebug(const TArray<FLootOption>& Options)
+	AddedTypes.Add(LootType);
+	OutOptions.Add(MakePortalRewardTypePreviewOption(LootType));
+}
+
+static TArray<FLootOption> BuildPortalRewardPreviewOptions(const URoomDataAsset* Room)
+{
+	TArray<FLootOption> PreviewOptions;
+	if (!Room)
 	{
-		if (Options.IsEmpty())
-		{
-			return TEXT("Count=0 []");
-		}
-
-		TArray<FString> Parts;
-		Parts.Reserve(Options.Num());
-		for (int32 Index = 0; Index < Options.Num(); ++Index)
-		{
-			const FLootOption& Option = Options[Index];
-			Parts.Add(FString::Printf(
-				TEXT("#%d{Type=%s,Amount=%d,Display=%s,Rune=%s,Icon=%s,Meta=%s}"),
-				Index,
-				*DescribePortalEnumValueForRewardDebug(StaticEnum<ELootType>(), static_cast<int64>(Option.LootType)),
-				Option.Amount,
-				*Option.DisplayName.ToString(),
-				*GetNameSafe(Option.RuneAsset.Get()),
-				*GetNameSafe(Option.Icon.Get()),
-				*Option.MetaCurrencyTag.ToString()));
-		}
-
-		return FString::Printf(TEXT("Count=%d [%s]"), Options.Num(), *FString::Join(Parts, TEXT("; ")));
-	}
-
-	void AddPortalRewardTypePreviewOption(
-		TArray<FLootOption>& OutOptions,
-		TSet<ELootType>& AddedTypes,
-		ELootType LootType)
-	{
-		if (AddedTypes.Contains(LootType))
-		{
-			return;
-		}
-
-		AddedTypes.Add(LootType);
-		OutOptions.Add(MakePortalRewardTypePreviewOption(LootType));
-	}
-
-	TArray<FLootOption> BuildPortalRewardPreviewOptions(const URoomDataAsset* Room)
-	{
-		TArray<FLootOption> PreviewOptions;
-		if (!Room)
-		{
-			return PreviewOptions;
-		}
-
-		TSet<ELootType> AddedTypes;
-		if (Room->bUseFixedRewardOptions && !Room->FixedRewardOptions.IsEmpty())
-		{
-			for (const FLootOption& FixedOption : Room->FixedRewardOptions)
-			{
-				AddPortalRewardTypePreviewOption(PreviewOptions, AddedTypes, FixedOption.LootType);
-			}
-			return PreviewOptions;
-		}
-
-		if (!Room->LootPool.IsEmpty())
-		{
-			AddPortalRewardTypePreviewOption(PreviewOptions, AddedTypes, ELootType::Rune);
-		}
-
 		return PreviewOptions;
 	}
+
+	TSet<ELootType> AddedTypes;
+	if (Room->bUseFixedRewardOptions && !Room->FixedRewardOptions.IsEmpty())
+	{
+		for (const FLootOption& FixedOption : Room->FixedRewardOptions)
+		{
+			AddPortalRewardTypePreviewOption(PreviewOptions, AddedTypes, FixedOption.LootType);
+		}
+		return PreviewOptions;
+	}
+
+	if (!Room->LootPool.IsEmpty())
+	{
+		AddPortalRewardTypePreviewOption(PreviewOptions, AddedTypes, ELootType::Rune);
+	}
+
+	return PreviewOptions;
 }
 
 APortal::APortal(const FObjectInitializer& ObjectInitializer)

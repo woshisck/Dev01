@@ -3,37 +3,34 @@
 #include "Misc/AutomationTest.h"
 #include "UI/CombatLogStatics.h"
 
-namespace
+static FString JoinCombatLogSegments(const TArray<FCombatLogTextSegment>& Segments)
 {
-	FString JoinCombatLogSegments(const TArray<FCombatLogTextSegment>& Segments)
+	FString Result;
+	for (const FCombatLogTextSegment& Segment : Segments)
 	{
-		FString Result;
-		for (const FCombatLogTextSegment& Segment : Segments)
-		{
-			Result += Segment.Text;
-		}
-		return Result;
+		Result += Segment.Text;
 	}
+	return Result;
+}
 
-	FDamageBreakdown MakeCombatLogEntry(
-		const FName DamageType,
-		const FString& SourceName,
-		const FString& TargetName,
-		const float GameTime,
-		const float FinalDamage)
-	{
-		FDamageBreakdown Entry;
-		Entry.DamageType = DamageType;
-		Entry.SourceName = SourceName;
-		Entry.TargetName = TargetName;
-		Entry.GameTime = GameTime;
-		Entry.FinalDamage = FinalDamage;
-		Entry.ActionName = FName(TEXT("轻击1"));
-		Entry.BaseAttack = 45.f;
-		Entry.ActionMultiplier = 1.8f;
-		Entry.DmgTakenMult = 1.f;
-		return Entry;
-	}
+static FDamageBreakdown MakeCombatLogEntry(
+	const FName DamageType,
+	const FString& SourceName,
+	const FString& TargetName,
+	const float GameTime,
+	const float FinalDamage)
+{
+	FDamageBreakdown Entry;
+	Entry.DamageType = DamageType;
+	Entry.SourceName = SourceName;
+	Entry.TargetName = TargetName;
+	Entry.GameTime = GameTime;
+	Entry.FinalDamage = FinalDamage;
+	Entry.ActionName = FName(TEXT("轻击1"));
+	Entry.BaseAttack = 45.f;
+	Entry.ActionMultiplier = 1.8f;
+	Entry.DmgTakenMult = 1.f;
+	return Entry;
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatLogStorageVersionAndLimitTest,

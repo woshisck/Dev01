@@ -14,10 +14,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "SaveGame/YogSaveSubsystem.h"
 
-namespace
-{
-	constexpr bool bDisableLegacyBackpackRuneRuntimeForCardTest = true;
-}
+static constexpr bool bDisableLegacyBackpackRuneRuntimeForCardTest = true;
 
 // =========================================================
 // FActivationZoneConfig

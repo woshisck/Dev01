@@ -24,62 +24,58 @@
 #include "Data/MontageConfigDA.h"
 #include "Engine/World.h"
 
-namespace
+static void GA_PlayMontage_CollectHitActors(const FYogGameplayEffectContainerSpec& ContainerSpec, TArray<AActor*>& OutHitActors)
 {
-	void GA_PlayMontage_CollectHitActors(const FYogGameplayEffectContainerSpec& ContainerSpec, TArray<AActor*>& OutHitActors)
+	for (const TSharedPtr<FGameplayAbilityTargetData>& Data : ContainerSpec.TargetData.Data)
 	{
-		for (const TSharedPtr<FGameplayAbilityTargetData>& Data : ContainerSpec.TargetData.Data)
+		if (!Data.IsValid())
 		{
-			if (!Data.IsValid())
-			{
-				continue;
-			}
+			continue;
+		}
 
-			for (TWeakObjectPtr<AActor> WeakActor : Data->GetActors())
+		for (TWeakObjectPtr<AActor> WeakActor : Data->GetActors())
+		{
+			if (AActor* Actor = WeakActor.Get())
 			{
-				if (AActor* Actor = WeakActor.Get())
-				{
-					OutHitActors.AddUnique(Actor);
-				}
+				OutHitActors.AddUnique(Actor);
 			}
 		}
 	}
+}
 
-	UAN_MeleeDamage* FindFirstDamageNotify(UAnimMontage* Montage)
+static UAN_MeleeDamage* FindFirstDamageNotify(UAnimMontage* Montage)
+{
+	if (!Montage)
 	{
-		if (!Montage)
-		{
-			return nullptr;
-		}
-
-		for (FAnimNotifyEvent& NotifyEvent : Montage->Notifies)
-		{
-			if (UAN_MeleeDamage* Notify = Cast<UAN_MeleeDamage>(NotifyEvent.Notify))
-			{
-				return Notify;
-			}
-		}
 		return nullptr;
 	}
 
-	bool TryActivatePlayMontageAbilityByTagName(UAbilitySystemComponent* ASC, const TCHAR* TagName)
+	for (FAnimNotifyEvent& NotifyEvent : Montage->Notifies)
 	{
-		if (!ASC || !TagName)
+		if (UAN_MeleeDamage* Notify = Cast<UAN_MeleeDamage>(NotifyEvent.Notify))
 		{
-			return false;
+			return Notify;
 		}
+	}
+	return nullptr;
+}
 
-		const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TagName), false);
-		if (!Tag.IsValid())
-		{
-			return false;
-		}
-
-		FGameplayTagContainer TagContainer;
-		TagContainer.AddTag(Tag);
-		return ASC->TryActivateAbilitiesByTag(TagContainer, true);
+static bool TryActivatePlayMontageAbilityByTagName(UAbilitySystemComponent* ASC, const TCHAR* TagName)
+{
+	if (!ASC || !TagName)
+	{
+		return false;
 	}
 
+	const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TagName), false);
+	if (!Tag.IsValid())
+	{
+		return false;
+	}
+
+	FGameplayTagContainer TagContainer;
+	TagContainer.AddTag(Tag);
+	return ASC->TryActivateAbilitiesByTag(TagContainer, true);
 }
 
 UGA_PlayMontage::UGA_PlayMontage(const FObjectInitializer& ObjectInitializer)

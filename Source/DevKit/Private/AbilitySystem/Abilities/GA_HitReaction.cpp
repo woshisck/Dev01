@@ -11,22 +11,19 @@
 #include "Data/CharacterData.h"
 #include "GameplayTagsManager.h"
 
-namespace
+static void CancelAbilitiesWithTagIfValid(UAbilitySystemComponent* ASC, const TCHAR* TagName)
 {
-    void CancelAbilitiesWithTagIfValid(UAbilitySystemComponent* ASC, const TCHAR* TagName)
+    if (!ASC)
     {
-        if (!ASC)
-        {
-            return;
-        }
+        return;
+    }
 
-        const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TagName), false);
-        if (Tag.IsValid())
-        {
-            FGameplayTagContainer Tags;
-            Tags.AddTag(Tag);
-            ASC->CancelAbilities(&Tags);
-        }
+    const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TagName), false);
+    if (Tag.IsValid())
+    {
+        FGameplayTagContainer Tags;
+        Tags.AddTag(Tag);
+        ASC->CancelAbilities(&Tags);
     }
 }
 

@@ -9,10 +9,7 @@
 #include "Data/MusketActionTuningDataAsset.h"
 #include "Projectile/MusketBullet.h"
 
-namespace
-{
-    const TCHAR* WeaponSkillReleaseEventTagName = TEXT("GameplayEvent.WeaponSkill.Release");
-}
+static const TCHAR* WeaponSkillReleaseEventTagName = TEXT("GameplayEvent.WeaponSkill.Release");
 
 UGA_Musket_HeavyAttack::UGA_Musket_HeavyAttack()
 {

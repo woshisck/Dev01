@@ -20,14 +20,12 @@
 #include "Engine/Texture2D.h"
 #include "DevKit.h"
 
-namespace
-{
-bool IsRetiredManagedScreen(EYogUIScreenId ScreenId)
+static bool IsRetiredManagedScreen(EYogUIScreenId ScreenId)
 {
 	return ScreenId == EYogUIScreenId::SacrificeGraceOption;
 }
 
-bool IsInteractiveManagedScreen(EYogUIScreenId ScreenId)
+static bool IsInteractiveManagedScreen(EYogUIScreenId ScreenId)
 {
 	switch (ScreenId)
 	{
@@ -46,7 +44,6 @@ bool IsInteractiveManagedScreen(EYogUIScreenId ScreenId)
 	default:
 		return false;
 	}
-}
 }
 
 void UYogUIManagerSubsystem::Initialize(FSubsystemCollectionBase& Collection)

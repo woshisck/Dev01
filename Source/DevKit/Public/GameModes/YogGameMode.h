@@ -93,6 +93,7 @@ public:
 
 	static bool ShouldSkipCombatForRoom(const URoomDataAsset* RoomData);
 	static bool ShouldPreserveCurrentMapForEditorPlay(bool bIsPlayInEditorWorld, bool bHasPendingRoomData);
+	static URoomDataAsset* FindRoomDataForLoadedMap(const UCampaignDataAsset* Campaign, const FString& CurrentMapShortName);
 	static bool ShouldAllowExtraRewardPickupForRoom(
 		const URoomDataAsset* RoomData,
 		bool bIsSacrificeEventRoom,

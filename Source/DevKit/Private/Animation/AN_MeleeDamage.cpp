@@ -37,105 +37,102 @@
 // }
 
 #if WITH_EDITOR && ENABLE_DRAW_DEBUG
-namespace
+static void AN_MeleeDamage_DrawPersonaHitbox(UWorld* World, const FVector& Loc, float Yaw, const FActionData& Data)
 {
-	void AN_MeleeDamage_DrawPersonaHitbox(UWorld* World, const FVector& Loc, float Yaw, const FActionData& Data)
+	if (!World) return;
+
+	// Authored value verbatim. There is no character in the montage editor, so this preview
+	// shows ActRange alone; at runtime the character's AttackRange is added on top.
+	const float OuterR = Data.ActRange;
+	const FColor Color = FColor::Cyan;
+	constexpr float Duration = 2.f;
+
+	if (Data.hitboxTypes.IsEmpty())
 	{
-		if (!World) return;
-
-		// Authored value verbatim. There is no character in the montage editor, so this preview
-		// shows ActRange alone; at runtime the character's AttackRange is added on top.
-		const float OuterR = Data.ActRange;
-		const FColor Color = FColor::Cyan;
-		constexpr float Duration = 2.f;
-
-		if (Data.hitboxTypes.IsEmpty())
+		constexpr int32 Seg = 32;
+		FVector Prev = Loc + FVector(OuterR, 0, 0);
+		for (int32 i = 1; i <= Seg; ++i)
 		{
-			constexpr int32 Seg = 32;
-			FVector Prev = Loc + FVector(OuterR, 0, 0);
-			for (int32 i = 1; i <= Seg; ++i)
-			{
-				float Rad = FMath::DegreesToRadians(360.f * i / Seg);
-				FVector Cur = Loc + FVector(FMath::Cos(Rad) * OuterR, FMath::Sin(Rad) * OuterR, 0);
-				DrawDebugLine(World, Prev, Cur, Color, false, Duration);
-				Prev = Cur;
-			}
-			return;
+			float Rad = FMath::DegreesToRadians(360.f * i / Seg);
+			FVector Cur = Loc + FVector(FMath::Cos(Rad) * OuterR, FMath::Sin(Rad) * OuterR, 0);
+			DrawDebugLine(World, Prev, Cur, Color, false, Duration);
+			Prev = Cur;
 		}
+		return;
+	}
 
-		for (const FYogHitboxType& HB : Data.hitboxTypes)
+	for (const FYogHitboxType& HB : Data.hitboxTypes)
+	{
+		if (HB.hitboxType == EHitBoxType::Annulus)
 		{
-			if (HB.hitboxType == EHitBoxType::Annulus)
+			const FHitboxAnnulus& Ann = HB.AnnulusHitbox;
+			const float InnerR  = Ann.inner_radius;
+			const float HalfDeg = Ann.degree * 0.5f;
+			const float StartDeg = Yaw - HalfDeg;
+			const float EndDeg   = Yaw + HalfDeg;
+
+			const float EffectiveOffset = Ann.bAutoOffset ? -InnerR : Ann.OffsetCore;
+			const float YawRad = FMath::DegreesToRadians(Yaw);
+			const FVector CenterLoc = Loc + FVector(FMath::Cos(YawRad), FMath::Sin(YawRad), 0.f) * EffectiveOffset;
+			// Matches IsInAnnulus: no inner_radius compensation on the outer edge.
+			const float EffectiveOuterR = OuterR;
+
+			constexpr int32 Seg = 24;
+			FVector PrevOuter = FVector::ZeroVector;
+			FVector PrevInner = FVector::ZeroVector;
+
+			for (int32 i = 0; i <= Seg; ++i)
 			{
-				const FHitboxAnnulus& Ann = HB.AnnulusHitbox;
-				const float InnerR  = Ann.inner_radius;
-				const float HalfDeg = Ann.degree * 0.5f;
-				const float StartDeg = Yaw - HalfDeg;
-				const float EndDeg   = Yaw + HalfDeg;
-
-				const float EffectiveOffset = Ann.bAutoOffset ? -InnerR : Ann.OffsetCore;
-				const float YawRad = FMath::DegreesToRadians(Yaw);
-				const FVector CenterLoc = Loc + FVector(FMath::Cos(YawRad), FMath::Sin(YawRad), 0.f) * EffectiveOffset;
-				// Matches IsInAnnulus: no inner_radius compensation on the outer edge.
-				const float EffectiveOuterR = OuterR;
-
-				constexpr int32 Seg = 24;
-				FVector PrevOuter = FVector::ZeroVector;
-				FVector PrevInner = FVector::ZeroVector;
-
-				for (int32 i = 0; i <= Seg; ++i)
+				float Deg = FMath::Lerp(StartDeg, EndDeg, (float)i / Seg);
+				float Rad = FMath::DegreesToRadians(Deg);
+				FVector Outer = CenterLoc + FVector(FMath::Cos(Rad) * EffectiveOuterR, FMath::Sin(Rad) * EffectiveOuterR, 0);
+				FVector Inner = CenterLoc + FVector(FMath::Cos(Rad) * InnerR, FMath::Sin(Rad) * InnerR, 0);
+				if (i > 0)
 				{
-					float Deg = FMath::Lerp(StartDeg, EndDeg, (float)i / Seg);
-					float Rad = FMath::DegreesToRadians(Deg);
-					FVector Outer = CenterLoc + FVector(FMath::Cos(Rad) * EffectiveOuterR, FMath::Sin(Rad) * EffectiveOuterR, 0);
-					FVector Inner = CenterLoc + FVector(FMath::Cos(Rad) * InnerR, FMath::Sin(Rad) * InnerR, 0);
-					if (i > 0)
-					{
-						DrawDebugLine(World, PrevOuter, Outer, Color, false, Duration);
-						if (InnerR > 0) DrawDebugLine(World, PrevInner, Inner, Color, false, Duration);
-					}
-					PrevOuter = Outer; PrevInner = Inner;
+					DrawDebugLine(World, PrevOuter, Outer, Color, false, Duration);
+					if (InnerR > 0) DrawDebugLine(World, PrevInner, Inner, Color, false, Duration);
 				}
-
-				auto RadEdge = [&](float Deg, float R)
-				{
-					float Rad = FMath::DegreesToRadians(Deg);
-					return CenterLoc + FVector(FMath::Cos(Rad) * R, FMath::Sin(Rad) * R, 0);
-				};
-				DrawDebugLine(World, InnerR > 0 ? RadEdge(StartDeg, InnerR) : CenterLoc, RadEdge(StartDeg, EffectiveOuterR), Color, false, Duration);
-				DrawDebugLine(World, InnerR > 0 ? RadEdge(EndDeg,   InnerR) : CenterLoc, RadEdge(EndDeg,   EffectiveOuterR), Color, false, Duration);
+				PrevOuter = Outer; PrevInner = Inner;
 			}
-			else if (HB.hitboxType == EHitBoxType::Triangle)
+
+			auto RadEdge = [&](float Deg, float R)
 			{
-				const TArray<FHitboxTriangle>& Tri = HB.HitboxTriangles;
-				for (int32 i = 0; i < Tri.Num(); ++i)
+				float Rad = FMath::DegreesToRadians(Deg);
+				return CenterLoc + FVector(FMath::Cos(Rad) * R, FMath::Sin(Rad) * R, 0);
+			};
+			DrawDebugLine(World, InnerR > 0 ? RadEdge(StartDeg, InnerR) : CenterLoc, RadEdge(StartDeg, EffectiveOuterR), Color, false, Duration);
+			DrawDebugLine(World, InnerR > 0 ? RadEdge(EndDeg,   InnerR) : CenterLoc, RadEdge(EndDeg,   EffectiveOuterR), Color, false, Duration);
+		}
+		else if (HB.hitboxType == EHitBoxType::Triangle)
+		{
+			const TArray<FHitboxTriangle>& Tri = HB.HitboxTriangles;
+			for (int32 i = 0; i < Tri.Num(); ++i)
+			{
+				float Rad = FMath::DegreesToRadians(Yaw + Tri[i].Degree);
+				FVector Pt = Loc + FVector(FMath::Cos(Rad) * OuterR, FMath::Sin(Rad) * OuterR, 0);
+				DrawDebugLine(World, Loc, Pt, Color, false, Duration);
+				if (i > 0)
 				{
-					float Rad = FMath::DegreesToRadians(Yaw + Tri[i].Degree);
-					FVector Pt = Loc + FVector(FMath::Cos(Rad) * OuterR, FMath::Sin(Rad) * OuterR, 0);
-					DrawDebugLine(World, Loc, Pt, Color, false, Duration);
-					if (i > 0)
-					{
-						float PrevRad = FMath::DegreesToRadians(Yaw + Tri[i - 1].Degree);
-						FVector PrevPt = Loc + FVector(FMath::Cos(PrevRad) * OuterR, FMath::Sin(PrevRad) * OuterR, 0);
-						DrawDebugLine(World, PrevPt, Pt, Color, false, Duration);
-					}
+					float PrevRad = FMath::DegreesToRadians(Yaw + Tri[i - 1].Degree);
+					FVector PrevPt = Loc + FVector(FMath::Cos(PrevRad) * OuterR, FMath::Sin(PrevRad) * OuterR, 0);
+					DrawDebugLine(World, PrevPt, Pt, Color, false, Duration);
 				}
 			}
-			else if (HB.hitboxType == EHitBoxType::Square)
+		}
+		else if (HB.hitboxType == EHitBoxType::Square)
+		{
+			// Local Y (right) = perpendicular to forward, 90° CCW: (-Sin, Cos, 0)
+			const float YawRad   = FMath::DegreesToRadians(Yaw);
+			const FVector LocalY = FVector(-FMath::Sin(YawRad), FMath::Cos(YawRad), 0.f);
+			for (const FHitboxSquare& Sq : HB.HitboxSquares)
 			{
-				// Local Y (right) = perpendicular to forward, 90° CCW: (-Sin, Cos, 0)
-				const float YawRad   = FMath::DegreesToRadians(Yaw);
-				const FVector LocalY = FVector(-FMath::Sin(YawRad), FMath::Cos(YawRad), 0.f);
-				for (const FHitboxSquare& Sq : HB.HitboxSquares)
-				{
-					const float HalfRange = OuterR * 0.5f;
-					const float HalfW     = Sq.Width > 0.f ? Sq.Width * 0.5f : HalfRange;
-					DrawDebugBox(World,
-						Loc + LocalY * HalfRange,
-						FVector(HalfW, HalfRange, 60.f),
-						FRotator(0.f, Yaw, 0.f).Quaternion(),
-						Color, false, Duration);
-				}
+				const float HalfRange = OuterR * 0.5f;
+				const float HalfW     = Sq.Width > 0.f ? Sq.Width * 0.5f : HalfRange;
+				DrawDebugBox(World,
+					Loc + LocalY * HalfRange,
+					FVector(HalfW, HalfRange, 60.f),
+					FRotator(0.f, Yaw, 0.f).Quaternion(),
+					Color, false, Duration);
 			}
 		}
 	}

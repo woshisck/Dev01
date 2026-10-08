@@ -1,11 +1,8 @@
 #include "AbilitySystem/Abilities/GA_EnemyMeleeAttacks.h"
 
-namespace
+static FGameplayTag DeadStatusTag()
 {
-	FGameplayTag DeadStatusTag()
-	{
-		return FGameplayTag::RequestGameplayTag(FName(TEXT("Buff.Dead")));
-	}
+	return FGameplayTag::RequestGameplayTag(FName(TEXT("Buff.Dead")));
 }
 
 // ── Light Attacks ──────────────────────────────────────────────────────────

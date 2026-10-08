@@ -49,22 +49,20 @@
 #include "World/HubFacilityActor.h"
 #include "NavigationSystem.h"
 
-namespace
-{
-constexpr const TCHAR* FirstRunForcedSurvivalEnemyDataPath = TEXT("/Game/Docs/Data/Enemy/RottenGuard/DA_RottenGuard.DA_RottenGuard");
-constexpr const TCHAR* FirstRunRewardBurnRunePath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Burn.DA_Rune512_Burn");
-constexpr const TCHAR* FirstRunRewardPoisonRunePath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Poison.DA_Rune512_Poison");
-constexpr const TCHAR* FirstRunRewardKnockbackRunePath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Knockback.DA_Rune512_Knockback");
-constexpr const TCHAR* FirstRunRewardSplashRunePath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Splash.DA_Rune512_Splash");
-constexpr const TCHAR* FirstRunGoldIconPath = TEXT("/Game/UI/Playtest_UI/UI_Tex/HUD/T_GoldCoinIcon.T_GoldCoinIcon");
-constexpr int32 FirstRunInitialGoldRewardAmount = 50;
+static constexpr const TCHAR* FirstRunForcedSurvivalEnemyDataPath = TEXT("/Game/Docs/Data/Enemy/RottenGuard/DA_RottenGuard.DA_RottenGuard");
+static constexpr const TCHAR* FirstRunRewardBurnRunePath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Burn.DA_Rune512_Burn");
+static constexpr const TCHAR* FirstRunRewardPoisonRunePath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Poison.DA_Rune512_Poison");
+static constexpr const TCHAR* FirstRunRewardKnockbackRunePath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Knockback.DA_Rune512_Knockback");
+static constexpr const TCHAR* FirstRunRewardSplashRunePath = TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Splash.DA_Rune512_Splash");
+static constexpr const TCHAR* FirstRunGoldIconPath = TEXT("/Game/UI/Playtest_UI/UI_Tex/HUD/T_GoldCoinIcon.T_GoldCoinIcon");
+static constexpr int32 FirstRunInitialGoldRewardAmount = 50;
 
-UEnemyData* LoadFirstRunForcedSurvivalEnemyData()
+static UEnemyData* LoadFirstRunForcedSurvivalEnemyData()
 {
 	return LoadObject<UEnemyData>(nullptr, FirstRunForcedSurvivalEnemyDataPath);
 }
 
-FName ResolveRoomLevelNameForOpen(FName RequestedLevel, const URoomDataAsset* Room)
+static FName ResolveRoomLevelNameForOpen(FName RequestedLevel, const URoomDataAsset* Room)
 {
 	const FString Requested = RequestedLevel.ToString();
 	const FString RoomAssetName = GetNameSafe(Room);
@@ -91,12 +89,12 @@ FName ResolveRoomLevelNameForOpen(FName RequestedLevel, const URoomDataAsset* Ro
 	return RequestedLevel;
 }
 
-FString DescribeGameModeEnumValueForRewardDebug(const UEnum* Enum, int64 Value)
+static FString DescribeGameModeEnumValueForRewardDebug(const UEnum* Enum, int64 Value)
 {
 	return Enum ? Enum->GetNameStringByValue(Value) : FString::Printf(TEXT("%lld"), Value);
 }
 
-FString DescribeGameModeLootOptionsForRewardDebug(const TArray<FLootOption>& Options)
+static FString DescribeGameModeLootOptionsForRewardDebug(const TArray<FLootOption>& Options)
 {
 	if (Options.IsEmpty())
 	{
@@ -122,7 +120,7 @@ FString DescribeGameModeLootOptionsForRewardDebug(const TArray<FLootOption>& Opt
 	return FString::Printf(TEXT("Count=%d [%s]"), Options.Num(), *FString::Join(Parts, TEXT("; ")));
 }
 
-void SealPortalsExcept(const TMap<int32, APortal*>& PortalMap, int32 OpenPortalIndex, const TCHAR* Context)
+static void SealPortalsExcept(const TMap<int32, APortal*>& PortalMap, int32 OpenPortalIndex, const TCHAR* Context)
 {
 	for (const TPair<int32, APortal*>& Entry : PortalMap)
 	{
@@ -140,7 +138,7 @@ void SealPortalsExcept(const TMap<int32, APortal*>& PortalMap, int32 OpenPortalI
 	}
 }
 
-bool ResolveUsableForcedPortalIndex(
+static bool ResolveUsableForcedPortalIndex(
 	const TArray<FPortalDestConfig>& Configs,
 	const TMap<int32, APortal*>& PortalMap,
 	int32& InOutForcedPortalIndex,
@@ -174,7 +172,7 @@ bool ResolveUsableForcedPortalIndex(
 	return false;
 }
 
-bool PlayerHasEquippedWeapon(const UWorld* World)
+static bool PlayerHasEquippedWeapon(const UWorld* World)
 {
 	const APlayerCharacterBase* Player = World
 		? Cast<APlayerCharacterBase>(UGameplayStatics::GetPlayerCharacter(World, 0))
@@ -182,7 +180,7 @@ bool PlayerHasEquippedWeapon(const UWorld* World)
 	return Player && (Player->EquippedWeaponDef || Player->EquippedWeaponInstance);
 }
 
-FLootOption MakeFirstRunGoldLootOption(int32 Amount)
+static FLootOption MakeFirstRunGoldLootOption(int32 Amount)
 {
 	FLootOption Option;
 	Option.LootType = ELootType::Gold;
@@ -192,7 +190,7 @@ FLootOption MakeFirstRunGoldLootOption(int32 Amount)
 	return Option;
 }
 
-void ShowFirstRunWorldRewindHint(UObject* Outer, APlayerController* PC)
+static void ShowFirstRunWorldRewindHint(UObject* Outer, APlayerController* PC)
 {
 	if (!Outer || !PC)
 	{
@@ -211,7 +209,6 @@ void ShowFirstRunWorldRewindHint(UObject* Outer, APlayerController* PC)
 	Popup->HUDSummaryText = Popup->Body;
 	Popup->DisplayDuration = 3.0f;
 	HUD->ShowInfoPopup(Popup);
-}
 }
 
 AYogGameMode::AYogGameMode(const FObjectInitializer& ObjectInitializer)
@@ -234,6 +231,63 @@ bool AYogGameMode::ShouldSkipCombatForRoom(const URoomDataAsset* RoomData)
 bool AYogGameMode::ShouldPreserveCurrentMapForEditorPlay(bool bIsPlayInEditorWorld, bool bHasPendingRoomData)
 {
 	return bIsPlayInEditorWorld && !bHasPendingRoomData;
+}
+
+// When PIE starts directly on a room map, no portal has written PendingRoomData, so the
+// room can only be identified by the map that is already loaded.
+URoomDataAsset* AYogGameMode::FindRoomDataForLoadedMap(const UCampaignDataAsset* Campaign, const FString& CurrentMapShortName)
+{
+	if (!Campaign || CurrentMapShortName.IsEmpty())
+	{
+		return nullptr;
+	}
+
+	TArray<URoomDataAsset*> Searchable;
+	auto AddRoom = [&Searchable](URoomDataAsset* Room)
+	{
+		if (Room)
+		{
+			Searchable.AddUnique(Room);
+		}
+	};
+
+	AddRoom(Campaign->DefaultStartingRoom);
+	for (const TObjectPtr<URoomDataAsset>& Room : Campaign->RoomPool)
+	{
+		AddRoom(Room);
+	}
+
+	// Portal pools cover rooms that are only reachable as a transition target and so
+	// never appear in the campaign's global RoomPool.
+	for (int32 Index = 0; Index < Searchable.Num(); ++Index)
+	{
+		for (const FPortalDestConfig& Dest : Searchable[Index]->PortalDestinations)
+		{
+			for (const TObjectPtr<URoomDataAsset>& Room : Dest.RoomPool)
+			{
+				AddRoom(Room);
+			}
+		}
+	}
+
+	for (URoomDataAsset* Room : Searchable)
+	{
+		if (FPackageName::GetShortName(Room->RoomName.ToString()).Equals(CurrentMapShortName, ESearchCase::IgnoreCase))
+		{
+			return Room;
+		}
+	}
+
+	for (URoomDataAsset* Room : Searchable)
+	{
+		const FName ResolvedLevel = ResolveRoomLevelNameForOpen(Room->RoomName, Room);
+		if (FPackageName::GetShortName(ResolvedLevel.ToString()).Equals(CurrentMapShortName, ESearchCase::IgnoreCase))
+		{
+			return Room;
+		}
+	}
+
+	return nullptr;
 }
 
 bool AYogGameMode::ShouldAllowExtraRewardPickupForRoom(
@@ -1714,11 +1768,11 @@ void AYogGameMode::StartLevelSpawning()
 			const FName DefaultRoomName = Campaign->DefaultStartingRoom->RoomName;
 			const FName DefaultLevelName = ResolveRoomLevelNameForOpen(DefaultRoomName, Campaign->DefaultStartingRoom);
 			bool bPreservedCurrentEditorMap = false;
+			// GetCurrentLevelName(true) 会去掉 PIE 前缀（如 "UEDPIE_0_"）
+			const FString CurrentMapName = FPackageName::GetShortName(UGameplayStatics::GetCurrentLevelName(GetWorld(), true));
 			if (!DefaultLevelName.IsNone())
 			{
 				// 检查当前加载的关卡是否已经是 DefaultStartingRoom 指定的关卡
-				// GetCurrentLevelName(true) 会去掉 PIE 前缀（如 "UEDPIE_0_"）
-				const FString CurrentMapName = FPackageName::GetShortName(UGameplayStatics::GetCurrentLevelName(GetWorld(), true));
 				const bool bCurrentMapMatchesDefault = CurrentMapName.Equals(FPackageName::GetShortName(DefaultLevelName.ToString()), ESearchCase::IgnoreCase);
 				if (!bCurrentMapMatchesDefault
 					&& ShouldPreserveCurrentMapForEditorPlay(GetWorld() && GetWorld()->WorldType == EWorldType::PIE, GI && GI->PendingRoomData != nullptr))
@@ -1740,8 +1794,9 @@ void AYogGameMode::StartLevelSpawning()
 
 			if (bPreservedCurrentEditorMap)
 			{
-				ActiveRoomData = nullptr;
-				UE_LOG(LogTemp, Log, TEXT("StartLevelSpawning: no RoomData selected for current editor map; using preplaced enemy fallback."));
+				ActiveRoomData = FindRoomDataForLoadedMap(Campaign, CurrentMapName);
+				UE_LOG(LogTemp, Log, TEXT("StartLevelSpawning: preserved editor map [%s]; matched RoomData = %s"),
+					*CurrentMapName, *GetNameSafe(ActiveRoomData));
 			}
 			else
 			{

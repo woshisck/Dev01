@@ -14,9 +14,7 @@
 #include "Item/Weapon/WeaponDefinition.h"
 #include "System/YogRuntimeGMSubsystem.h"
 
-namespace
-{
-UTextBlock* MakeGMText(UWidgetTree* WidgetTree, const FName Name, const FText& Text, float FontSize = 18.f)
+static UTextBlock* MakeGMText(UWidgetTree* WidgetTree, const FName Name, const FText& Text, float FontSize = 18.f)
 {
 	UTextBlock* TextBlock = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), Name);
 	TextBlock->SetText(Text);
@@ -28,7 +26,7 @@ UTextBlock* MakeGMText(UWidgetTree* WidgetTree, const FName Name, const FText& T
 	return TextBlock;
 }
 
-UButton* MakeGMButton(UWidgetTree* WidgetTree, const FName Name, const FText& Text)
+static UButton* MakeGMButton(UWidgetTree* WidgetTree, const FName Name, const FText& Text)
 {
 	UButton* Button = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), Name);
 	UTextBlock* Label = MakeGMText(WidgetTree, FName(*(Name.ToString() + TEXT("_Label"))), Text, 18.f);
@@ -37,13 +35,12 @@ UButton* MakeGMButton(UWidgetTree* WidgetTree, const FName Name, const FText& Te
 	return Button;
 }
 
-void AddVerticalChild(UVerticalBox* Root, UWidget* Child, const FMargin Padding = FMargin(0.f, 0.f, 0.f, 8.f))
+static void AddVerticalChild(UVerticalBox* Root, UWidget* Child, const FMargin Padding = FMargin(0.f, 0.f, 0.f, 8.f))
 {
 	if (UVerticalBoxSlot* Slot = Root->AddChildToVerticalBox(Child))
 	{
 		Slot->SetPadding(Padding);
 	}
-}
 }
 
 void UYogRuntimeGMWidget::InitializeRuntimeGM(UYogRuntimeGMSubsystem* InSubsystem)

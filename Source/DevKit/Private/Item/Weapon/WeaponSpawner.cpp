@@ -37,22 +37,19 @@
 #include "Story/Encounter/StoryEncounterPointDataAsset.h"
 #include "Story/Encounter/StoryEncounterRuntimeSubsystem.h"
 
-namespace
+static constexpr bool bDisableLegacyHeatBackpackRuneForCardTestSpawner = true;
+static const FName FirstRunTutorialWeaponTag(TEXT("Story.FirstRun.DemoWeapon"));
+static const FName MainRunStartWeaponTag(TEXT("Story.MainRun.StartWeapon"));
+
+static AYogHUD* GetYogHUDForPlayer(APlayerCharacterBase* Player)
 {
-	constexpr bool bDisableLegacyHeatBackpackRuneForCardTestSpawner = true;
-	const FName FirstRunTutorialWeaponTag(TEXT("Story.FirstRun.DemoWeapon"));
-	const FName MainRunStartWeaponTag(TEXT("Story.MainRun.StartWeapon"));
-
-	AYogHUD* GetYogHUDForPlayer(APlayerCharacterBase* Player)
+	if (!Player)
 	{
-		if (!Player)
-		{
-			return nullptr;
-		}
-
-		APlayerController* PC = Player->GetController<APlayerController>();
-		return PC ? Cast<AYogHUD>(PC->GetHUD()) : nullptr;
+		return nullptr;
 	}
+
+	APlayerController* PC = Player->GetController<APlayerController>();
+	return PC ? Cast<AYogHUD>(PC->GetHUD()) : nullptr;
 }
 
 // Sets default values

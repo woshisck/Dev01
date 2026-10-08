@@ -11,9 +11,7 @@
 #include "UI/GenericEffectListWidget.h"
 #include "Styling/SlateBrush.h"
 
-namespace
-{
-bool IsUsableSlateTexture(const UTexture2D* Texture)
+static bool IsUsableSlateTexture(const UTexture2D* Texture)
 {
     if (!Texture)
     {
@@ -29,7 +27,6 @@ bool IsUsableSlateTexture(const UTexture2D* Texture)
     return Texture->IsValidLowLevelFast(false)
         && IsValid(Texture)
         && !Texture->HasAnyFlags(RF_BeginDestroyed | RF_FinishDestroyed);
-}
 }
 
 // ============================================================

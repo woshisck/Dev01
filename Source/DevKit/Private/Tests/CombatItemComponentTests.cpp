@@ -6,15 +6,12 @@
 #include "Component/CombatItemComponent.h"
 #include "GameplayEffect.h"
 
-namespace
+static FCombatItemConfig CombatItemTests_MakeItem(const FName ItemId, const FString& DisplayName)
 {
-	FCombatItemConfig CombatItemTests_MakeItem(const FName ItemId, const FString& DisplayName)
-	{
-		FCombatItemConfig Config;
-		Config.ItemId = ItemId;
-		Config.DisplayName = FText::FromString(DisplayName);
-		return Config;
-	}
+	FCombatItemConfig Config;
+	Config.ItemId = ItemId;
+	Config.DisplayName = FText::FromString(DisplayName);
+	return Config;
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatItemSlotViewTest,

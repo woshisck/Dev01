@@ -15,13 +15,11 @@
 #include "Components/CanvasPanelSlot.h"
 #include "Blueprint/WidgetTree.h"
 
-namespace
-{
-constexpr float CombatLogOuterPadding = 12.f;
-constexpr float CombatLogTopPadding = 10.f;
-constexpr float CombatLogPanelGap = 8.f;
+static constexpr float CombatLogOuterPadding = 12.f;
+static constexpr float CombatLogTopPadding = 10.f;
+static constexpr float CombatLogPanelGap = 8.f;
 
-FLinearColor GetFilterTint(ECombatLogFilter Filter)
+static FLinearColor GetFilterTint(ECombatLogFilter Filter)
 {
 	switch (Filter)
 	{
@@ -37,12 +35,11 @@ FLinearColor GetFilterTint(ECombatLogFilter Filter)
 	}
 }
 
-bool IsCombatLogWidgetCardResolveEventDamageType(const FName DamageType)
+static bool IsCombatLogWidgetCardResolveEventDamageType(const FName DamageType)
 {
 	return DamageType == FName("Card_Resolve")
 		|| DamageType == FName("Card_Consume")
 		|| DamageType == FName("Card_Shuffle");
-}
 }
 
 // ── UCombatFilterProxy ────────────────────────────────────────────────────

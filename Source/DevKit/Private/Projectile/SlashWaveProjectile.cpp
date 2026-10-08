@@ -17,41 +17,38 @@
 #include "NiagaraFunctionLibrary.h"
 #include "TimerManager.h"
 
-namespace
+static FGameplayTag SlashWaveActDamageTag()
 {
-	FGameplayTag SlashWaveActDamageTag()
-	{
-		return FGameplayTag::RequestGameplayTag(FName(TEXT("Attribute.ActDamage")));
-	}
+	return FGameplayTag::RequestGameplayTag(FName(TEXT("Attribute.ActDamage")));
+}
 
-	float SafePositiveScale(float Value)
-	{
-		return FMath::Max(0.01f, Value);
-	}
+static float SafePositiveScale(float Value)
+{
+	return FMath::Max(0.01f, Value);
+}
 
-	FVector SafePositiveScale(const FVector& Value)
-	{
-		return FVector(
-			SafePositiveScale(Value.X),
-			SafePositiveScale(Value.Y),
-			SafePositiveScale(Value.Z));
-	}
+static FVector SafePositiveScale(const FVector& Value)
+{
+	return FVector(
+		SafePositiveScale(Value.X),
+		SafePositiveScale(Value.Y),
+		SafePositiveScale(Value.Z));
+}
 
-	float SafeExtentRatio(float NewExtent, float DefaultExtent)
-	{
-		return DefaultExtent > KINDA_SMALL_NUMBER ? NewExtent / DefaultExtent : 1.f;
-	}
+static float SafeExtentRatio(float NewExtent, float DefaultExtent)
+{
+	return DefaultExtent > KINDA_SMALL_NUMBER ? NewExtent / DefaultExtent : 1.f;
+}
 
-	FVector HorizontalSafeNormal(FVector Direction)
-	{
-		Direction.Z = 0.f;
-		return Direction.IsNearlyZero() ? FVector::ZeroVector : Direction.GetSafeNormal();
-	}
+static FVector HorizontalSafeNormal(FVector Direction)
+{
+	Direction.Z = 0.f;
+	return Direction.IsNearlyZero() ? FVector::ZeroVector : Direction.GetSafeNormal();
+}
 
-	bool IsWorldSurfaceObjectType(const ECollisionChannel ObjectType)
-	{
-		return ObjectType == ECC_WorldStatic || ObjectType == ECC_WorldDynamic;
-	}
+static bool IsWorldSurfaceObjectType(const ECollisionChannel ObjectType)
+{
+	return ObjectType == ECC_WorldStatic || ObjectType == ECC_WorldDynamic;
 }
 
 ASlashWaveProjectile::ASlashWaveProjectile()

@@ -24,9 +24,7 @@
 #include "UI/InfoPopupWidget.h"
 #include "UI/YogHUD.h"
 
-namespace
-{
-FName SanitizeTagSegment(FName RawName)
+static FName SanitizeTagSegment(FName RawName)
 {
 	FString Value = RawName.ToString();
 	Value.TrimStartAndEndInline();
@@ -52,7 +50,7 @@ FName SanitizeTagSegment(FName RawName)
 	return Sanitized.IsEmpty() ? NAME_None : FName(*Sanitized);
 }
 
-APlayerController* ResolveEncounterPlayer(AActor* SourceActor)
+static APlayerController* ResolveEncounterPlayer(AActor* SourceActor)
 {
 	if (APawn* Pawn = Cast<APawn>(SourceActor))
 	{
@@ -64,12 +62,12 @@ APlayerController* ResolveEncounterPlayer(AActor* SourceActor)
 		: nullptr;
 }
 
-FString DescribeEncounterEnumValueForRewardDebug(const UEnum* Enum, int64 Value)
+static FString DescribeEncounterEnumValueForRewardDebug(const UEnum* Enum, int64 Value)
 {
 	return Enum ? Enum->GetNameStringByValue(Value) : FString::Printf(TEXT("%lld"), Value);
 }
 
-FString DescribeEncounterLootOptionsForRewardDebug(const TArray<FLootOption>& Options)
+static FString DescribeEncounterLootOptionsForRewardDebug(const TArray<FLootOption>& Options)
 {
 	if (Options.IsEmpty())
 	{
@@ -95,7 +93,7 @@ FString DescribeEncounterLootOptionsForRewardDebug(const TArray<FLootOption>& Op
 	return FString::Printf(TEXT("Count=%d [%s]"), Options.Num(), *FString::Join(Parts, TEXT("; ")));
 }
 
-FText ResolveInputAwareBody(const FStoryEncounterAction& Action, const FStoryEventContext& Context)
+static FText ResolveInputAwareBody(const FStoryEncounterAction& Action, const FStoryEventContext& Context)
 {
 	const auto IsMovementHintText = [](const FText& Text)
 	{
@@ -148,7 +146,7 @@ FText ResolveInputAwareBody(const FStoryEncounterAction& Action, const FStoryEve
 	return Action.Body;
 }
 
-bool DoesActorMatchStoryTarget(const AActor* Actor, FName TargetActorName, FName TargetActorTag)
+static bool DoesActorMatchStoryTarget(const AActor* Actor, FName TargetActorName, FName TargetActorTag)
 {
 	if (!Actor)
 	{
@@ -171,7 +169,7 @@ bool DoesActorMatchStoryTarget(const AActor* Actor, FName TargetActorName, FName
 	return false;
 }
 
-void SetActorStoryEnabled(AActor* Actor, bool bEnabled)
+static void SetActorStoryEnabled(AActor* Actor, bool bEnabled)
 {
 	if (!Actor)
 	{
@@ -183,7 +181,7 @@ void SetActorStoryEnabled(AActor* Actor, bool bEnabled)
 	Actor->SetActorTickEnabled(bEnabled);
 }
 
-FName MakeEncounterFireKey(FName EncounterId, FName NodeId)
+static FName MakeEncounterFireKey(FName EncounterId, FName NodeId)
 {
 	if (EncounterId.IsNone() || NodeId.IsNone())
 	{
@@ -191,7 +189,6 @@ FName MakeEncounterFireKey(FName EncounterId, FName NodeId)
 	}
 
 	return FName(*FString::Printf(TEXT("%s.%s"), *EncounterId.ToString(), *NodeId.ToString()));
-}
 }
 
 bool UStoryEncounterRuntimeSubsystem::TriggerEncounterNode(UStoryEncounterMap* EncounterMap, FName NodeId, AActor* SourceActor)

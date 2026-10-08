@@ -14,14 +14,11 @@
 
 DEFINE_LOG_CATEGORY(LogYogBubble);
 
-namespace
-{
-	/** How long a dedup tag suppresses a repeat of the same bubble. */
-	constexpr float YogBubble_DedupCooldownSeconds = 5.f;
+/** How long a dedup tag suppresses a repeat of the same bubble. */
+static constexpr float YogBubble_DedupCooldownSeconds = 5.f;
 
-	/** Keeps a bubble from flickering between anchors right at the viewport edge. */
-	constexpr float YogBubble_ScreenEdgeMargin = 48.f;
-}
+/** Keeps a bubble from flickering between anchors right at the viewport edge. */
+static constexpr float YogBubble_ScreenEdgeMargin = 48.f;
 
 void UYogBubbleSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 {
@@ -598,87 +595,84 @@ AYogHUD* UYogBubbleSubsystem::GetYogHUD() const
 
 #if !UE_BUILD_SHIPPING
 
-namespace
+static UYogBubbleSubsystem* YogBubble_ResolveSubsystem(UWorld* World, const TCHAR* CommandName)
 {
-	UYogBubbleSubsystem* YogBubble_ResolveSubsystem(UWorld* World, const TCHAR* CommandName)
+	if (!World)
 	{
-		if (!World)
-		{
-			UE_LOG(LogYogBubble, Warning, TEXT("%s: no world context."), CommandName);
-			return nullptr;
-		}
-
-		UYogBubbleSubsystem* Subsystem = World->GetSubsystem<UYogBubbleSubsystem>();
-		if (!Subsystem)
-		{
-			UE_LOG(LogYogBubble, Warning,
-				TEXT("%s: no bubble subsystem in world '%s'. The subsystem only exists during Play, ")
-				TEXT("so start PIE before running this."),
-				CommandName, *World->GetName());
-			return nullptr;
-		}
-
-		return Subsystem;
+		UE_LOG(LogYogBubble, Warning, TEXT("%s: no world context."), CommandName);
+		return nullptr;
 	}
 
-	AActor* YogBubble_ResolveSpeaker(UWorld* World)
+	UYogBubbleSubsystem* Subsystem = World->GetSubsystem<UYogBubbleSubsystem>();
+	if (!Subsystem)
 	{
-		const APlayerController* PC = World ? World->GetFirstPlayerController() : nullptr;
-		return PC ? PC->GetPawn() : nullptr;
+		UE_LOG(LogYogBubble, Warning,
+			TEXT("%s: no bubble subsystem in world '%s'. The subsystem only exists during Play, ")
+			TEXT("so start PIE before running this."),
+			CommandName, *World->GetName());
+		return nullptr;
 	}
 
-	void YogBubble_ExecText(const TArray<FString>& Args, UWorld* World)
-	{
-		UYogBubbleSubsystem* Subsystem = YogBubble_ResolveSubsystem(World, TEXT("Yog.Bubble"));
-		if (!Subsystem)
-		{
-			return;
-		}
-
-		const FString Text = Args.Num() > 0 ? FString::Join(Args, TEXT(" ")) : TEXT("Bubble test");
-		AActor* Speaker = YogBubble_ResolveSpeaker(World);
-
-		UE_LOG(LogYogBubble, Log, TEXT("Yog.Bubble: text='%s' speaker='%s'"), *Text, *GetNameSafe(Speaker));
-
-		Subsystem->RequestBubbleText(
-			Speaker,
-			NSLOCTEXT("YogBubble", "DebugSpeaker", "GM"),
-			FText::FromString(Text),
-			5.f,
-			EBubbleAnchorMode::Auto,
-			YogBubblePriority::Story,
-			FGameplayTag());
-	}
-
-	void YogBubble_ExecRow(const TArray<FString>& Args, UWorld* World)
-	{
-		UYogBubbleSubsystem* Subsystem = YogBubble_ResolveSubsystem(World, TEXT("Yog.BubbleRow"));
-		if (!Subsystem)
-		{
-			return;
-		}
-
-		if (Args.Num() == 0)
-		{
-			UE_LOG(LogYogBubble, Warning, TEXT("Yog.BubbleRow: usage: Yog.BubbleRow <RowName>"));
-			return;
-		}
-
-		AActor* Speaker = YogBubble_ResolveSpeaker(World);
-		UE_LOG(LogYogBubble, Log, TEXT("Yog.BubbleRow: row='%s' speaker='%s'"), *Args[0], *GetNameSafe(Speaker));
-
-		Subsystem->RequestBubbleByName(Speaker, FName(*Args[0]), FGameplayTag());
-	}
-
-	FAutoConsoleCommandWithWorldAndArgs GYogBubbleTextCommand(
-		TEXT("Yog.Bubble"),
-		TEXT("Show a test speech bubble above the player pawn. Usage: Yog.Bubble <text>"),
-		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&YogBubble_ExecText));
-
-	FAutoConsoleCommandWithWorldAndArgs GYogBubbleRowCommand(
-		TEXT("Yog.BubbleRow"),
-		TEXT("Show a bubble from DT_BubbleMessages. Usage: Yog.BubbleRow <RowName>"),
-		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&YogBubble_ExecRow));
+	return Subsystem;
 }
+
+static AActor* YogBubble_ResolveSpeaker(UWorld* World)
+{
+	const APlayerController* PC = World ? World->GetFirstPlayerController() : nullptr;
+	return PC ? PC->GetPawn() : nullptr;
+}
+
+static void YogBubble_ExecText(const TArray<FString>& Args, UWorld* World)
+{
+	UYogBubbleSubsystem* Subsystem = YogBubble_ResolveSubsystem(World, TEXT("Yog.Bubble"));
+	if (!Subsystem)
+	{
+		return;
+	}
+
+	const FString Text = Args.Num() > 0 ? FString::Join(Args, TEXT(" ")) : TEXT("Bubble test");
+	AActor* Speaker = YogBubble_ResolveSpeaker(World);
+
+	UE_LOG(LogYogBubble, Log, TEXT("Yog.Bubble: text='%s' speaker='%s'"), *Text, *GetNameSafe(Speaker));
+
+	Subsystem->RequestBubbleText(
+		Speaker,
+		NSLOCTEXT("YogBubble", "DebugSpeaker", "GM"),
+		FText::FromString(Text),
+		5.f,
+		EBubbleAnchorMode::Auto,
+		YogBubblePriority::Story,
+		FGameplayTag());
+}
+
+static void YogBubble_ExecRow(const TArray<FString>& Args, UWorld* World)
+{
+	UYogBubbleSubsystem* Subsystem = YogBubble_ResolveSubsystem(World, TEXT("Yog.BubbleRow"));
+	if (!Subsystem)
+	{
+		return;
+	}
+
+	if (Args.Num() == 0)
+	{
+		UE_LOG(LogYogBubble, Warning, TEXT("Yog.BubbleRow: usage: Yog.BubbleRow <RowName>"));
+		return;
+	}
+
+	AActor* Speaker = YogBubble_ResolveSpeaker(World);
+	UE_LOG(LogYogBubble, Log, TEXT("Yog.BubbleRow: row='%s' speaker='%s'"), *Args[0], *GetNameSafe(Speaker));
+
+	Subsystem->RequestBubbleByName(Speaker, FName(*Args[0]), FGameplayTag());
+}
+
+static FAutoConsoleCommandWithWorldAndArgs GYogBubbleTextCommand(
+	TEXT("Yog.Bubble"),
+	TEXT("Show a test speech bubble above the player pawn. Usage: Yog.Bubble <text>"),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&YogBubble_ExecText));
+
+static FAutoConsoleCommandWithWorldAndArgs GYogBubbleRowCommand(
+	TEXT("Yog.BubbleRow"),
+	TEXT("Show a bubble from DT_BubbleMessages. Usage: Yog.BubbleRow <RowName>"),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&YogBubble_ExecRow));
 
 #endif // !UE_BUILD_SHIPPING

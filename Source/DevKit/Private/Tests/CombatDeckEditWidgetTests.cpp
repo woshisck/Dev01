@@ -3,17 +3,14 @@
 #include "Misc/AutomationTest.h"
 #include "UI/CombatDeckEditWidget.h"
 
-namespace
+static FCombatCardInstance MakeDeckEditHintTestCard(
+	ECombatCardType CardType,
+	ECombatCardLinkOrientation LinkOrientation = ECombatCardLinkOrientation::Forward)
 {
-	FCombatCardInstance MakeDeckEditHintTestCard(
-		ECombatCardType CardType,
-		ECombatCardLinkOrientation LinkOrientation = ECombatCardLinkOrientation::Forward)
-	{
-		FCombatCardInstance Card;
-		Card.Config.CardType = CardType;
-		Card.LinkOrientation = LinkOrientation;
-		return Card;
-	}
+	FCombatCardInstance Card;
+	Card.Config.CardType = CardType;
+	Card.LinkOrientation = LinkOrientation;
+	return Card;
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCombatDeckEditLinkHintStatesPairForwardAndReversedTest,
