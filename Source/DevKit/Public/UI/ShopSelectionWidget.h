@@ -10,6 +10,7 @@ class AShopActor;
 class UButton;
 class UTextBlock;
 class UVerticalBox;
+class UYogRunEconomySubsystem;
 
 UCLASS(Blueprintable)
 class DEVKIT_API UShopSelectionWidget : public UCommonActivatableWidget
@@ -79,6 +80,7 @@ protected:
 	TSet<int32> PurchasedIndices;
 
 private:
+	UYogRunEconomySubsystem* GetEconomy() const;
 	void BuildFallbackLayout();
 	void RefreshNativeView();
 	void RefreshGoldText();

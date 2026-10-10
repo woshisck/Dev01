@@ -7,6 +7,7 @@
 #include "Character/PlayerCharacterBase.h"
 #include "Containers/Ticker.h"
 #include "Component/BackpackGridComponent.h"
+#include "System/YogRunEconomySubsystem.h"
 #include "Data/WeaponSkillDataAsset.h"
 #include "GameModes/YogGameMode.h"
 #include "Kismet/GameplayStatics.h"
@@ -416,13 +417,16 @@ bool ARewardPickup::GrantImmediateLoot(APlayerCharacterBase* Player, const TArra
 		switch (Option.LootType)
 		{
 		case ELootType::Gold:
-			if (UBackpackGridComponent* Backpack = Player->GetBackpackGridComponent())
+			if (UGameInstance* GI = GetGameInstance())
 			{
-				Backpack->AddGold(Amount);
-				bGrantedAny = true;
-				K2_OnGoldLootGranted(Amount);
-				K2_OnImmediateLootGranted(ELootType::Gold, Amount, Option.MetaCurrencyTag);
-				UE_LOG(LogTemp, Log, TEXT("[RewardPickup] Granted gold: %d"), Amount);
+				if (UYogRunEconomySubsystem* Economy = GI->GetSubsystem<UYogRunEconomySubsystem>())
+				{
+					Economy->AddGold(Amount);
+					bGrantedAny = true;
+					K2_OnGoldLootGranted(Amount);
+					K2_OnImmediateLootGranted(ELootType::Gold, Amount, Option.MetaCurrencyTag);
+					UE_LOG(LogTemp, Log, TEXT("[RewardPickup] Granted gold: %d"), Amount);
+				}
 			}
 			break;
 

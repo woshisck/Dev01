@@ -13,6 +13,7 @@
 #include "GameModes/YogGameMode.h"
 #include "GameFramework/PlayerController.h"
 #include "System/YogGameInstanceBase.h"
+#include "System/YogRunEconomySubsystem.h"
 #include "System/YogRuntimeGMSubsystem.h"
 #include "Engine/Engine.h"
 #include "EngineUtils.h"
@@ -381,18 +382,11 @@ void UYogCheatManager::Yog_ClearRunes()
 
 void UYogCheatManager::Yog_SetGold(int32 Amount)
 {
-	UBackpackGridComponent* BGC = GetBGC();
-	if (!BGC) return;
+	UGameInstance* GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+	UYogRunEconomySubsystem* Economy = GI ? GI->GetSubsystem<UYogRunEconomySubsystem>() : nullptr;
+	if (!Economy) return;
 
-	const int32 Current = BGC->Gold;
-	if (Amount >= Current)
-	{
-		BGC->AddGold(Amount - Current);
-	}
-	else
-	{
-		BGC->SpendGold(Current - Amount);
-	}
+	Economy->RestoreGold(Amount);
 
 	UE_LOG(LogTemp, Log, TEXT("[GM] 金币设为 %d"), Amount);
 }

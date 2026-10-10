@@ -1,6 +1,6 @@
 # YogGameMode 重构 — 未完成任务 (Handoff)
 
-**最后更新**: 2026-10-08
+**最后更新**: 2026-10-09
 **当前状态**: 编译通过 (`Result: Succeeded`)，自动化测试**未验证**
 **原始计划**: `C:\Users\sunchuankai\.claude\plans\delightful-napping-kettle.md`
 
@@ -13,8 +13,9 @@
 | Phase 0 | 基线构建验证 | 完成 |
 | Phase 1 | 移除 first-run tutorial 功能 | 完成 |
 | Phase 1b | 移除 512 tutorial 系统 + 保留存档槽概念 | 完成 |
+| Phase 2 | 删除死代码 | 完成 |
 
-**成果**: 删除 43 个文件，修改 38 个文件。`YogGameMode.cpp` 4770 → **4375 行**，`YogGameMode.h` 751 → **736 行**。`Source/` 下已无任何 `UTutorialManager` / `ETutorialState` / `UDialogContentDA` / `FTutorialPage` / `FirstRunTutorialDirector` / `ATutorialMobSpawner` 引用。
+**成果**: 删除 43 个文件，修改 38 个文件。`YogGameMode.cpp` 4770 → **4172 行**，`YogGameMode.h` 751 → **674 行**。`Source/` 下已无任何 `UTutorialManager` / `ETutorialState` / `UDialogContentDA` / `FTutorialPage` / `FirstRunTutorialDirector` / `ATutorialMobSpawner` 引用。
 
 ### 本次做的两个关键判断（非机械删除，需知悉）
 
@@ -82,32 +83,38 @@ Content/Story/Rules/SR_FirstRun.uasset
 
 ---
 
-## 三、未开始：原计划 Phase 2-5（真正的重构）
+## 三、未开始：原计划 Phase 3-5（真正的重构）
 
-> ⚠️ **原计划里的行号已全部失效**（文件从 4770 缩到 4375 行）。下面是**重新定位后的行号**。
+> ⚠️ **行号随 Phase 2 再次位移**（文件现为 4172 行）。下面是**Phase 2 完成后重新定位的行号**。
 
-### Phase 2 — 删除死代码（约 300 行，零风险）
+### Phase 2 — 删除死代码 ✅ 已完成（2026-10-09）
 
-| 目标 | 当前行号 | 为什么是死的 |
-|---|---|---|
-| 旧刷怪计时器簇 | `:427-514` (`StartSpawnTimer` / `SpawnMob` / `TriggerImmediateSpawn` / `SomeEventThatTriggersImmediateSpawn`) + 头文件 `FSpawnConfig` / `SpawnConfig` / `Current_CallCount` / `OnMapClean` / 三个未用 delegate 声明 | `Source/` 内零调用者；`SpawnConfig` 仅作为 `B_GameMode` 的 CDO 值存在，无调用 |
-| `ConfirmArrangementAndTransition` 函数体 | `:1233` 起 — `FName NextLevelName;` 声明后**从未赋值**，故 `IsNone()` 恒为 true，其后整段不可达 | 保留函数本身（`LootSelectionWidget.cpp:493` 在调），只删不可达分支，仅留 phase 切换 + 锁背包 |
-| 临时 finisher 计数块 | `:726` 及 `EnterArrangementPhase` 内第二处 | 条件是 `!IsFinisherAbilityDeprecated()`，而 `FinisherDeprecation.h:5` 是 `inline constexpr bool = true` |
-| `RemainKillCount` 兜底分支 | `:563` | `RemainKillCount` 声明为 `int` 无初始化，`Source/` 内从未赋值 → **读未初始化内存** |
+实际删除内容（`YogGameMode.cpp` 4375 → **4172**，`YogGameMode.h` 736 → **674**）：
+
+| 目标 | 处理 |
+|---|---|
+| 旧刷怪计时器簇 | 删除 `StartSpawnTimer` / `SpawnMob` / `TriggerImmediateSpawn` / `SomeEventThatTriggersImmediateSpawn` 四个函数体，及头文件 `FSpawnConfig` 结构、`SpawnConfig` / `SpawnTimerHandle` / `Current_CallCount` / `OnMapClean` 成员、`FCleanAllMobInMap` / `FSpawnMobStart` / `FSpawnMobFinish` / `FOnMapClean` 四个未用 delegate 声明 |
+| `ConfirmArrangementAndTransition` 不可达分支 | 删除 `FName NextLevelName;` 及其后整段。函数保留（`LootSelectionWidget.cpp` 仍在调），现在只做 phase 切换 + 锁背包 |
+| 临时 finisher 计数块 | 删除 `EnterArrangementPhase` 内的计数 `if` 块与下游 `bRefreshTemporaryFinisherLockView` 的 `RefreshDeckView()` 调用；同时删掉已无引用的 `bCountCombatClearsForTemporaryFinisherUnlock`，并移除 `Combat/FinisherDeprecation.h` include |
+| `RemainKillCount` 兜底分支 | 删除 `UpdateFinishLevel` 末尾的兜底分支及 `RemainKillCount` 成员。`OnFinishLevel` / `FinishLevelEvent` 仍由 `CheckLevelComplete` 广播，`YogSaveSubsystem` 的订阅不受影响 |
+
+**行为变更**：未配置 `CampaignData` 的关卡里，原先 `MonsterKillCount >= RemainKillCount`（0 >= 0）会在**第一次击杀**就触发 `EnterArrangementPhase`。该路径已删除，这类关卡现在不会自动进入整理阶段 —— 这是修复，不是回归。
+
+**删除前的验证**：`Source/` 全量 grep 零调用者；`Content/` 二进制扫描仅 `B_GameMode.uasset` 命中 `SpawnConfig`（CDO tagged property，无 BP 图调用，加载时静默丢弃）。`StartSpawnTimer`（BlueprintCallable）与 `OnMapClean`（BlueprintAssignable）在 Content 内零命中。
 
 保留 `CompletedCombatBattleCount` 字段本身（`Cheater.cpp` / `FRunState` / 存档在用）。
 
 ### Phase 3 — 去重（约 200 行）
 
-1. **RunState 捕获逻辑复制了 3 份** → 抽成一个 helper
-   - `:881` (`EnterArrangementPhase`)
-   - `:1245` (`ConfirmArrangementAndTransition` 死分支内，Phase 2 会一并删掉)
-   - `:3622` (`TransitionToLevel` — **这份是超集**，额外存了 heat-carry tag 和 `SavedCharacterClass`)
+1. **RunState 捕获逻辑复制了 2 份** → 抽成一个 helper
+   - `:759` (`EnterArrangementPhase`)
+   - `:3419` (`TransitionToLevel` — **这份是超集**，额外存了 heat-carry tag 和 `SavedCharacterClass`)
    → 新建 `GameModes/YogRunStateCapture.h/.cpp`，`FRunState CaptureRunStateFromPlayer(APlayerCharacterBase*, int32 CompletedCombatBattleCount)`，取超集行为。**这是整个文件里单笔收益最高的改动。**
+   （原第三份在 `ConfirmArrangementAndTransition` 死分支内，已随 Phase 2 删除）
 
-2. **传送门封闭循环复制了 4 份** → 已有 file-static `SealPortalsExcept` (`:108`)，但 `StartLevelSpawning` 里四个分支各自手写了一遍 `GetAllActorsOfClass(APortal)` 循环：`:1823` / `:1865` / `:1919` / `:2029`。泛化成 `SealPortalsNotInDestinations(UWorld*, const TArray<FPortalDestConfig>&)` 复用。
+2. **传送门封闭循环复制了 4 份** → 已有 file-static `SealPortalsExcept` (`:107`)，但 `StartLevelSpawning` 里四个分支各自手写了一遍 `GetAllActorsOfClass(APortal)` 循环：`:1620` / `:1662` / `:1716` / `:1826`。泛化成 `SealPortalsNotInDestinations(UWorld*, const TArray<FPortalDestConfig>&)` 复用。
 
-3. **难度档位三元表达式重复** — `:1972-1974` 和 `:2090-2091` 复制了已存在的 `AYogGameMode::ResolveTier` (`:3956`) 的逻辑。改为直接调用。
+3. **难度档位三元表达式重复** — `:1769-1771` 和 `:1887-1888` 复制了已存在的 `AYogGameMode::ResolveTier` (`:3753`) 的逻辑。改为直接调用。
    （顺带：`ResolveTier` 是唯一没有测试覆盖的 pure static，建议补一个）
 
 ### Phase 4 — 引入 `FActiveRoomContext`，拆分 `StartLevelSpawning`
@@ -141,7 +148,7 @@ struct FActiveRoomContext
 ```
 吸收：`ActiveRoomData`、`ActiveRoomBuffs`、`ActiveGoldMin/Max`、`ActiveBuffCount`、`ActiveGlobalStageTag`、`ActiveStoryEventTags`，以及四个 story-override 成员。GameMode 持有一份，暴露 `const FActiveRoomContext& GetRoomContext() const`，只有 `UCampaignFlowComponent` 可写。
 
-然后把 `StartLevelSpawning` (`:1577` 起，约 450 行) 拆成：
+然后把 `StartLevelSpawning` (`:1374` 起，约 450 行) 拆成：
 `ResetPerRoomState()` → `ResolveRoomForFloor()` → `DispatchCampaignStage()` → 四选一的 `EnterHubRoom()` / `EnterShopRoom()` / `EnterEventRoom()` / `EnterCombatRoom()`
 （这四个分支本来就互斥、各自以 early `return` 结尾，拆起来很自然）
 
@@ -151,12 +158,12 @@ struct FActiveRoomContext
 
 | 顺序 | 组件 | 约行数 | 当前锚点 / 备注 |
 |---|---|---|---|
-| 1 | `UEnemyRegistryComponent` | 130 | `:4116` 起 + `AliveEnemies` + `OnBossRegisteredNative`。**零共享状态，12 个外部调用者（相机/AI/HUD/spawner），纯机械重指向。先做这个验证模式。** |
-| 2 | `UGameOverComponent` | 300 | `:1317` 起 + 3 个 revive static + 死亡调参 UPROPERTY。把 `PlayerDeathReviveTests.cpp` 一起挪过去 |
-| 3 | `URoomFixtureComponent` | 200 | `:1048` 起（商店 + 祭坛生成）。只读 `RoomContext.RoomData` |
+| 1 | `UEnemyRegistryComponent` | 130 | `:3913` 起 + `AliveEnemies` + `OnBossRegisteredNative`。**零共享状态，12 个外部调用者（相机/AI/HUD/spawner），纯机械重指向。先做这个验证模式。** |
+| 2 | `UGameOverComponent` | 300 | `:1114` 起 + 3 个 revive static + 死亡调参 UPROPERTY。把 `PlayerDeathReviveTests.cpp` 一起挪过去 |
+| 3 | `URoomFixtureComponent` | 200 | `:926` 起（商店 + 祭坛生成）。只读 `RoomContext.RoomData` |
 | 4 | `UWaveSpawnComponent` | 1100 | 波次算法 + 约 320 行 file-static enemy-rune helper + 波次状态/计时器。**注意**：`HandleLifecycleEnemySpawned/Failed` 必须保留为 public BuffFlow 回调 —— `BFNode_SpawnEnemyFromContext.cpp` 通过 `GetAuthGameMode` 调它，GameMode 要转发给组件 |
 | 5 | `ULootRewardComponent` | 400 | 战利品生成 + `SelectLoot` + `FindLootSpawnLocation` + reward pickup 生成 + `CurrentLootOptions` / `FallbackLootPool`。`LootSelectionWidget.cpp` 直接读 `CurrentLootOptions`，需重指向 |
-| 6 | `UPortalFlowComponent` | 400 | `:3848` `ActivateHubPortals` / `:3964` `ActivatePortals` / `:3583` `TransitionToLevel`。两个 Activate 函数高度相似，合并出一个 `TryOpenPortal()`。`Portal.cpp:518` 是 `TransitionToLevel` 唯一调用者 |
+| 6 | `UPortalFlowComponent` | 400 | `:3645` `ActivateHubPortals` / `:3761` `ActivatePortals` / `:3380` `TransitionToLevel`。两个 Activate 函数高度相似，合并出一个 `TryOpenPortal()`。`Portal.cpp:518` 是 `TransitionToLevel` 唯一调用者 |
 | 7 | `UCampaignFlowComponent` | 350 | 持有 `FActiveRoomContext`。`ResolveActiveCampaignData` / `RollRoomTypeForFloor` / `SelectRoomByTag` / `SelectRoomBuffs` / `ResolveTier` / `CurrentFloor`。**风险最高，最后做**，等其它簇都改成走 `GetRoomContext()` 之后 |
 
 **留在 `AYogGameMode` 上**：`BeginPlay`/`StartPlay`/`PostLogin`/`RestartPlayer`、`CurrentPhase` + `OnPhaseChanged`、`EnterArrangementPhase`、`ConfirmArrangementAndTransition`、`TriggerLifecycleEvent`/`RunStoryLevelFlow` + `LifecycleFlowComponent`、HUD 绑定、story-override setter（`StoryEncounterRuntimeSubsystem` 和 2 个 StoryFlow 节点在用）、6 个有测试覆盖的 static。
@@ -206,7 +213,7 @@ G:/GitHub/Dev02/UnrealEngine-5.8/Engine/Build/BatchFiles/Build.bat \
 **每个 Phase 做完都要构建一次，不要攒着一起编。**
 
 分阶段验收：
-- **Phase 2**：预期零行为变化，测试套件就是闸门
+- **Phase 2** ✅：构建已通过。唯一行为变化是无 `CampaignData` 关卡不再因首杀误触整理阶段（见第三节）
 - **Phase 3**：PIE 走一次关卡切换，确认 HP / 金币 / 符文 / 卡组能跨传送门带过去（RunState 捕获是风险点）
 - **Phase 4**：主城 / 商店 / 献祭事件 / 战斗 四种房型各 PIE 一次，确认传送门各自正常开启
 - **Phase 5**：每抽完一个组件，PIE 完整战斗房：刷怪 → 清场 → 掉落 → 选取 → 传送门 → 下一关。相机战斗偏移必须仍能跟随敌人（验证 `UEnemyRegistryComponent`）

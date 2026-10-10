@@ -16,99 +16,6 @@
 #include "Data/RuneDataAsset.h"
 #include "UI/YogHUD.h"
 
-static FText GetPortalRewardTypeDisplayName(ELootType LootType)
-{
-	switch (LootType)
-	{
-	case ELootType::Gold:
-		return NSLOCTEXT("Portal", "PreviewRewardGold", "金币");
-	case ELootType::Rune:
-		return NSLOCTEXT("Portal", "PreviewRewardCard", "卡牌");
-	case ELootType::Material:
-	default:
-		return NSLOCTEXT("Portal", "PreviewRewardMaterial", "材料");
-	}
-}
-
-static FLootOption MakePortalRewardTypePreviewOption(ELootType LootType)
-{
-	FLootOption Option;
-	Option.LootType = LootType;
-	Option.DisplayName = GetPortalRewardTypeDisplayName(LootType);
-	return Option;
-}
-
-static FString DescribePortalEnumValueForRewardDebug(const UEnum* Enum, int64 Value)
-{
-	return Enum ? Enum->GetNameStringByValue(Value) : FString::Printf(TEXT("%lld"), Value);
-}
-
-static FString DescribePortalLootOptionsForRewardDebug(const TArray<FLootOption>& Options)
-{
-	if (Options.IsEmpty())
-	{
-		return TEXT("Count=0 []");
-	}
-
-	TArray<FString> Parts;
-	Parts.Reserve(Options.Num());
-	for (int32 Index = 0; Index < Options.Num(); ++Index)
-	{
-		const FLootOption& Option = Options[Index];
-		Parts.Add(FString::Printf(
-			TEXT("#%d{Type=%s,Amount=%d,Display=%s,Rune=%s,Icon=%s,Meta=%s}"),
-			Index,
-			*DescribePortalEnumValueForRewardDebug(StaticEnum<ELootType>(), static_cast<int64>(Option.LootType)),
-			Option.Amount,
-			*Option.DisplayName.ToString(),
-			*GetNameSafe(Option.RuneAsset.Get()),
-			*GetNameSafe(Option.Icon.Get()),
-			*Option.MetaCurrencyTag.ToString()));
-	}
-
-	return FString::Printf(TEXT("Count=%d [%s]"), Options.Num(), *FString::Join(Parts, TEXT("; ")));
-}
-
-static void AddPortalRewardTypePreviewOption(
-	TArray<FLootOption>& OutOptions,
-	TSet<ELootType>& AddedTypes,
-	ELootType LootType)
-{
-	if (AddedTypes.Contains(LootType))
-	{
-		return;
-	}
-
-	AddedTypes.Add(LootType);
-	OutOptions.Add(MakePortalRewardTypePreviewOption(LootType));
-}
-
-static TArray<FLootOption> BuildPortalRewardPreviewOptions(const URoomDataAsset* Room)
-{
-	TArray<FLootOption> PreviewOptions;
-	if (!Room)
-	{
-		return PreviewOptions;
-	}
-
-	TSet<ELootType> AddedTypes;
-	if (Room->bUseFixedRewardOptions && !Room->FixedRewardOptions.IsEmpty())
-	{
-		for (const FLootOption& FixedOption : Room->FixedRewardOptions)
-		{
-			AddPortalRewardTypePreviewOption(PreviewOptions, AddedTypes, FixedOption.LootType);
-		}
-		return PreviewOptions;
-	}
-
-	if (!Room->LootPool.IsEmpty())
-	{
-		AddPortalRewardTypePreviewOption(PreviewOptions, AddedTypes, ELootType::Rune);
-	}
-
-	return PreviewOptions;
-}
-
 APortal::APortal(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -172,19 +79,16 @@ void APortal::Open(FName InSelectedLevel, URoomDataAsset* InSelectedRoom,
 		CollisionVolume->SetGenerateOverlapEvents(true);
 	}
 
-	RefreshPreviewInfo();
 	EnablePortal();
 	K2_OnPortalOpened();
 	TriggerLinkedDoorOpenEvents();
 
 	UE_LOG(LogTemp, Log,
-		TEXT("[StoryRewardDebug] Portal Open Portal=%s Index=%d SelectedLevel=%s SelectedRoom=%s PreviewRevision=%d CachedRewardOptions=%s"),
+		TEXT("[StoryRewardDebug] Portal Open Portal=%s Index=%d SelectedLevel=%s SelectedRoom=%s"),
 		*GetNameSafe(this),
 		Index,
 		*SelectedLevel.ToString(),
-		*GetNameSafe(SelectedRoom),
-		PreviewRevision,
-		*DescribePortalLootOptionsForRewardDebug(CachedPreviewInfo.RewardPreviewOptions));
+		*GetNameSafe(SelectedRoom));
 
 	// 调试：列出每个 PreRolled Buff 的资产名 + RuneName，定位 RuneName 漏填
 	for (int32 i = 0; i < PreRolledBuffs.Num(); ++i)
@@ -196,86 +100,6 @@ void APortal::Open(FName InSelectedLevel, URoomDataAsset* InSelectedRoom,
 			E.RuneDA ? *E.RuneDA->GetName() : TEXT("null"),
 			*RuneName.ToString());
 	}
-}
-
-TArray<FLootOption> APortal::BuildRewardPreviewOptionsForRoom(
-	const URoomDataAsset* Room,
-	const UYogGameInstanceBase* GameInstance)
-{
-	TArray<FLootOption> PendingOptions;
-	if (GameInstance && GameInstance->GetPendingRoomRewardOptionsOverride(PendingOptions))
-	{
-		UE_LOG(LogTemp, Log,
-			TEXT("[StoryRewardDebug] Portal BuildRewardPreviewOptionsForRoom uses pending override Room=%s GI=%s Options=%s"),
-			*GetNameSafe(Room),
-			*GetNameSafe(GameInstance),
-			*DescribePortalLootOptionsForRewardDebug(PendingOptions));
-		return PendingOptions;
-	}
-
-	TArray<FLootOption> RoomOptions = BuildPortalRewardPreviewOptions(Room);
-	UE_LOG(LogTemp, Log,
-		TEXT("[StoryRewardDebug] Portal BuildRewardPreviewOptionsForRoom uses RoomData Room=%s GI=%s UseFixed=%d FixedCount=%d LootPoolCount=%d Options=%s"),
-		*GetNameSafe(Room),
-		*GetNameSafe(GameInstance),
-		(Room && Room->bUseFixedRewardOptions) ? 1 : 0,
-		Room ? Room->FixedRewardOptions.Num() : 0,
-		Room ? Room->LootPool.Num() : 0,
-		*DescribePortalLootOptionsForRewardDebug(RoomOptions));
-	return RoomOptions;
-}
-
-void APortal::BuildPreviewInfo()
-{
-	CachedPreviewInfo = FPortalPreviewInfo{};
-	CachedPreviewInfo.RoomLevelName  = SelectedLevel;
-	CachedPreviewInfo.PreRolledBuffs = PreRolledBuffs;
-	CachedPreviewInfo.LootCount      = 3;
-
-	if (!SelectedRoom)
-	{
-		// 兜底：玩家可见名直接拿关卡名
-		CachedPreviewInfo.RoomDisplayName = FText::FromName(SelectedLevel);
-		return;
-	}
-
-	// DisplayName 为空时回退用 RoomName
-	CachedPreviewInfo.RoomDisplayName = SelectedRoom->DisplayName.IsEmptyOrWhitespace()
-		? FText::FromName(SelectedRoom->RoomName)
-		: SelectedRoom->DisplayName;
-
-	const UYogGameInstanceBase* GI = GetWorld()
-		? Cast<UYogGameInstanceBase>(GetWorld()->GetGameInstance())
-		: nullptr;
-	CachedPreviewInfo.RewardPreviewOptions = BuildRewardPreviewOptionsForRoom(SelectedRoom, GI);
-	CachedPreviewInfo.LootCount = CachedPreviewInfo.RewardPreviewOptions.Num();
-
-	// 提取首个 Room.Type.* Tag 作为类型徽章依据
-	static const FGameplayTag RoomTypeRoot = FGameplayTag::RequestGameplayTag(
-		FName("Room.Type"), false);
-	if (RoomTypeRoot.IsValid())
-	{
-		FGameplayTagContainer TypeTags = SelectedRoom->RoomTags.Filter(
-			FGameplayTagContainer(RoomTypeRoot));
-		if (TypeTags.Num() > 0)
-		{
-			CachedPreviewInfo.RoomTypeTag = TypeTags.First();
-		}
-	}
-}
-
-void APortal::RefreshPreviewInfo()
-{
-	BuildPreviewInfo();
-	++PreviewRevision;
-	UE_LOG(LogTemp, Log,
-		TEXT("[StoryRewardDebug] Portal RefreshPreviewInfo Portal=%s Index=%d Revision=%d SelectedLevel=%s SelectedRoom=%s RewardOptions=%s"),
-		*GetNameSafe(this),
-		Index,
-		PreviewRevision,
-		*SelectedLevel.ToString(),
-		*GetNameSafe(SelectedRoom),
-		*DescribePortalLootOptionsForRewardDebug(CachedPreviewInfo.RewardPreviewOptions));
 }
 
 // =========================================================
@@ -430,8 +254,6 @@ void APortal::HandlePlayerEnterRange(APlayerCharacterBase* Player)
 	if (!Player) return;
 	Player->RegisterInteractable(this);
 
-	// TODO(Stage C)：调 HUD->NotifyPlayerInPortalRange(this) 切单例浮窗
-
 	SetInteractPromptVisible(true);
 	K2_OnHighlightChanged(true);
 	K2_OnPortalRangeEntered();
@@ -442,8 +264,6 @@ void APortal::HandlePlayerExitRange(APlayerCharacterBase* Player)
 {
 	if (!Player) return;
 	Player->UnregisterInteractable(this);
-
-	// TODO(Stage C)：调 HUD->NotifyPlayerExitedPortalRange(this)
 
 	SetInteractPromptVisible(false);
 	K2_OnHighlightChanged(false);
@@ -537,7 +357,6 @@ void APortal::TryEnter(APlayerCharacterBase* Player)
 	// 触发 HUD 渐黑（视觉接口；HUD 不感知业务流程）
 	if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
 	{
-		HUD->HidePortalGuidance();   // 收起浮窗 + 箭头
 		HUD->BeginBlackoutFade(HUD->PortalBlackoutDuration);
 	}
 

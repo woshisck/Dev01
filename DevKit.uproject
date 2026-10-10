@@ -48,6 +48,26 @@
 			]
 		},
 		{
+			"Name": "UnLua",
+			"Enabled": true
+    	},
+		{
+			"Name": "LuaProtobuf",
+			"Enabled": true
+		},
+		{
+			"Name": "LuaRapidjson",
+			"Enabled": true
+		},
+		{
+			"Name": "LuaSocket",
+			"Enabled": true
+		},
+		{
+			"Name": "UnLuaTestSuite",
+			"Enabled": true
+		},
+		{
 			"Name": "ModularGameplay",
 			"Enabled": true
 		},

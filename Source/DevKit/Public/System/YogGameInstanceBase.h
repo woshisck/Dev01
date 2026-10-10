@@ -42,9 +42,6 @@ struct FRunState
 	UPROPERTY()
 	float CurrentHP = 0.f;
 
-	UPROPERTY()
-	int32 CurrentGold = 0;
-
 	// BackpackGridComponent 的热度阶段（0-3）
 	UPROPERTY()
 	int32 CurrentPhase = 0;
@@ -486,7 +483,6 @@ private:
 	UFUNCTION()
 	void HandleGraphicsSettingsBackRequested();
 	FReply HandleQuitClicked();
-	void RefreshOpenPortalRewardPreviews();
 
 protected:
 

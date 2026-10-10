@@ -5,7 +5,6 @@
 #include "Data/RoomDataAsset.h"
 #include "Engine/World.h"
 #include "GameModes/YogGameMode.h"
-#include "Map/Portal.h"
 #include "Story/Encounter/StoryEncounterPointDataAsset.h"
 #include "Story/Flow/Nodes/SNode_SetRoomRewardOverride.h"
 #include "System/YogGameInstanceBase.h"
@@ -211,40 +210,6 @@ bool FGameModeKeepsPendingRoomRewardOverrideForHubRoomTest::RunTest(const FStrin
 	}
 
 	GM->Destroy();
-	return true;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPortalRewardPreviewPrefersPendingOverrideTest,
-	"DevKit.StoryRewardOverride.PortalPreviewPrefersPendingOverride",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FPortalRewardPreviewPrefersPendingOverrideTest::RunTest(const FString& Parameters)
-{
-	URoomDataAsset* Room = NewObject<URoomDataAsset>();
-	UYogGameInstanceBase* GI = NewObject<UYogGameInstanceBase>();
-	TestNotNull(TEXT("Room data exists"), Room);
-	TestNotNull(TEXT("Game instance exists"), GI);
-	if (!Room || !GI)
-	{
-		return false;
-	}
-
-	Room->bUseFixedRewardOptions = true;
-	Room->FixedRewardOptions = { StoryRewardOverrideTests::MakeMaterialOption(1) };
-	GI->SetPendingRoomRewardOptionsOverride({ StoryRewardOverrideTests::MakeGoldOption(50) });
-
-	const TArray<FLootOption> PreviewOptions = APortal::BuildRewardPreviewOptionsForRoom(Room, GI);
-	TestEqual(TEXT("Portal preview option count"), PreviewOptions.Num(), 1);
-	if (PreviewOptions.Num() == 1)
-	{
-		TestEqual(TEXT("Portal preview uses pending gold override"), PreviewOptions[0].LootType, ELootType::Gold);
-		TestEqual(TEXT("Portal preview gold amount"), PreviewOptions[0].Amount, 50);
-	}
-
-	TArray<FLootOption> ConsumedOptions;
-	TestTrue(TEXT("Portal preview does not consume pending reward override"),
-		GI->ConsumePendingRoomRewardOptionsOverride(ConsumedOptions));
-
 	return true;
 }
 

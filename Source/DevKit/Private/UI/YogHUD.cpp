@@ -1,4 +1,4 @@
-#include "UI/YogHUD.h"
+﻿#include "UI/YogHUD.h"
 #include "UI/YogHUDRootWidget.h"
 #include "UI/CombatDeckBarWidget.h"
 #include "UI/CombatItemBarWidget.h"
@@ -38,10 +38,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "UI/InfoPopupWidget.h"
 #include "Data/LevelInfoPopupDA.h"
-#include "UI/PortalPreviewWidget.h"
-#include "UI/PortalDirectionWidget.h"
 #include "Map/RewardPickup.h"
-#include "Map/Portal.h"
 #include "Visual/TimeDilationVisualSubsystem.h"
 #include "System/YogGameInstanceBase.h"
 #include "GameModes/YogGameMode.h"
@@ -731,12 +728,6 @@ void AYogHUD::ShowWeaponFloatInfoAtLocation(const UWeaponDefinition* Def, FVecto
 	{
 		WeaponFloatWidget->SetRenderOpacity(0.f);
 	}
-	if (PortalPreviewWidget)
-	{
-		PortalPreviewWidget->SetVisibility(ESlateVisibility::Collapsed);
-		CurrentPreviewTarget = nullptr;
-		CurrentPreviewRevision = INDEX_NONE;
-	}
 	WeaponFloatWidget->SetUserFocus(GetOwningPlayerController());
 }
 
@@ -1064,14 +1055,6 @@ void AYogHUD::ApplyWidgetReflectorDebugVisibility()
 	{
 		YogWidgetReflectorDebug::ApplyToWidgetTree(CurrentRoomBuffWidget);
 	}
-	if (PortalPreviewWidget)
-	{
-		YogWidgetReflectorDebug::ApplyToWidgetTree(PortalPreviewWidget);
-	}
-	if (PortalDirectionWidget)
-	{
-		YogWidgetReflectorDebug::ApplyToWidgetTree(PortalDirectionWidget);
-	}
 	if (UYogUIManagerSubsystem* UIManager = GetUIManagerFromHUD(this))
 	{
 		UIManager->ApplyWidgetReflectorDebugVisibility();
@@ -1083,9 +1066,8 @@ void AYogHUD::Tick(float DeltaSeconds)
 	Super::Tick(DeltaSeconds);
 	ApplyWidgetReflectorDebugVisibility();
 
-	// Portal 引导 + Blackout 独立 Tick — 必须在所有早返回之前调用，
+	// Blackout 独立 Tick — 必须在所有早返回之前调用，
 	// 否则常规情况下（PauseEffectAlpha 已稳定 / LevelEndEffect 期间）不会更新
-	TickPortalPreview(DeltaSeconds);
 	TickBlackoutFade(DeltaSeconds);
 	TickMajorUIFade(DeltaSeconds);
 	TickWeaponFloatFade(DeltaSeconds);
@@ -1426,8 +1408,7 @@ void AYogHUD::BindPlayerCommonInfoWidget(APawn* Pawn)
 		return;
 	}
 
-	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(Pawn);
-	MainHUDWidget->PlayerCommonInfoHud->BindToBackpack(Player ? Player->BackpackGridComponent : nullptr);
+	MainHUDWidget->PlayerCommonInfoHud->BindToEconomy();
 }
 
 void AYogHUD::OnPawnPossessed(APawn* OldPawn, APawn* NewPawn)
@@ -1615,265 +1596,8 @@ void AYogHUD::TickBossBarValidity()
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  v3：Portal 引导（单例浮窗 + 方位箭头）+ 进入过场 Blackout
+//  Portal 进入过场 Blackout
 // ─────────────────────────────────────────────────────────────────────────────
-
-void AYogHUD::ShowPortalGuidance()
-{
-	bShowPortalGuidance = true;
-	CurrentPreviewTarget = nullptr;
-	CurrentPreviewRevision = INDEX_NONE;
-
-	// 一次性扫描场景所有 bIsOpen 的 Portal，缓存弱指针避免每帧 GetAllActorsOfClass
-	CachedOpenPortals.Reset();
-	TArray<AActor*> All;
-	UGameplayStatics::GetAllActorsOfClass(GetWorld(), APortal::StaticClass(), All);
-	TArray<APortal*> OpenList;
-	for (AActor* A : All)
-	{
-		if (APortal* P = Cast<APortal>(A))
-		{
-			if (P->bIsOpen)
-			{
-				CachedOpenPortals.Add(P);
-				OpenList.Add(P);
-			}
-		}
-	}
-	UE_LOG(LogTemp, Log, TEXT("[Portal] ShowPortalGuidance: 缓存开启门数=%d"), CachedOpenPortals.Num());
-
-	// 浮窗（按需创建，状态默认 collapsed，由 TickPortalPreview 选 Target 后再显示）
-	if (!PortalPreviewWidget)
-	{
-		TSubclassOf<UPortalPreviewWidget> WidgetClass =
-			ResolveManagedWidgetClass(EYogUIScreenId::PortalPreview, PortalPreviewClass);
-		if (WidgetClass)
-		{
-			PortalPreviewWidget = CreateWidget<UPortalPreviewWidget>(GetOwningPlayerController(), WidgetClass);
-			if (PortalPreviewWidget) PortalPreviewWidget->AddToViewport(ResolveManagedZOrder(EYogUIScreenId::PortalPreview, 15));
-		}
-	}
-	if (PortalPreviewWidget)
-		PortalPreviewWidget->SetVisibility(ESlateVisibility::Collapsed);
-
-	// 方位箭头（按需创建，启用并传入 Portal 列表）
-	if (!PortalDirectionWidget)
-	{
-		TSubclassOf<UPortalDirectionWidget> WidgetClass =
-			ResolveManagedWidgetClass(EYogUIScreenId::PortalDirection, PortalDirectionClass);
-		if (WidgetClass)
-		{
-			PortalDirectionWidget = CreateWidget<UPortalDirectionWidget>(GetOwningPlayerController(), WidgetClass);
-			if (PortalDirectionWidget) PortalDirectionWidget->AddToViewport(ResolveManagedZOrder(EYogUIScreenId::PortalDirection, 14));
-		}
-	}
-	if (PortalDirectionWidget)
-		PortalDirectionWidget->SetActive(true, OpenList);
-}
-
-void AYogHUD::HidePortalGuidance()
-{
-	bShowPortalGuidance = false;
-	CurrentPreviewTarget = nullptr;
-	CurrentPreviewRevision = INDEX_NONE;
-	CachedOpenPortals.Reset();
-	if (PortalPreviewWidget)
-		PortalPreviewWidget->SetVisibility(ESlateVisibility::Collapsed);
-	if (PortalDirectionWidget)
-		PortalDirectionWidget->SetActive(false, {});
-}
-
-void AYogHUD::NotifyPlayerInPortalRange(APortal* /*Portal*/)
-{
-	// 当前实现：TickPortalPreview 已通过读玩家重叠的 Portal 自动优先选中
-	// 本接口保留作为后续扩展点（如立即加亮、播放进入提示音等）
-}
-
-void AYogHUD::NotifyPlayerExitedPortalRange(APortal* /*Portal*/)
-{
-	// 同上
-}
-
-FVector2D AYogHUD::ResolvePortalPreviewAnchorPosition(
-	const FVector2D& ScreenPosition,
-	const FVector2D& ViewportSize,
-	float SideOffset,
-	float Margin)
-{
-	if (ViewportSize.X <= 0.f || ViewportSize.Y <= 0.f)
-	{
-		return ScreenPosition;
-	}
-
-	FVector2D AnchorPosition = ScreenPosition;
-	const float EffectiveSideOffset = FMath::Clamp(SideOffset, 0.f, 48.f);
-	const float SideX = (AnchorPosition.X > ViewportSize.X * 0.5f)
-		? -EffectiveSideOffset
-		: EffectiveSideOffset;
-	AnchorPosition.X += SideX;
-
-	const float SafeMargin = FMath::Max(0.f, Margin);
-	AnchorPosition.X = FMath::Clamp(AnchorPosition.X, SafeMargin, FMath::Max(SafeMargin, ViewportSize.X - SafeMargin));
-	AnchorPosition.Y = FMath::Clamp(AnchorPosition.Y, SafeMargin, FMath::Max(SafeMargin, ViewportSize.Y - SafeMargin));
-	return AnchorPosition;
-}
-
-FVector2D AYogHUD::ResolvePortalPreviewAlignment(
-	const FVector2D& ScreenPosition,
-	const FVector2D& ViewportSize)
-{
-	if (ViewportSize.X <= 0.f || ViewportSize.Y <= 0.f)
-	{
-		return FVector2D(0.5f, 1.0f);
-	}
-
-	const bool bDoorOnRightSide = ScreenPosition.X > ViewportSize.X * 0.5f;
-	return FVector2D(bDoorOnRightSide ? 1.0f : 0.0f, 1.0f);
-}
-
-void AYogHUD::TickPortalPreview(float /*DeltaSeconds*/)
-{
-	if (MajorUICount > 0) return;
-	if (!bShowPortalGuidance || !PortalPreviewWidget) return;
-	if (IsWeaponFloatInfoVisible())
-	{
-		PortalPreviewWidget->SetVisibility(ESlateVisibility::Collapsed);
-		CurrentPreviewTarget = nullptr;
-		CurrentPreviewRevision = INDEX_NONE;
-		return;
-	}
-
-	APlayerController* PC = GetOwningPlayerController();
-	if (!PC || !PC->GetPawn())
-	{
-		PortalPreviewWidget->SetVisibility(ESlateVisibility::Collapsed);
-		CurrentPreviewTarget = nullptr;
-		CurrentPreviewRevision = INDEX_NONE;
-		return;
-	}
-	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(PC->GetPawn());
-	if (!Player)
-	{
-		PortalPreviewWidget->SetVisibility(ESlateVisibility::Collapsed);
-		CurrentPreviewTarget = nullptr;
-		CurrentPreviewRevision = INDEX_NONE;
-		return;
-	}
-
-	APortal* Target = nullptr;
-	APortal* PendingPortal = Player->GetOverlappingInteractable<APortal>();
-
-	// 优先级 1：玩家在某门 Box 内 → 强制选中此门，保证"按 E"提示稳定
-	if (PendingPortal)
-	{
-		Target = PendingPortal;
-	}
-	else
-	{
-		// 扫描缓存：屏幕内可见 OR 距离 < ForceShowDistance，挑距玩家最近一个
-		const FVector PlayerPos = Player->GetActorLocation();
-		FVector CamLoc; FRotator CamRot;
-		PC->GetPlayerViewPoint(CamLoc, CamRot);
-
-		FVector2D ViewportSize;
-		if (UGameViewportClient* GVC = GetWorld()->GetGameViewport())
-			GVC->GetViewportSize(ViewportSize);
-
-		APortal* Closest = nullptr;
-		float    ClosestDistSq = FLT_MAX;
-		const float ForceDistSq = PortalForceShowDistance * PortalForceShowDistance;
-
-		for (const TWeakObjectPtr<APortal>& W : CachedOpenPortals)
-		{
-			APortal* P = W.Get();
-			if (!P || !P->bIsOpen) continue;
-
-			const FVector DoorPos = P->GetActorLocation();
-			const float   DistSq  = FVector::DistSquared(DoorPos, PlayerPos);
-
-			bool bVisible = false;
-			FVector2D SP;
-			const bool bInFront = FVector::DotProduct(CamRot.Vector(), DoorPos - CamLoc) > 0.f;
-			if (bInFront && PC->ProjectWorldLocationToScreen(DoorPos, SP, false))
-			{
-				bVisible = (SP.X >= 0.f && SP.X <= ViewportSize.X
-				         && SP.Y >= 0.f && SP.Y <= ViewportSize.Y);
-			}
-			const bool bForceShow = (DistSq < ForceDistSq);
-			if (!bVisible && !bForceShow) continue;
-
-			if (DistSq < ClosestDistSq)
-			{
-				ClosestDistSq = DistSq;
-				Closest = P;
-			}
-		}
-
-		// 滞回：当前 Target 仍合法且与新候选差距 < Hysteresis 时不切，防中点抖动
-		APortal* CurT = CurrentPreviewTarget.Get();
-		if (CurT && Closest && CurT != Closest)
-		{
-			const float CurDist = FVector::Dist(CurT->GetActorLocation(), PlayerPos);
-			const float NewDist = FMath::Sqrt(ClosestDistSq);
-			if ((CurDist - NewDist) < PortalSwitchHysteresis)
-				Closest = CurT;
-		}
-
-		Target = Closest;
-	}
-
-	if (!Target)
-	{
-		if (PortalPreviewWidget->GetVisibility() != ESlateVisibility::Collapsed)
-		{
-			PortalPreviewWidget->SetVisibility(ESlateVisibility::Collapsed);
-		}
-		CurrentPreviewTarget = nullptr;
-		CurrentPreviewRevision = INDEX_NONE;
-		return;
-	}
-
-	// Target 切换 → 刷新数据 + 显示
-	const int32 TargetPreviewRevision = Target->GetPreviewRevision();
-	if (CurrentPreviewTarget.Get() != Target || CurrentPreviewRevision != TargetPreviewRevision)
-	{
-		CurrentPreviewTarget = Target;
-		CurrentPreviewRevision = TargetPreviewRevision;
-		UE_LOG(LogTemp, Log,
-			TEXT("[StoryRewardDebug] HUD SetPortalPreviewInfo Target=%s PortalIndex=%d Revision=%d PendingPortal=%s RewardOptions=%s"),
-			*GetNameSafe(Target),
-			Target->Index,
-			TargetPreviewRevision,
-			*GetNameSafe(PendingPortal),
-			*DescribeHUDLootOptionsForRewardDebug(Target->CachedPreviewInfo.RewardPreviewOptions));
-		PortalPreviewWidget->SetPreviewInfo(Target->CachedPreviewInfo);
-		PortalPreviewWidget->SetVisibility(YogWidgetReflectorDebug::GetInspectableVisibility(ESlateVisibility::HitTestInvisible));
-	}
-
-	// 每帧位置跟随：投影 + 相机右侧避让（投影到屏幕右半→向左偏，反之向右）
-	FVector2D ScreenPos;
-	if (PC->ProjectWorldLocationToScreen(
-			Target->GetActorLocation() + FVector(0.f, 0.f, PortalWidgetZOffset),
-			ScreenPos, false))
-	{
-		FVector2D ViewportSize;
-		if (UGameViewportClient* GVC = GetWorld()->GetGameViewport())
-			GVC->GetViewportSize(ViewportSize);
-		const FVector2D ProjectedDoorScreenPos = ScreenPos;
-		ScreenPos = ResolvePortalPreviewAnchorPosition(
-			ScreenPos,
-			ViewportSize,
-			PortalWidgetSideOffset,
-			24.f);
-
-		const FVector2D PreviewAlignment = ResolvePortalPreviewAlignment(ProjectedDoorScreenPos, ViewportSize);
-		PortalPreviewWidget->SetAlignmentInViewport(PreviewAlignment);
-		PortalPreviewWidget->SetPositionInViewport(ScreenPos, false);
-	}
-
-	// 交互提示：仅当玩家进入 Target 的 Box 时显示"按 E 进入"
-	PortalPreviewWidget->SetInteractHintVisible(PendingPortal == Target);
-}
 
 void AYogHUD::BeginBlackoutFade(float Duration)
 {
@@ -1913,10 +1637,6 @@ void AYogHUD::PopMajorUI()
 	MajorUICount = FMath::Max(0, MajorUICount - 1);
 	if (MajorUICount != 0) return;
 
-	// 重置 Portal 目标，强制 TickPortalPreview 重新判断并 SetVisible（否则 Target 未变会跳过）
-	CurrentPreviewTarget = nullptr;
-	CurrentPreviewRevision = INDEX_NONE;
-
 	// 恢复 Slate 可见性（opacity 从当前 alpha 继续 fade-in，避免闪现）
 	if (UWeaponGlassIconWidget* GlassIcon = MainHUDWidget ? MainHUDWidget->WeaponGlassIcon : nullptr)
 	{
@@ -1927,13 +1647,6 @@ void AYogHUD::PopMajorUI()
 		}
 	}
 
-	if (PortalDirectionWidget && bShowPortalGuidance)
-	{
-		PortalDirectionWidget->SetVisibility(YogWidgetReflectorDebug::GetInspectableVisibility(ESlateVisibility::HitTestInvisible));
-		PortalDirectionWidget->SetRenderOpacity(MajorUIFadeAlpha);
-	}
-
-	// PortalPreviewWidget：由 TickPortalPreview 下帧决定是否显示（CurrentPreviewTarget 已清空）
 	// InfoPopupWidget：关闭即消，不恢复
 
 	MajorUIFadeTarget = 1.f;   // 开始 fade-in
@@ -1958,12 +1671,6 @@ void AYogHUD::TickMajorUIFade(float DeltaSeconds)
 		if (GlassIcon->GetVisibility() != ESlateVisibility::Collapsed)
 			GlassIcon->SetRenderOpacity(MajorUIFadeAlpha);
 
-	if (PortalPreviewWidget && PortalPreviewWidget->GetVisibility() != ESlateVisibility::Collapsed)
-		PortalPreviewWidget->SetRenderOpacity(MajorUIFadeAlpha);
-
-	if (PortalDirectionWidget && PortalDirectionWidget->GetVisibility() != ESlateVisibility::Collapsed)
-		PortalDirectionWidget->SetRenderOpacity(MajorUIFadeAlpha);
-
 	if (UInfoPopupWidget* InfoPopup = GetInfoPopupWidget())
 		if (InfoPopup->GetVisibility() != ESlateVisibility::Collapsed)
 			InfoPopup->SetRenderOpacity(MajorUIFadeAlpha);
@@ -1973,10 +1680,6 @@ void AYogHUD::TickMajorUIFade(float DeltaSeconds)
 	{
 		if (UWeaponGlassIconWidget* GlassIcon = MainHUDWidget ? MainHUDWidget->WeaponGlassIcon : nullptr)
 			GlassIcon->SetVisibility(ESlateVisibility::Collapsed);
-		if (PortalPreviewWidget)
-			PortalPreviewWidget->SetVisibility(ESlateVisibility::Collapsed);
-		if (PortalDirectionWidget)
-			PortalDirectionWidget->SetVisibility(ESlateVisibility::Collapsed);
 		if (UInfoPopupWidget* InfoPopup = GetInfoPopupWidget())
 			InfoPopup->SetVisibility(ESlateVisibility::Collapsed);
 	}

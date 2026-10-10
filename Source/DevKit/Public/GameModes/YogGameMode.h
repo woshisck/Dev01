@@ -37,44 +37,11 @@ class USpawnLifecycleFlowAsset;
 class UStoryEventRegistryDA;
 struct FBuffFlowLifecycleContext;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnFinishLevel);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnMapClean);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPhaseChanged, ELevelPhase, NewPhase);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLootGenerated, const TArray<FLootOption>&, LootOptions);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnCampaignStageEntered, int32, FloorIndex, FGameplayTag, StageTag, FGameplayTagContainer, EventTags, URoomDataAsset*, RoomData);
 DECLARE_MULTICAST_DELEGATE(FOnLootSelected);
 DECLARE_MULTICAST_DELEGATE_OneParam(FBossRegisteredNativeDelegate, AEnemyCharacterBase*);
-
-
-DECLARE_DELEGATE(FCleanAllMobInMap);
-DECLARE_DELEGATE(FSpawnMobStart);
-DECLARE_DELEGATE(FSpawnMobFinish);
-
-USTRUCT(BlueprintType)
-struct FSpawnConfig
-{
-	GENERATED_BODY()
-
-public:
-	// Number of mobs to spawn in this wave
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int32 MaxCall = 1;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float FirstDelay = 2.0;
-
-	// Interval between each spawn in this wave (seconds)
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float Interval = 1.0f;
-
-	// Optional delay before starting this wave
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float StartDelay = 0.0f;
-
-	// Mob class to spawn
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TSubclassOf<AActor> MobClass = nullptr;
-};
-
 
 
 UCLASS()
@@ -109,26 +76,6 @@ public:
 	void SpawnPlayerAtPlayerStart(APlayerCharacterBase* player, const FString& IncomingName);
 
 
-	///////////////////////////////  AI  ////////////////////////////////
-	// Timer handle for repeated calls
-	FTimerHandle SpawnTimerHandle;
-
-	UPROPERTY(BlueprintAssignable) 
-	FOnMapClean OnMapClean;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawning")
-	FSpawnConfig SpawnConfig;
-
-	UFUNCTION(BlueprintCallable)
-	void StartSpawnTimer();
-
-	// Function to call repeatedly
-	void SpawnMob();
-
-	void TriggerImmediateSpawn();
-	void SomeEventThatTriggersImmediateSpawn();
-
-	///////////////////////////////  AI  ////////////////////////////////
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player")
 	bool bAutoSpawnPlayer = false;
 
@@ -149,9 +96,6 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "KillCount")
 	int MonsterKillCount;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "KillCount")
-	int RemainKillCount;
 
 	// =========================================================
 	// 敌人注册表（供相机感知使用）
@@ -253,9 +197,6 @@ public:
 	// 进关后延迟多少秒再开始刷怪（给特效/动画和 AI 初始化预留时间）
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LevelFlow", meta = (ClampMin = "0.0"))
 	float InitialSpawnDelay = 1.5f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LevelFlow|Deprecated", meta = (DeprecatedProperty, DeprecationMessage = "Temporary finisher unlock is deprecated and ignored while finisher ability is disabled."))
-	bool bCountCombatClearsForTemporaryFinisherUnlock = false;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "LevelFlow|Deprecated")
 	int32 CompletedCombatBattleCount = 0;
@@ -655,9 +596,6 @@ protected:
 	// OneByOne 模式每只怪之间的固定间隔（秒）
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawning", meta = (ClampMin = "0.1"))
 	float OneByOneDefaultInterval = 3.0f;
-
-	UPROPERTY()
-	int32 Current_CallCount;
 
 	// ---- 战利品生成 ----
 

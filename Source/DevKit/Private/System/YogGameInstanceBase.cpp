@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "System/YogGameInstanceBase.h"
 #include "Character/PlayerCharacterBase.h"
@@ -6,6 +6,7 @@
 #include "SaveGame/YogSaveGame.h"
 #include "SaveGame/YogSaveSubsystem.h"
 #include "System/YogPerformanceSettingsLibrary.h"
+#include "System/YogRunEconomySubsystem.h"
 #include "Engine/AssetManager.h"
 #include "Engine/GameViewportClient.h"
 #include "Engine/StreamableManager.h"
@@ -17,7 +18,6 @@
 #include "InputCoreTypes.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
-#include "Map/Portal.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
 #include "Styling/SlateBrush.h"
@@ -1373,6 +1373,12 @@ void UYogGameInstanceBase::ClearRunState()
 	PendingRunState = FRunState(); // 重置为默认值，bIsValid = false
 	ClearPendingTransitionFields();
 
+	// Gold lives on the economy subsystem, so resetting FRunState no longer clears it.
+	if (UYogRunEconomySubsystem* Economy = GetSubsystem<UYogRunEconomySubsystem>())
+	{
+		Economy->ResetForNewRun();
+	}
+
 	UE_LOG(LogTemp, Log, TEXT("ClearRunState: 跑局状态已清空（含传送门预骰）"));
 }
 
@@ -1399,7 +1405,6 @@ void UYogGameInstanceBase::SetPendingRoomRewardOptionsOverride(const TArray<FLoo
 
 	UE_LOG(LogTemp, Log, TEXT("[StoryRewardDebug] GI SetPendingRoomRewardOptionsOverride Options=%s"),
 		*DescribeGameInstanceLootOptionsForRewardDebug(PendingRoomRewardOptionsOverride));
-	RefreshOpenPortalRewardPreviews();
 }
 
 void UYogGameInstanceBase::ClearPendingRoomRewardOptionsOverride()
@@ -1412,7 +1417,6 @@ void UYogGameInstanceBase::ClearPendingRoomRewardOptionsOverride()
 
 	bHasPendingRoomRewardOptionsOverride = false;
 	PendingRoomRewardOptionsOverride.Reset();
-	RefreshOpenPortalRewardPreviews();
 }
 
 bool UYogGameInstanceBase::ConsumePendingRoomRewardOptionsOverride(TArray<FLootOption>& OutOptions)
@@ -1464,7 +1468,6 @@ void UYogGameInstanceBase::SetPendingStoryNextRoomPlan(const FStoryNextRoomPlan&
 		InPlan.bOverrideBuffs ? 1 : 0,
 		InPlan.BuffsOverride.Num());
 
-	RefreshOpenPortalRewardPreviews();
 }
 
 void UYogGameInstanceBase::ClearPendingStoryNextRoomPlan()
@@ -1506,45 +1509,6 @@ bool UYogGameInstanceBase::GetPendingStoryNextRoomPlan(FStoryNextRoomPlan& OutPl
 	return true;
 }
 
-void UYogGameInstanceBase::RefreshOpenPortalRewardPreviews()
-{
-	UWorld* World = GetWorld();
-	if (!World)
-	{
-		UE_LOG(LogTemp, Log,
-			TEXT("[StoryRewardDebug] GI RefreshOpenPortalRewardPreviews skipped: World is null Pending=%d Options=%s"),
-			bHasPendingRoomRewardOptionsOverride ? 1 : 0,
-			*DescribeGameInstanceLootOptionsForRewardDebug(PendingRoomRewardOptionsOverride));
-		return;
-	}
-
-	TArray<AActor*> PortalActors;
-	UGameplayStatics::GetAllActorsOfClass(World, APortal::StaticClass(), PortalActors);
-	int32 RefreshedCount = 0;
-	for (AActor* Actor : PortalActors)
-	{
-		APortal* Portal = Cast<APortal>(Actor);
-		if (Portal && Portal->bIsOpen)
-		{
-			++RefreshedCount;
-			UE_LOG(LogTemp, Log,
-				TEXT("[StoryRewardDebug] GI RefreshOpenPortalRewardPreviews refreshing Portal=%s Index=%d RevisionBefore=%d Pending=%d"),
-				*GetNameSafe(Portal),
-				Portal->Index,
-				Portal->GetPreviewRevision(),
-				bHasPendingRoomRewardOptionsOverride ? 1 : 0);
-			Portal->RefreshPreviewInfo();
-		}
-	}
-
-	UE_LOG(LogTemp, Log,
-		TEXT("[StoryRewardDebug] GI RefreshOpenPortalRewardPreviews World=%s Pending=%d PortalActors=%d OpenRefreshed=%d Options=%s"),
-		*GetNameSafe(World),
-		bHasPendingRoomRewardOptionsOverride ? 1 : 0,
-		PortalActors.Num(),
-		RefreshedCount,
-		*DescribeGameInstanceLootOptionsForRewardDebug(PendingRoomRewardOptionsOverride));
-}
 
 void UYogGameInstanceBase::SetCampaignOverride(UCampaignDataAsset* InCampaignData)
 {

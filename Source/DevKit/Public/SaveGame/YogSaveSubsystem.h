@@ -184,7 +184,7 @@ public:
 	// 玩家死亡时调用（HandlePlayerDeath）
 	void RecordPlayerDeath();
 
-	// 金币增加时调用（BackpackGridComponent::AddGold）
+	// 金币增加时调用（UYogRunEconomySubsystem::AddGold）
 	void RecordGoldEarned(int32 Amount);
 
 private:

@@ -1,13 +1,11 @@
-#if WITH_DEV_AUTOMATION_TESTS
+﻿#if WITH_DEV_AUTOMATION_TESTS
 
 #include "Misc/AutomationTest.h"
 
 #include "Blueprint/WidgetTree.h"
-#include "Components/HorizontalBox.h"
 #include "Components/Image.h"
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
-#include "Components/TextBlock.h"
 #include "Components/Widget.h"
 #include "UI/LiquidHealthBarWidget.h"
 #include "UI/YogCommonRichTextBlock.h"
@@ -187,48 +185,5 @@ bool FHudRootWeaponComboListBlueprintBindingTest::RunTest(const FString& Paramet
 	return bValid;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPortalPreviewRewardIconBoxBlueprintBindingTest,
-	"DevKitEditor.UI.PortalPreview.RewardIconBoxBinding",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FPortalPreviewRewardIconBoxBlueprintBindingTest::RunTest(const FString& Parameters)
-{
-	const TCHAR* PortalPreviewBlueprintPath = TEXT("/Game/UI/Playtest_UI/Portal/WBP_PortalPreview.WBP_PortalPreview");
-
-	UWidgetBlueprint* PortalPreviewBlueprint = LoadObject<UWidgetBlueprint>(nullptr, PortalPreviewBlueprintPath);
-	if (!TestNotNull(TEXT("Portal preview widget blueprint loads"), PortalPreviewBlueprint))
-	{
-		return false;
-	}
-
-	UWidgetTree* WidgetTree = PortalPreviewBlueprint->WidgetTree;
-	if (!TestNotNull(TEXT("Portal preview has a designer widget tree"), WidgetTree))
-	{
-		return false;
-	}
-
-	UWidget* LootIconBox = WidgetTree->FindWidget(TEXT("LootIconBox"));
-	UWidget* LootSummaryText = WidgetTree->FindWidget(TEXT("LootSummaryText"));
-
-	bool bValid = true;
-	bValid &= TestNotNull(TEXT("Portal preview contains LootIconBox"), LootIconBox);
-	bValid &= TestNotNull(TEXT("Portal preview keeps LootSummaryText as native fallback"), LootSummaryText);
-
-	if (LootIconBox)
-	{
-		bValid &= TestTrue(TEXT("LootIconBox is a horizontal reward icon row"),
-			LootIconBox->IsA<UHorizontalBox>());
-	}
-
-	if (LootSummaryText)
-	{
-		bValid &= TestTrue(TEXT("LootSummaryText is hidden by default because rewards render as icons"),
-			LootSummaryText->GetVisibility() == ESlateVisibility::Collapsed);
-		bValid &= TestTrue(TEXT("LootSummaryText remains a text block fallback"),
-			LootSummaryText->IsA<UTextBlock>());
-	}
-
-	return bValid;
-}
 
 #endif

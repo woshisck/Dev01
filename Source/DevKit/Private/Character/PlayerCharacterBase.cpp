@@ -26,6 +26,7 @@
 #include "Data/GASTemplate.h"
 #include "Item/ItemSpawner.h"
 #include "Component/BackpackGridComponent.h"
+#include "System/YogRunEconomySubsystem.h"
 #include "Engine/AssetManager.h"
 #include "Engine/StreamableManager.h"
 #include "MetaProgression/YogMetaProgressionSubsystem.h"
@@ -1058,10 +1059,16 @@ void APlayerCharacterBase::ClearRunCarriedStateForHub()
 		CombatDeckComponent->RefreshDeckView();
 	}
 
+	if (UGameInstance* GI = GetGameInstance())
+	{
+		if (UYogRunEconomySubsystem* Economy = GI->GetSubsystem<UYogRunEconomySubsystem>())
+		{
+			Economy->ResetForNewRun();
+		}
+	}
+
 	if (BackpackGridComponent)
 	{
-		BackpackGridComponent->Gold = 0;
-		BackpackGridComponent->OnGoldChanged.Broadcast(0);
 		BackpackGridComponent->RestorePlacedRunes({}, true);
 		BackpackGridComponent->RestoreRuntimeHiddenPassiveRunes({});
 		BackpackGridComponent->RestorePhase(0);
@@ -1097,8 +1104,8 @@ void APlayerCharacterBase::RestoreRunStateFromGI()
 	}
 	bRunStateRestoredFromGI = true;
 
-	UE_LOG(LogTemp, Warning, TEXT("[RunState] RESTORE HP=%.1f Gold=%d Phase=%d Runes=%d"),
-		GI->PendingRunState.CurrentHP, GI->PendingRunState.CurrentGold,
+	UE_LOG(LogTemp, Warning, TEXT("[RunState] RESTORE HP=%.1f Phase=%d Runes=%d"),
+		GI->PendingRunState.CurrentHP,
 		GI->PendingRunState.CurrentPhase, GI->PendingRunState.PlacedRunes.Num());
 
 	const FRunState State = GI->PendingRunState;
@@ -1115,13 +1122,6 @@ void APlayerCharacterBase::RestoreRunState(const FRunState& State)
 		const float MaxHealth = ASC->GetNumericAttribute(UBaseAttributeSet::GetMaxHealthAttribute());
 		const float RestoredHP = MaxHealth > 0.f ? FMath::Clamp(State.CurrentHP, 1.f, MaxHealth) : State.CurrentHP;
 		ASC->SetNumericAttributeBase(UBaseAttributeSet::GetHealthAttribute(), RestoredHP);
-	}
-
-	// 恢复金币（现在由 BackpackGridComponent 持有
-	if (BackpackGridComponent)
-	{
-		BackpackGridComponent->Gold = FMath::Max(0, State.CurrentGold);
-		BackpackGridComponent->OnGoldChanged.Broadcast(BackpackGridComponent->Gold);
 	}
 
 	// 恢复整理阶段已选但尚未放置的符

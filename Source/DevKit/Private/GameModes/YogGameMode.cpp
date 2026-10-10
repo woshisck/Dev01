@@ -8,8 +8,8 @@
 #include "Character/PlayerCharacterBase.h"
 #include "Component/CombatDeckComponent.h"
 #include "Component/BackpackGridComponent.h"
+#include "System/YogRunEconomySubsystem.h"
 #include "Component/PlayerActiveSkillComponent.h"
-#include "Combat/FinisherDeprecation.h"
 #include "Character/EnemyCharacterBase.h"
 #include "Data/LevelInfoPopupDA.h"
 #include "Data/RoomDataAsset.h"
@@ -414,104 +414,6 @@ void AYogGameMode::SpawnPlayerAtPlayerStart(APlayerCharacterBase* player, const 
 }
 
 
-//TArray<AActor*> OutActors
-//TArray<AMobSpawner*> Spawners;
-//UGameplayStatics::GetAllActorsOfClass(GetWorld(), AMobSpawner::StaticClass(), OutActors);
-
-
-
-
-
-
-///////////////////////////////  AI  ////////////////////////////////
-void AYogGameMode::StartSpawnTimer()
-{
-	GetWorld()->GetTimerManager().SetTimer(SpawnTimerHandle, this, &AYogGameMode::SpawnMob, SpawnConfig.Interval, true, SpawnConfig.FirstDelay);
-
-}
-
-void AYogGameMode::SpawnMob()
-{
-	//Spawn Algo:
-	UE_LOG(LogTemp, Warning, TEXT("SpawnMob called at %f"), GetWorld()->GetTimeSeconds());
-
-	TArray<AActor*> OutActors;
-	TArray<AMobSpawner*> Spawners;
-	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AMobSpawner::StaticClass(), OutActors);
-
-	if (OutActors.Num() <= 0)
-	{
-		return;
-	}
-
-	for (AActor* a : OutActors)
-	{
-		Spawners.Add(Cast<AMobSpawner>(a));
-	}
-
-	//const int32 TotalMobToSpawn = 15; 
-
-
-	//for (int32 i = 0; i < TotalMobToSpawn; i++)
-	for (int32 i = 0; i < SpawnConfig.MaxCall; i++)
-	{
-		int32 RandomIndex = FMath::RandRange(0, Spawners.Num() - 1);
-		AMobSpawner* ChosenSpawner = Spawners[RandomIndex];
-
-		if (ChosenSpawner)
-		{
-			ChosenSpawner->SpawnMob(SpawnConfig.MobClass); // Assuming AMobSpawner has SpawnMob()
-			UE_LOG(LogTemp, Warning, TEXT("Mob %d spawned at spawner %d"), i + 1, RandomIndex);
-		}
-	}
-
-
-	Current_CallCount++; 
-	if (Current_CallCount >= SpawnConfig.MaxCall)
-	{ 
-		GetWorld()->GetTimerManager().ClearTimer(SpawnTimerHandle);
-	}
-
-}
-
-
-void AYogGameMode::TriggerImmediateSpawn()
-{
-	// Clear the current timer
-	GetWorld()->GetTimerManager().ClearTimer(SpawnTimerHandle);
-
-	// Calculate how much time has passed since the last spawn
-	float TimeSinceLastSpawn = GetWorld()->GetTimerManager().GetTimerElapsed(SpawnTimerHandle);
-	float TimeRemaining = SpawnConfig.Interval - TimeSinceLastSpawn;
-
-	// Call spawn immediately
-	SpawnMob();
-
-	// Restart the timer with the remaining time
-	if (Current_CallCount < SpawnConfig.MaxCall)
-	{
-		GetWorld()->GetTimerManager().SetTimer(
-			SpawnTimerHandle,
-			this,
-			&AYogGameMode::SpawnMob,
-			SpawnConfig.Interval,
-			true,
-			FMath::Max(TimeRemaining, 0.1f) // Ensure there's at least a small delay
-		);
-	}
-}
-
-
-///////////////////////////////  AI  ////////////////////////////////
-
-
-void AYogGameMode::SomeEventThatTriggersImmediateSpawn()
-{
-	GetWorld()->GetTimerManager().SetTimerForNextTick(this, &AYogGameMode::TriggerImmediateSpawn);
-
-}
-
- 
 void AYogGameMode::UpdateFinishLevel(int count)
 {
 	this->MonsterKillCount += count;
@@ -556,16 +458,6 @@ void AYogGameMode::UpdateFinishLevel(int count)
 
 		CheckWaveTrigger();
 		CheckLevelComplete();
-		return;
-	}
-
-	// ---- 旧系统兜底（未配置 CampaignData 时）----
-	if (this->MonsterKillCount >= RemainKillCount)
-	{
-		OnFinishLevel.Broadcast();
-		FinishLevelEvent.Broadcast();
-		UE_LOG(LogTemp, Log, TEXT("OnFinishLevel.Broadcast() Calling;"));
-		EnterArrangementPhase();
 	}
 }
 
@@ -722,14 +614,6 @@ void AYogGameMode::EnterArrangementPhase()
 	CurrentPhase = ELevelPhase::Arrangement;
 	OnPhaseChanged.Broadcast(CurrentPhase);
 
-	bool bRefreshTemporaryFinisherLockView = false;
-	if (!DevKit::Combat::IsFinisherAbilityDeprecated() && bCountCombatClearsForTemporaryFinisherUnlock)
-	{
-		++CompletedCombatBattleCount;
-		bRefreshTemporaryFinisherLockView = true;
-		UE_LOG(LogTemp, Log, TEXT("[TemporaryFinisher] Completed combat battles: %d"), CompletedCombatBattleCount);
-	}
-
 	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(
 		UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
 
@@ -745,8 +629,11 @@ void AYogGameMode::EnterArrangementPhase()
 		if (GetActiveCampaignData() && ActiveGoldMax > 0 && !bHasRoomRewardOptionsOverride)
 		{
 			const int32 GoldReward = FMath::RandRange(ActiveGoldMin, ActiveGoldMax);
-			if (Player->BackpackGridComponent)
-				Player->BackpackGridComponent->AddGold(GoldReward);
+			if (UYogRunEconomySubsystem* Economy = GetGameInstance()
+				? GetGameInstance()->GetSubsystem<UYogRunEconomySubsystem>() : nullptr)
+			{
+				Economy->AddGold(GoldReward);
+			}
 			UE_LOG(LogTemp, Log, TEXT("EnterArrangementPhase: 发放金币 %d"), GoldReward);
 		}
 	}
@@ -768,11 +655,6 @@ void AYogGameMode::EnterArrangementPhase()
 	}
 
 	// 重置本关已分配符文的追踪集合（多拾取物去重用）
-	if (Player && bRefreshTemporaryFinisherLockView && Player->CombatDeckComponent)
-	{
-		Player->CombatDeckComponent->RefreshDeckView();
-	}
-
 	LootAssignedThisLevel.Empty();
 
 	// Loot 落点：优先玩家前方，被墙阻挡/角落时自动选相机可见方向
@@ -843,7 +725,6 @@ void AYogGameMode::EnterArrangementPhase()
 	// Legacy extra reward pickup roll. Disabled by default while rooms should emit one pickup.
 	SpawnSacrificeEventAltar(LootSpawnLoc);
 
-	const bool bIsHubRoom = ActiveRoomData && ActiveRoomData->bIsHubRoom;
 	const bool bIsSacrificeRoom = IsSacrificeEventRoom();
 	if (ShouldAllowExtraRewardPickupForRoom(
 			ActiveRoomData,
@@ -880,7 +761,6 @@ void AYogGameMode::EnterArrangementPhase()
 		{
 			FRunState NewState;
 			NewState.bIsValid = true;
-			NewState.CurrentGold = Player->BackpackGridComponent ? Player->BackpackGridComponent->Gold : 0;
 
 			if (UAbilitySystemComponent* ASC = Player->GetAbilitySystemComponent())
 			{
@@ -938,17 +818,6 @@ void AYogGameMode::EnterArrangementPhase()
 	// 开启传送门
 	ActivatePortals();
 
-	// v3：启用 HUD 传送门引导（单例浮窗 + 屏幕边缘方位箭头）。主城（HubRoom）跳过
-	if (!bIsHubRoom)
-	{
-		if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
-		{
-			if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
-			{
-				HUD->ShowPortalGuidance();
-			}
-		}
-	}
 }
 
 void AYogGameMode::SelectLoot(int32 LootIndex)
@@ -975,9 +844,9 @@ void AYogGameMode::SelectLoot(int32 LootIndex)
 	}
 	else if (Chosen.LootType == ELootType::Gold)
 	{
-		if (UBackpackGridComponent* Backpack = Player->GetBackpackGridComponent())
+		if (UYogRunEconomySubsystem* Economy = UGameInstance::GetSubsystem<UYogRunEconomySubsystem>(GetGameInstance()))
 		{
-			Backpack->AddGold(FMath::Max(0, Chosen.Amount));
+			Economy->AddGold(FMath::Max(0, Chosen.Amount));
 		}
 	}
 	else if (Chosen.LootType == ELootType::Material)
@@ -1229,89 +1098,8 @@ void AYogGameMode::ConfirmArrangementAndTransition()
 		}
 	}
 
-	// 旧系统入口：LevelSequenceData 已废弃，由 Portal 触发 TransitionToLevel
-	FName NextLevelName;
-
-	if (!NextLevelName.IsNone())
-	{
-		if (UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance()))
-		{
-			GI->PendingNextFloor = CurrentFloor + 1;
-
-			// 切关前将玩家状态写入 GI，供新关卡恢复
-			if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(
-				UGameplayStatics::GetPlayerCharacter(GetWorld(), 0)))
-			{
-				FRunState NewState;
-				NewState.bIsValid = true;
-				NewState.CurrentGold = Player->BackpackGridComponent ? Player->BackpackGridComponent->Gold : 0;
-
-				if (UAbilitySystemComponent* ASC = Player->GetAbilitySystemComponent())
-				{
-					NewState.CurrentHP = ASC->GetNumericAttribute(UBaseAttributeSet::GetHealthAttribute());
-
-					// 热度切关：默认归零，符文可保留一阶或两阶
-					static const FGameplayTag TagRetainTwo = FGameplayTag::RequestGameplayTag(TEXT("Buff.HeatCarry.TwoPhase"), false);
-					static const FGameplayTag TagRetainOne = FGameplayTag::RequestGameplayTag(TEXT("Buff.HeatCarry.OnePhase"), false);
-					const float MaxHeat = ASC->GetNumericAttribute(UBaseAttributeSet::GetMaxHeatAttribute());
-					if (TagRetainTwo.IsValid() && ASC->HasMatchingGameplayTag(TagRetainTwo))
-						NewState.CurrentHeat = MaxHeat * 2.f;
-					else if (TagRetainOne.IsValid() && ASC->HasMatchingGameplayTag(TagRetainOne))
-						NewState.CurrentHeat = MaxHeat;
-					else
-						NewState.CurrentHeat = 0.f;
-				}
-
-				if (UBackpackGridComponent* Backpack = Player->GetBackpackGridComponent())
-				{
-					NewState.CurrentPhase = Backpack->GetCurrentPhase();
-					// 只保存非永久符文（永久符文由 BeginPlay 自动重放）
-					for (const FPlacedRune& PR : Backpack->GetAllPlacedRunes())
-					{
-						if (!PR.bIsPermanent)
-						{
-							NewState.PlacedRunes.Add(PR);
-						}
-					}
-				}
-
-				if (UCombatDeckComponent* CombatDeck = Player->CombatDeckComponent)
-				{
-					for (const FCombatCardInstance& Card : CombatDeck->GetFullDeckSnapshot())
-					{
-						if (Card.SourceData)
-						{
-							NewState.CombatDeckCards.Add(Card.SourceData);
-							NewState.CombatDeckCardOrientations.Add(Card.LinkOrientation);
-						}
-					}
-					NewState.CombatDeckShuffleCooldownDuration = CombatDeck->GetShuffleCooldownDuration();
-					NewState.CombatDeckMaxActiveSequenceSize = CombatDeck->GetMaxActiveSequenceSize();
-				}
-				Player->CaptureCombatLoadoutForRunState(NewState);
-				NewState.CompletedCombatBattleCount = CompletedCombatBattleCount;
-
-				NewState.ActiveSacrificeGrace = Player->ActiveSacrificeGrace;
-				NewState.SacrificeOfferingCosts = Player->GetSacrificeOfferingCosts();
-				if (Player->ActiveSkillComponent)
-				{
-					for (UActiveSkillDataAsset* Skill : Player->ActiveSkillComponent->GetSkillLoadout())
-					{
-						NewState.SelectedSkillLoadout.Add(Skill);
-					}
-				}
-
-				GI->PendingRunState = NewState;
-				UE_LOG(LogTemp, Warning, TEXT("[RunState] SAVE — HP=%.1f Gold=%d Phase=%d Heat=%.0f Runes=%d"),
-					NewState.CurrentHP, NewState.CurrentGold, NewState.CurrentPhase, NewState.CurrentHeat, NewState.PlacedRunes.Num());
-			}
-		}
-		UGameplayStatics::OpenLevel(GetWorld(), NextLevelName);
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("ConfirmArrangementAndTransition: 没有找到下一关的 LevelName，请检查 CampaignData.FloorTable[%d].LevelName"), CurrentFloor);
-	}
+	// Level loading is owned by APortal -> TransitionToLevel; this entry point only closes the
+	// arrangement phase.
 }
 
 void AYogGameMode::HandlePlayerDeath(APlayerCharacterBase* Player)
@@ -1888,14 +1676,6 @@ void AYogGameMode::StartLevelSpawning()
 		SpawnShopActorForRoom();
 		ActivatePortals();
 
-		if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
-		{
-			if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
-			{
-				HUD->ShowPortalGuidance();
-			}
-		}
-
 		UE_LOG(LogTemp, Log, TEXT("StartLevelSpawning: [ShopRoom] %s - skip combat and open shop"),
 			*GetNameSafe(ActiveRoomData));
 		return;
@@ -1950,17 +1730,7 @@ void AYogGameMode::StartLevelSpawning()
 
 		SpawnSacrificeEventAltar(EventAnchorLoc);
 
-		{
-			ActivatePortals();
-
-			if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
-			{
-				if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
-				{
-					HUD->ShowPortalGuidance();
-				}
-			}
-		}
+		ActivatePortals();
 
 		UE_LOG(LogTemp, Log, TEXT("StartLevelSpawning: [EventRoom] %s - skip combat reward flow and open event room"),
 			*GetNameSafe(ActiveRoomData));
@@ -3621,7 +3391,6 @@ void AYogGameMode::TransitionToLevel(FName NextLevel, URoomDataAsset* NextRoom)
 			// 保存跑局状态
 			FRunState NewState;
 			NewState.bIsValid    = true;
-			NewState.CurrentGold = Player->BackpackGridComponent ? Player->BackpackGridComponent->Gold : 0;
 
 			if (UAbilitySystemComponent* ASC = Player->GetAbilitySystemComponent())
 			{
@@ -3691,8 +3460,8 @@ void AYogGameMode::TransitionToLevel(FName NextLevel, URoomDataAsset* NextRoom)
 			}
 
 			GI->PendingRunState = NewState;
-			UE_LOG(LogTemp, Warning, TEXT("[RunState] SAVE (Portal) — HP=%.1f Gold=%d Phase=%d Runes=%d Weapon=%s Room=%s"),
-				NewState.CurrentHP, NewState.CurrentGold, NewState.CurrentPhase, NewState.PlacedRunes.Num(),
+			UE_LOG(LogTemp, Warning, TEXT("[RunState] SAVE (Portal) — HP=%.1f Phase=%d Runes=%d Weapon=%s Room=%s"),
+				NewState.CurrentHP, NewState.CurrentPhase, NewState.PlacedRunes.Num(),
 				NewState.EquippedWeaponDef ? *NewState.EquippedWeaponDef->GetName() : TEXT("none"),
 				NextRoom ? *NextRoom->GetName() : TEXT("null"));
 
@@ -3940,14 +3709,6 @@ void AYogGameMode::ActivateHubPortals()
 			PreRolled.Num());
 	}
 
-	// 主城无战斗 → EnterArrangementPhase 永不触发，需在此手动启用 HUD 引导
-	if (APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0))
-	{
-		if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
-		{
-			HUD->ShowPortalGuidance();
-		}
-	}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

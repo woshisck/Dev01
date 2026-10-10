@@ -12,6 +12,7 @@
 #include "Input/CommonUIInputTypes.h"
 #include "InputCoreTypes.h"
 #include "Map/ShopActor.h"
+#include "System/YogRunEconomySubsystem.h"
 #include "UI/YogHUD.h"
 #include "UI/YogInputKeyUtils.h"
 #include "UI/YogUIManagerSubsystem.h"
@@ -197,14 +198,14 @@ void UShopSelectionWidget::BuyItem(int32 ItemIndex)
 		return;
 	}
 
-	UBackpackGridComponent* Backpack = Player->GetBackpackGridComponent();
-	if (!Backpack)
+	UYogRunEconomySubsystem* Economy = GetEconomy();
+	if (!Economy)
 	{
 		return;
 	}
 
 	const int32 Cost = GetEntryCost(Entry);
-	if (!Backpack->SpendGold(Cost))
+	if (!Economy->SpendGold(Cost))
 	{
 		const FText Message = FText::Format(
 			NSLOCTEXT("ShopSelection", "NotEnoughGold", "\u91d1\u5e01\u4e0d\u8db3\uff1a\u9700\u8981 {0} G"),
@@ -289,6 +290,12 @@ void UShopSelectionWidget::RefreshNativeView()
 	RefreshItemButtons();
 }
 
+UYogRunEconomySubsystem* UShopSelectionWidget::GetEconomy() const
+{
+	UGameInstance* GI = GetGameInstance();
+	return GI ? GI->GetSubsystem<UYogRunEconomySubsystem>() : nullptr;
+}
+
 void UShopSelectionWidget::RefreshGoldText()
 {
 	if (!GoldText)
@@ -297,12 +304,9 @@ void UShopSelectionWidget::RefreshGoldText()
 	}
 
 	int32 Gold = 0;
-	if (APlayerCharacterBase* Player = OwningPlayer.Get())
+	if (const UYogRunEconomySubsystem* Economy = GetEconomy())
 	{
-		if (UBackpackGridComponent* Backpack = Player->GetBackpackGridComponent())
-		{
-			Gold = Backpack->Gold;
-		}
+		Gold = Economy->GetGold();
 	}
 
 	GoldText->SetText(FText::Format(

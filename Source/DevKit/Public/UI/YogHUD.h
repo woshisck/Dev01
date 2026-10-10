@@ -23,9 +23,6 @@ class UYogHUDRootWidget;
 class UPauseMenuWidget;
 class UInfoPopupWidget;
 class ULevelInfoPopupDA;
-class UPortalPreviewWidget;
-class UPortalDirectionWidget;
-class APortal;
 class ARewardPickup;
 class APlayerCharacterBase;
 class UBackpackGridComponent;
@@ -71,16 +68,6 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "HUD|Pause")
 	bool IsPauseMenuOpen() const;
-
-	static FVector2D ResolvePortalPreviewAnchorPosition(
-		const FVector2D& ScreenPosition,
-		const FVector2D& ViewportSize,
-		float SideOffset,
-		float Margin);
-
-	static FVector2D ResolvePortalPreviewAlignment(
-		const FVector2D& ScreenPosition,
-		const FVector2D& ViewportSize);
 
 	// ─────────────────────────────────────────
 	//  暂停遮罩后处理
@@ -260,45 +247,12 @@ public:
 	void HideCurrentRoomBuffs();
 
 	// ─────────────────────────────────────────
-	//  Portal 引导（v3：单例浮窗 + 屏幕边缘方位箭头 + 进入过场 Blackout）
+	//  Portal 进入过场 Blackout
 	// ─────────────────────────────────────────
-
-	UPROPERTY(EditDefaultsOnly, Category = "Portal")
-	TSubclassOf<UPortalPreviewWidget> PortalPreviewClass;
-
-	UPROPERTY(EditDefaultsOnly, Category = "Portal")
-	TSubclassOf<UPortalDirectionWidget> PortalDirectionClass;
-
-	/** 浮窗距门屏幕投影的水平避让偏移（仿 RewardPickup） */
-	UPROPERTY(EditDefaultsOnly, Category = "Portal")
-	float PortalWidgetSideOffset = 32.f;
-
-	/** 浮窗距门屏幕投影的 Z 偏移（向上抬，避免遮门） */
-	UPROPERTY(EditDefaultsOnly, Category = "Portal")
-	float PortalWidgetZOffset = 80.f;
-
-	/** 即使门在屏幕外，距玩家小于此距离也会被选为 Target */
-	UPROPERTY(EditDefaultsOnly, Category = "Portal", meta = (ClampMin = "0"))
-	float PortalForceShowDistance = 800.f;
-
-	/** Target 切换距离滞回（cm），防中点抖动 */
-	UPROPERTY(EditDefaultsOnly, Category = "Portal", meta = (ClampMin = "0"))
-	float PortalSwitchHysteresis = 100.f;
 
 	/** 进入过场渐黑时长（线性，秒）。应与 Portal::PortalEntryFailSafeBuffer 对齐 */
 	UPROPERTY(EditDefaultsOnly, Category = "Portal", meta = (ClampMin = "0.05"))
 	float PortalBlackoutDuration = 0.3f;
-
-	/** 关卡结算后启用引导（EnterArrangementPhase 末尾调；主城传送门跳过此调用） */
-	void ShowPortalGuidance();
-
-	/** 切关前 / 战斗开始时关闭引导 */
-	void HidePortalGuidance();
-
-	/** Portal 玩家进/出范围回调（v3 决策：当前实现仅由 TickPortalPreview 读玩家重叠的 Portal，
-	    本接口保留作为 BP 扩展或后续高级行为占位） */
-	void NotifyPlayerInPortalRange(APortal* Portal);
-	void NotifyPlayerExitedPortalRange(APortal* Portal);
 
 	/** 由 APortal::TryEnter 调用：线性渐黑（PostProcess Saturation/Gain 朝 LevelEndEffectDA 目标插值） */
 	void BeginBlackoutFade(float Duration);
@@ -467,18 +421,6 @@ private:
 	void RefreshCurrentRoomBuffsFromGameMode();
 	void ApplyWidgetReflectorDebugVisibility();
 
-	// === Portal 引导（私有运行时状态） ===
-	UPROPERTY()
-	TObjectPtr<UPortalPreviewWidget>   PortalPreviewWidget;
-
-	UPROPERTY()
-	TObjectPtr<UPortalDirectionWidget> PortalDirectionWidget;
-
-	TArray<TWeakObjectPtr<APortal>> CachedOpenPortals;
-	TWeakObjectPtr<APortal>         CurrentPreviewTarget;
-	int32 CurrentPreviewRevision = INDEX_NONE;
-	bool bShowPortalGuidance = false;
-
 	// === Portal 进入过场 Blackout（独立 PP Volume，不与 Pause/LevelEnd 互扰） ===
 	UPROPERTY()
 	TObjectPtr<APostProcessVolume> BlackoutPPVolume;
@@ -487,7 +429,6 @@ private:
 	float BlackoutTargetAlpha    = 0.f;
 	float BlackoutActiveDuration = 0.5f;
 
-	void TickPortalPreview(float DeltaSeconds);
 	void TickBlackoutFade(float DeltaSeconds);
 	void ApplyBlackoutPP();
 

@@ -1,7 +1,6 @@
 #include "UI/PlayerCommonInfoWidget.h"
 
 #include "Blueprint/WidgetTree.h"
-#include "Component/BackpackGridComponent.h"
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/Image.h"
@@ -12,6 +11,7 @@
 #include "Engine/Texture2D.h"
 #include "Engine/GameInstance.h"
 #include "MetaProgression/YogMetaProgressionSubsystem.h"
+#include "System/YogRunEconomySubsystem.h"
 #include "UI/WidgetReflectorDebugUtils.h"
 
 void UPlayerCommonInfoWidget::NativeConstruct()
@@ -20,7 +20,7 @@ void UPlayerCommonInfoWidget::NativeConstruct()
 
 	ApplyGoldIconBrush();
 	ApplyMaterialIconBrush();
-	SetGold(BoundBackpack ? BoundBackpack->Gold : 0);
+	BindToEconomy();
 	BindToMetaProgression();
 	SetVisibility(YogWidgetReflectorDebug::GetInspectableVisibility(ESlateVisibility::HitTestInvisible));
 	if (GoldRow)
@@ -35,34 +35,28 @@ void UPlayerCommonInfoWidget::NativeConstruct()
 
 void UPlayerCommonInfoWidget::NativeDestruct()
 {
-	UnbindBackpack();
+	UnbindEconomy();
 	UnbindMetaProgression();
 	ClearCommonInfoEntries();
 
 	Super::NativeDestruct();
 }
 
-void UPlayerCommonInfoWidget::BindToBackpack(UBackpackGridComponent* InBackpack)
+void UPlayerCommonInfoWidget::BindToEconomy()
 {
-	if (BoundBackpack == InBackpack)
+	UnbindEconomy();
+
+	UGameInstance* GameInstance = GetGameInstance();
+	BoundEconomy = GameInstance ? GameInstance->GetSubsystem<UYogRunEconomySubsystem>() : nullptr;
+	if (!BoundEconomy)
 	{
-		SetGold(BoundBackpack ? BoundBackpack->Gold : 0);
+		SetGold(0);
 		return;
 	}
 
-	UnbindBackpack();
-	BoundBackpack = InBackpack;
-
-	if (BoundBackpack)
-	{
-		BoundBackpack->OnGoldChanged.RemoveDynamic(this, &UPlayerCommonInfoWidget::HandleGoldChanged);
-		BoundBackpack->OnGoldChanged.AddDynamic(this, &UPlayerCommonInfoWidget::HandleGoldChanged);
-		SetGold(BoundBackpack->Gold);
-	}
-	else
-	{
-		SetGold(0);
-	}
+	BoundEconomy->OnGoldChanged.RemoveDynamic(this, &UPlayerCommonInfoWidget::HandleGoldChanged);
+	BoundEconomy->OnGoldChanged.AddDynamic(this, &UPlayerCommonInfoWidget::HandleGoldChanged);
+	SetGold(BoundEconomy->GetGold());
 }
 
 void UPlayerCommonInfoWidget::SetGold(int32 Gold)
@@ -172,12 +166,12 @@ void UPlayerCommonInfoWidget::HandleMetaCurrencyChanged(FGameplayTag CurrencyTag
 	}
 }
 
-void UPlayerCommonInfoWidget::UnbindBackpack()
+void UPlayerCommonInfoWidget::UnbindEconomy()
 {
-	if (BoundBackpack)
+	if (BoundEconomy)
 	{
-		BoundBackpack->OnGoldChanged.RemoveDynamic(this, &UPlayerCommonInfoWidget::HandleGoldChanged);
-		BoundBackpack = nullptr;
+		BoundEconomy->OnGoldChanged.RemoveDynamic(this, &UPlayerCommonInfoWidget::HandleGoldChanged);
+		BoundEconomy = nullptr;
 	}
 }
 

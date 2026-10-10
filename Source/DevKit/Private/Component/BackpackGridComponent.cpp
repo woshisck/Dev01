@@ -12,6 +12,7 @@
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
 #include "SaveGame/YogSaveSubsystem.h"
+#include "System/YogRunEconomySubsystem.h"
 
 static constexpr bool bDisableLegacyBackpackRuneRuntimeForCardTest = true;
 
@@ -63,45 +64,6 @@ void UBackpackGridComponent::EditorCenterOnGrid()
 // 金币（Economy
 // =========================================================
 
-void UBackpackGridComponent::AddGold(int32 Amount)
-{
-	if (Amount <= 0) return;
-	Gold += Amount;
-
-	if (AActor* Owner = GetOwner())
-	{
-		if (UGameInstance* GI = Owner->GetGameInstance())
-		{
-			if (UYogSaveSubsystem* SS = GI->GetSubsystem<UYogSaveSubsystem>())
-			{
-				SS->RecordGoldEarned(Amount);
-			}
-		}
-	}
-
-	OnGoldChanged.Broadcast(Gold);
-}
-
-bool UBackpackGridComponent::SpendGold(int32 Amount)
-{
-	if (Amount < 0 || Gold < Amount) return false;
-	Gold -= Amount;
-	OnGoldChanged.Broadcast(Gold);
-	return true;
-}
-
-bool UBackpackGridComponent::CanAffordRune(const URuneDataAsset* DA) const
-{
-	if (!DA) return false;
-	return Gold >= DA->GetGoldCost();
-}
-
-bool UBackpackGridComponent::BuyRune(URuneDataAsset* DA)
-{
-	if (!DA) return false;
-	return SpendGold(DA->GetGoldCost());
-}
-
 bool UBackpackGridComponent::SellRune(FGuid RuneGuid)
 {
 	// 先找到符文，取出 GoldCost，再移除
@@ -118,7 +80,13 @@ bool UBackpackGridComponent::SellRune(FGuid RuneGuid)
 	if (!RemoveRune(RuneGuid))
 		return false;
 
-	AddGold(GoldRefund);
+	if (UGameInstance* GI = GetOwner() ? GetOwner()->GetGameInstance() : nullptr)
+	{
+		if (UYogRunEconomySubsystem* Economy = GI->GetSubsystem<UYogRunEconomySubsystem>())
+		{
+			Economy->AddGold(GoldRefund);
+		}
+	}
 	return true;
 }
 

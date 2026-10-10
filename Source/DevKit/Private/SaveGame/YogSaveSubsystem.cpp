@@ -3,6 +3,7 @@
 #include "System/YogWorldSubsystem.h"
 #include "System/YogGameInstanceBase.h"
 #include "System/YogPerformanceSettingsLibrary.h"
+#include "System/YogRunEconomySubsystem.h"
 #include "SaveGame/YogSaveGame.h"
 #include "SaveGame/YogSaveGameArchive.h"
 #include "SaveGame/YogWeaponSaveSupport.h"
@@ -367,10 +368,15 @@ void UYogSaveSubsystem::PopulateCheckpointFromRunState(FRunCheckpointData& Out, 
 
 	const FRunState& RS = GI->PendingRunState;
 
+	// Gold is owned by the economy subsystem, not FRunState.
+	if (const UYogRunEconomySubsystem* Economy = GI->GetSubsystem<UYogRunEconomySubsystem>())
+	{
+		Out.CurrentGold = Economy->GetGold();
+	}
+
 	Out.bIsValid        = true;
 	Out.CheckpointFloor = Floor;
 	Out.CurrentHP       = RS.CurrentHP;
-	Out.CurrentGold     = RS.CurrentGold;
 	Out.CurrentPhase    = RS.CurrentPhase;
 	Out.CurrentHeat     = RS.CurrentHeat;
 	Out.CompletedCombatBattleCount        = RS.CompletedCombatBattleCount;
@@ -435,9 +441,13 @@ void UYogSaveSubsystem::RestoreRunStateFromCheckpoint(const FRunCheckpointData& 
 
 	FRunState& RS = GI->PendingRunState;
 
+	if (UYogRunEconomySubsystem* Economy = GI->GetSubsystem<UYogRunEconomySubsystem>())
+	{
+		Economy->RestoreGold(In.CurrentGold);
+	}
+
 	RS.bIsValid        = true;
 	RS.CurrentHP       = In.CurrentHP;
-	RS.CurrentGold     = In.CurrentGold;
 	RS.CurrentPhase    = In.CurrentPhase;
 	RS.CurrentHeat     = In.CurrentHeat;
 	RS.CompletedCombatBattleCount        = In.CompletedCombatBattleCount;

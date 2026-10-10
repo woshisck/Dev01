@@ -5,10 +5,10 @@
 #include "GameplayTagContainer.h"
 #include "PlayerCommonInfoWidget.generated.h"
 
-class UBackpackGridComponent;
 class UHorizontalBox;
 class UImage;
 class UYogMetaProgressionSubsystem;
+class UYogRunEconomySubsystem;
 class UTextBlock;
 class UTexture2D;
 class UVerticalBox;
@@ -20,7 +20,7 @@ class DEVKIT_API UPlayerCommonInfoWidget : public UUserWidget
 
 public:
 	UFUNCTION(BlueprintCallable, Category = "Player Common Info")
-	void BindToBackpack(UBackpackGridComponent* InBackpack);
+	void BindToEconomy();
 
 	UFUNCTION(BlueprintCallable, Category = "Player Common Info")
 	void SetGold(int32 Gold);
@@ -69,7 +69,7 @@ private:
 	UFUNCTION()
 	void HandleMetaCurrencyChanged(FGameplayTag CurrencyTag, int32 NewAmount);
 
-	void UnbindBackpack();
+	void UnbindEconomy();
 	void BindToMetaProgression();
 	void UnbindMetaProgression();
 	void ApplyGoldIconBrush();
@@ -83,7 +83,7 @@ private:
 	static FName MakeEntryWidgetName(FName EntryId, const TCHAR* Suffix);
 
 	UPROPERTY()
-	TObjectPtr<UBackpackGridComponent> BoundBackpack;
+	TObjectPtr<UYogRunEconomySubsystem> BoundEconomy;
 
 	UPROPERTY()
 	TObjectPtr<UYogMetaProgressionSubsystem> BoundMetaProgression;

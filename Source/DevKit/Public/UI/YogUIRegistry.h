@@ -18,8 +18,10 @@ enum class EYogUIScreenId : uint8
 	Deprecated_TutorialPopup UMETA(Hidden),
 	SacrificeGraceOption,
 	InfoPopup,
-	PortalPreview,
-	PortalDirection,
+	// Slots retained after the portal next-room preview was removed, for the same serialization
+	// reason as Deprecated_TutorialPopup above.
+	Deprecated_PortalPreview UMETA(Hidden),
+	Deprecated_PortalDirection UMETA(Hidden),
 	CurrentRoomBuff,
 	CombatItemBar,
 	ActiveSkillBar,

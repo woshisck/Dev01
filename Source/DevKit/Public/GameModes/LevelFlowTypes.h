@@ -34,8 +34,8 @@ enum class ELootType : uint8
 
 	// Only supported on the enemy kill-reward immediate-grant path
 	// (AEnemyCharacterBase::RollAndSpawnKillRewards -> ARewardPickup::GrantImmediateLoot).
-	// Placing this in a room/portal reward pool needs Portal.cpp, PortalPreviewWidget.cpp,
-	// LootSelectionWidget.cpp and AYogGameMode::SelectLoot extended first.
+	// Placing this in a room/portal reward pool needs LootSelectionWidget.cpp and
+	// AYogGameMode::SelectLoot extended first.
 	WeaponSkill		UMETA(DisplayName = "WeaponSkill"),
 };
 

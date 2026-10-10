@@ -22,42 +22,6 @@ class URoomDataAsset;
 class URuneDataAsset;
 
 /**
- * FPortalPreviewInfo —— 单个传送门提供给 HUD 浮窗 / 方位指引的预览数据。
- * 由 APortal::BuildPreviewInfo 在 Open() 时一次性构建并缓存。
- *
- * 注意：字段直接保存 FBuffEntry（而非 URuneDataAsset*），避免丢失 DifficultyScore 等元数据；
- * 也使 TryEnter 时能直接拷贝 PreRolledBuffs 到 GI->PendingRoomBuffs，无需额外转换。
- */
-USTRUCT(BlueprintType)
-struct DEVKIT_API FPortalPreviewInfo
-{
-    GENERATED_BODY()
-
-    /** 玩家可见的房间名（DisplayName 兜底为 RoomName.ToString()） */
-    UPROPERTY(BlueprintReadOnly)
-    FText RoomDisplayName;
-
-    /** 关卡资产名，用于调试与 fallback */
-    UPROPERTY(BlueprintReadOnly)
-    FName RoomLevelName;
-
-    /** 房间类型 Tag（Room.Type.Normal/Elite/Shop/Event），UI 用于徽章颜色 */
-    UPROPERTY(BlueprintReadOnly)
-    FGameplayTag RoomTypeTag;
-
-    /** 已确定要施加给下一关敌人的 Buff 列表（与 GI->PendingRoomBuffs 同型） */
-    UPROPERTY(BlueprintReadOnly)
-    TArray<FBuffEntry> PreRolledBuffs;
-
-    /** 战利品个数（当前固定 3） */
-    UPROPERTY(BlueprintReadOnly)
-    int32 LootCount = 3;
-
-    UPROPERTY(BlueprintReadOnly)
-    TArray<FLootOption> RewardPreviewOptions;
-};
-
-/**
  * 传送门单个状态的美术配置。
  * 在蓝图 Details 面板里填写资产即可，无需写蓝图逻辑。
  */
@@ -131,13 +95,6 @@ public:
 	void Open(FName InSelectedLevel, URoomDataAsset* InSelectedRoom,
 	          const TArray<FBuffEntry>& InPreRolledBuffs);
 
-	static TArray<FLootOption> BuildRewardPreviewOptionsForRoom(
-		const URoomDataAsset* Room,
-		const UYogGameInstanceBase* GameInstance);
-
-	void RefreshPreviewInfo();
-	int32 GetPreviewRevision() const { return PreviewRevision; }
-
 	// 直接通过名字切换关卡（保留旧接口，BP 可调）
 	UFUNCTION(BlueprintCallable)
 	void YogOpenLevel(FName LevelName);
@@ -210,10 +167,6 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Portal|Preview")
 	TArray<FBuffEntry> PreRolledBuffs;
 
-	// HUD 单例浮窗 / 方位指引读取的预览数据（由 BuildPreviewInfo 在 Open 时构建）
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Portal|Preview")
-	FPortalPreviewInfo CachedPreviewInfo;
-
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	TObjectPtr<UBoxComponent> CollisionVolume;
 
@@ -284,9 +237,6 @@ private:
 	// 统一应用一套 FPortalArtConfig：切换网格、激活/停止特效
 	void ApplyArtConfig(const FPortalArtConfig& Config, bool bPlayOpenVFX = false);
 
-	// 根据 SelectedRoom + PreRolledBuffs 填充 CachedPreviewInfo（Open 时调用）
-	void BuildPreviewInfo();
-
 	// Overlap 内部处理函数（与 BP 钩 K2_* 区分命名）
 	void HandlePlayerEnterRange(APlayerCharacterBase* Player);
 	void HandlePlayerExitRange(APlayerCharacterBase* Player);
@@ -301,7 +251,6 @@ private:
 
 	// 防重入：TryEnter 触发后置 true，本 actor 销毁前不再接受第二次按 E
 	bool bEntryInProgress = false;
-	int32 PreviewRevision = 0;
 
 	FTimerHandle EntryWalkTickTimer;
 	FTimerHandle EntryFinishTimer;
