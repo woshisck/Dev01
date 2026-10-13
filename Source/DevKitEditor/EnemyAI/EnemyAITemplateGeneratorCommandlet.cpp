@@ -180,7 +180,6 @@ namespace EnemyAITemplateGenerator
 		float LungeStartRange = 0.0f,
 		float LungeDistance = 0.0f,
 		float LungeDuration = 0.35f,
-		float LungeStopDistance = 0.0f,
 		float MovementAttackRangeMultiplier = 2.5f,
 		float MovementAttackCooldown = 10.0f,
 		float MinHealthPercent = 0.0f,
@@ -204,7 +203,6 @@ namespace EnemyAITemplateGenerator
 		Option.LungeStartRange = LungeStartRange;
 		Option.LungeDistance = LungeDistance;
 		Option.LungeDuration = LungeDuration;
-		Option.LungeStopDistance = LungeStopDistance;
 		Option.MovementAttackRangeMultiplier = MovementAttackRangeMultiplier;
 		Option.MovementAttackCooldown = MovementAttackCooldown;
 		Option.bRequestRepositionOnResolve = bRequestRepositionOnResolve;
@@ -498,7 +496,6 @@ namespace EnemyAITemplateGenerator
 				300.f,
 				280.f,
 				0.35f,
-				170.f,
 				2.5f,
 				10.0f));
 			break;

@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Data/EnemyData.h"
+#include "GameModes/SpawnTypes.h"
 #include "MobSpawner.generated.h"
 
 class AEnemyCharacterBase;
@@ -55,6 +56,19 @@ struct DEVKIT_API FStoryMobSpawnOptions
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story", meta = (ClampMin = "0.0"))
 	float RespawnDelay = 5.0f;
+};
+
+USTRUCT(BlueprintType)
+struct DEVKIT_API FYogLuaSpawnRule
+{
+	GENERATED_BODY()
+
+	/** Module path relative to Content/Script, dot separated. e.g. "Mob.SpawnRules.RingBurst". */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lua Spawn")
+	FString ModuleName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lua Spawn", meta = (ClampMin = "0.0"))
+	float Weight = 1.0f;
 };
 
 UCLASS()
@@ -137,8 +151,44 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TArray<TSubclassOf<AEnemyCharacterBase>> EnemySpawnClassis;
 
+	// ---- Lua driven spawning ----
+
+	/** Budget the chosen Lua rule may spend, in UEnemyData::DifficultyScore units. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lua Spawn", meta = (ClampMin = "0"))
+	int32 SpawnDifficultyBudget = 10;
+
+	/** Candidate rules. One is chosen at BeginPlay and kept for the lifetime of the spawner. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lua Spawn")
+	TArray<FYogLuaSpawnRule> LuaSpawnRulePool;
+
+	/** Mobs this spawner may buy. FEnemyEntry carries the UEnemyData and its MaxCountPerLevel. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lua Spawn")
+	TArray<FEnemyEntry> MobPool;
+
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Lua Spawn")
+	FString ActiveLuaRuleModule;
+
+	/** Runs the rule picked at BeginPlay. False when Lua is unavailable or the script failed. */
+	UFUNCTION(BlueprintCallable, Category = "Lua Spawn")
+	bool RunLuaSpawnRule();
+
+	UFUNCTION(BlueprintPure, Category = "Lua Spawn")
+	int32 GetMobPoolSize() const;
+
+	/** PoolIndex is 1-based to match Lua convention. Returns 0 for an invalid entry. */
+	UFUNCTION(BlueprintPure, Category = "Lua Spawn")
+	int32 GetMobPoolDifficultyScore(int32 PoolIndex) const;
+
+	/** PoolIndex is 1-based. Null when the index is invalid or the entry hit MaxCountPerLevel. */
+	UFUNCTION(BlueprintCallable, Category = "Lua Spawn")
+	AEnemyCharacterBase* SpawnFromMobPool(int32 PoolIndex, FVector Location);
 
 private:
+	void SelectLuaSpawnRule();
+
+	/** Spawns made per MobPool index, used to enforce FEnemyEntry::MaxCountPerLevel. */
+	TMap<int32, int32> MobPoolSpawnCounts;
+
 	void ConfigureStorySpawnedMob(AEnemyCharacterBase* Mob, const FStoryMobSpawnOptions& Options) const;
 	void ApplyStoryHealthOverride(AEnemyCharacterBase* Mob, const FStoryMobSpawnOptions& Options) const;
 	void HandleStoryMobDeathStarted(AYogCharacterBase* Mob);

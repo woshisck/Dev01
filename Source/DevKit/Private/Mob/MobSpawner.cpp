@@ -19,6 +19,8 @@
 #include "Story/Encounter/StoryEncounterPointDataAsset.h"
 #include "Story/Encounter/StoryEncounterRuntimeSubsystem.h"
 #include "Kismet/KismetMathLibrary.h"
+#include "UnLua.h"
+#include "UnLuaModule.h"
 
 // Sets default values
 AMobSpawner::AMobSpawner()
@@ -34,7 +36,8 @@ AMobSpawner::AMobSpawner()
 void AMobSpawner::BeginPlay()
 {
 	Super::BeginPlay();
-	
+
+	SelectLuaSpawnRule();
 }
 
 void AMobSpawner::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -140,7 +143,7 @@ static UEnemyData* ResolveEnemyDataFromClass(TSubclassOf<AEnemyCharacterBase> En
 	return CharacterDataComponent ? Cast<UEnemyData>(CharacterDataComponent->GetCharacterData()) : nullptr;
 }
 
-static UEnemyWeaponDefinition* ResolveEnemyWeaponForStorySpawn(UEnemyData* EnemyData, UEnemyWeaponDefinition* OverrideWeapon)
+static UEnemyWeaponDefinition* ResolveEnemyWeapon(UEnemyData* EnemyData, UEnemyWeaponDefinition* OverrideWeapon)
 {
 	if (OverrideWeapon)
 	{
@@ -241,7 +244,7 @@ AEnemyCharacterBase* AMobSpawner::SpawnMobForStory(const FStoryMobSpawnOptions& 
     }
 
 	UEnemyData* EnemyData = ResolveEnemyDataFromClass(EnemyClass);
-	UEnemyWeaponDefinition* StoryWeaponDefinition = ResolveEnemyWeaponForStorySpawn(
+	UEnemyWeaponDefinition* StoryWeaponDefinition = ResolveEnemyWeapon(
 		EnemyData,
 		Options.EnemyWeaponDefinitionOverride.Get());
 	if (EnemyData && EnemyData->SpawnLifecycleFlow)
@@ -437,4 +440,187 @@ FVector AMobSpawner::GetRandomReachablePoint()
     }
 
     return NavLocation.Location + FVector(0.f, 0.f, SpawnZOffset);
+}
+
+void AMobSpawner::SelectLuaSpawnRule()
+{
+    ActiveLuaRuleModule.Reset();
+
+    // Module names are typed into a text field, and Lua turns every character into part of the
+    // require path, so surrounding whitespace silently resolves to a different file.
+    TArray<TPair<FString, float>> Candidates;
+    Candidates.Reserve(LuaSpawnRulePool.Num());
+
+    float TotalWeight = 0.f;
+    for (const FYogLuaSpawnRule& Rule : LuaSpawnRulePool)
+    {
+        FString ModuleName = Rule.ModuleName.TrimStartAndEnd();
+        if (ModuleName.IsEmpty() || Rule.Weight <= KINDA_SMALL_NUMBER)
+        {
+            continue;
+        }
+
+        TotalWeight += Rule.Weight;
+        Candidates.Emplace(MoveTemp(ModuleName), Rule.Weight);
+    }
+
+    if (Candidates.IsEmpty())
+    {
+        return;
+    }
+
+    float Roll = FMath::FRandRange(0.f, TotalWeight);
+    for (const TPair<FString, float>& Candidate : Candidates)
+    {
+        // Assigning every pass leaves the last entry selected when float accumulation keeps Roll
+        // just above zero.
+        ActiveLuaRuleModule = Candidate.Key;
+        Roll -= Candidate.Value;
+        if (Roll <= 0.f)
+        {
+            break;
+        }
+    }
+
+    UE_LOG(LogTemp, Log, TEXT("[MobSpawner][Lua] %s selected rule %s from %d candidates (budget %d, pool %d)."),
+        *GetNameSafe(this),
+        *ActiveLuaRuleModule,
+        LuaSpawnRulePool.Num(),
+        SpawnDifficultyBudget,
+        MobPool.Num());
+}
+
+int32 AMobSpawner::GetMobPoolSize() const
+{
+    return MobPool.Num();
+}
+
+int32 AMobSpawner::GetMobPoolDifficultyScore(int32 PoolIndex) const
+{
+    const int32 Index = PoolIndex - 1;
+    if (!MobPool.IsValidIndex(Index) || !MobPool[Index].EnemyData)
+    {
+        return 0;
+    }
+
+    return MobPool[Index].EnemyData->DifficultyScore;
+}
+
+AEnemyCharacterBase* AMobSpawner::SpawnFromMobPool(int32 PoolIndex, FVector Location)
+{
+    const int32 Index = PoolIndex - 1;
+    if (!MobPool.IsValidIndex(Index))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[MobSpawner][Lua] %s got out of range pool index %d (pool %d)."),
+            *GetNameSafe(this),
+            PoolIndex,
+            MobPool.Num());
+        return nullptr;
+    }
+
+    const FEnemyEntry& Entry = MobPool[Index];
+    UEnemyData* EnemyData = Entry.EnemyData;
+    if (!EnemyData || !EnemyData->EnemyClass)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[MobSpawner][Lua] %s pool entry %d has no EnemyData or EnemyClass."),
+            *GetNameSafe(this),
+            PoolIndex);
+        return nullptr;
+    }
+
+    const int32 SpawnedSoFar = MobPoolSpawnCounts.FindRef(Index);
+    if (Entry.MaxCountPerLevel >= 0 && SpawnedSoFar >= Entry.MaxCountPerLevel)
+    {
+        UE_LOG(LogTemp, Log, TEXT("[MobSpawner][Lua] %s refused pool entry %d (%s): hit MaxCountPerLevel %d."),
+            *GetNameSafe(this),
+            PoolIndex,
+            *GetNameSafe(EnemyData),
+            Entry.MaxCountPerLevel);
+        return nullptr;
+    }
+
+    // Reserve before spawning: OnEnemySpawned can run Blueprint that re-enters this function, and a
+    // held TMap reference would dangle across the rehash.
+    MobPoolSpawnCounts.Add(Index, SpawnedSoFar + 1);
+
+    AEnemyCharacterBase* Spawned = SpawnMobAtLocationWithWeapon(
+        EnemyData->EnemyClass,
+        Location,
+        ResolveEnemyWeapon(EnemyData, nullptr));
+    if (!Spawned)
+    {
+        MobPoolSpawnCounts.Add(Index, MobPoolSpawnCounts.FindRef(Index) - 1);
+    }
+
+    return Spawned;
+}
+
+/**
+ * Dispatcher lives in Lua rather than C++ so designers can add shared rule helpers without a rebuild.
+ * Required directly instead of through a global set by the startup module, so a missing or reordered
+ * Main.lua cannot silently break spawning.
+ */
+static bool MobSpawner_CallLuaRule(AMobSpawner* Spawner, const FString& ModuleName)
+{
+    static const char* DispatcherModule = "Mob.SpawnDispatcher";
+
+    UnLua::FLuaEnv* Env = IUnLuaModule::Get().GetEnv(Spawner);
+    lua_State* L = Env ? Env->GetMainState() : nullptr;
+    if (!L)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[MobSpawner][Lua] %s has no Lua env; rule %s skipped."),
+            *GetNameSafe(Spawner),
+            *ModuleName);
+        return false;
+    }
+
+    const int32 Top = lua_gettop(L);
+
+    lua_pushcfunction(L, UnLua::ReportLuaCallError);
+    const int32 MsgHandlerIdx = lua_gettop(L);
+
+    lua_getglobal(L, "require");
+    lua_pushstring(L, DispatcherModule);
+    if (lua_pcall(L, 1, 1, MsgHandlerIdx) != LUA_OK || !lua_istable(L, -1))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[MobSpawner][Lua] %s could not require %hs."),
+            *GetNameSafe(Spawner),
+            DispatcherModule);
+        lua_settop(L, Top);
+        return false;
+    }
+
+    if (lua_getfield(L, -1, "Run") != LUA_TFUNCTION)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[MobSpawner][Lua] %hs does not expose a Run function."), DispatcherModule);
+        lua_settop(L, Top);
+        return false;
+    }
+    lua_remove(L, -2); // drop the dispatcher table, keep Run
+
+    UnLua::PushUObject(L, Spawner);
+    lua_pushstring(L, TCHAR_TO_UTF8(*ModuleName));
+
+    const bool bOk = lua_pcall(L, 2, 0, MsgHandlerIdx) == LUA_OK;
+    if (!bOk)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[MobSpawner][Lua] %s rule %s raised an error."),
+            *GetNameSafe(Spawner),
+            *ModuleName);
+    }
+
+    lua_settop(L, Top);
+    return bOk;
+}
+
+bool AMobSpawner::RunLuaSpawnRule()
+{
+    if (ActiveLuaRuleModule.IsEmpty())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[MobSpawner][Lua] %s has no active rule; nothing spawned."),
+            *GetNameSafe(this));
+        return false;
+    }
+
+    return MobSpawner_CallLuaRule(this, ActiveLuaRuleModule);
 }

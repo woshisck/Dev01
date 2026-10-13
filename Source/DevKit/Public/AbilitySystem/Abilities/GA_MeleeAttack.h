@@ -15,6 +15,8 @@ class UYogAnimNotifyState_Damage;
 class UAbilityTask_ApplyRootMotionMoveToForce;
 class UAbilitySystemComponent;
 class AYogCharacterBase;
+class ACharacter;
+class UAnimMontage;
 
 
 UCLASS(BlueprintType, Blueprintable)
@@ -95,6 +97,9 @@ private:
 	UPROPERTY()
 	TObjectPtr<UAbilityTask_ApplyRootMotionMoveToForce> EnemyLungeTask;
 
+	/** Non-zero while a montage curve is driving this enemy's movement. */
+	uint16 EnemyLungeRootMotionSourceID = 0;
+
 	UPROPERTY()
 	FEnemyAIAttackRuntimeContext ActiveEnemyAttackContext;
 
@@ -133,7 +138,12 @@ private:
 	/** Finds the first AN_MeleeDamage notify on the selected montage. */
 	static UAN_MeleeDamage* GetFirstDamageNotify(UAnimMontage* Montage);
 
-	void TryStartEnemyRadialLunge();
+	void TryStartEnemyRadialLunge(UAnimMontage* Montage);
+
+	/** Starts curve-driven movement for Montage, returning false if it has no movement curve. */
+	bool TryStartEnemyMontageCurveMove(ACharacter* Character, UAnimMontage* Montage, const FVector& Direction);
+
+	void StopEnemyCurveMove();
 
 	AActor* PreviewFirstCombatDeckHitTarget(const FGameplayEventData& EventData) const;
 	void PrimeCombatDeckHitContext(const FGameplayEventData& EventData);

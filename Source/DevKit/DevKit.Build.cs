@@ -69,7 +69,11 @@ public class DevKit : ModuleRules
                 "Gauntlet",
                 "UMG",
                 "AIModule",
-                "AnimGraphRuntime"
+                "AnimGraphRuntime",
+                // Lua is built as a DLL, so any module calling the lua_* C API directly must link it
+                // explicitly rather than relying on UnLua's public dependency.
+                "Lua",
+                "UnLua"
             });
 
 		// Uncomment if you are using Slate UI

@@ -349,17 +349,17 @@ void AYogGameMode::RestartPlayer(AController* NewPlayer)
 void AYogGameMode::StartPlay()
 {
 	Super::StartPlay();
-
-	ResolveActiveCampaignData();
-
-	if (GetActiveCampaignData())
-	{
-		StartLevelSpawning();
-	}
-	else
-	{
-		FallbackToPreplacedEnemies();
-	}
+	//==SunChuankai start==
+	// ResolveActiveCampaignData();
+	// if (GetActiveCampaignData())
+	// {
+	// 	StartLevelSpawning();
+	// }
+	// else
+	// {
+	// 	FallbackToPreplacedEnemies();
+	// }
+	//==SunChuankai end==
 }
 
 void AYogGameMode::PostLogin(APlayerController* NewPlayer)

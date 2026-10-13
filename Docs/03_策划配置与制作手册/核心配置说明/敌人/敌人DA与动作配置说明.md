@@ -56,7 +56,6 @@ AI 移动和行为树配置见：
 | `LungeStartRange` | `RadialLunge` 的触发距离，敌人距离目标大于等于该值才前冲 |
 | `LungeDistance` | `RadialLunge` 最大前冲距离 |
 | `LungeDuration` | `RadialLunge` 前冲持续时间 |
-| `LungeStopDistance` | `RadialLunge` 尽量停在目标外侧的距离 |
 | `MovementAttackRangeMultiplier` | 远距位移攻击范围倍率，默认按基础 `AttackRange * 2.5` |
 | `MovementAttackCooldown` | 远距位移攻击内置冷却，默认 10 秒 |
 
@@ -81,7 +80,6 @@ AI 移动和行为树配置见：
 | `LungeStartRange` | 300 |
 | `LungeDistance` | 280 |
 | `LungeDuration` | 0.35 |
-| `LungeStopDistance` | 170 |
 | `MovementAttackRangeMultiplier` | 2.5 |
 | `MovementAttackCooldown` | 10.0 |
 

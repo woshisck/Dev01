@@ -268,9 +268,6 @@ struct DEVKIT_API FEnemyAIAttackOption
 	float LungeDuration = 0.35f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Attack|Movement", meta = (ClampMin = "0.0"))
-	float LungeStopDistance = 0.f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Attack|Movement", meta = (ClampMin = "0.0"))
 	float MovementAttackRangeMultiplier = 2.5f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Attack|Movement", meta = (ClampMin = "0.0"))

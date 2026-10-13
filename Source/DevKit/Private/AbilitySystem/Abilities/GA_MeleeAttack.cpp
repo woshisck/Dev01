@@ -13,7 +13,10 @@
 #include "Animation/AN_MeleeDamage.h"
 #include "Animation/YogAnimNotifyState_Damage.h"
 #include "Animation/AnimInstance.h"
+#include "Animation/AnimMontage.h"
+#include "Animation/AnimationAsset.h"
 #include "Animation/HitStopManager.h"
+#include "Animation/YogRootMotionSource_MontageCurveMove.h"
 #include "BuffFlow/BuffFlowComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Character/EnemyCharacterBase.h"
@@ -33,6 +36,8 @@
 #include "Camera/YogPlayerCameraManager.h"
 #include "Component/HitImpactVisualComponent.h"
 #include "Item/Weapon/WeaponDefinition.h"
+#include "GameFramework/Character.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
@@ -898,37 +903,59 @@ void UGA_MeleeAttack::OnCanComboTagChanged(const FGameplayTag Tag, int32 NewCoun
 	}
 }
 
-void UGA_MeleeAttack::TryStartEnemyRadialLunge()
+void UGA_MeleeAttack::TryStartEnemyRadialLunge(UAnimMontage* Montage)
 {
-	if (!ActiveEnemyAttackContext.bValid)
+	ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo());
+	if (!Character)
 	{
+		return;
+	}
+
+	// A movement curve on the montage is its own opt-in, so curve-driven attacks skip the
+	// data-asset gates below: the animator decides which montages move the enemy. It also
+	// needs no attack-profile data, so it still drives enemies whose attack was triggered
+	// outside YogStateTreeTask_EnemyAttackByProfile (debug StateTrees, direct activation).
+	const bool bCurveDriven = Montage && Montage->HasCurveData(YogMontageMove::MoveDistanceCurveName);
+
+	AActor* TargetActor = ActiveEnemyAttackContext.bValid ? ActiveEnemyAttackContext.TargetActor.Get() : nullptr;
+	if (!TargetActor)
+	{
+		if (bCurveDriven)
+		{
+			// Nothing to aim at, so travel along the facing the montage started with.
+			FVector ForwardDirection = Character->GetActorForwardVector();
+			ForwardDirection.Z = 0.0f;
+			ForwardDirection = ForwardDirection.GetSafeNormal();
+			if (!ForwardDirection.IsNearlyZero())
+			{
+				TryStartEnemyMontageCurveMove(Character, Montage, ForwardDirection);
+			}
+		}
 		return;
 	}
 
 	const FEnemyAIAttackOption& AttackOption = ActiveEnemyAttackContext.AttackOption;
 	const bool bReposition = AttackOption.AttackRole == EEnemyAIAttackRole::Reposition;
-	// Reposition options drive the dash through their role rather than a movement mode,
-	// so they bypass the AI movement-attack cooldown machinery.
-	if (!bReposition && AttackOption.AttackMovementMode != EEnemyAIAttackMovementMode::RadialLunge)
-	{
-		return;
-	}
-
-	ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo());
-	AActor* TargetActor = ActiveEnemyAttackContext.TargetActor.Get();
-	if (!Character || !TargetActor)
-	{
-		return;
-	}
 
 	const float CurrentDistance = FVector::Dist2D(Character->GetActorLocation(), TargetActor->GetActorLocation());
-	// LungeStartRange is a gap-close gate for toward-target lunges; a reposition dash can
-	// fire at any range (it usually triggers point-blank after a whiff).
-	if ((!bReposition && CurrentDistance < AttackOption.LungeStartRange)
-		|| AttackOption.LungeDistance <= 0.0f
-		|| AttackOption.LungeDuration <= 0.0f)
+
+	if (!bCurveDriven)
 	{
-		return;
+		// Reposition options drive the dash through their role rather than a movement mode,
+		// so they bypass the AI movement-attack cooldown machinery.
+		if (!bReposition && AttackOption.AttackMovementMode != EEnemyAIAttackMovementMode::RadialLunge)
+		{
+			return;
+		}
+
+		// LungeStartRange is a gap-close gate for toward-target lunges; a reposition dash can
+		// fire at any range (it usually triggers point-blank after a whiff).
+		if ((!bReposition && CurrentDistance < AttackOption.LungeStartRange)
+			|| AttackOption.LungeDistance <= 0.0f
+			|| AttackOption.LungeDuration <= 0.0f)
+		{
+			return;
+		}
 	}
 
 	FVector ToTarget = TargetActor->GetActorLocation() - Character->GetActorLocation();
@@ -960,22 +987,13 @@ void UGA_MeleeAttack::TryStartEnemyRadialLunge()
 		Controller->SetControlRotation(FaceTargetRotation);
 	}
 
-	float MoveDistance;
-	if (bReposition)
+	if (bCurveDriven)
 	{
-		MoveDistance = AttackOption.LungeDistance;
-	}
-	else
-	{
-		const float MaxUsefulDistance = FMath::Max(CurrentDistance - AttackOption.LungeStopDistance, 0.0f);
-		MoveDistance = FMath::Min(AttackOption.LungeDistance, MaxUsefulDistance);
-	}
-	if (MoveDistance <= 0.0f)
-	{
+		TryStartEnemyMontageCurveMove(Character, Montage, DashDirection);
 		return;
 	}
 
-	const FVector TargetLocation = Character->GetActorLocation() + DashDirection * MoveDistance;
+	const FVector TargetLocation = Character->GetActorLocation() + DashDirection * AttackOption.LungeDistance;
 	EnemyLungeTask = UAbilityTask_ApplyRootMotionMoveToForce::ApplyRootMotionMoveToForce(
 		this,
 		FName(TEXT("EnemyRadialLunge")),
@@ -993,6 +1011,59 @@ void UGA_MeleeAttack::TryStartEnemyRadialLunge()
 	{
 		EnemyLungeTask->ReadyForActivation();
 	}
+}
+
+bool UGA_MeleeAttack::TryStartEnemyMontageCurveMove(ACharacter* Character, UAnimMontage* Montage, const FVector& Direction)
+{
+	if (!Character || !Montage || !Montage->HasCurveData(YogMontageMove::MoveDistanceCurveName))
+	{
+		return false;
+	}
+
+	UCharacterMovementComponent* Movement = Character->GetCharacterMovement();
+	if (!Movement)
+	{
+		return false;
+	}
+
+	StopEnemyCurveMove();
+
+	TSharedPtr<FYogRootMotionSource_MontageCurveMove> CurveMove = MakeShared<FYogRootMotionSource_MontageCurveMove>();
+	CurveMove->InstanceName = FName(TEXT("EnemyMontageCurveMove"));
+	CurveMove->Direction = Direction;
+	CurveMove->Montage = Montage;
+
+	EnemyLungeRootMotionSourceID = Movement->ApplyRootMotionSource(CurveMove);
+
+	UE_LOG(LogYogMontageMove, Log,
+		TEXT("CurveMove applied on %s: Montage=%s ID=%u Dir=%s MoveMode=%d"),
+		*GetNameSafe(Character),
+		*GetNameSafe(Montage),
+		EnemyLungeRootMotionSourceID,
+		*Direction.ToCompactString(),
+		static_cast<int32>(Movement->MovementMode.GetValue()));
+
+	return EnemyLungeRootMotionSourceID != 0;
+}
+
+void UGA_MeleeAttack::StopEnemyCurveMove()
+{
+	if (EnemyLungeRootMotionSourceID == 0)
+	{
+		return;
+	}
+
+	if (const ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo()))
+	{
+		if (UCharacterMovementComponent* Movement = Character->GetCharacterMovement())
+		{
+			Movement->RemoveRootMotionSourceByID(EnemyLungeRootMotionSourceID);
+			UE_LOG(LogYogMontageMove, Log, TEXT("CurveMove stopped on %s: ID=%u"),
+				*GetNameSafe(Character), EnemyLungeRootMotionSourceID);
+		}
+	}
+
+	EnemyLungeRootMotionSourceID = 0;
 }
 
 void UGA_MeleeAttack::ActivateAbility(
@@ -1017,6 +1088,7 @@ void UGA_MeleeAttack::ActivateAbility(
 	ActiveComboAttackConfig = FComboAttackConfig();
 	bActiveComboAttackConfigValid = false;
 	EnemyLungeTask = nullptr;
+	EnemyLungeRootMotionSourceID = 0;
 	ActiveEnemyAttackContext = FEnemyAIAttackRuntimeContext();
 	ActiveAttackGuid.Invalidate();
 	ActiveComboIndex = 0;
@@ -1382,7 +1454,7 @@ void UGA_MeleeAttack::ActivateAbility(
 	Task->OnCancelled.AddDynamic(this, &UGA_MeleeAttack::OnMontageCancelled);
 	Task->EventReceived.AddDynamic(this, &UGA_MeleeAttack::OnEventReceived);
 
-	TryStartEnemyRadialLunge();
+	TryStartEnemyRadialLunge(Montage);
 
 	// Resolve OnCommit cards before the montage starts so pre-montage flows
 	// (e.g. weapon trail setup) can execute before the first animation frame.
@@ -1432,6 +1504,8 @@ void UGA_MeleeAttack::EndAbility(
 		EnemyLungeTask->EndTask();
 		EnemyLungeTask = nullptr;
 	}
+
+	StopEnemyCurveMove();
 
 	// 安全清理：技能结束时清空未消费的暂存数据（蒙太奇被打断未触发 OnEventReceived 时保护用
 	if (AYogCharacterBase* Owner = Cast<AYogCharacterBase>(GetOwningActorFromActorInfo()))

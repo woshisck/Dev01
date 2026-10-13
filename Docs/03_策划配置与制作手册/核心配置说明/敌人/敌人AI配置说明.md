@@ -255,7 +255,6 @@ Root
 | `LungeStartRange` | 300 |
 | `LungeDistance` | 280 |
 | `LungeDuration` | 0.35 |
-| `LungeStopDistance` | 170 |
 | `MovementAttackRangeMultiplier` | 2.5 |
 | `MovementAttackCooldown` | 10.0 |
 
