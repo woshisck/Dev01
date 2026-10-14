@@ -1,0 +1,4 @@
+ID,DisplayName,AbilityTags,StateTags
+Attack,普攻,Character.State.Skill.Attack,Character.State.Skill.Attack
+Dash,冲刺,Character.State.Movement.Dash,Character.State.Movement.Dash
+WeaponSkill,战技,Character.State.Skill.WeaponSkill,Character.State.Skill.WeaponSkill

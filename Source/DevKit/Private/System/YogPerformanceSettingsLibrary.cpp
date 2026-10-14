@@ -227,6 +227,7 @@ static void SaveGraphicsSettings(UObject* WorldContextObject, const FYogGraphics
 	if (UYogSettingsSave* SettingsSave = SaveSubsystem->GetSettings())
 	{
 		SettingsSave->GraphicsSettings = Settings;
+		SettingsSave->GraphicsSettings.bUseVirtualShadowMaps = true;
 		SaveSubsystem->SaveSettings();
 	}
 }
@@ -237,7 +238,7 @@ FYogGraphicsSettings UYogPerformanceSettingsLibrary::MakeGraphicsSettingsForProf
 	Settings.PerformanceProfile = Profile;
 	Settings.SelectedTargetTier = TargetTierForProfile(Profile);
 	Settings.bUseNanite = false;
-	Settings.bUseVirtualShadowMaps = false;
+	Settings.bUseVirtualShadowMaps = true;
 
 	switch (Profile)
 	{
@@ -367,6 +368,8 @@ FYogGraphicsSettings UYogPerformanceSettingsLibrary::MakeCustomGraphicsSettings(
 	Settings.ResolutionScalePercent = FMath::Clamp(ResolutionScalePercent, 25.f, 100.f);
 	Settings.FrameRateLimit = FMath::Clamp(FrameRateLimit, 0, 240);
 	Settings.bUseLumenLite = bUseLumenLite;
+	// Legacy saves/presets cannot select conventional Shadow Maps.
+	Settings.bUseVirtualShadowMaps = true;
 	Settings.bPreferBatchedGeometryProxies = bPreferBatchedGeometryProxies;
 	return Settings;
 }
@@ -420,7 +423,8 @@ bool UYogPerformanceSettingsLibrary::ApplyGraphicsSettings(UObject* WorldContext
 	SetCVarInt(TEXT("r.Lumen.Reflections.Allow"), bUseLumenReflections ? 1 : 0);
 	SetCVarInt(TEXT("r.VolumetricFog"), 0);
 	SetCVarInt(TEXT("r.Nanite"), Settings.bUseNanite ? 1 : 0);
-	SetCVarInt(TEXT("r.Shadow.Virtual.Enable"), Settings.bUseVirtualShadowMaps ? 1 : 0);
+	// Fixed project path, independent of legacy serialized preferences.
+	SetCVarInt(TEXT("r.Shadow.Virtual.Enable"), 1);
 	SetCVarInt(TEXT("r.Yog.DynamicLightQuality"), ClampQuality(Settings.DynamicLightQuality));
 	SetCVarInt(TEXT("r.Yog.MaterialQuality"), ClampedMaterialQuality);
 	SetCVarInt(TEXT("r.MaterialQualityLevel"), NativeMaterialQualityLevelForProjectQuality(ClampedMaterialQuality));

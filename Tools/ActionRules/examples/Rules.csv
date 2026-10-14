@@ -1,0 +1,5 @@
+ID,Enabled,Subject,Current,Request,Effect,Condition,Reason
+R001,FALSE,player,Dash,Attack,block,,冲刺期间拒绝普攻请求（示例）
+R002,FALSE,player,Attack,Dash,interrupt,,冲刺请求可打断普攻（示例）
+R003,FALSE,player,Attack,WeaponSkill,interrupt,,战技请求可打断普攻（示例）
+R004,FALSE,player,Dash,WeaponSkill,block,,冲刺期间拒绝战技请求（示例）

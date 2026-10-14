@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "CoreMinimal.h"
 #include "AbilitySystemComponent.h"
@@ -9,6 +9,7 @@
 #include "Data/StateConflictDataAsset.h"
 #include "Data/TagReactionDataAsset.h"
 #include "GameplayEffectTypes.h"
+#include "ActionRules/DevKitActionRuleSet.h"
 #include "Item/Weapon/WeaponTypes.h"
 #include "YogAbilitySystemComponent.generated.h"
 
@@ -167,6 +168,30 @@ public:
 	// Sets default values for this empty's properties
 	UYogAbilitySystemComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
+	/** Central additive gate for native/Blueprint/event-driven GAS activations. */
+	virtual bool AreAbilityTagsBlocked(const FGameplayTagContainer& Tags) const override;
+	virtual void HandleChangeAbilityCanBeCanceled(const FGameplayTagContainer& AbilityTags, UGameplayAbility* RequestingAbility, bool bCanBeCanceled) override;
+	virtual void NotifyAbilityActivated(const FGameplayAbilitySpecHandle Handle, UGameplayAbility* Ability) override;
+	virtual void NotifyAbilityEnded(FGameplayAbilitySpecHandle Handle, UGameplayAbility* Ability, bool bWasCancelled) override;
+	virtual void ApplyAbilityBlockAndCancelTags(const FGameplayTagContainer& AbilityTags, UGameplayAbility* RequestingAbility,
+		bool bEnableBlockTags, const FGameplayTagContainer& BlockTags, bool bExecuteCancelTags, const FGameplayTagContainer& CancelTags) override;
+
+	UFUNCTION(BlueprintPure, Category="Actions|Rules")
+	FDevKitActionRuleDecision QueryActionRules(const FGameplayTagContainer& RequestTags) const;
+
+	/** Caller supplies authoritative deterministic values (stamina, windows, etc.). Never wall-clock/random input. */
+	UFUNCTION(BlueprintCallable, Category="Actions|Rules")
+	bool SetActionRuleValue(const FString& Name, double Value);
+
+	UFUNCTION(BlueprintCallable, Category="Actions|Rules")
+	void ClearActionRuleValue(const FString& Name);
+
+private:
+	TMap<FString, double> ActionRuleValues;
+	TMap<TWeakObjectPtr<UGameplayAbility>, FDevKitActionRuleDecision> PendingActionRuleActivations;
+	TSet<TWeakObjectPtr<UGameplayAbility>> ActiveActionRuleInstances;
+public:
+
 
 	UPROPERTY(BlueprintReadWrite)
 	TMap<FGameplayTag, FActionData> AbilityMap;
@@ -273,6 +298,26 @@ private:
 	// 预处理后的查找表（ActiveTag Rule），InitConflictTable() 构建
 	TMap<FGameplayTag, FStateConflictRule> ConflictMap;
 
+	// Only this system's actual contributions, including empty cancel-only entries.
+	TMap<FGameplayTag, FGameplayTagContainer> LegacyStateConflictBlockContributions;
+	// Retains the accepted source identity when a hot-reload candidate is rejected.
+	// Runtime maps above/below remain authoritative if this asset is edited in place.
+	UPROPERTY(Transient)
+	TObjectPtr<UStateConflictDataAsset> LastAppliedConflictTable;
+	struct FLegacyStateConflictEvent
+	{
+		FGameplayTag Tag;
+		bool bExists = false;
+		uint64 Generation = 0;
+	};
+	TArray<FLegacyStateConflictEvent> PendingLegacyStateConflictEvents;
+	uint64 LegacyStateConflictGeneration = 0;
+	bool bLegacyStateConflictShuttingDown = false;
+	void ReleaseLegacyStateConflictContribution(const FGameplayTag& Tag);
+	void ClearLegacyStateConflictContributions();
+	void RebuildLegacyStateConflictContributions();
+	friend struct FLegacyStateConflictTestAccessor;
+
 	// ── 标签反应系统 ─────────────────────────────────────────────────
 	// TriggerTag → 规则列表（按 Priority 降序），InitTagReactionTable() 构建
 	TMap<FGameplayTag, TArray<FTagReactionRule>> ReactionMap;
@@ -309,7 +354,7 @@ private:
 	// 反向索引（StateTag 所属阻断分类列表），OnTagUpdated O(1) 查找
 	TMap<FGameplayTag, TArray<FGameplayTag>> StateToBlockCategories;
 
-	// 防止 OnTagUpdated 递归（BlockAbilitiesWithTags 内部也会触发 tag 变化
+	// Queue nested owned-tag events caused by cancellation, rather than losing releases.
 	bool bProcessingConflict = false;
 	bool bSuppressNextDamageFeedback = false;
 

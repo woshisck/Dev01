@@ -40,6 +40,45 @@ bool FYogLumenTemporalPolicyTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FYogPublishedRenderingPolicyTest,
+	"DevKit.Performance.Settings.FixedVSMRenderingPolicy",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FYogPublishedRenderingPolicyTest::RunTest(const FString& Parameters)
+{
+	const TCHAR* RendererSettings = TEXT("/Script/Engine.RendererSettings");
+	int32 IntValue = 0;
+	TestTrue(TEXT("Published renderer defines Lumen GI"),
+		GConfig->GetInt(RendererSettings, TEXT("r.DynamicGlobalIlluminationMethod"), IntValue, GEngineIni));
+	TestEqual(TEXT("Published renderer uses Lumen GI"), IntValue, 1);
+	TestTrue(TEXT("Published renderer defines Lumen reflections"),
+		GConfig->GetInt(RendererSettings, TEXT("r.ReflectionMethod"), IntValue, GEngineIni));
+	TestEqual(TEXT("Published renderer uses Lumen reflections as its project default"), IntValue, 1);
+	TestTrue(TEXT("Published renderer defines its shadow method"),
+		GConfig->GetInt(RendererSettings, TEXT("r.Shadow.Virtual.Enable"), IntValue, GEngineIni));
+	TestEqual(TEXT("Project renderer defaults to VSM"), IntValue, 1);
+
+	for (int32 Tier = 0; Tier < 4; ++Tier)
+	{
+		const FString ShadowSection = FString::Printf(TEXT("ShadowQuality@%d"), Tier);
+		TestTrue(FString::Printf(TEXT("Published shadow tier %d defines its method"), Tier),
+			GConfig->GetInt(*ShadowSection, TEXT("r.Shadow.Virtual.Enable"), IntValue, GScalabilityIni));
+		TestEqual(FString::Printf(TEXT("Every shadow tier %d retains VSM"), Tier), IntValue, 1);
+
+		const FString GISection = FString::Printf(TEXT("GlobalIlluminationQuality@%d"), Tier);
+		TestTrue(FString::Printf(TEXT("Published GI tier %d defines the Lumen toggle"), Tier),
+			GConfig->GetInt(*GISection, TEXT("r.Lumen.DiffuseIndirect.Allow"), IntValue, GScalabilityIni));
+		TestEqual(FString::Printf(TEXT("Published GI tier %d follows its authored budget"), Tier), IntValue, Tier == 0 ? 0 : 1);
+
+		const FString ReflectionSection = FString::Printf(TEXT("ReflectionQuality@%d"), Tier);
+		TestTrue(FString::Printf(TEXT("Published reflection tier %d defines the Lumen toggle"), Tier),
+			GConfig->GetInt(*ReflectionSection, TEXT("r.Lumen.Reflections.Allow"), IntValue, GScalabilityIni));
+		TestEqual(FString::Printf(TEXT("Published reflection tier %d enables Lumen only at Epic"), Tier), IntValue, Tier == 3 ? 1 : 0);
+	}
+
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FYogPerformanceSettingsCustomClampTest,
 	"DevKit.Performance.Settings.MakesClampedCustomSettings",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -56,10 +95,16 @@ bool FYogPerformanceSettingsCustomClampTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Resolution scale is clamped to the runtime max"), CustomSettings.ResolutionScalePercent, 100.f);
 	TestEqual(TEXT("Frame limit is clamped to the save max"), CustomSettings.FrameRateLimit, 240);
 	TestFalse(TEXT("Lumen Lite toggle is applied"), CustomSettings.bUseLumenLite);
+	TestTrue(TEXT("Custom settings preserve fixed VSM"), CustomSettings.bUseVirtualShadowMaps);
 	TestFalse(TEXT("Custom settings preserve Epic screen-trace policy"), CustomSettings.bUseLumenScreenTraces);
 	TestTrue(TEXT("Batch proxy preference toggle is applied"), CustomSettings.bPreferBatchedGeometryProxies);
 	TestEqual(TEXT("Custom settings preserve material quality"), CustomSettings.MaterialQuality, BaseSettings.MaterialQuality);
 	TestEqual(TEXT("Custom settings preserve texture collection quality"), CustomSettings.TextureCollectionQuality, BaseSettings.TextureCollectionQuality);
+
+	BaseSettings.bUseVirtualShadowMaps = false;
+	const FYogGraphicsSettings ExplicitVsmSettings =
+		UYogPerformanceSettingsLibrary::MakeCustomGraphicsSettings(BaseSettings, 100.f, 60, true, false);
+	TestTrue(TEXT("Legacy custom SM preference migrates to VSM"), ExplicitVsmSettings.bUseVirtualShadowMaps);
 
 	return true;
 }
@@ -77,7 +122,7 @@ bool FYogPerformanceTargetTierTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Epic keeps Lumen enabled"), Epic.bUseLumenLite);
 	TestFalse(TEXT("Epic disables view-dependent Lumen screen traces"), Epic.bUseLumenScreenTraces);
 	TestFalse(TEXT("Epic keeps Nanite disabled"), Epic.bUseNanite);
-	TestFalse(TEXT("Epic keeps VSM disabled"), Epic.bUseVirtualShadowMaps);
+	TestTrue(TEXT("Epic uses VSM"), Epic.bUseVirtualShadowMaps);
 	TestFalse(TEXT("Epic is source-biased"), Epic.bPreferBatchedGeometryProxies);
 	TestEqual(TEXT("Epic uses the highest material quality"), Epic.MaterialQuality, 3);
 	TestEqual(TEXT("Epic uses the highest texture collection quality"), Epic.TextureCollectionQuality, 3);
@@ -215,6 +260,11 @@ bool FYogGraphicsSettingsWidgetContractTest::RunTest(const FString& Parameters)
 	Widget->SetPendingSettings(SavedSettings);
 	const FYogGraphicsSettings InitialPendingSettings = Widget->GetPendingSettings();
 	TestEqual(TEXT("Widget stores pending target tier before customization"), InitialPendingSettings.SelectedTargetTier, EYogPerformanceTargetTier::Mid);
+	TestTrue(TEXT("Widget preserves fixed VSM"), InitialPendingSettings.bUseVirtualShadowMaps);
+	Widget->SetPendingLumenLite(true);
+	TestTrue(TEXT("Widget accepts an explicit Lumen enable"), Widget->GetPendingSettings().bUseLumenLite);
+	Widget->SetPendingLumenLite(false);
+	TestFalse(TEXT("Widget accepts an explicit Lumen disable"), Widget->GetPendingSettings().bUseLumenLite);
 
 	Widget->SetPendingModelQuality(3);
 	Widget->SetPendingShadowQuality(2);

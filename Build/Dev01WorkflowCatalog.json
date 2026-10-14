@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "title": "Dev01 工作流",
+  "paths": {
+    "sourceEngine": "X:/Dev-BuildEngine",
+    "pipeline": "X:/Dev-BuildPipeline/Dev01",
+    "installedBuild": "X:/Dev-InstalledBuilds/UE_5.8_Dev01/Windows",
+    "publishStage": "X:/Dev-EnginePublishStage/UE_5.8_Dev01/Engine",
+    "gitProject": "X:/Project/Dev01",
+    "ugs": "X:/Project/YogProject/UnrealGameSync",
+    "cloudRoot": "C:/BuildAgent/Dev01"
+  },
+  "workflows": [
+    {"id":"materials","title":"渲染","summary":"材质检查与管理；灯光设置、自发光制作和 LookDev","steps":[
+      {"id":"rvt_material","group":"材质","title":"RVT 材质库","input":"RVT 层材质与材质实例","output":"统一层材质配置","tab":"DevKitRVTMaterialManager"},
+      {"id":"material_rules","group":"材质","title":"材质合规","input":"当前制作的材质","output":"性能接口与贴图规则检查","tab":"DevKitMaterialTextureRules"},
+      {"id":"texture_audit","group":"材质","title":"贴图 NoVT 检查","input":"场景纹理","output":"VT 使用问题与整改列表","tab":"DevKitTextureVTAudit"},
+      {"id":"texture_collection","group":"材质","title":"Texture Collection","input":"已检查的场景纹理","output":"共享贴图集合","tab":"DevKitVirtualTextureCollectionManager"},
+      {"id":"stylized_lighting","group":"灯光","title":"二分光影设置","input":"暗部二分、连续亮面与角色 Lighting Profile","output":"实时暗部两档与角色覆写；无交界加法发光，保留相机后处理及 Shadow Maps；需本次新版源引擎","tab":"DevKitStylizedLightingSettings"},
+      {"id":"emissive","group":"灯光","title":"风格化自发光库","input":"自发光模型、材质和预设参数","output":"可预览、编辑、保存并拖入关卡的自发光预设","tab":"DevKitStylizedEmissiveLibrary"},
+      {"id":"character_lookdev","group":"灯光","title":"LookDev 光照对比","input":"YogLookDev Review 关卡及 YogArt 等资产","output":"可保存的光照场景、方向光与天空光对比；不修改角色渲染算法","tab":"DevKitCharacterLookDev"}
+    ]},
+    {"id":"surface","title":"贴花","summary":"资产库 → 关卡放置 → RVT 烘焙检查","steps":[
+      {"id":"surface_library","title":"地表物件资产库","input":"RVT / 可见网格物件","output":"统一地表物件配置","tab":"DevKitRVTMeshDecal"},
+      {"id":"decal_placement","title":"贴花与物件放置","input":"资产库与当前关卡","output":"Collection.Records 中的放置记录","tab":"DevKitDecalCollection","external":true},
+      {"id":"level_rvt","title":"关卡 RVT 与烘焙","input":"关卡 BakeInfo 与地表对象","output":"RVT / DataBake 配置与校验","tab":"DevKitLevelRVT"}
+    ]},
+    {"id":"scene","title":"场景","summary":"关卡资源管理与玩法、环境配置；物件检查与合批","steps":[
+      {"id":"scene_assets","group":"场景（关卡）","title":"关卡资源与配置","input":"地图、RoomData、环境备忘与子关卡模板","output":"关卡包、玩法变体、环境备注与实际子关卡引用","tab":"DevKitSceneWorkbench"},
+      {"id":"model_check","group":"物件","title":"模型资产检查","input":"StaticMesh 资产","output":"性能与制作合规报告","tab":"DevKitModelAssetCompliance"},
+      {"id":"env_tags","group":"物件","title":"环境合批分组","input":"关卡选中 Actor","output":"EnvBatch.Source.* 分组标记","tab":"DevKitEnvBatchTagger"},
+      {"id":"level_batch","group":"物件","title":"生成与审查合批","input":"已标记的关卡对象","output":"BatchedAsset 与审查记录","tab":"DevKitLevelBatchProcessor"}
+    ]},
+    {"id":"gameplay","title":"角色、战斗与玩法","summary":"角色定义 → 武器与敌人 → 技能效果 → 剧情与调试","steps":[
+      {"id":"character","title":"角色数据","input":"CharacterData / Montage / Act","output":"角色数值与动作关联","tab":"DevKitCharacterBalance"},
+      {"id":"weapon","title":"武器与战技","input":"武器定义与专属战技","output":"武器配置与动作链","tab":"DevKitWeaponManager"},
+      {"id":"enemy","title":"敌人与 AI","input":"EnemyData / GAS / 攻击配置","output":"敌人能力与行为配置","tab":"DevKitEnemyManager"},
+      {"id":"action_workbench","title":"动作 Tag 与阻断","input":"StateConflict / GameplayTags","output":"有向 Block/Cancel 与 PIE 诊断","tab":"DevKitActionWorkbench","external":true},
+      {"id":"rune","title":"卡牌与 BuffFlow","input":"RuneDataAsset / BuffFlow","output":"可复用的卡牌效果","tab":"DevKitRuneEditor"},
+      {"id":"rune_balance","title":"卡牌数值","input":"卡牌资产","output":"批量数值校验","tab":"DevKitRuneBalance"},
+      {"id":"actions","title":"动作数值","input":"AbilityData / Montage","output":"战斗动作数值","tab":"DevKitActionBalance"},
+      {"id":"progression","title":"成长与货币","input":"成长节点 / 货币规则","output":"局外成长配置","tab":"DevKitMetaProgressionWorkbench"},
+      {"id":"story","title":"剧情与教学","input":"剧情点与触发条件","output":"剧情 / 教学流程画布","tab":"DevKitStoryEncounterWorkbench"},
+      {"id":"buff_debug","title":"BuffFlow 调试","input":"当前运行中的效果链","output":"效果链调试信息","tab":"DevKitBuffFlowDebug"},
+      {"id":"combat_log","title":"战斗日志","input":"运行中的战斗","output":"战斗事件日志","tab":"DevKitCombatLog","external":true},
+      {"id":"runtime_gm","title":"运行时调试","input":"GM 设置","output":"运行时调试选项","tab":"DevKitRuntimeGMSettings"}
+    ]},
+    {"id":"performance","title":"性能","summary":"查看运行时性能工具并预览项目的 Low / Medium / High / Epic 画质分级。切换只影响当前编辑器会话。","steps":[
+      {"id":"graphics_quality","title":"画质分级","input":"当前关卡与编辑器视口","output":"当前 Scalability 档位与 Lumen / VSM 实时状态","tab":"DevKitPerformanceWorkbench"}
+    ]}
+  ],
+  "retainedEntries": [
+    {"tab":"DevKitMaterialBatchTools","reason":"底层合批命令，保留在高级工具中"},
+    {"tab":"DevKitPerformanceToolsLauncher","reason":"旧性能工具启动器，默认工具栏已合并"}
+  ]
+}

@@ -1,5 +1,7 @@
 #include "CelesLightRuntimeModule.h"
 #include "StylizedLightingSettings.h"
+#include "SceneViewExtension.h"
+#include "Engine/Engine.h"
 
 #include "Misc/CoreDelegates.h"
 
@@ -7,14 +9,23 @@
 
 void FCelesLightRuntimeModule::StartupModule()
 {
-	// Apply scalar settings immediately, then upload the compact profile table
-	// again after renderer resources have been initialized.
-	GetMutableDefault<UStylizedLightingSettings>()->ApplyToConsoleVariables();
-	PostEngineInitHandle = FCoreDelegates::GetOnPostEngineInit().AddRaw(this, &FCelesLightRuntimeModule::ApplySettingsAfterEngineInit);
+	// Settings/CDOs are not ready during early startup. After initialization,
+	// upload the published cloud lighting/profile contract; no newer display
+	// grading or generic material-lighting extension is installed.
+	if (GEngine && GEngine->IsInitialized())
+	{
+		// Also support module startup after the one-shot engine-init notification.
+		ApplySettingsAfterEngineInit();
+	}
+	else
+	{
+		PostEngineInitHandle = FCoreDelegates::GetOnPostEngineInit().AddRaw(this, &FCelesLightRuntimeModule::ApplySettingsAfterEngineInit);
+	}
 }
 
 void FCelesLightRuntimeModule::ShutdownModule()
 {
+	NativeRenderStyleExtension.Reset();
 	if (PostEngineInitHandle.IsValid())
 	{
 		FCoreDelegates::GetOnPostEngineInit().Remove(PostEngineInitHandle);
@@ -24,6 +35,11 @@ void FCelesLightRuntimeModule::ShutdownModule()
 
 void FCelesLightRuntimeModule::ApplySettingsAfterEngineInit()
 {
+	if (PostEngineInitHandle.IsValid())
+	{
+		FCoreDelegates::GetOnPostEngineInit().Remove(PostEngineInitHandle);
+		PostEngineInitHandle.Reset();
+	}
 	GetMutableDefault<UStylizedLightingSettings>()->ApplyToConsoleVariables();
 }
 

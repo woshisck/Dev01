@@ -1,0 +1,23 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "Yog LookDev",
+	"Description": "Editor lighting comparison workbench, review maps and authored lighting environments.",
+	"Category": "YogTool",
+	"CreatedBy": "Yog",
+	"CanContainContent": true,
+	"IsBetaVersion": false,
+	"Installed": false,
+	"Modules": [
+		{ "Name": "YogLookDevEditor", "Type": "Editor", "LoadingPhase": "Default" }
+	],
+	"Plugins": [
+		{ "Name": "YogArt", "Enabled": true },
+		{ "Name": "YogArt_Material", "Enabled": true },
+		{ "Name": "YogArt_VFX", "Enabled": true },
+		{ "Name": "YogAnimSource", "Enabled": true },
+		{ "Name": "YogSFX", "Enabled": true },
+		{ "Name": "YogFrontLib", "Enabled": true }
+	]
+}

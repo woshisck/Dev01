@@ -71,6 +71,8 @@ public class DevKitEditor : ModuleRules
                 "Core",
                 "CoreUObject",
 				"RHI",
+				"RenderCore", // Offscreen Slate component validation.
+				"Renderer", // Verify live character settings reach the renderer profile table.
                 "TimeManagement",
                 "InputCore",
 				"Slate",
@@ -82,6 +84,7 @@ public class DevKitEditor : ModuleRules
 				"MessageLog",
 				"Projects",
 				"DeveloperToolSettings",
+				"DeveloperSettings", // Live global-environment settings notifications.
 				"CollectionManager",
 				"SourceControl",
 				"CommonUI",
@@ -100,6 +103,7 @@ public class DevKitEditor : ModuleRules
 				"AnimationBlueprintLibrary",
 				// 数值编辑工具依赖：FPlatformApplicationMisc::ClipboardCopy
 				"ApplicationCore",
+				"AppFramework", // Shared workbench UE color picker, with live preview and cancel restore.
 				"EnhancedInput",
 				// 文件对话框（CSV 导入）
 				"DesktopPlatform",
@@ -113,6 +117,8 @@ public class DevKitEditor : ModuleRules
 				"FoliageEdit",
 				"VirtualTexturingEditor",
 				"CelesLightEditor",
+				"YogLookDevEditor", // Lighting comparison workbench and editor-only review maps.
+				"CelesLightRuntime", // LookDev uses the production character shadow policy.
 				"TypedElementFramework",
 				"StateTreeModule",
 				"StateTreeEditorModule",

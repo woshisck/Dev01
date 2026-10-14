@@ -2,6 +2,8 @@
 
 #include "Modules/ModuleManager.h"
 
+class FSceneViewExtensionBase;
+
 class FCelesLightRuntimeModule : public IModuleInterface
 {
 public:
@@ -12,4 +14,5 @@ private:
 	void ApplySettingsAfterEngineInit();
 
 	FDelegateHandle PostEngineInitHandle;
+	TSharedPtr<FSceneViewExtensionBase, ESPMode::ThreadSafe> NativeRenderStyleExtension;
 };
