@@ -115,7 +115,6 @@ public:
 		if (ColumnName == TEXT("Type")) return MakeTextCell(RoomTypeText(Room));
 		if (ColumnName == TEXT("Enemies")) return MakeTextCell(FString::FromInt(Room->EnemyPool.Num()));
 		if (ColumnName == TEXT("Loot")) return MakeTextCell(FString::FromInt(Room->LootPool.Num()));
-		if (ColumnName == TEXT("Portals")) return MakeTextCell(FString::FromInt(Room->PortalDestinations.Num()));
 		if (ColumnName == TEXT("Actions"))
 		{
 			return SNew(SButton)
@@ -268,8 +267,7 @@ void SLevelDataWorkbenchWidget::Construct(const FArguments& InArgs)
 							+ SHeaderRow::Column(TEXT("Type")).DefaultLabel(LOCTEXT("TypeColumn", "Type")).FillWidth(0.13f)
 							+ SHeaderRow::Column(TEXT("Enemies")).DefaultLabel(LOCTEXT("EnemiesColumn", "E")).FixedWidth(34.f)
 							+ SHeaderRow::Column(TEXT("Loot")).DefaultLabel(LOCTEXT("LootColumn", "L")).FixedWidth(34.f)
-							+ SHeaderRow::Column(TEXT("Portals")).DefaultLabel(LOCTEXT("PortalsColumn", "P")).FixedWidth(34.f)
-							+ SHeaderRow::Column(TEXT("Actions")).DefaultLabel(LOCTEXT("ActionsColumn", "")).FixedWidth(58.f)
+								+ SHeaderRow::Column(TEXT("Actions")).DefaultLabel(LOCTEXT("ActionsColumn", "")).FixedWidth(58.f)
 						)
 					]
 				]
@@ -425,19 +423,18 @@ FText SLevelDataWorkbenchWidget::GetCampaignSummaryText() const
 
 FReply SLevelDataWorkbenchWidget::OnExportRoomEconomyClicked()
 {
-	FString CSV = TEXT("RoomName,DisplayName,RoomType,EnemyCount,LootCount,BuffCount,PortalCount\n");
+	FString CSV = TEXT("RoomName,DisplayName,RoomType,EnemyCount,LootCount,BuffCount\n");
 	for (const FRoomRowPtr& Row : RoomRows)
 	{
 		const URoomDataAsset* Room = Row.IsValid() ? Row->Room.Get() : nullptr;
 		if (!Room) continue;
-		CSV += FString::Printf(TEXT("%s,%s,%s,%d,%d,%d,%d\n"),
+		CSV += FString::Printf(TEXT("%s,%s,%s,%d,%d,%d\n"),
 			*Room->GetName(),
 			*Room->DisplayName.ToString().Replace(TEXT(","), TEXT("|")),
 			*RoomTypeText(Room),
 			Room->EnemyPool.Num(),
 			Room->LootPool.Num(),
-			Room->BuffPool.Num(),
-			Room->PortalDestinations.Num());
+			Room->BuffPool.Num());
 	}
 
 	const FString TimeStamp = FDateTime::Now().ToString(TEXT("%Y%m%d_%H%M%S"));

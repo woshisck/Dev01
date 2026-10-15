@@ -21,7 +21,6 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogEnemyMoveSmooth, Log, All);
 DEFINE_LOG_CATEGORY_STATIC(LogEnemyAIState, Log, All);
-DEFINE_LOG_CATEGORY_STATIC(LogEnemyMovementAttack, Log, All);
 
 static TAutoConsoleVariable<int32> CVarEnemyMoveSmoothLog(
 	TEXT("DevKit.EnemyAI.MoveSmoothLog"),
@@ -57,11 +56,6 @@ static TAutoConsoleVariable<float> CVarEnemyAIStateLogInterval(
 	TEXT("DevKit.EnemyAI.StateLogInterval"),
 	0.5f,
 	TEXT("Seconds between enemy AI awareness sample logs per AI when DevKit.EnemyAI.StateLog >= 2."));
-
-static TAutoConsoleVariable<int32> CVarEnemyMovementAttackLog(
-	TEXT("DevKit.EnemyAI.MovementAttackLog"),
-	0,
-	TEXT("0=off, 1=log movement attack cooldown activation, reset, and range gating."));
 
 static const TCHAR* EnemyAIStateToString(EEnemyAIState State)
 {
@@ -109,40 +103,6 @@ static const TCHAR* MoveRequestResultToString(int32 ResultCode)
 		return TEXT("Unknown");
 	}
 }
-
-static FName GetMovementAttackCooldownKey(const FEnemyAIAttackOption& Attack)
-{
-	if (!Attack.AttackName.IsNone())
-	{
-		return Attack.AttackName;
-	}
-
-	return FName(*Attack.AbilityTags.ToStringSimple());
-}
-
-static FName GetAttackCooldownKey(const FEnemyAIAttackOption& Attack)
-{
-	return GetMovementAttackCooldownKey(Attack);
-}
-
-static bool HasAnyValidAbilityTag(const UAbilityData* AbilityData, const FEnemyAIAttackOption& Attack)
-{
-	if (!AbilityData || Attack.AbilityTags.IsEmpty())
-	{
-		return false;
-	}
-
-	for (const FGameplayTag& Tag : Attack.AbilityTags)
-	{
-		if (AbilityData->HasAbility(Tag))
-		{
-			return true;
-		}
-	}
-
-	return false;
-}
-
 
 AYogAIController::AYogAIController(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UCrowdFollowingComponent>(TEXT("PathFollowingComponent")))
@@ -751,11 +711,7 @@ void AYogAIController::ResetCombatMoveSmoothing(bool bResetCooldowns)
 	LastAwarenessDebugLogTime = -FLT_MAX;
 	if (bResetCooldowns)
 	{
-		MovementAttackCooldownEndTimes.Reset();
 		AttackCooldownEndTimes.Reset();
-		InvalidMovementAttackAbilityLogTimes.Reset();
-		LastSelectedAttackKey = NAME_None;
-		LastSelectedAttackTime = -FLT_MAX;
 	}
 	bCombatAttackInProgress = false;
 }
@@ -801,36 +757,25 @@ void AYogAIController::RecordCombatMoveRequestForDebug(
 	}
 }
 
-float AYogAIController::GetMovementAttackRange(const FEnemyAIAttackOption& Attack) const
+void AYogAIController::NotifyAttackActivated(const FGameplayTag& AbilityTag, float Cooldown)
 {
-	const UEnemyData* EnemyData = GetPossessedEnemyData();
-	const FEnemyAIMovementTuning Tuning = EnemyData ? EnemyData->MovementTuning : FEnemyAIMovementTuning();
-	const float MultipliedRange = FMath::Max(Tuning.AttackRange, 1.0f) * FMath::Max(Attack.MovementAttackRangeMultiplier, 0.0f);
-	return FMath::Max(Attack.MaxRange, MultipliedRange);
-}
-
-void AYogAIController::NotifyAttackActivated(const FEnemyAIAttackOption& Attack)
-{
-	const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
-	LastSelectedAttackKey = GetAttackCooldownKey(Attack);
-	LastSelectedAttackTime = CurrentTime;
-
-	if (Attack.Cooldown <= 0.0f)
+	if (!AbilityTag.IsValid() || Cooldown <= 0.0f)
 	{
 		return;
 	}
 
-	AttackCooldownEndTimes.FindOrAdd(GetAttackCooldownKey(Attack)) = CurrentTime + Attack.Cooldown;
+	const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+	AttackCooldownEndTimes.FindOrAdd(AbilityTag) = CurrentTime + Cooldown;
 }
 
-bool AYogAIController::IsAttackCooldownReadyForAI(const FEnemyAIAttackOption& Attack, float* OutRemainingCooldown) const
+bool AYogAIController::IsAttackCooldownReadyForAI(const FGameplayTag& AbilityTag, float* OutRemainingCooldown) const
 {
 	if (OutRemainingCooldown)
 	{
 		*OutRemainingCooldown = 0.0f;
 	}
 
-	const float* CooldownEndTime = AttackCooldownEndTimes.Find(GetAttackCooldownKey(Attack));
+	const float* CooldownEndTime = AttackCooldownEndTimes.Find(AbilityTag);
 	if (!CooldownEndTime)
 	{
 		return true;
@@ -849,95 +794,6 @@ bool AYogAIController::IsAttackCooldownReadyForAI(const FEnemyAIAttackOption& At
 	return false;
 }
 
-bool AYogAIController::IsRecentAttackRepeat(const FEnemyAIAttackOption& Attack, float MemoryDuration, float* OutRepeatAge) const
-{
-	if (OutRepeatAge)
-	{
-		*OutRepeatAge = 0.0f;
-	}
-
-	if (MemoryDuration <= 0.0f || LastSelectedAttackKey.IsNone() || LastSelectedAttackTime <= -FLT_MAX * 0.5f)
-	{
-		return false;
-	}
-
-	if (GetAttackCooldownKey(Attack) != LastSelectedAttackKey)
-	{
-		return false;
-	}
-
-	const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
-	const float RepeatAge = CurrentTime - LastSelectedAttackTime;
-	if (OutRepeatAge)
-	{
-		*OutRepeatAge = RepeatAge;
-	}
-
-	return RepeatAge >= 0.0f && RepeatAge <= MemoryDuration;
-}
-
-bool AYogAIController::CanUseMovementAttack(const FEnemyAIAttackOption& Attack, float DistanceToTarget, float* OutRemainingCooldown) const
-{
-	if (OutRemainingCooldown)
-	{
-		*OutRemainingCooldown = 0.0f;
-	}
-
-	if (Attack.AttackMovementMode == EEnemyAIAttackMovementMode::None)
-	{
-		return false;
-	}
-
-	const float MovementAttackRange = GetMovementAttackRange(Attack);
-	if (DistanceToTarget > MovementAttackRange)
-	{
-		return false;
-	}
-
-	if (Attack.LungeStartRange > 0.0f && DistanceToTarget < Attack.LungeStartRange)
-	{
-		return false;
-	}
-
-	const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
-	const FName CooldownKey = GetMovementAttackCooldownKey(Attack);
-	const float* CooldownEndTime = MovementAttackCooldownEndTimes.Find(CooldownKey);
-	if (CooldownEndTime && CurrentTime < *CooldownEndTime)
-	{
-		if (OutRemainingCooldown)
-		{
-			*OutRemainingCooldown = *CooldownEndTime - CurrentTime;
-		}
-		return false;
-	}
-
-	return true;
-}
-
-void AYogAIController::NotifyMovementAttackActivated(const FEnemyAIAttackOption& Attack)
-{
-	if (Attack.AttackMovementMode == EEnemyAIAttackMovementMode::None || Attack.MovementAttackCooldown <= 0.0f)
-	{
-		return;
-	}
-
-	const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
-	const FName CooldownKey = GetMovementAttackCooldownKey(Attack);
-	const float CooldownEndTime = CurrentTime + Attack.MovementAttackCooldown;
-	MovementAttackCooldownEndTimes.FindOrAdd(CooldownKey) = CooldownEndTime;
-
-	if (CVarEnemyMovementAttackLog.GetValueOnGameThread() > 0)
-	{
-		UE_LOG(LogEnemyMovementAttack, Log,
-			TEXT("[EnemyMovementAttack] Enemy=%s Attack=%s Event=Activated Cooldown=%.2f CooldownEnd=%.2f Range=%.1f"),
-			*GetNameSafe(GetPawn()),
-			*Attack.AttackName.ToString(),
-			Attack.MovementAttackCooldown,
-			CooldownEndTime,
-			GetMovementAttackRange(Attack));
-	}
-}
-
 void AYogAIController::NotifyAttackResolved(bool bWhiffed, bool bForceReposition)
 {
 	UBlackboardComponent* BB = ResolveBlackboardComponent();
@@ -950,7 +806,7 @@ void AYogAIController::NotifyAttackResolved(bool bWhiffed, bool bForceReposition
 	if (bWhiffed)
 	{
 		const UEnemyData* EnemyData = GetPossessedEnemyData();
-		const float Chance = EnemyData ? EnemyData->AttackProfile.WhiffRepositionChance : 1.0f;
+		const float Chance = EnemyData ? EnemyData->MovementTuning.WhiffRepositionChance : 1.0f;
 		bFlagWhiffReposition = FMath::FRand() <= Chance;
 	}
 
@@ -969,40 +825,6 @@ void AYogAIController::NotifyAttackResolved(bool bWhiffed, bool bForceReposition
 	if (bRequestPostAttackReposition)
 	{
 		BB->SetValueAsFloat(TEXT("LastRepositionRequestTime"), CurrentTime);
-	}
-}
-
-void AYogAIController::RefreshMovementAttackCooldownReset(float DistanceToTarget)
-{
-	const UEnemyData* EnemyData = GetPossessedEnemyData();
-	if (!EnemyData || (MovementAttackCooldownEndTimes.IsEmpty() && AttackCooldownEndTimes.IsEmpty()))
-	{
-		return;
-	}
-
-	for (const FEnemyAIAttackOption& Attack : EnemyData->AttackProfile.Attacks)
-	{
-		if (Attack.AttackMovementMode == EEnemyAIAttackMovementMode::None)
-		{
-			continue;
-		}
-
-		const float MovementAttackRange = GetMovementAttackRange(Attack);
-		if (DistanceToTarget <= MovementAttackRange)
-		{
-			continue;
-		}
-
-		const FName CooldownKey = GetMovementAttackCooldownKey(Attack);
-		if (MovementAttackCooldownEndTimes.Remove(CooldownKey) > 0 && CVarEnemyMovementAttackLog.GetValueOnGameThread() > 0)
-		{
-			UE_LOG(LogEnemyMovementAttack, Log,
-				TEXT("[EnemyMovementAttack] Enemy=%s Attack=%s Event=ResetCooldown Reason=TargetLeftMovementAttackRange Dist=%.1f Range=%.1f"),
-				*GetNameSafe(GetPawn()),
-				*Attack.AttackName.ToString(),
-				DistanceToTarget,
-				MovementAttackRange);
-		}
 	}
 }
 
@@ -1061,32 +883,6 @@ void AYogAIController::LogCombatMoveSmoothSample(
 	{
 		CurrentCombatMoveAcceptanceRadius = BB->GetValueAsFloat(TEXT("AcceptanceRadius"));
 	}
-	bool bHasMovementAttack = false;
-	bool bMovementAttackAbilityValid = false;
-	bool bMovementAttackReady = false;
-	float MovementAttackRange = 0.0f;
-	float MovementAttackCooldownRemaining = 0.0f;
-	float AttackCooldownRemaining = 0.0f;
-	if (const UEnemyData* EnemyData = GetPossessedEnemyData())
-	{
-		const UAbilityData* AbilityData = EnemyData->AbilityData;
-		for (const FEnemyAIAttackOption& Attack : EnemyData->AttackProfile.Attacks)
-		{
-			if (Attack.AttackMovementMode == EEnemyAIAttackMovementMode::None)
-			{
-				continue;
-			}
-
-			bHasMovementAttack = true;
-			MovementAttackRange = GetMovementAttackRange(Attack);
-			bMovementAttackAbilityValid = HasAnyValidAbilityTag(AbilityData, Attack);
-			const bool bAttackCooldownReady = IsAttackCooldownReadyForAI(Attack, &AttackCooldownRemaining);
-			bMovementAttackReady = bMovementAttackAbilityValid
-				&& bAttackCooldownReady
-				&& CanUseMovementAttack(Attack, DistanceToTarget, &MovementAttackCooldownRemaining);
-			break;
-		}
-	}
 	const bool bEvaluateMoveStability = !bInAttackRange && !bCombatAttackInProgress;
 	const bool bTargetJump = bEvaluateMoveStability && MoveTargetDelta >= CVarEnemyMoveSmoothWarnTargetJump.GetValueOnGameThread();
 	const bool bYawJump = bEvaluateMoveStability && FMath::Abs(LastCombatMoveDesiredYawDelta) >= CVarEnemyMoveSmoothWarnYawDelta.GetValueOnGameThread();
@@ -1094,7 +890,7 @@ void AYogAIController::LogCombatMoveSmoothSample(
 	const bool bLikelyUnstable = bTargetJump || bYawJump || bYawRateHigh;
 
 	UE_LOG(LogEnemyMoveSmooth, Log,
-		TEXT("[EnemyMoveSmooth:%s] Enemy=%s Target=%s Move=MoveToCombatSlot Path=%s Dist=%.1f AttackRange=%.1f InRange=%d MoveAttack{Has=%d,ValidAbility=%d,Ready=%d,Range=%.1f,Cooldown=%.2f,AttackCooldown=%.2f} Speed=%.1f MoveTargetDelta=%.1f DesiredYawDelta=%.1f AppliedYawDelta=%.1f ActorToMoveYaw=%.1f ActorYawRate=%.1f Lead=%.1f SmoothAlpha=%.2f MoveReq=%d LastMoveResult=%s LastReqInterval=%.3f LastReqTargetMoved=%d LastReqTargetDelta=%.1f Acceptance=%.1f BBAcc=%.1f Tuning{Acceptance=%.1f,Lead=%.1f,YawSpeed=%.1f,Smooth=%.1f,Repath=%.2f} MoveTarget=%s"),
+		TEXT("[EnemyMoveSmooth:%s] Enemy=%s Target=%s Move=MoveToCombatSlot Path=%s Dist=%.1f AttackRange=%.1f InRange=%d Speed=%.1f MoveTargetDelta=%.1f DesiredYawDelta=%.1f AppliedYawDelta=%.1f ActorToMoveYaw=%.1f ActorYawRate=%.1f Lead=%.1f SmoothAlpha=%.2f MoveReq=%d LastMoveResult=%s LastReqInterval=%.3f LastReqTargetMoved=%d LastReqTargetDelta=%.1f Acceptance=%.1f BBAcc=%.1f Tuning{Acceptance=%.1f,Lead=%.1f,YawSpeed=%.1f,Smooth=%.1f,Repath=%.2f} MoveTarget=%s"),
 		bLikelyUnstable ? TEXT("Unstable") : TEXT("OK"),
 		*GetNameSafe(ControlledPawn),
 		*GetNameSafe(&TargetActor),
@@ -1102,12 +898,6 @@ void AYogAIController::LogCombatMoveSmoothSample(
 		DistanceToTarget,
 		EffectiveAttackRange,
 		bInAttackRange ? 1 : 0,
-		bHasMovementAttack ? 1 : 0,
-		bMovementAttackAbilityValid ? 1 : 0,
-		bMovementAttackReady ? 1 : 0,
-		MovementAttackRange,
-		MovementAttackCooldownRemaining,
-		AttackCooldownRemaining,
 		ActualSpeed,
 		MoveTargetDelta,
 		LastCombatMoveDesiredYawDelta,
@@ -1359,95 +1149,9 @@ bool AYogAIController::UpdateCombatMoveBlackboard(
 		return true;
 	}
 
-	RefreshMovementAttackCooldownReset(DistanceToTarget);
-
-	float EffectiveAttackRange = Tuning.AttackRange;
-	if (EnemyData)
-	{
-		const UAbilityData* AbilityData = EnemyData->AbilityData;
-		for (const FEnemyAIAttackOption& Attack : EnemyData->AttackProfile.Attacks)
-		{
-			if (Attack.Weight <= 0.0f || Attack.AbilityTags.IsEmpty() || Attack.MaxRange <= 0.0f)
-			{
-				continue;
-			}
-
-			if (!HasAnyValidAbilityTag(AbilityData, Attack))
-			{
-				if (Attack.AttackMovementMode != EEnemyAIAttackMovementMode::None
-					&& CVarEnemyMovementAttackLog.GetValueOnGameThread() > 0)
-				{
-					const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
-					const FName LogKey = GetMovementAttackCooldownKey(Attack);
-					float& LastLogTime = InvalidMovementAttackAbilityLogTimes.FindOrAdd(LogKey, -FLT_MAX);
-					if (CurrentTime - LastLogTime >= 1.0f)
-					{
-						LastLogTime = CurrentTime;
-						UE_LOG(LogEnemyMovementAttack, Log,
-							TEXT("[EnemyMovementAttack] Enemy=%s Attack=%s Event=RangeIgnored Reason=NoValidAbilityTag Tags=%s AbilityData=%s"),
-							*GetNameSafe(ControlledPawn),
-							*Attack.AttackName.ToString(),
-							*Attack.AbilityTags.ToStringSimple(),
-							*GetNameSafe(AbilityData));
-					}
-				}
-				continue;
-			}
-
-			if (Attack.AttackRole == EEnemyAIAttackRole::SpecialMovement)
-			{
-				float RemainingAttackCooldown = 0.0f;
-				if (!IsAttackCooldownReadyForAI(Attack, &RemainingAttackCooldown))
-				{
-					if (CVarEnemyMovementAttackLog.GetValueOnGameThread() > 0)
-					{
-						UE_LOG(LogEnemyMovementAttack, Verbose,
-							TEXT("[EnemyMovementAttack] Enemy=%s Attack=%s Event=RangeBlockedByAttackCooldown Dist=%.1f Remaining=%.2f MoveRange=%.1f CloseRange=%.1f"),
-							*GetNameSafe(ControlledPawn),
-							*Attack.AttackName.ToString(),
-							DistanceToTarget,
-							RemainingAttackCooldown,
-							GetMovementAttackRange(Attack),
-							Tuning.AttackRange);
-					}
-					continue;
-				}
-
-				float RemainingCooldown = 0.0f;
-				const float SpecialStartRange = FMath::Max(Attack.LungeStartRange, Tuning.AttackRange);
-				if (DistanceToTarget >= SpecialStartRange && CanUseMovementAttack(Attack, DistanceToTarget, &RemainingCooldown))
-				{
-					EffectiveAttackRange = FMath::Max(EffectiveAttackRange, GetMovementAttackRange(Attack));
-				}
-				else if (CVarEnemyMovementAttackLog.GetValueOnGameThread() > 0 && RemainingCooldown > 0.0f)
-				{
-					UE_LOG(LogEnemyMovementAttack, Verbose,
-						TEXT("[EnemyMovementAttack] Enemy=%s Attack=%s Event=RangeBlockedByCooldown Dist=%.1f Remaining=%.2f MoveRange=%.1f CloseRange=%.1f"),
-						*GetNameSafe(ControlledPawn),
-						*Attack.AttackName.ToString(),
-						DistanceToTarget,
-						RemainingCooldown,
-						GetMovementAttackRange(Attack),
-						Tuning.AttackRange);
-				}
-				continue;
-			}
-
-			if (Attack.AttackRole == EEnemyAIAttackRole::Skill)
-			{
-				if (IsAttackCooldownReadyForAI(Attack) && Attack.MaxRange > 0.0f)
-				{
-					EffectiveAttackRange = FMath::Max(EffectiveAttackRange, Attack.MaxRange);
-				}
-				continue;
-			}
-
-			if (Attack.AttackRole == EEnemyAIAttackRole::CloseMelee)
-			{
-				EffectiveAttackRange = FMath::Max(EffectiveAttackRange, Attack.MaxRange);
-			}
-		}
-	}
+	// Chase stops at the enemy's single configured engagement distance. Per-attack range bands
+	// are authored on the StateTree states and gate the attacks themselves, not the approach.
+	const float EffectiveAttackRange = Tuning.AttackRange;
 
 	const bool bWasInAttackRange = InBlackboard->GetValueAsBool(bInAttackRangeKeyName);
 	const float ExitBuffer = bWasInAttackRange ? FMath::Max(Tuning.AttackRangeExitBuffer, 0.0f) : 0.0f;

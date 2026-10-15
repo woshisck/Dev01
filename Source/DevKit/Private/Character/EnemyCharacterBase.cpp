@@ -172,13 +172,11 @@ void AEnemyCharacterBase::BeginPlay()
 		AttributeStatsComponent->OnHealthChange.AddDynamic(this, &AEnemyCharacterBase::OnHealthChangedForDeath);
 	}
 
-	// 从 EnemyData DA 推送霸体参数到 ASC（填表即生效，不需改每个敌人 BP）
+	// 从 EnemyData DA 推送参数到 ASC（填表即生效，不需改每个敌人 BP）
 	if (CharacterDataComponent && AbilitySystemComponent)
 	{
 		if (UEnemyData* ED = Cast<UEnemyData>(CharacterDataComponent->GetCharacterData()))
 		{
-			AbilitySystemComponent->SuperArmorThreshold = ED->SuperArmorThreshold;
-			AbilitySystemComponent->SuperArmorDuration  = ED->SuperArmorDuration;
 			AbilitySystemComponent->RecentlyDamagedStateDuration = ED->RecentlyDamagedStateDuration;
 			if (ED->MovementTuning.MaxWalkSpeedOverride > 0.0f)
 			{
@@ -229,10 +227,15 @@ float AEnemyCharacterBase::GetDeathDisappearDelayAfterAnimation(bool /*bHasDisso
 	return FMath::Max(0.0f, DeathDisappearDelayAfterAnimation);
 }
 
-void AEnemyCharacterBase::SetAIAttackRuntimeContext(const FEnemyAIAttackOption& AttackOption, AActor* TargetActor, float DistanceToTarget)
+void AEnemyCharacterBase::SetAIAttackRuntimeContext(
+	bool bIsReposition,
+	bool bRequestRepositionOnResolve,
+	AActor* TargetActor,
+	float DistanceToTarget)
 {
 	PendingAIAttackContext.bValid = true;
-	PendingAIAttackContext.AttackOption = AttackOption;
+	PendingAIAttackContext.bIsReposition = bIsReposition;
+	PendingAIAttackContext.bRequestRepositionOnResolve = bRequestRepositionOnResolve;
 	PendingAIAttackContext.TargetActor = TargetActor;
 	PendingAIAttackContext.DistanceToTarget = DistanceToTarget;
 }
@@ -338,11 +341,6 @@ void AEnemyCharacterBase::ApplyEnemyWeaponDefinition(UEnemyWeaponDefinition* Wea
 		RuntimeEnemyData->AbilityData = RuntimeAbilityData;
 	}
 
-	if (WeaponDefinition->bOverrideAttackProfile)
-	{
-		RuntimeEnemyData->AttackProfile = WeaponDefinition->AttackProfile;
-	}
-
 	DestroySpawnedEnemyWeaponActors();
 
 	for (const FWeaponSpawnData& SpawnData : WeaponDefinition->ActorsToSpawn)
@@ -442,11 +440,10 @@ void AEnemyCharacterBase::ApplyEnemyWeaponDefinition(UEnemyWeaponDefinition* Wea
 	EquippedEnemyWeaponDefinition = WeaponDefinition;
 	PendingEnemyWeaponDefinition = nullptr;
 
-	UE_LOG(LogTemp, Log, TEXT("[EnemyWeapon] Applied Weapon=%s Enemy=%s AbilityData=%s AttackProfileAttacks=%d"),
+	UE_LOG(LogTemp, Log, TEXT("[EnemyWeapon] Applied Weapon=%s Enemy=%s AbilityData=%s"),
 		*GetNameSafe(WeaponDefinition),
 		*GetNameSafe(this),
-		*GetNameSafe(RuntimeEnemyData->AbilityData.Get()),
-		RuntimeEnemyData->AttackProfile.Attacks.Num());
+		*GetNameSafe(RuntimeEnemyData->AbilityData.Get()));
 }
 
 void AEnemyCharacterBase::OnHealthChangedForDeath(float NewHealth)

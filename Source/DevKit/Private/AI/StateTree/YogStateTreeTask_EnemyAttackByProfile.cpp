@@ -16,14 +16,6 @@
 #include "StateTreeAsyncExecutionContext.h"
 #include "StateTreeExecutionContext.h"
 
-// Candidate attack considered during weighted selection.
-struct FEnemyAttackByProfileCandidate
-{
-	int32 AttackIndex = INDEX_NONE;
-	float Weight = 0.f;
-	FGameplayTagContainer ValidTags;
-};
-
 static bool StateTreeFacePawnTowardsTarget(APawn& Pawn, const AActor* TargetActor)
 {
 	if (!TargetActor)
@@ -102,13 +94,12 @@ EStateTreeRunStatus FStateTreeTask_EnemyAttackByProfile::EnterState(
 	const UCharacterDataComponent* DataComponent = Character ? Character->GetCharacterDataComponent() : nullptr;
 	const UEnemyData* EnemyData = DataComponent ? Cast<UEnemyData>(DataComponent->GetCharacterData()) : nullptr;
 	const UAbilityData* AbilityData = EnemyData ? EnemyData->AbilityData : nullptr;
-	if (!EnemyData || !AbilityData || EnemyData->AttackProfile.Attacks.IsEmpty())
+	if (!EnemyData || !AbilityData || InstanceData.AbilityTags.IsEmpty())
 	{
 		return EStateTreeRunStatus::Failed;
 	}
 
 	AYogAIController* YogAI = Cast<AYogAIController>(AIC);
-	const float CurrentTime = Pawn->GetWorld() ? Pawn->GetWorld()->GetTimeSeconds() : 0.0f;
 
 	// Distance: prefer the bound Input, else compute against the target.
 	float DistanceToTarget = InstanceData.DistanceToTarget;
@@ -119,165 +110,51 @@ EStateTreeRunStatus FStateTreeTask_EnemyAttackByProfile::EnterState(
 			: TNumericLimits<float>::Max();
 	}
 
-	bool bInAttackRange = InstanceData.bInAttackRange;
-	if (!bInAttackRange && TargetActor && EnemyData)
-	{
-		float EffectiveAttackRange = EnemyData->MovementTuning.AttackRange + EnemyData->MovementTuning.AttackRangeExitBuffer;
-		for (const FEnemyAIAttackOption& Attack : EnemyData->AttackProfile.Attacks)
-		{
-			if (Attack.AttackRole == InstanceData.RequiredAttackRole && Attack.MaxRange > 0.0f)
-			{
-				EffectiveAttackRange = FMath::Max(EffectiveAttackRange, Attack.MaxRange);
-			}
-		}
-		bInAttackRange = DistanceToTarget <= FMath::Max(EffectiveAttackRange, 0.0f);
-	}
-
-	// Range gate — every role except Reposition requires being in attack range.
-	if (InstanceData.RequiredAttackRole != EEnemyAIAttackRole::Reposition && !bInAttackRange)
+	// Range band is authored on the state itself rather than derived from the chase, so a
+	// retreat state can declare a wide band and still fire point-blank.
+	const bool bInsideMinRange = DistanceToTarget >= InstanceData.MinRange;
+	const bool bInsideMaxRange = InstanceData.MaxRange <= 0.f || DistanceToTarget <= InstanceData.MaxRange;
+	if (!bInsideMinRange || !bInsideMaxRange)
 	{
 		return EStateTreeRunStatus::Failed;
 	}
-
-	if (YogAI)
-	{
-		YogAI->RefreshMovementAttackCooldownReset(DistanceToTarget);
-	}
-	InstanceData.AttackCooldownEndTimes.SetNum(EnemyData->AttackProfile.Attacks.Num());
 
 	const float HealthPercent = StateTreeResolveHealthPercent(ASC);
-	float CloseCombatRange = EnemyData->MovementTuning.AttackRange;
-	for (const FEnemyAIAttackOption& Attack : EnemyData->AttackProfile.Attacks)
-	{
-		if (Attack.AttackRole == EEnemyAIAttackRole::CloseMelee && Attack.MaxRange > 0.0f)
-		{
-			CloseCombatRange = FMath::Max(CloseCombatRange, Attack.MaxRange);
-		}
-	}
-
-	TArray<FEnemyAttackByProfileCandidate> Candidates;
-	float TotalWeight = 0.0f;
-	for (int32 AttackIndex = 0; AttackIndex < EnemyData->AttackProfile.Attacks.Num(); ++AttackIndex)
-	{
-		const FEnemyAIAttackOption& Attack = EnemyData->AttackProfile.Attacks[AttackIndex];
-		if (Attack.AttackRole != InstanceData.RequiredAttackRole)
-		{
-			continue;
-		}
-
-		if (Attack.Weight <= 0.0f || Attack.AbilityTags.IsEmpty())
-		{
-			continue;
-		}
-
-		const float MinHealthPercent = FMath::Clamp(Attack.MinHealthPercent, 0.0f, 1.0f);
-		const float MaxHealthPercent = FMath::Clamp(Attack.MaxHealthPercent, 0.0f, 1.0f);
-		if (HealthPercent < MinHealthPercent || HealthPercent > MaxHealthPercent)
-		{
-			continue;
-		}
-
-		float RequiredMinRange = Attack.MinRange;
-		if (Attack.AttackRole == EEnemyAIAttackRole::SpecialMovement)
-		{
-			RequiredMinRange = FMath::Max(FMath::Max(Attack.MinRange, Attack.LungeStartRange), CloseCombatRange);
-		}
-
-		const bool bMovementAttackWindow = Attack.AttackMovementMode != EEnemyAIAttackMovementMode::None
-			&& DistanceToTarget >= RequiredMinRange;
-		if (Attack.AttackMovementMode != EEnemyAIAttackMovementMode::None && !bMovementAttackWindow)
-		{
-			continue;
-		}
-
-		const float EffectiveMaxRange = bMovementAttackWindow && YogAI
-			? YogAI->GetMovementAttackRange(Attack)
-			: Attack.MaxRange;
-		const bool bInsideMinRange = DistanceToTarget >= RequiredMinRange;
-		const bool bInsideMaxRange = EffectiveMaxRange <= 0.0f || DistanceToTarget <= EffectiveMaxRange;
-		if (!bInsideMinRange || !bInsideMaxRange)
-		{
-			continue;
-		}
-
-		if (bMovementAttackWindow && YogAI)
-		{
-			float RemainingMovementAttackCooldown = 0.0f;
-			if (!YogAI->CanUseMovementAttack(Attack, DistanceToTarget, &RemainingMovementAttackCooldown))
-			{
-				continue;
-			}
-		}
-
-		if (InstanceData.AttackCooldownEndTimes.IsValidIndex(AttackIndex)
-			&& CurrentTime < InstanceData.AttackCooldownEndTimes[AttackIndex])
-		{
-			continue;
-		}
-
-		FGameplayTagContainer ValidTags;
-		for (const FGameplayTag& Tag : Attack.AbilityTags)
-		{
-			if (AbilityData->HasAbility(Tag))
-			{
-				ValidTags.AddTag(Tag);
-			}
-		}
-
-		if (ValidTags.IsEmpty())
-		{
-			continue;
-		}
-
-		FEnemyAttackByProfileCandidate& Candidate = Candidates.AddDefaulted_GetRef();
-		Candidate.AttackIndex = AttackIndex;
-		Candidate.Weight = Attack.Weight;
-		Candidate.ValidTags = MoveTemp(ValidTags);
-		TotalWeight += Attack.Weight;
-	}
-
-	// Recent-repeat penalty (only meaningful with >1 candidate).
-	if (YogAI
-		&& Candidates.Num() > 1
-		&& EnemyData->AttackProfile.RecentAttackMemoryDuration > 0.0f
-		&& EnemyData->AttackProfile.RepeatAttackWeightMultiplier < 1.0f)
-	{
-		TotalWeight = 0.0f;
-		for (FEnemyAttackByProfileCandidate& Candidate : Candidates)
-		{
-			const FEnemyAIAttackOption& CandidateAttack = EnemyData->AttackProfile.Attacks[Candidate.AttackIndex];
-			float RepeatAge = 0.0f;
-			if (YogAI->IsRecentAttackRepeat(CandidateAttack, EnemyData->AttackProfile.RecentAttackMemoryDuration, &RepeatAge))
-			{
-				Candidate.Weight *= FMath::Max(EnemyData->AttackProfile.RepeatAttackWeightMultiplier, 0.0f);
-			}
-			TotalWeight += Candidate.Weight;
-		}
-	}
-
-	if (Candidates.IsEmpty() || TotalWeight <= 0.0f)
+	const float MinHealthPercent = FMath::Clamp(InstanceData.MinHealthPercent, 0.f, 1.f);
+	const float MaxHealthPercent = FMath::Clamp(InstanceData.MaxHealthPercent, 0.f, 1.f);
+	if (HealthPercent < MinHealthPercent || HealthPercent > MaxHealthPercent)
 	{
 		return EStateTreeRunStatus::Failed;
 	}
 
-	const FEnemyAttackByProfileCandidate* ChosenCandidate = nullptr;
-	float Pick = FMath::FRandRange(0.0f, TotalWeight);
-	for (const FEnemyAttackByProfileCandidate& Candidate : Candidates)
+	// Cooldowns are tracked per ability tag on the controller, so an attack shared by two states
+	// stays on cooldown across both.
+	TArray<FGameplayTag> ReadyTags;
+	for (const FGameplayTag& Tag : InstanceData.AbilityTags)
 	{
-		Pick -= Candidate.Weight;
-		if (Pick <= 0.0f)
+		if (!AbilityData->HasAbility(Tag))
 		{
-			ChosenCandidate = &Candidate;
-			break;
+			continue;
 		}
+
+		if (YogAI && !YogAI->IsAttackCooldownReadyForAI(Tag))
+		{
+			continue;
+		}
+
+		ReadyTags.Add(Tag);
 	}
 
-	if (!ChosenCandidate)
+	if (ReadyTags.IsEmpty())
 	{
-		ChosenCandidate = &Candidates.Last();
+		return EStateTreeRunStatus::Failed;
 	}
 
-	const FEnemyAIAttackOption& ChosenAttack = EnemyData->AttackProfile.Attacks[ChosenCandidate->AttackIndex];
+	// Pick here rather than letting the ASC choose, so the cooldown is stamped on the tag that
+	// actually fired.
+	const FGameplayTag ChosenTag = ReadyTags[FMath::RandHelper(ReadyTags.Num())];
+	const FGameplayTagContainer ChosenTags(ChosenTag);
+
 	if (YogAI)
 	{
 		YogAI->EnterCombat(TargetActor, false);
@@ -289,7 +166,11 @@ EStateTreeRunStatus FStateTreeTask_EnemyAttackByProfile::EnterState(
 	AEnemyCharacterBase* EnemyCharacter = Cast<AEnemyCharacterBase>(Pawn);
 	if (EnemyCharacter)
 	{
-		EnemyCharacter->SetAIAttackRuntimeContext(ChosenAttack, TargetActor, DistanceToTarget);
+		EnemyCharacter->SetAIAttackRuntimeContext(
+			InstanceData.bIsReposition,
+			InstanceData.bRequestRepositionOnResolve,
+			TargetActor,
+			DistanceToTarget);
 	}
 
 	if (YogAI)
@@ -297,13 +178,13 @@ EStateTreeRunStatus FStateTreeTask_EnemyAttackByProfile::EnterState(
 		YogAI->SetCombatAttackInProgress(true);
 	}
 
-	if (ChosenAttack.bPreAttackFlash && Character)
+	if (InstanceData.bPreAttackFlash && Character)
 	{
 		Character->StartPreAttackFlash();
 		InstanceData.FlashCharacter = Character;
 	}
 
-	const bool bActivated = YogASC->TryActivateRandomAbilitiesByTag(ChosenCandidate->ValidTags, false);
+	const bool bActivated = YogASC->TryActivateRandomAbilitiesByTag(ChosenTags, false);
 	if (!bActivated)
 	{
 		if (EnemyCharacter)
@@ -323,22 +204,12 @@ EStateTreeRunStatus FStateTreeTask_EnemyAttackByProfile::EnterState(
 		return EStateTreeRunStatus::Failed;
 	}
 
-	if (InstanceData.AttackCooldownEndTimes.IsValidIndex(ChosenCandidate->AttackIndex))
-	{
-		InstanceData.AttackCooldownEndTimes[ChosenCandidate->AttackIndex] = CurrentTime + ChosenAttack.Cooldown;
-	}
 	if (YogAI)
 	{
-		YogAI->NotifyAttackActivated(ChosenAttack);
-	}
-	if (YogAI
-		&& ChosenAttack.AttackMovementMode != EEnemyAIAttackMovementMode::None
-		&& DistanceToTarget >= ChosenAttack.LungeStartRange)
-	{
-		YogAI->NotifyMovementAttackActivated(ChosenAttack);
+		YogAI->NotifyAttackActivated(ChosenTag, InstanceData.Cooldown);
 	}
 
-	InstanceData.ActiveAbilityTags = ChosenCandidate->ValidTags;
+	InstanceData.ActiveAbilityTags = ChosenTags;
 
 	// If no matching GA is still active, it ended synchronously (e.g. no montage).
 	bool bStillActive = false;

@@ -92,7 +92,6 @@ void UGA_PlayMontage::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 	ActiveMontage = nullptr;
 	bActiveHoldMontage = false;
 	bHoldReleaseReceived = false;
-	bCombatDeckCardResolvedThisActivation = false;
 	ActiveCombatCardResult = FCombatCardResolveResult();
 	ActiveCombatDeckGuid = FGuid::NewGuid();
 
@@ -249,7 +248,6 @@ void UGA_PlayMontage::EndAbility(const FGameplayAbilitySpecHandle Handle, const 
 	ActiveMontage = nullptr;
 	bActiveHoldMontage = false;
 	bHoldReleaseReceived = false;
-	bCombatDeckCardResolvedThisActivation = false;
 	ActiveCombatCardResult = FCombatCardResolveResult();
 	ActiveCombatDeckGuid = FGuid();
 
@@ -453,36 +451,7 @@ FCombatDeckActionContext UGA_PlayMontage::BuildCombatDeckContext(ECombatCardTrig
 
 FCombatCardResolveResult UGA_PlayMontage::ResolveCombatDeck(ECombatCardTriggerTiming TriggerTiming, bool bResolveOnCommit)
 {
-	FCombatCardResolveResult EmptyResult;
-	if (!bResolveCombatDeck)
-	{
-		return EmptyResult;
-	}
-
-	if (TriggerTiming == ECombatCardTriggerTiming::OnHit && bCombatDeckCardResolvedThisActivation)
-	{
-		return EmptyResult;
-	}
-
-	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(GetAvatarActorFromActorInfo());
-	if (!Player)
-	{
-		Player = Cast<APlayerCharacterBase>(GetOwningActorFromActorInfo());
-	}
-
-	if (!Player || !Player->CombatDeckComponent)
-	{
-		return EmptyResult;
-	}
-
-	const FCombatDeckActionContext Context = BuildCombatDeckContext(TriggerTiming, bResolveOnCommit);
-	const FCombatCardResolveResult Result = Player->CombatDeckComponent->ResolveAttackCardWithContext(Context);
-	if (Result.bHadCard)
-	{
-		ActiveCombatCardResult = Result;
-		bCombatDeckCardResolvedThisActivation = true;
-	}
-	return Result;
+	return FCombatCardResolveResult();
 }
 
 void UGA_PlayMontage::PrimeCombatDeckHitContext(AYogCharacterBase* Owner, const TArray<AActor*>& HitActors) const
@@ -529,20 +498,6 @@ void UGA_PlayMontage::StopActiveCombatDeckFlows()
 		return;
 	}
 
-	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(GetAvatarActorFromActorInfo());
-	if (!Player)
-	{
-		Player = Cast<APlayerCharacterBase>(GetOwningActorFromActorInfo());
-	}
-
-	if (!Player || !Player->CombatDeckComponent)
-	{
-		return;
-	}
-
-	Player->CombatDeckComponent->StopCardFlow(ActiveCombatCardResult.ResolvedCard);
-	Player->CombatDeckComponent->StopCardFlow(ActiveCombatCardResult.LinkedSourceCard);
-	Player->CombatDeckComponent->StopCardFlow(ActiveCombatCardResult.LinkedTargetCard);
 }
 
 void UGA_PlayMontage::StartSharedSkillCooldownIfConfigured() const

@@ -23,22 +23,14 @@ void USNode_EnablePortal::ExecuteInput(const FName& PinName)
 	}
 
 	const bool bFilterByTag = !PortalActorTag.IsNone();
-	const bool bFilterByIndex = (PortalIndex >= 0);
-	const bool bShouldOpen = !SelectedLevel.IsNone() && SelectedRoom != nullptr;
+	const bool bShouldOpen = !SelectedLevel.IsNone();
 
 	for (TActorIterator<APortal> It(World); It; ++It)
 	{
 		APortal* Portal = *It;
 		if (!Portal) continue;
 
-		if (bFilterByTag)
-		{
-			if (!Portal->Tags.Contains(PortalActorTag)) continue;
-		}
-		else if (bFilterByIndex)
-		{
-			if (Portal->Index != PortalIndex) continue;
-		}
+		if (bFilterByTag && !Portal->Tags.Contains(PortalActorTag)) continue;
 
 		Portal->EnablePortal();
 

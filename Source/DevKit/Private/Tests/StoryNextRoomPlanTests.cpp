@@ -37,8 +37,6 @@ bool FStoryNextRoomPlanGameInstanceConsumedOnceTest::RunTest(const FString& Para
 	}
 
 	FStoryNextRoomPlan Plan;
-	Plan.bForceSinglePortal = true;
-	Plan.PortalIndex = 2;
 	Plan.RoomDataOverride = Room;
 	Plan.bOverrideRewardOptions = true;
 	Plan.RewardOptionsOverride = { StoryNextRoomPlanTests::MakeGoldOption(50) };
@@ -48,8 +46,6 @@ bool FStoryNextRoomPlanGameInstanceConsumedOnceTest::RunTest(const FString& Para
 	FStoryNextRoomPlan PreviewPlan;
 	TestTrue(TEXT("Pending next-room plan can be previewed"),
 		GI->GetPendingStoryNextRoomPlan(PreviewPlan));
-	TestTrue(TEXT("Preview plan forces a single portal"), PreviewPlan.bForceSinglePortal);
-	TestEqual(TEXT("Preview plan portal index"), PreviewPlan.PortalIndex, 2);
 	TestEqual(TEXT("Preview plan room override"), PreviewPlan.RoomDataOverride.Get(), Room);
 	TestTrue(TEXT("Preview plan has reward override"), PreviewPlan.bOverrideRewardOptions);
 	TestEqual(TEXT("Preview reward option count"), PreviewPlan.RewardOptionsOverride.Num(), 1);
@@ -57,7 +53,6 @@ bool FStoryNextRoomPlanGameInstanceConsumedOnceTest::RunTest(const FString& Para
 	FStoryNextRoomPlan ConsumedPlan;
 	TestTrue(TEXT("First consume returns pending next-room plan"),
 		GI->ConsumePendingStoryNextRoomPlan(ConsumedPlan));
-	TestEqual(TEXT("Consumed plan portal index"), ConsumedPlan.PortalIndex, 2);
 	TestEqual(TEXT("Consumed plan room override"), ConsumedPlan.RoomDataOverride.Get(), Room);
 
 	FStoryNextRoomPlan SecondConsume;
@@ -91,8 +86,8 @@ bool FStoryNextRoomPlanClearRunStateClearsPlanTest::RunTest(const FString& Param
 	}
 
 	FStoryNextRoomPlan Plan;
-	Plan.bForceSinglePortal = true;
-	Plan.PortalIndex = 1;
+	Plan.bOverrideRewardOptions = true;
+	Plan.RewardOptionsOverride = { StoryNextRoomPlanTests::MakeGoldOption(25) };
 	GI->SetPendingStoryNextRoomPlan(Plan);
 	GI->ClearRunState();
 
@@ -119,8 +114,6 @@ bool FStoryFlowSetNextRoomPlanStoresPendingPlanTest::RunTest(const FString& Para
 	}
 
 	Node->bClearPlan = false;
-	Node->Plan.bForceSinglePortal = true;
-	Node->Plan.PortalIndex = 0;
 	Node->Plan.bOverrideRewardOptions = true;
 	Node->Plan.RewardOptionsOverride = { StoryNextRoomPlanTests::MakeGoldOption(50) };
 
@@ -130,8 +123,6 @@ bool FStoryFlowSetNextRoomPlanStoresPendingPlanTest::RunTest(const FString& Para
 	FStoryNextRoomPlan StoredPlan;
 	TestTrue(TEXT("Pending next-room plan exists after node application"),
 		GI->GetPendingStoryNextRoomPlan(StoredPlan));
-	TestTrue(TEXT("Stored plan forces a single portal"), StoredPlan.bForceSinglePortal);
-	TestEqual(TEXT("Stored portal index"), StoredPlan.PortalIndex, 0);
 	TestTrue(TEXT("Stored plan has reward override"), StoredPlan.bOverrideRewardOptions);
 	TestEqual(TEXT("Stored reward option count"), StoredPlan.RewardOptionsOverride.Num(), 1);
 

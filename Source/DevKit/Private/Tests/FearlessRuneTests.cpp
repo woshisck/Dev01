@@ -3,7 +3,6 @@
 #include "Misc/AutomationTest.h"
 
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
-#include "BuffFlow/Nodes/BFNode_AddTag.h"
 #include "BuffFlow/Nodes/BFNode_ApplyAttributeModifier.h"
 #include "BuffFlow/Nodes/BFNode_ApplyEffect.h"
 #include "BuffFlow/Nodes/BFNode_CompareFloat.h"
@@ -21,6 +20,34 @@ static bool IsDmgTakenVulnerabilityModifier(const FGameplayAttribute& Attribute,
 	return Attribute == UBaseAttributeSet::GetDmgTakenAttribute()
 		&& ModOp == EGameplayModOp::Multiplicitive
 		&& FMath::IsNearlyEqual(Value, FearlessDmgTakenMultiplier);
+}
+
+/** Fearless trades incoming damage for poise, so any positive additive Resilience bonus counts. */
+static bool IsPoiseBonusModifier(const FGameplayAttribute& Attribute, EGameplayModOp::Type ModOp, const float Value)
+{
+	return Attribute == UBaseAttributeSet::GetResilienceAttribute()
+		&& ModOp == EGameplayModOp::Additive
+		&& Value > 0.f;
+}
+
+static bool GameplayEffectHasPoiseBonus(const UGameplayEffect* Effect)
+{
+	if (!Effect)
+	{
+		return false;
+	}
+
+	for (const FGameplayModifierInfo& Modifier : Effect->Modifiers)
+	{
+		float Magnitude = 0.f;
+		if (Modifier.ModifierMagnitude.GetStaticMagnitudeIfPossible(1.f, Magnitude)
+			&& IsPoiseBonusModifier(Modifier.Attribute, Modifier.ModifierOp, Magnitude))
+		{
+			return true;
+		}
+	}
+
+	return false;
 }
 
 static bool GameplayEffectHasFearlessVulnerability(const UGameplayEffect* Effect)
@@ -43,13 +70,8 @@ static bool GameplayEffectHasFearlessVulnerability(const UGameplayEffect* Effect
 	return false;
 }
 
-static bool GameplayEffectGrantsTag(const UGameplayEffect* Effect, const FGameplayTag& Tag)
-{
-	return Effect && Tag.IsValid() && Effect->InheritableOwnedTagsContainer.CombinedTags.HasTagExact(Tag);
-}
-
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFearlessRuneLowHealthTradeoffTest,
-	"DevKit.Rune.Fearless.LowHealthSuperArmorDamageTakenTradeoff",
+	"DevKit.Rune.Fearless.LowHealthPoiseDamageTakenTradeoff",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
 bool FFearlessRuneLowHealthTradeoffTest::RunTest(const FString& Parameters)
@@ -73,9 +95,8 @@ bool FFearlessRuneLowHealthTradeoffTest::RunTest(const FString& Parameters)
 		return false;
 	}
 
-	const FGameplayTag SuperArmorTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.SuperArmor"), false);
 	bool bHasHealthThresholdGate = false;
-	bool bGrantsSuperArmor = false;
+	bool bGrantsPoiseBonus = false;
 	bool bAppliesDmgTakenVulnerability = false;
 
 	for (const TPair<FGuid, UFlowNode*>& Pair : Flow->GetNodes())
@@ -91,19 +112,15 @@ bool FFearlessRuneLowHealthTradeoffTest::RunTest(const FString& Parameters)
 			}
 		}
 
-		if (const UBFNode_AddTag* AddTag = Cast<UBFNode_AddTag>(Node))
-		{
-			if (AddTag->Tag == SuperArmorTag)
-			{
-				bGrantsSuperArmor = true;
-			}
-		}
-
 		if (const UBFNode_ApplyAttributeModifier* ApplyAttr = Cast<UBFNode_ApplyAttributeModifier>(Node))
 		{
 			if (IsDmgTakenVulnerabilityModifier(ApplyAttr->Attribute, ApplyAttr->ModOp.GetValue(), ApplyAttr->Value.Value))
 			{
 				bAppliesDmgTakenVulnerability = true;
+			}
+			if (IsPoiseBonusModifier(ApplyAttr->Attribute, ApplyAttr->ModOp.GetValue(), ApplyAttr->Value.Value))
+			{
+				bGrantsPoiseBonus = true;
 			}
 		}
 
@@ -112,13 +129,13 @@ bool FFearlessRuneLowHealthTradeoffTest::RunTest(const FString& Parameters)
 			const UGameplayEffect* Effect = ApplyEffect->Effect
 				? ApplyEffect->Effect->GetDefaultObject<UGameplayEffect>()
 				: nullptr;
-			bGrantsSuperArmor |= GameplayEffectGrantsTag(Effect, SuperArmorTag);
+			bGrantsPoiseBonus |= GameplayEffectHasPoiseBonus(Effect);
 			bAppliesDmgTakenVulnerability |= GameplayEffectHasFearlessVulnerability(Effect);
 		}
 	}
 
 	TestTrue(TEXT("Fearless triggers from a 75% low-health gate"), bHasHealthThresholdGate);
-	TestTrue(TEXT("Fearless grants SuperArmor after the low-health gate"), bGrantsSuperArmor);
+	TestTrue(TEXT("Fearless grants bonus poise after the low-health gate"), bGrantsPoiseBonus);
 	TestTrue(TEXT("Fearless applies DmgTaken x1.5 after the low-health gate"), bAppliesDmgTakenVulnerability);
 
 	return true;

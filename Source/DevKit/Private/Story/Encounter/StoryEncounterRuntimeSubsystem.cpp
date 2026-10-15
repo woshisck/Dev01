@@ -414,7 +414,6 @@ bool UStoryEncounterRuntimeSubsystem::ConvertEncounterActionForTest(FName Encoun
 	case EStoryEncounterActionKind::SetActorEnabled:
 	case EStoryEncounterActionKind::SpawnRewardPickup:
 	case EStoryEncounterActionKind::SetRoomRewardOverride:
-	case EStoryEncounterActionKind::SetPortalOverride:
 	case EStoryEncounterActionKind::TeleportToNode:
 	default:
 		return false;
@@ -762,28 +761,6 @@ bool UStoryEncounterRuntimeSubsystem::ExecuteSetRoomRewardOverrideAction(
 	return true;
 }
 
-bool UStoryEncounterRuntimeSubsystem::ExecuteSetPortalOverrideAction(
-	const FStoryEncounterAction& Action,
-	const FStoryEventContext& Context) const
-{
-	UWorld* World = Context.SourceActor ? Context.SourceActor->GetWorld() : GetWorld();
-	AYogGameMode* GM = World ? Cast<AYogGameMode>(UGameplayStatics::GetGameMode(World)) : nullptr;
-	if (!GM)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[StoryEncounter] SetPortalOverride skipped: GameMode is not AYogGameMode."));
-		return false;
-	}
-
-	if (Action.bClearPortalOverride)
-	{
-		GM->ClearForcedPortalOverride();
-		return true;
-	}
-
-	GM->SetForcedPortalOverride(Action.ForcedPortalIndex);
-	return true;
-}
-
 void UStoryEncounterRuntimeSubsystem::HandleRewardDropCharacterDied(AYogCharacterBase* Character)
 {
 	if (!Character)
@@ -908,12 +885,6 @@ void UStoryEncounterRuntimeSubsystem::ExecuteEncounterAction(FName EncounterId,
 		ExecuteSetRoomRewardOverrideAction(Action, Context);
 		return;
 	}
-	if (Action.Kind == EStoryEncounterActionKind::SetPortalOverride)
-	{
-		ExecuteSetPortalOverrideAction(Action, Context);
-		return;
-	}
-
 	FStoryAction StoryAction;
 	if (ConvertEncounterActionForTest(EncounterId, Action, StoryAction))
 	{

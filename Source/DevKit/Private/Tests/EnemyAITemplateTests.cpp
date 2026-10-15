@@ -12,15 +12,6 @@ static T* LoadTestAsset(const TCHAR* ObjectPath)
 	return Cast<T>(StaticLoadObject(T::StaticClass(), nullptr, ObjectPath));
 }
 
-static const FEnemyAIAttackOption* FindAttackByTag(const FEnemyAIAttackProfile& AttackProfile, const FGameplayTag& AbilityTag)
-{
-	return AttackProfile.Attacks.FindByPredicate(
-		[AbilityTag](const FEnemyAIAttackOption& Attack)
-		{
-			return Attack.AbilityTags.HasTagExact(AbilityTag);
-		});
-}
-
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEnemyAIDefaultTemplateTest,
 	"DevKit.EnemyAI.DefaultTemplate",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -75,55 +66,33 @@ bool FEnemyAIDefaultTemplateTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("DA_Rat has attack range hysteresis"), RatData->MovementTuning.AttackRangeExitBuffer, 40.0f);
 	TestEqual(TEXT("DA_Rat has sticky combat exit radius"), RatData->AwarenessTuning.CombatExitRadius, 1200.0f);
 	TestTrue(TEXT("DA_Rat uses forward steering"), RatData->MovementTuning.bUseForwardSteering);
-	TestTrue(TEXT("DA_Rat has default attacks"), RatData->AttackProfile.Attacks.Num() >= 1);
-	for (const FEnemyAIAttackOption& RatAttack : RatData->AttackProfile.Attacks)
-	{
-		TestEqual(TEXT("DA_Rat attacks are close melee role"), RatAttack.AttackRole, EEnemyAIAttackRole::CloseMelee);
-	}
 	TestEqual(TEXT("DA_RottenGuard starts with bruiser movement"), RottenGuardData->MovementTuning.ApproachStyle, EEnemyAIApproachStyle::BruiserHold);
 	TestEqual(TEXT("DA_RottenGuard attack range is configured"), RottenGuardData->MovementTuning.AttackRange, 260.0f);
 	TestTrue(TEXT("DA_RottenGuard uses forward steering"), RottenGuardData->MovementTuning.bUseForwardSteering);
 	TestEqual(TEXT("DA_RottenGuard has speed override"), RottenGuardData->MovementTuning.MaxWalkSpeedOverride, 420.0f);
 	TestEqual(TEXT("DA_RottenGuard has sticky combat exit radius"), RottenGuardData->AwarenessTuning.CombatExitRadius, 1200.0f);
-	TestTrue(TEXT("DA_RottenGuard has default attacks"), RottenGuardData->AttackProfile.Attacks.Num() >= 1);
-	const FEnemyAIAttackOption* SweepAttack = RottenGuardData->AttackProfile.Attacks.FindByPredicate(
-		[](const FEnemyAIAttackOption& Attack)
-		{
-			return Attack.AttackName == TEXT("Sweep");
-		});
-	TestNotNull(TEXT("DA_RottenGuard has Sweep attack"), SweepAttack);
-	if (SweepAttack)
-	{
-		TestEqual(TEXT("DA_RottenGuard Sweep is close melee role"), SweepAttack->AttackRole, EEnemyAIAttackRole::CloseMelee);
-	}
-	const FGameplayTag RottenGuardLightAttackTag = FGameplayTag::RequestGameplayTag(TEXT("Enemy.Melee.LAtk1"), false);
+
+	// Attack definitions live on the StateTree states now, so the DataAsset contract is only
+	// that the ability tags those states fire are actually granted here.
+	static const TCHAR* RequiredAbilityTagNames[] = {
+		TEXT("Enemy.Melee.LAtk1"),
+		TEXT("Enemy.Melee.HAtk1"),
+		TEXT("Enemy.Melee.HAtk2"),
+	};
+
+	TestNotNull(TEXT("DA_Rat has AbilityData"), RatData->AbilityData.Get());
 	TestNotNull(TEXT("DA_RottenGuard has AbilityData"), RottenGuardData->AbilityData.Get());
-	TestTrue(TEXT("Enemy.Melee.LAtk1 tag is registered"), RottenGuardLightAttackTag.IsValid());
+
+	for (const TCHAR* TagName : RequiredAbilityTagNames)
+	{
+		const FGameplayTag AbilityTag = FGameplayTag::RequestGameplayTag(TagName, false);
+		TestTrue(FString::Printf(TEXT("%s tag is registered"), TagName), AbilityTag.IsValid());
+	}
+
+	const FGameplayTag RottenGuardLightAttackTag = FGameplayTag::RequestGameplayTag(TEXT("Enemy.Melee.LAtk1"), false);
 	if (RottenGuardLightAttackTag.IsValid() && RottenGuardData->AbilityData)
 	{
 		TestTrue(TEXT("DA_RottenGuard AbilityData has valid LAtk1 montage or montage config"), RottenGuardData->AbilityData->HasAbility(RottenGuardLightAttackTag));
-		const FEnemyAIAttackOption* LightAttack = FindAttackByTag(RottenGuardData->AttackProfile, RottenGuardLightAttackTag);
-		TestNotNull(TEXT("DA_RottenGuard syncs valid LAtk1 montage tag into attack profile"), LightAttack);
-		if (LightAttack)
-		{
-			TestEqual(TEXT("DA_RottenGuard LAtk1 is close melee role"), LightAttack->AttackRole, EEnemyAIAttackRole::CloseMelee);
-		}
-	}
-	const FEnemyAIAttackOption* HeavyAttack = RottenGuardData->AttackProfile.Attacks.FindByPredicate(
-		[](const FEnemyAIAttackOption& Attack)
-		{
-			return Attack.AttackName == TEXT("Heavy");
-		});
-	TestNotNull(TEXT("DA_RottenGuard has Heavy attack"), HeavyAttack);
-	if (HeavyAttack)
-	{
-		TestEqual(TEXT("DA_RottenGuard Heavy is special movement role"), HeavyAttack->AttackRole, EEnemyAIAttackRole::SpecialMovement);
-		TestEqual(TEXT("DA_RottenGuard Heavy uses radial lunge"), HeavyAttack->AttackMovementMode, EEnemyAIAttackMovementMode::RadialLunge);
-		TestEqual(TEXT("DA_RottenGuard Heavy starts lunge from mid range"), HeavyAttack->LungeStartRange, 300.0f);
-		TestEqual(TEXT("DA_RottenGuard Heavy lunge distance"), HeavyAttack->LungeDistance, 280.0f);
-		TestEqual(TEXT("DA_RottenGuard Heavy max range"), HeavyAttack->MaxRange, 650.0f);
-		TestEqual(TEXT("DA_RottenGuard Heavy movement attack range multiplier"), HeavyAttack->MovementAttackRangeMultiplier, 2.5f);
-		TestEqual(TEXT("DA_RottenGuard Heavy movement attack cooldown"), HeavyAttack->MovementAttackCooldown, 10.0f);
 	}
 
 	return true;

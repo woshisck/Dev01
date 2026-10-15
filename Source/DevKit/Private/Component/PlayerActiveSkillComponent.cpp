@@ -189,37 +189,6 @@ bool UPlayerActiveSkillComponent::UseActiveSkill()
 		return false;
 	}
 
-	if (Slot.Config.bResolveCombatDeckOnUse)
-	{
-		if (APlayerCharacterBase* PlayerOwner = GetPlayerOwner())
-		{
-			if (PlayerOwner->CombatDeckComponent)
-			{
-				FCombatDeckActionContext Context;
-				Context.ActionType = ECardRequiredAction::Any;
-				Context.ActionSlot = Slot.Config.CombatDeckActionSlot;
-				Context.FlowRole = Slot.Config.CombatDeckFlowRole;
-				Context.WeaponDef = PlayerOwner->EquippedWeaponDef;
-				Context.bIsComboFinisher = Context.FlowRole == ECombatDeckFlowRole::Finisher;
-				Context.ReleaseMode = Context.bIsComboFinisher ? ECombatCardReleaseMode::Finisher : ECombatCardReleaseMode::Normal;
-				Context.TriggerTiming = Slot.Config.CombatDeckTriggerTiming;
-				Context.bConsumeOnCommit = Context.TriggerTiming == ECombatCardTriggerTiming::OnCommit;
-				Context.AttackInstanceGuid = FGuid::NewGuid();
-
-				if (const UYogGameplayAbility* AbilityCDO = Slot.Config.AbilityClass.GetDefaultObject())
-				{
-					for (const FGameplayTag& Tag : AbilityCDO->AbilityTags)
-					{
-						Context.AbilityTag = Tag;
-						break;
-					}
-				}
-
-				PlayerOwner->CombatDeckComponent->ResolveAttackCardWithContext(Context);
-			}
-		}
-	}
-
 	Slot.CooldownRemaining = FMath::Max(0.0f, Slot.Config.Cooldown);
 	StartSharedSkillCooldown(Slot.Config.Cooldown);
 	const TArray<FActiveSkillSlotView> Views = GetSlotViews();

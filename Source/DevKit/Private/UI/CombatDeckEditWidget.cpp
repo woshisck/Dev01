@@ -106,8 +106,7 @@ void UCombatDeckEditWidget::NativeTick(const FGeometry& MyGeometry, float InDelt
 
 void UCombatDeckEditWidget::BindToOwningPlayerCombatDeck()
 {
-	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(GetOwningPlayerPawn());
-	BindToCombatDeck(Player ? Player->CombatDeckComponent : nullptr);
+	BindToCombatDeck(nullptr);
 }
 
 void UCombatDeckEditWidget::BindToCombatDeck(UCombatDeckComponent* InCombatDeck)

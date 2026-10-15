@@ -1458,10 +1458,8 @@ void UYogGameInstanceBase::SetPendingStoryNextRoomPlan(const FStoryNextRoomPlan&
 	}
 
 	UE_LOG(LogTemp, Log,
-		TEXT("[StoryNextRoomPlan] Set Pending=%d ForcePortal=%d PortalIndex=%d Room=%s RewardOverride=%d RewardCount=%d BuffOverride=%d BuffCount=%d"),
+		TEXT("[StoryNextRoomPlan] Set Pending=%d Room=%s RewardOverride=%d RewardCount=%d BuffOverride=%d BuffCount=%d"),
 		bHasPendingStoryNextRoomPlan ? 1 : 0,
-		InPlan.bForceSinglePortal ? 1 : 0,
-		InPlan.PortalIndex,
 		*GetNameSafe(InPlan.RoomDataOverride.Get()),
 		InPlan.bOverrideRewardOptions ? 1 : 0,
 		InPlan.RewardOptionsOverride.Num(),
@@ -1475,9 +1473,8 @@ void UYogGameInstanceBase::ClearPendingStoryNextRoomPlan()
 	if (bHasPendingStoryNextRoomPlan)
 	{
 		UE_LOG(LogTemp, Log,
-			TEXT("[StoryNextRoomPlan] Cleared Room=%s PortalIndex=%d"),
-			*GetNameSafe(PendingStoryNextRoomPlan.RoomDataOverride.Get()),
-			PendingStoryNextRoomPlan.PortalIndex);
+			TEXT("[StoryNextRoomPlan] Cleared Room=%s"),
+			*GetNameSafe(PendingStoryNextRoomPlan.RoomDataOverride.Get()));
 	}
 
 	bHasPendingStoryNextRoomPlan = false;

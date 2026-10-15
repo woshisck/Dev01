@@ -62,14 +62,14 @@
 
 ## 传送门系统
 
-### [LEVEL-001 / MAP-001] 传送门切关基础（Portal + DA_Campaign）
+### [LEVEL-001 / MAP-001] 传送门切关基础（Portal + RoomDirector）
 - **设计需求**：多分支选关；门到门的目标可配；门有 Closed / NeverOpen / Destination 三种美术。
 - **状态**：✅ C++完成
 - **核心文件**：
-  - `Public/Map/Portal.h` + `Private/Map/Portal.cpp`（`EnablePortal` / `DisablePortal` / `NeverOpen` / `Open(LevelName, RoomDA)` / `DestinationArtMap`）
-  - `Public/Data/CampaignDataAsset.h`（`PortalDestinations[].PortalIndex`）
+  - `Public/Map/Portal.h` + `Private/Map/Portal.cpp`（`EnablePortal` / `DisablePortal` / `NeverOpen` / `Open(LevelName, RoomDA)` / `DestinationLevel` / `DestinationArtMap`）
+  - `Public/Map/YogRoomDirector.h`（`OpenPortal`）+ `Content/Script/Maps/RoomDirector.lua`
 - **设计文档**：[Portal_ConfigGuide](../../04_开发实现与系统文档/系统/Level/Portal_ConfigGuide.md)
-- **验收方式**：放置 Portal 设 Index=0，DA_Campaign 配对应 PortalDestinations[0]，关卡结算应自动开门并切美术
+- **验收方式**：放置 Portal 并填 `DestinationLevel`，地图里放一个 `B_RoomDirector`，清怪后应自动开门并切美术
 
 ### [LEVEL-006] 传送门 v3：按住 E 进入 + HUD 双层预览 + 渐黑过场
 - **设计需求**：把"踩进就走"改为"按住 E 主动选下一关"；屏幕外门画方位箭头；屏幕内门显示单例浮窗（房间名 / 类型徽章 / 已确定 Buff / 战利品摘要）；按住 E 触发渐黑过场后切关。

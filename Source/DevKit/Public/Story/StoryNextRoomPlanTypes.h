@@ -18,12 +18,6 @@ struct DEVKIT_API FStoryNextRoomPlan
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Next Room")
-	bool bForceSinglePortal = false;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Next Room", meta = (ClampMin = "0"))
-	int32 PortalIndex = 0;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Next Room")
 	TObjectPtr<URoomDataAsset> RoomDataOverride = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Next Room|Reward")
@@ -52,8 +46,7 @@ struct DEVKIT_API FStoryNextRoomPlan
 
 	bool HasAnyOverride() const
 	{
-		return bForceSinglePortal
-			|| RoomDataOverride != nullptr
+		return RoomDataOverride != nullptr
 			|| bOverrideRewardOptions
 			|| bOverrideBuffs
 			|| bSuppressRoomClearRewardPickup

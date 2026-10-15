@@ -75,7 +75,11 @@ public:
 	virtual const UWeaponDefinitionBase* GetEffectiveWeaponDefinition() const override;
 	virtual AWeaponInstance* GetEquippedWeaponActor() const override;
 
-	void SetAIAttackRuntimeContext(const FEnemyAIAttackOption& AttackOption, AActor* TargetActor, float DistanceToTarget);
+	void SetAIAttackRuntimeContext(
+		bool bIsReposition,
+		bool bRequestRepositionOnResolve,
+		AActor* TargetActor,
+		float DistanceToTarget);
 	bool ConsumeAIAttackRuntimeContext(FEnemyAIAttackRuntimeContext& OutContext);
 	void ClearAIAttackRuntimeContext();
 

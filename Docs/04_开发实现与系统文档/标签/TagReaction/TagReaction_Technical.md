@@ -60,7 +60,6 @@ void UYogAbilitySystemComponent::OnTagUpdated(const FGameplayTag& Tag, bool TagE
 
     HandleStatusNiagaraTag(Tag, TagExists);   // 状态 Niagara
     /* BlockCategoryMap 阶段（移动 / AI 阻断） */
-    /* Buff.SuperArmor 硬编码分支 */
 
     ProcessStateConflict(Tag, TagExists);     // 冲突阻断先行
     ProcessTagReactions(Tag, TagExists);      // 反应后行

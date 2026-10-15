@@ -107,25 +107,6 @@ enum class EEnemyAIState : uint8
 	Combat UMETA(DisplayName = "Combat"),
 };
 
-UENUM(BlueprintType)
-enum class EEnemyAIAttackMovementMode : uint8
-{
-	None        UMETA(DisplayName = "None"),
-	RadialLunge UMETA(DisplayName = "Radial Lunge"),
-};
-
-UENUM(BlueprintType)
-enum class EEnemyAIAttackRole : uint8
-{
-	CloseMelee      UMETA(DisplayName = "Close Melee"),
-	SpecialMovement UMETA(DisplayName = "Special Movement"),
-	Skill           UMETA(DisplayName = "Skill"),
-	// No-damage movement option (e.g. a whiff reposition feint): dashes to a flank
-	// instead of toward the target, never reports a whiff, and clears the whiff flag
-	// when used. Selected by a dedicated attack-by-profile branch.
-	Reposition      UMETA(DisplayName = "Reposition"),
-};
-
 USTRUCT(BlueprintType)
 struct DEVKIT_API FEnemyAIMovementTuning
 {
@@ -178,6 +159,12 @@ struct DEVKIT_API FEnemyAIMovementTuning
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Movement|Combat Slot", meta = (ClampMin = "0.0"))
 	float AttackRangeExitBuffer = 40.f;
+
+	// Probability that a whiffed (missed) damaging attack flags a reposition response on the
+	// blackboard. 1 = always reposition on a miss, 0 = never. The StateTree reads
+	// bLastAttackWhiffed; this keeps the randomness designer-tunable without a dedicated node.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Movement|Combat Slot", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float WhiffRepositionChance = 1.f;
 };
 
 USTRUCT(BlueprintType)
@@ -219,94 +206,8 @@ struct DEVKIT_API FEnemyAIAwarenessTuning
 	float PatrolWaitMax = 1.5f;
 };
 
-USTRUCT(BlueprintType)
-struct DEVKIT_API FEnemyAIAttackOption
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Attack")
-	FName AttackName = NAME_None;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Attack")
-	FGameplayTagContainer AbilityTags;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Attack", meta = (ClampMin = "0.0"))
-	float MinRange = 0.0f;
-
-	// 0 means no upper range limit.
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Attack", meta = (ClampMin = "0.0"))
-	float MaxRange = 300.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Attack", meta = (ClampMin = "0.0"))
-	float Weight = 1.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Attack", meta = (ClampMin = "0.0"))
-	float Cooldown = 1.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Attack")
-	bool bPreAttackFlash = true;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Attack|Condition", meta = (ClampMin = "0.0", ClampMax = "1.0"))
-	float MinHealthPercent = 0.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Attack|Condition", meta = (ClampMin = "0.0", ClampMax = "1.0"))
-	float MaxHealthPercent = 1.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Attack")
-	EEnemyAIAttackRole AttackRole = EEnemyAIAttackRole::CloseMelee;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Attack|Movement")
-	EEnemyAIAttackMovementMode AttackMovementMode = EEnemyAIAttackMovementMode::None;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Attack|Movement", meta = (ClampMin = "0.0"))
-	float LungeStartRange = 0.f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Attack|Movement", meta = (ClampMin = "0.0"))
-	float LungeDistance = 0.f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Attack|Movement", meta = (ClampMin = "0.0"))
-	float LungeDuration = 0.35f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Attack|Movement", meta = (ClampMin = "0.0"))
-	float MovementAttackRangeMultiplier = 2.5f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Attack|Movement", meta = (ClampMin = "0.0"))
-	float MovementAttackCooldown = 10.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Attack|Reposition")
-	bool bRequestRepositionOnResolve = false;
-
-	// Reposition role only: the dash direction is the away-from-target vector rotated by
-	// a random angle (degrees) in [Min, Max] with a random left/right sign. Measured from
-	// "directly away": 0 = straight back, 90 = sideways strafe, 180 = straight toward target.
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Attack|Reposition", meta = (ClampMin = "0.0", ClampMax = "180.0"))
-	float RepositionAngleMin = 60.f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Attack|Reposition", meta = (ClampMin = "0.0", ClampMax = "180.0"))
-	float RepositionAngleMax = 120.f;
-};
-
-USTRUCT(BlueprintType)
-struct DEVKIT_API FEnemyAIAttackProfile
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Attack")
-	TArray<FEnemyAIAttackOption> Attacks;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Attack|Selection", meta = (ClampMin = "0.0"))
-	float RecentAttackMemoryDuration = 2.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Attack|Selection", meta = (ClampMin = "0.0", ClampMax = "1.0"))
-	float RepeatAttackWeightMultiplier = 0.25f;
-
-	// Probability that a whiffed (missed) damaging attack flags a reposition response on
-	// the blackboard. 1 = always reposition on a miss, 0 = never. The StateTree reads
-	// bLastAttackWhiffed; this keeps the randomness designer-tunable without a dedicated node.
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Attack|Selection", meta = (ClampMin = "0.0", ClampMax = "1.0"))
-	float WhiffRepositionChance = 1.0f;
-};
-
+// Handed from the StateTree attack task to the running GameplayAbility so the ability knows what
+// kind of attack it is executing. Attack definitions themselves live on the StateTree state.
 USTRUCT(BlueprintType)
 struct DEVKIT_API FEnemyAIAttackRuntimeContext
 {
@@ -315,8 +216,13 @@ struct DEVKIT_API FEnemyAIAttackRuntimeContext
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI|Attack")
 	bool bValid = false;
 
+	// No-damage movement option (e.g. a whiff reposition feint): never reports a whiff and
+	// clears the whiff flag when used.
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI|Attack")
-	FEnemyAIAttackOption AttackOption;
+	bool bIsReposition = false;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI|Attack")
+	bool bRequestRepositionOnResolve = false;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI|Attack")
 	TObjectPtr<AActor> TargetActor = nullptr;
@@ -409,9 +315,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|AI")
 	FEnemyAIAwarenessTuning AwarenessTuning;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|AI")
-	FEnemyAIAttackProfile AttackProfile;
-
 	// 预生成特效（留空 = 无 FX，立即刷出）
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Spawn")
 	TObjectPtr<UNiagaraSystem> PreSpawnFX;
@@ -423,15 +326,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Spawn")
 	TObjectPtr<USpawnLifecycleFlowAsset> SpawnLifecycleFlow;
 
-	// 连续被击中多少次后进入霸体（0 = 永不触发霸体）
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Poise", meta = (ClampMin = "0"))
-	int32 SuperArmorThreshold = 3;
-
-	// 霸体持续时间（秒）
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Poise", meta = (ClampMin = "0.0"))
-	float SuperArmorDuration = 2.f;
-
-	// 受到攻击后保持“最近受击”状态的时间（秒）；该状态到期时会清空被动霸体受击计数。
+	// 受到攻击后保持“最近受击”状态的时间（秒）；仅影响血条显示时长。
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Poise", meta = (ClampMin = "0.0"))
 	float RecentlyDamagedStateDuration = 3.f;
 

@@ -52,9 +52,6 @@ public:
 protected:
 	void AdjustAttributeForMaxChange(FGameplayAttributeData& AffectedAttribute, const FGameplayAttributeData& MaxAttribute, float NewMaxValue, const FGameplayAttribute& AffectedAttributeProperty);
 
-	/** GE 执行前缓存的热度值，用于阶段软上限判*/
-	float CachedPreEffectHeat = 0.f;
-
     // Helper to create cue parameters
     FGameplayCueParameters MakeCueParams(const FGameplayEffectCustomExecutionParameters& ExecutionParams, float DamageAmount,bool bWasCritical = false) const;
 
@@ -114,10 +111,14 @@ public:
     ATTRIBUTE_ACCESSORS(UBaseAttributeSet, Dodge);
 
 
-    UPROPERTY(BlueprintReadWrite, ReplicatedUsing = OnRep_Sanity, Category = "Attributes|Player")
+    /**
+     * Poise pool. Drains by the attacker's per-attack poise damage; on reaching zero the
+     * owner is staggered (Action.HitReact) and the pool refills to UYogAbilitySystemComponent::MaxPoise.
+     * Drained and refilled only by UYogAbilitySystemComponent::ReceiveDamage.
+     */
+    UPROPERTY(BlueprintReadWrite, ReplicatedUsing = OnRep_Resilience, Category = "Attributes|Player")
     FGameplayAttributeData Resilience;
     ATTRIBUTE_ACCESSORS(UBaseAttributeSet, Resilience);
-    
 
     UPROPERTY(BlueprintReadWrite, ReplicatedUsing = OnRep_Sanity, Category = "Attributes|Player")
     FGameplayAttributeData Resist;
@@ -146,10 +147,6 @@ public:
     UPROPERTY(BlueprintReadWrite, ReplicatedUsing = OnRep_Sanity, Category = "Attributes|Player")
     FGameplayAttributeData Crit_Damage;
     ATTRIBUTE_ACCESSORS(UBaseAttributeSet, Crit_Damage);
-
-    UFUNCTION()
-    void Init(UCharacterData* data);
-
 
 	UFUNCTION()
 	void OnRep_Health(const FGameplayAttributeData& OldValue);

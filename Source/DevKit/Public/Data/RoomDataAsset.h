@@ -12,8 +12,6 @@
 #include "MetaProgression/MetaTypes.h" // FMetaCurrencyCost
 #include "RoomDataAsset.generated.h"
 
-// 前向声明（FPortalDestConfig.RoomPool 需要引用本类）
-class URoomDataAsset;
 class AAltarActor;
 class AEnemyCharacterBase;
 class AShopActor;
@@ -22,28 +20,6 @@ class UNiagaraSystem;
 class USacrificeSelectionWidget;
 class UShopDataAsset;
 class UShopSelectionWidget;
-
-/**
- * FPortalDestConfig — 单个传送门的目标关卡配置
- *
- * 放在 RoomDataAsset.h 而非 SpawnTypes.h，因为需要引用 URoomDataAsset*（自引用）。
- * PortalIndex 与场景中 APortal.Index 一致。
- */
-USTRUCT(BlueprintType)
-struct DEVKIT_API FPortalDestConfig
-{
-    GENERATED_BODY()
-
-    // 匹配场景中 APortal.Index
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Portal")
-    int32 PortalIndex = 0;
-
-    // 此门专属的 DA_Room 候选池（按 RoomTypeTag 过滤后随机选取）
-    // 若此池中找不到所需类型，系统自动回退到 DA_Campaign 的全局 RoomPool
-    // 选中的 DA_Room 的 LevelName 决定实际加载哪张地图
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Portal")
-    TArray<TObjectPtr<URoomDataAsset>> RoomPool;
-};
 
 /**
  * URoomDataAsset — 单个关卡房间的完整配置
@@ -178,21 +154,6 @@ public:
     // 高难度档（TotalDifficultyScore ≥ GameMode.HighDifficultyScoreMin）
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Difficulty")
     FRoomDifficultyTier HighDifficulty;
-
-    // =========================================================
-    // 传送门目标配置
-    // =========================================================
-
-    // 关卡结算时各传送门可去往的关卡池（Index 对应场景中 APortal.Index）
-    // 每个门可配置专属 DA_Room 候选池，找不到时回退到 Campaign 全局 RoomPool
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Portals")
-    TArray<FPortalDestConfig> PortalDestinations;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Portals|Tutorial")
-    bool bForceSinglePortal = false;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Portals|Tutorial", meta = (EditCondition = "bForceSinglePortal"))
-    int32 ForcedPortalIndex = 0;
 
     // If enabled, the room reward pickup uses these options exactly. This is intended for first-run tutorial rooms.
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot|Tutorial")

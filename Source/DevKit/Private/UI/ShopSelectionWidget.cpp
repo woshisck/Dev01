@@ -217,10 +217,6 @@ void UShopSelectionWidget::BuyItem(int32 ItemIndex)
 	}
 
 	Player->AddRuneToInventory(Rune->CreateInstance());
-	if (Player->CombatDeckComponent)
-	{
-		Player->CombatDeckComponent->AddCardFromRuneShop(Rune);
-	}
 
 	if (Entry.bSoldOutAfterPurchase)
 	{

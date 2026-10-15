@@ -29,7 +29,6 @@
 #include "BuffFlow/Actors/BuffFlowLifecycleProxy.h"
 #include "BuffFlow/LifecycleFlowAsset.h"
 #include "Component/CharacterDataComponent.h"
-#include "Map/Portal.h"
 #include "Map/RewardPickup.h"
 #include "Map/AltarActor.h"
 #include "Map/ShopActor.h"
@@ -105,66 +104,6 @@ static FString DescribeGameModeLootOptionsForRewardDebug(const TArray<FLootOptio
 	return FString::Printf(TEXT("Count=%d [%s]"), Options.Num(), *FString::Join(Parts, TEXT("; ")));
 }
 
-static void SealPortalsExcept(const TMap<int32, APortal*>& PortalMap, int32 OpenPortalIndex, const TCHAR* Context)
-{
-	for (const TPair<int32, APortal*>& Entry : PortalMap)
-	{
-		APortal* Portal = Entry.Value;
-		if (!Portal || Entry.Key == OpenPortalIndex)
-		{
-			continue;
-		}
-
-		Portal->MarkUnavailable();
-		UE_LOG(LogTemp, Log, TEXT("[%s] sealed portal [%d], forced portal [%d]."),
-			Context ? Context : TEXT("PortalPlan"),
-			Entry.Key,
-			OpenPortalIndex);
-	}
-}
-
-static bool ResolveUsableForcedPortalIndex(
-	const TArray<FPortalDestConfig>& Configs,
-	const TMap<int32, APortal*>& PortalMap,
-	int32& InOutForcedPortalIndex,
-	const TCHAR* Context)
-{
-	for (const FPortalDestConfig& Cfg : Configs)
-	{
-		if (Cfg.PortalIndex == InOutForcedPortalIndex && PortalMap.Contains(Cfg.PortalIndex))
-		{
-			return true;
-		}
-	}
-
-	for (const FPortalDestConfig& Cfg : Configs)
-	{
-		if (PortalMap.Contains(Cfg.PortalIndex))
-		{
-			UE_LOG(LogTemp, Warning,
-				TEXT("%s: forced portal [%d] is not available in this room; fallback to portal [%d]."),
-				Context ? Context : TEXT("PortalPlan"),
-				InOutForcedPortalIndex,
-				Cfg.PortalIndex);
-			InOutForcedPortalIndex = Cfg.PortalIndex;
-			return true;
-		}
-	}
-
-	UE_LOG(LogTemp, Warning,
-		TEXT("%s: no usable portal exists for forced single-portal room."),
-		Context ? Context : TEXT("PortalPlan"));
-	return false;
-}
-
-static bool PlayerHasEquippedWeapon(const UWorld* World)
-{
-	const APlayerCharacterBase* Player = World
-		? Cast<APlayerCharacterBase>(UGameplayStatics::GetPlayerCharacter(World, 0))
-		: nullptr;
-	return Player && (Player->EquippedWeaponDef || Player->EquippedWeaponInstance);
-}
-
 AYogGameMode::AYogGameMode(const FObjectInitializer& ObjectInitializer)
 {
 	bAutoSpawnPlayer = false;
@@ -209,19 +148,6 @@ URoomDataAsset* AYogGameMode::FindRoomDataForLoadedMap(const UCampaignDataAsset*
 	for (const TObjectPtr<URoomDataAsset>& Room : Campaign->RoomPool)
 	{
 		AddRoom(Room);
-	}
-
-	// Portal pools cover rooms that are only reachable as a transition target and so
-	// never appear in the campaign's global RoomPool.
-	for (int32 Index = 0; Index < Searchable.Num(); ++Index)
-	{
-		for (const FPortalDestConfig& Dest : Searchable[Index]->PortalDestinations)
-		{
-			for (const TObjectPtr<URoomDataAsset>& Room : Dest.RoomPool)
-			{
-				AddRoom(Room);
-			}
-		}
 	}
 
 	for (URoomDataAsset* Room : Searchable)
@@ -559,26 +485,6 @@ bool AYogGameMode::ApplyPendingRoomRewardOptionsOverrideForRoom(
 	return ApplyPendingRoomRewardOptionsOverride(GameInstance);
 }
 
-void AYogGameMode::SetForcedPortalOverride(int32 PortalIndex)
-{
-	ForcedPortalOverrideIndex = PortalIndex;
-	bHasForcedPortalOverride = true;
-
-	UE_LOG(LogTemp, Log, TEXT("[StoryOverride] Forced portal override set. PortalIndex=%d"),
-		ForcedPortalOverrideIndex);
-}
-
-void AYogGameMode::ClearForcedPortalOverride()
-{
-	if (bHasForcedPortalOverride)
-	{
-		UE_LOG(LogTemp, Log, TEXT("[StoryOverride] Forced portal override cleared."));
-	}
-
-	bHasForcedPortalOverride = false;
-	ForcedPortalOverrideIndex = 0;
-}
-
 void AYogGameMode::ApplyStoryNextRoomPlanForCurrentRoom(const FStoryNextRoomPlan& Plan)
 {
 	if (Plan.bOverrideRewardOptions)
@@ -619,12 +525,6 @@ void AYogGameMode::EnterArrangementPhase()
 
 	if (Player)
 	{
-		// 解锁背包
-		if (UBackpackGridComponent* Backpack = Player->GetBackpackGridComponent())
-		{
-			Backpack->SetLocked(false);
-		}
-
 		// 发放金币（按当前关卡 FloorConfig 中的范围）
 		if (GetActiveCampaignData() && ActiveGoldMax > 0 && !bHasRoomRewardOptionsOverride)
 		{
@@ -767,34 +667,8 @@ void AYogGameMode::EnterArrangementPhase()
 				NewState.CurrentHP = ASC->GetNumericAttribute(UBaseAttributeSet::GetHealthAttribute());
 			}
 
-			if (UBackpackGridComponent* Backpack = Player->GetBackpackGridComponent())
-			{
-				NewState.CurrentPhase = Backpack->GetCurrentPhase();
-				for (const FPlacedRune& PR : Backpack->GetAllPlacedRunes())
-				{
-					if (!PR.bIsPermanent)
-					{
-						NewState.PlacedRunes.Add(PR);
-					}
-				}
-				NewState.HiddenPassiveRuneInstances = Backpack->GetRuntimeHiddenPassiveRunes();
-			}
-
 			NewState.EquippedWeaponDef = Player->EquippedWeaponDef;
 			NewState.PendingRunes = Player->PendingRunes;
-			if (UCombatDeckComponent* CombatDeck = Player->CombatDeckComponent)
-			{
-				for (const FCombatCardInstance& Card : CombatDeck->GetFullDeckSnapshot())
-				{
-					if (Card.SourceData)
-					{
-						NewState.CombatDeckCards.Add(Card.SourceData);
-						NewState.CombatDeckCardOrientations.Add(Card.LinkOrientation);
-					}
-				}
-				NewState.CombatDeckShuffleCooldownDuration = CombatDeck->GetShuffleCooldownDuration();
-				NewState.CombatDeckMaxActiveSequenceSize = CombatDeck->GetMaxActiveSequenceSize();
-			}
 			Player->CaptureCombatLoadoutForRunState(NewState);
 			NewState.CompletedCombatBattleCount = CompletedCombatBattleCount;
 			NewState.ActiveSacrificeGrace = Player->ActiveSacrificeGrace;
@@ -814,10 +688,6 @@ void AYogGameMode::EnterArrangementPhase()
 	{
 		SaveSys->TriggerCheckpoint(CurrentFloor);
 	}
-
-	// 开启传送门
-	ActivatePortals();
-
 }
 
 void AYogGameMode::SelectLoot(int32 LootIndex)
@@ -833,14 +703,11 @@ void AYogGameMode::SelectLoot(int32 LootIndex)
 	bLootOptionsPending = false;
 
 	const FLootOption& Chosen = CurrentLootOptions[LootIndex];
-	bool bAddedCombatCardToDeck = false;
+	bool bAddedRuneToInventory = false;
 	if (Chosen.LootType == ELootType::Rune && Chosen.RuneAsset)
 	{
 		Player->AddRuneToInventory(Chosen.RuneAsset->CreateInstance());
-		if (Player->CombatDeckComponent)
-		{
-			bAddedCombatCardToDeck = Player->CombatDeckComponent->AddCardFromRuneReward(Chosen.RuneAsset);
-		}
+		bAddedRuneToInventory = true;
 	}
 	else if (Chosen.LootType == ELootType::Gold)
 	{
@@ -861,7 +728,7 @@ void AYogGameMode::SelectLoot(int32 LootIndex)
 		}
 	}
 
-	if (bAddedCombatCardToDeck)
+	if (bAddedRuneToInventory)
 	{
 		if (UStoryEngineSubsystem* StoryEngine = GetGameInstance()->GetSubsystem<UStoryEngineSubsystem>())
 		{
@@ -1092,10 +959,6 @@ void AYogGameMode::ConfirmArrangementAndTransition()
 	if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(
 		UGameplayStatics::GetPlayerCharacter(GetWorld(), 0)))
 	{
-		if (UBackpackGridComponent* Backpack = Player->GetBackpackGridComponent())
-		{
-			Backpack->SetLocked(true);
-		}
 	}
 
 	// Level loading is owned by APortal -> TransitionToLevel; this entry point only closes the
@@ -1370,7 +1233,6 @@ void AYogGameMode::StartLevelSpawning()
 		*CurrentMapNameForFrontend, *GetNameSafe(Campaign), *GetNameSafe(ActiveRoomData));
 
 	ClearRoomRewardOptionsOverride();
-	ClearForcedPortalOverride();
 	bSuppressRoomClearRewardPickup = false;
 	bStorySpecialRewardEnemyEnabled = false;
 	StorySpecialRewardEnemyLootOptions.Reset();
@@ -1480,7 +1342,7 @@ void AYogGameMode::StartLevelSpawning()
 		{
 			// 按 FloorConfig 概率骰出类型 Tag，再从全局 RoomPool 中选取
 			const FGameplayTag RequiredType = RollRoomTypeForFloor(Config);
-			ActiveRoomData = SelectRoomByTag(nullptr, RequiredType);
+			ActiveRoomData = SelectRoomByTag(RequiredType);
 			UE_LOG(LogTemp, Log, TEXT("StartLevelSpawning: 骰子选取 RoomData = %s"),
 				ActiveRoomData ? *ActiveRoomData->GetName() : TEXT("null"));
 		}
@@ -1603,35 +1465,9 @@ void AYogGameMode::StartLevelSpawning()
 			}
 		}
 
-		UE_LOG(LogTemp, Log, TEXT("StartLevelSpawning: [HubRoom] %s — 跳过刷怪，立即开启传送门"), *ActiveRoomData->GetName());
-
-		// 标记场景中未登记的门为 NeverOpen
-		{
-			TArray<AActor*> AllPortalActors;
-			UGameplayStatics::GetAllActorsOfClass(GetWorld(), APortal::StaticClass(), AllPortalActors);
-			for (AActor* PortalActor : AllPortalActors)
-			{
-				APortal* Portal = Cast<APortal>(PortalActor);
-				if (!Portal) continue;
-				bool bCanOpen = false;
-				for (const FPortalDestConfig& Dest : ActiveRoomData->PortalDestinations)
-				{
-					if (Dest.PortalIndex == Portal->Index) { bCanOpen = true; break; }
-				}
-				if (!bCanOpen)
-				{
-					Portal->MarkUnavailable();
-				}
-			}
-		}
+		UE_LOG(LogTemp, Log, TEXT("StartLevelSpawning: [HubRoom] %s — 跳过刷怪，传送门由地图的 RoomDirector 开启"), *ActiveRoomData->GetName());
 
 		EnsureHubActiveSkillTerminal();
-		if (ShouldDelayInitialRoomPortalsUntilWeapon())
-		{
-			UE_LOG(LogTemp, Log, TEXT("StartLevelSpawning: initial hub portals delayed until the player has a weapon."));
-			return;
-		}
-		ActivateHubPortals();
 		return;
 	}
 
@@ -1648,33 +1484,7 @@ void AYogGameMode::StartLevelSpawning()
 			}
 		}
 
-		{
-			TArray<AActor*> AllPortalActors;
-			UGameplayStatics::GetAllActorsOfClass(GetWorld(), APortal::StaticClass(), AllPortalActors);
-			for (AActor* PortalActor : AllPortalActors)
-			{
-				APortal* Portal = Cast<APortal>(PortalActor);
-				if (!Portal) continue;
-
-				bool bCanOpen = false;
-				for (const FPortalDestConfig& Dest : ActiveRoomData->PortalDestinations)
-				{
-					if (Dest.PortalIndex == Portal->Index)
-					{
-						bCanOpen = true;
-						break;
-					}
-				}
-
-				if (!bCanOpen)
-				{
-					Portal->MarkUnavailable();
-				}
-			}
-		}
-
 		SpawnShopActorForRoom();
-		ActivatePortals();
 
 		UE_LOG(LogTemp, Log, TEXT("StartLevelSpawning: [ShopRoom] %s - skip combat and open shop"),
 			*GetNameSafe(ActiveRoomData));
@@ -1694,31 +1504,6 @@ void AYogGameMode::StartLevelSpawning()
 			}
 		}
 
-		{
-			TArray<AActor*> AllPortalActors;
-			UGameplayStatics::GetAllActorsOfClass(GetWorld(), APortal::StaticClass(), AllPortalActors);
-			for (AActor* PortalActor : AllPortalActors)
-			{
-				APortal* Portal = Cast<APortal>(PortalActor);
-				if (!Portal) continue;
-
-				bool bCanOpen = false;
-				for (const FPortalDestConfig& Dest : ActiveRoomData->PortalDestinations)
-				{
-					if (Dest.PortalIndex == Portal->Index)
-					{
-						bCanOpen = true;
-						break;
-					}
-				}
-
-				if (!bCanOpen)
-				{
-					Portal->MarkUnavailable();
-				}
-			}
-		}
-
 		FVector EventAnchorLoc = FVector::ZeroVector;
 		if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
 		{
@@ -1729,8 +1514,6 @@ void AYogGameMode::StartLevelSpawning()
 		}
 
 		SpawnSacrificeEventAltar(EventAnchorLoc);
-
-		ActivatePortals();
 
 		UE_LOG(LogTemp, Log, TEXT("StartLevelSpawning: [EventRoom] %s - skip combat reward flow and open event room"),
 			*GetNameSafe(ActiveRoomData));
@@ -1791,34 +1574,6 @@ void AYogGameMode::StartLevelSpawning()
 	TimerManager.ClearTimer(OneByOneTimer);
 	TimerManager.ClearTimer(InitialSpawnDelayTimer);
 	TimerManager.ClearTimer(DemandSpawnTimer);
-
-	// ---- 标记本关永不开启的传送门 ----
-	// PortalDestinations 中未登记的门：关卡开始时即确定不会开启，调用 NeverOpen() 显示静态装饰
-	{
-		TArray<AActor*> AllPortalActors;
-		UGameplayStatics::GetAllActorsOfClass(GetWorld(), APortal::StaticClass(), AllPortalActors);
-		for (AActor* PortalActor : AllPortalActors)
-		{
-			APortal* Portal = Cast<APortal>(PortalActor);
-			if (!Portal) continue;
-
-			bool bCanOpen = false;
-			for (const FPortalDestConfig& Dest : ActiveRoomData->PortalDestinations)
-			{
-				if (Dest.PortalIndex == Portal->Index)
-				{
-					bCanOpen = true;
-					break;
-				}
-			}
-
-			if (!bCanOpen)
-			{
-				Portal->MarkUnavailable();
-				UE_LOG(LogTemp, Log, TEXT("StartLevelSpawning: Portal[%d] 永不开启 → NeverOpen"), Portal->Index);
-			}
-		}
-	}
 
 	// 延迟后启动第一波（给特效/动画和 AI 初始化预留时间）
 	if (InitialSpawnDelay > 0.f)
@@ -3292,18 +3047,6 @@ TArray<FLootOption> AYogGameMode::GenerateLootBatch(TSet<URuneDataAsset*>& Alrea
 	if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(
 		UGameplayStatics::GetPlayerCharacter(GetWorld(), 0)))
 	{
-		if (Player->BackpackGridComponent)
-		{
-			TArray<FName> MaxLevelNames = Player->BackpackGridComponent->GetMaxLevelRuneNames();
-			if (!MaxLevelNames.IsEmpty())
-			{
-				TSet<FName> MaxLevelSet(MaxLevelNames);
-				Pool = Pool.FilterByPredicate([&](URuneDataAsset* DA)
-				{
-					return DA && !MaxLevelSet.Contains(DA->GetRuneName());
-				});
-			}
-		}
 	}
 
 	// 洗牌
@@ -3382,12 +3125,6 @@ void AYogGameMode::TransitionToLevel(FName NextLevel, URoomDataAsset* NextRoom)
 
 		if (Player)
 		{
-			// 锁背包
-			if (UBackpackGridComponent* Backpack = Player->GetBackpackGridComponent())
-			{
-				Backpack->SetLocked(true);
-			}
-
 			// 保存跑局状态
 			FRunState NewState;
 			NewState.bIsValid    = true;
@@ -3408,45 +3145,14 @@ void AYogGameMode::TransitionToLevel(FName NextLevel, URoomDataAsset* NextRoom)
 					NewState.CurrentHeat = 0.f;
 			}
 
-			if (UBackpackGridComponent* Backpack = Player->GetBackpackGridComponent())
-			{
-				NewState.CurrentPhase = Backpack->GetCurrentPhase();
-				for (const FPlacedRune& PR : Backpack->GetAllPlacedRunes())
-				{
-					if (!PR.bIsPermanent)
-					{
-						NewState.PlacedRunes.Add(PR);
-					}
-				}
-			}
-
 			// 保存当前武器
 			NewState.EquippedWeaponDef = Player->EquippedWeaponDef;
 
 			// 保存整理阶段选出但尚未放入格子的符文
 			NewState.PendingRunes = Player->PendingRunes;
 
-			if (UCombatDeckComponent* CombatDeck = Player->CombatDeckComponent)
-			{
-				for (const FCombatCardInstance& Card : CombatDeck->GetFullDeckSnapshot())
-				{
-					if (Card.SourceData)
-					{
-						NewState.CombatDeckCards.Add(Card.SourceData);
-						NewState.CombatDeckCardOrientations.Add(Card.LinkOrientation);
-					}
-				}
-				NewState.CombatDeckShuffleCooldownDuration = CombatDeck->GetShuffleCooldownDuration();
-				NewState.CombatDeckMaxActiveSequenceSize = CombatDeck->GetMaxActiveSequenceSize();
-			}
 			Player->CaptureCombatLoadoutForRunState(NewState);
 			NewState.CompletedCombatBattleCount = CompletedCombatBattleCount;
-
-			// 保存运行时隐藏被动符文（无形状、不进格子）
-			if (UBackpackGridComponent* Backpack = Player->GetBackpackGridComponent())
-			{
-				NewState.HiddenPassiveRuneInstances = Backpack->GetRuntimeHiddenPassiveRunes();
-			}
 
 			// 保存献祭恩赐
 			NewState.ActiveSacrificeGrace = Player->ActiveSacrificeGrace;
@@ -3493,8 +3199,7 @@ FGameplayTag AYogGameMode::RollRoomTypeForFloor(const FFloorConfig& Config)
 	return NormalTag;
 }
 
-URoomDataAsset* AYogGameMode::SelectRoomByTag(
-	const FPortalDestConfig* PortalDest, FGameplayTag RequiredTag)
+URoomDataAsset* AYogGameMode::SelectRoomByTag(FGameplayTag RequiredTag)
 {
 	static const FGameplayTag NormalTag = FGameplayTag::RequestGameplayTag(FName("Room.Type.Normal"));
 
@@ -3518,36 +3223,13 @@ URoomDataAsset* AYogGameMode::SelectRoomByTag(
 			: Candidates[FMath::RandRange(0, Candidates.Num() - 1)];
 	};
 
-	// 1. 传送门专属 RoomPool
-	if (PortalDest && !PortalDest->RoomPool.IsEmpty())
-	{
-		if (URoomDataAsset* Found = PickByTag(PortalDest->RoomPool))
-			return Found;
-	}
-
 	if (!Campaign) return nullptr;
 
-	// 2. Campaign 全局 RoomPool（同类型 + 同层级）
+	// 1. Campaign 全局 RoomPool（同类型 + 同层级）
 	if (URoomDataAsset* Found = PickByTag(Campaign->RoomPool))
 		return Found;
 
-	// 3. 门专属池兜底：类型不匹配时无视类型随机取门专属池里的任意一个
-	//    （优先于 Campaign 全局 Normal，避免回退到同一张地图）
-	if (PortalDest && !PortalDest->RoomPool.IsEmpty())
-	{
-		TArray<URoomDataAsset*> AnyInPool;
-		for (const TObjectPtr<URoomDataAsset>& Room : PortalDest->RoomPool)
-		{
-			if (Room) AnyInPool.Add(Room);
-		}
-		if (!AnyInPool.IsEmpty())
-		{
-			UE_LOG(LogTemp, Log, TEXT("SelectRoomByTag: 类型 [%s] 无精确匹配，使用门专属池兜底"), *RequiredTag.ToString());
-			return AnyInPool[FMath::RandRange(0, AnyInPool.Num() - 1)];
-		}
-	}
-
-	// 4. Campaign 全局 Normal 兜底（门专属池为空时才走到这里）
+	// 2. Campaign 全局 Normal 兜底
 	if (RequiredTag != NormalTag)
 	{
 		TArray<URoomDataAsset*> Fallback;
@@ -3614,265 +3296,9 @@ void AYogGameMode::EnsureHubActiveSkillTerminal()
 		Terminal ? TEXT("OK") : TEXT("FAILED"));
 }
 
-void AYogGameMode::ActivateHubPortals()
-{
-	if (ShouldDelayInitialRoomPortalsUntilWeapon())
-	{
-		UE_LOG(LogTemp, Log, TEXT("ActivateHubPortals: delayed until the player equips a weapon."));
-		return;
-	}
-
-	UCampaignDataAsset* Campaign = GetActiveCampaignData();
-	UE_LOG(LogTemp, Warning, TEXT("[ActivateHubPortals] CampaignData=%s ActiveRoomData=%s IsHub=%d PortalDests=%d"),
-		*GetNameSafe(Campaign),
-		*GetNameSafe(ActiveRoomData),
-		ActiveRoomData ? (int32)ActiveRoomData->bIsHubRoom : -1,
-		ActiveRoomData ? ActiveRoomData->PortalDestinations.Num() : -1);
-
-	if (!Campaign || !ActiveRoomData) return;
-	if (ActiveRoomData->PortalDestinations.IsEmpty())
-	{
-		UE_LOG(LogTemp, Warning, TEXT("ActivateHubPortals: HubRoom [%s] 没有配置 PortalDestinations"), *ActiveRoomData->GetName());
-		return;
-	}
-
-	// 目标是 FloorTable[0]（第一个战斗关），骰子决定房间类型
-	UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance());
-	FStoryNextRoomPlan StoryPlan;
-	const bool bHasStoryPlan = GI && GI->GetPendingStoryNextRoomPlan(StoryPlan);
-
-	const FGameplayTag RequiredRoomType = Campaign->FloorTable.IsValidIndex(0)
-		? RollRoomTypeForFloor(Campaign->FloorTable[0])
-		: FGameplayTag::RequestGameplayTag(FName("Room.Type.Normal"));
-
-	UE_LOG(LogTemp, Log, TEXT("ActivateHubPortals: 第一关类型 = %s"), *RequiredRoomType.ToString());
-
-	// 建立场景中 APortal 的 Index → Actor 映射
-	TArray<AActor*> PortalActors;
-	UGameplayStatics::GetAllActorsOfClass(GetWorld(), APortal::StaticClass(), PortalActors);
-	TMap<int32, APortal*> PortalMap;
-	for (AActor* Actor : PortalActors)
-	{
-		if (APortal* Portal = Cast<APortal>(Actor))
-			PortalMap.Add(Portal->Index, Portal);
-	}
-
-	int32 ForcedPortalIndex = StoryPlan.PortalIndex;
-	const bool bForceSinglePortal = bHasStoryPlan && StoryPlan.bForceSinglePortal;
-	if (bForceSinglePortal)
-	{
-		if (!ResolveUsableForcedPortalIndex(ActiveRoomData->PortalDestinations, PortalMap, ForcedPortalIndex, TEXT("ActivateHubPortals")))
-		{
-			return;
-		}
-
-		SealPortalsExcept(PortalMap, ForcedPortalIndex, TEXT("ActivateHubPortals"));
-	}
-
-	// 主城所有传送门全开（不走 50% 随机）
-	for (const FPortalDestConfig& Cfg : ActiveRoomData->PortalDestinations)
-	{
-		if (bForceSinglePortal && Cfg.PortalIndex != ForcedPortalIndex)
-		{
-			UE_LOG(LogTemp, Log, TEXT("ActivateHubPortals: skipping portal [%d], story plan forces portal [%d]."),
-				Cfg.PortalIndex, ForcedPortalIndex);
-			continue;
-		}
-
-		APortal** Found = PortalMap.Find(Cfg.PortalIndex);
-		if (!Found || !(*Found)) continue;
-
-		URoomDataAsset* ChosenRoom = StoryPlan.RoomDataOverride
-			? StoryPlan.RoomDataOverride.Get()
-			: SelectRoomByTag(&Cfg, RequiredRoomType);
-		if (!ChosenRoom || ChosenRoom->RoomName.IsNone())
-		{
-			UE_LOG(LogTemp, Warning, TEXT("ActivateHubPortals: 门[%d] 找不到合适的 DA_Room，跳过"), Cfg.PortalIndex);
-			continue;
-		}
-
-		// 主城 → 第一关：用 FloorTable[0] 的难度分选下一关 Tier，预骰本门 Buff
-		const FFloorConfig* NextConfig = Campaign->FloorTable.IsValidIndex(0)
-			? &Campaign->FloorTable[0]
-			: nullptr;
-		const int32 NextScore = NextConfig ? NextConfig->TotalDifficultyScore : 30;
-		const FRoomDifficultyTier& NextTier = ResolveTier(
-			*ChosenRoom, NextScore, LowDifficultyScoreMax, HighDifficultyScoreMin);
-		const TArray<FBuffEntry> PreRolled = (bHasStoryPlan && StoryPlan.bOverrideBuffs)
-			? StoryPlan.BuffsOverride
-			: SelectRoomBuffs(*ChosenRoom, NextTier.BuffCount);
-
-		const FName LevelName = ResolveRoomLevelNameForOpen(ChosenRoom->RoomName, ChosenRoom);
-		(*Found)->Open(LevelName, ChosenRoom, PreRolled);
-		UE_LOG(LogTemp, Log, TEXT("ActivateHubPortals: 门[%d] 开启 → 关卡=%s 房间=%s 预骰Buff数=%d"),
-			Cfg.PortalIndex, *LevelName.ToString(), *ChosenRoom->GetName(),
-			PreRolled.Num());
-	}
-
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 公共选档辅助（StartLevelSpawning 与 ActivatePortals 共用，避免漂移）
-// ─────────────────────────────────────────────────────────────────────────────
-const FRoomDifficultyTier& AYogGameMode::ResolveTier(const URoomDataAsset& Room, int32 TotalScore,
-                                                     int32 LowMax, int32 HighMin)
-{
-	if (TotalScore <= LowMax)        return Room.LowDifficulty;
-	if (TotalScore >= HighMin)       return Room.HighDifficulty;
-	return Room.MediumDifficulty;
-}
-
-void AYogGameMode::ActivatePortals()
-{
-	UCampaignDataAsset* Campaign = GetActiveCampaignData();
-	if (!Campaign || !ActiveRoomData) return;
-
-	// 传送门目标配置现在存在 ActiveRoomData（当前关卡的 DA_Room）里
-	if (ActiveRoomData->PortalDestinations.IsEmpty())
-	{
-		UE_LOG(LogTemp, Warning, TEXT("ActivatePortals: 当前 RoomData [%s] 没有配置 PortalDestinations"), *ActiveRoomData->GetName());
-		return;
-	}
-
-	// 下一关的 FloorConfig（所有门共享同一次类型骰子）
-	UYogGameInstanceBase* GI = Cast<UYogGameInstanceBase>(GetGameInstance());
-	FStoryNextRoomPlan StoryPlan;
-	const bool bHasStoryPlan = GI && GI->GetPendingStoryNextRoomPlan(StoryPlan);
-
-	const int32 NextIdx = CurrentFloor; // CurrentFloor 是 1-based，NextIdx 是下一关的 0-based 下标
-	const FFloorConfig* NextConfig = Campaign->FloorTable.IsValidIndex(NextIdx)
-		? &Campaign->FloorTable[NextIdx]
-		: nullptr;
-
-	// 骰一次类型：所有门的目标房间类型相同（保证下一关体验一致）
-	static const FGameplayTag NormalTag = FGameplayTag::RequestGameplayTag(FName("Room.Type.Normal"));
-	const FGameplayTag RequiredRoomType = NextConfig
-		? RollRoomTypeForFloor(*NextConfig)
-		: NormalTag;
-
-	UE_LOG(LogTemp, Log, TEXT("ActivatePortals: 下一关类型 = %s"), *RequiredRoomType.ToString());
-
-	// 收集场景中所有 APortal，建立 Index → APortal* 映射
-	TArray<AActor*> PortalActors;
-	UGameplayStatics::GetAllActorsOfClass(GetWorld(), APortal::StaticClass(), PortalActors);
-
-	TMap<int32, APortal*> PortalMap;
-	for (AActor* Actor : PortalActors)
-	{
-		if (APortal* Portal = Cast<APortal>(Actor))
-			PortalMap.Add(Portal->Index, Portal);
-	}
-
-	// Fisher-Yates 洗牌 PortalDestinations，保证第一个必开
-	TArray<FPortalDestConfig> Configs = ActiveRoomData->PortalDestinations;
-	for (int32 i = Configs.Num() - 1; i > 0; i--)
-	{
-		int32 j = FMath::RandRange(0, i);
-		Configs.Swap(i, j);
-	}
-
-	bool bAtLeastOneOpened = false;
-	const bool bStoryForcesSinglePortal = bHasStoryPlan && StoryPlan.bForceSinglePortal;
-	const bool bForceSinglePortal = bStoryForcesSinglePortal || bHasForcedPortalOverride || ActiveRoomData->bForceSinglePortal;
-	int32 ForcedPortalIndex = bStoryForcesSinglePortal
-		? StoryPlan.PortalIndex
-		: bHasForcedPortalOverride
-		? ForcedPortalOverrideIndex
-		: ActiveRoomData->ForcedPortalIndex;
-	if (bForceSinglePortal)
-	{
-		if (!ResolveUsableForcedPortalIndex(Configs, PortalMap, ForcedPortalIndex, TEXT("ActivatePortals")))
-		{
-			return;
-		}
-
-		SealPortalsExcept(PortalMap, ForcedPortalIndex, TEXT("ActivatePortals"));
-	}
-
-	for (const FPortalDestConfig& Cfg : Configs)
-	{
-		if (bForceSinglePortal && Cfg.PortalIndex != ForcedPortalIndex)
-		{
-			UE_LOG(LogTemp, Log, TEXT("ActivatePortals: skipping portal [%d], tutorial forces portal [%d]."),
-				Cfg.PortalIndex, ForcedPortalIndex);
-			continue;
-		}
-
-		APortal** Found = PortalMap.Find(Cfg.PortalIndex);
-		if (!Found || !(*Found)) continue;
-
-		// 先查此门专属 RoomPool，再查 Campaign 全局，最后退化为 Normal
-		URoomDataAsset* ChosenRoom = StoryPlan.RoomDataOverride
-			? StoryPlan.RoomDataOverride.Get()
-			: SelectRoomByTag(&Cfg, RequiredRoomType);
-
-		if (!ChosenRoom)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("ActivatePortals: 门[%d] 找不到可用 DA_Room，跳过"), Cfg.PortalIndex);
-			continue;
-		}
-
-		// RoomName 即关卡文件名，直接使用
-		const FName LevelName = ResolveRoomLevelNameForOpen(ChosenRoom->RoomName, ChosenRoom);
-		if (LevelName.IsNone())
-		{
-			UE_LOG(LogTemp, Warning, TEXT("ActivatePortals: 门[%d] DA_Room [%s] 的 RoomName 为空，跳过"),
-				Cfg.PortalIndex, *ChosenRoom->GetName());
-			continue;
-		}
-
-		// 洗牌后第一个必开；后续 50% 概率
-		const bool bShouldOpen = bForceSinglePortal || !bAtLeastOneOpened || FMath::RandBool();
-		if (!bShouldOpen)
-		{
-			(*Found)->MarkUnavailableForPreview(LevelName, ChosenRoom);
-			UE_LOG(LogTemp, Log, TEXT("ActivatePortals: 门[%d] 随机未开启"), Cfg.PortalIndex);
-			continue;
-		}
-
-		// 预骰下一关 Buff（每扇门各自缓存；玩家确认进入时由 Portal::TryEnter 写入 GI）
-		const int32 NextScore = NextConfig ? NextConfig->TotalDifficultyScore : 30;
-		const FRoomDifficultyTier& NextTier = ResolveTier(
-			*ChosenRoom, NextScore, LowDifficultyScoreMax, HighDifficultyScoreMin);
-		const TArray<FBuffEntry> PreRolled = (bHasStoryPlan && StoryPlan.bOverrideBuffs)
-			? StoryPlan.BuffsOverride
-			: SelectRoomBuffs(*ChosenRoom, NextTier.BuffCount);
-
-		(*Found)->Open(LevelName, ChosenRoom, PreRolled);
-		bAtLeastOneOpened = true;
-
-		UE_LOG(LogTemp, Log, TEXT("ActivatePortals: 门[%d] 开启 → 关卡=%s 房间=%s 预骰Buff数=%d"),
-			Cfg.PortalIndex, *LevelName.ToString(), *ChosenRoom->GetName(), PreRolled.Num());
-	}
-
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // 敌人注册表（相机战斗感知）
 // ─────────────────────────────────────────────────────────────────────────────
-
-bool AYogGameMode::ShouldDelayInitialRoomPortalsUntilWeapon() const
-{
-	if (!bInitialRoomPortalsRequireWeapon || !ActiveRoomData || !ActiveRoomData->bIsHubRoom)
-	{
-		return false;
-	}
-
-	return !PlayerHasEquippedWeapon(GetWorld());
-}
-
-void AYogGameMode::NotifyPlayerWeaponEquipped(APlayerCharacterBase* Player)
-{
-	if (!Player || !ActiveRoomData || !ActiveRoomData->bIsHubRoom)
-	{
-		return;
-	}
-
-	if (bInitialRoomPortalsRequireWeapon && (Player->EquippedWeaponDef || Player->EquippedWeaponInstance))
-	{
-		ActivateHubPortals();
-	}
-}
 
 void AYogGameMode::RegisterEnemy(AEnemyCharacterBase* Enemy)
 {

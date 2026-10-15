@@ -582,11 +582,6 @@
           ]
         },
         {
-          "type": "SetPortalOverride",
-          "actionId": "force_room02_next_portal",
-          "forcedPortalIndex": 0
-        },
-        {
           "type": "WeakHint",
           "tutorialEventId": "tutorial_room_buff_reward_cards",
           "title": "强化房间",
@@ -626,10 +621,9 @@
         }
       ],
       "extra": {
-        "stageDirection": "进入房间时给敌人启用 1 个 Buff。清场后强制开启指定 Portal，不走随机；奖励 UI 三选一，卡牌奖励 icon 使用紫色效果。奖励选择、确认与拾取提示必须使用 YogCommonRichTextBlock + <input action=\"Interact\"/>。",
+        "stageDirection": "进入房间时给敌人启用 1 个 Buff。清场后由房间的 RoomDirector 开门；奖励 UI 三选一，卡牌奖励 icon 使用紫色效果。奖励选择、确认与拾取提示必须使用 YogCommonRichTextBlock + <input action=\"Interact\"/>。",
         "implementation": {
           "roomBuffCount": 1,
-          "forcePortalIndex": 0,
           "fixedReward": [
             {
               "type": "Rune",

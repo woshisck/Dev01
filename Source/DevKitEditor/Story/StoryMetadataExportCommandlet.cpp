@@ -91,9 +91,6 @@ TSharedPtr<FJsonObject> RoomToJson(const URoomDataAsset* Room)
 	Object->SetNumberField(TEXT("enemyCount"), Room ? Room->EnemyPool.Num() : 0);
 	Object->SetNumberField(TEXT("buffCount"), Room ? Room->BuffPool.Num() : 0);
 	Object->SetNumberField(TEXT("lootCount"), Room ? Room->LootPool.Num() : 0);
-	Object->SetNumberField(TEXT("portalCount"), Room ? Room->PortalDestinations.Num() : 0);
-	Object->SetBoolField(TEXT("forceSinglePortal"), Room ? Room->bForceSinglePortal : false);
-	Object->SetNumberField(TEXT("forcedPortalIndex"), Room ? Room->ForcedPortalIndex : 0);
 	Object->SetBoolField(TEXT("useFixedRewardOptions"), Room ? Room->bUseFixedRewardOptions : false);
 	Object->SetNumberField(TEXT("fixedRewardCount"), Room ? Room->FixedRewardOptions.Num() : 0);
 	return Object;

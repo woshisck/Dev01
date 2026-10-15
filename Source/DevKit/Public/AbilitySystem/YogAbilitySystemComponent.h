@@ -327,17 +327,11 @@ private:
 		const TArray<FName>& FallbackSocketNames, FVector LocationOffset, FRotator RotationOffset, FVector Scale);
 	void StopStatusNiagara(const FGameplayTag& Tag);
 
-	// ── 韧性系统内部状──────────────────────────────────────────────
-	/** 连续触发受击次数（RecentlyDamaged 状态到期后归零，达SuperArmorThreshold 时触发霸体） */
-	int32 PoiseHitCount = 0;
-	FTimerHandle PoiseResetTimer;
-	FTimerHandle SuperArmorTimer;
-	bool bPoiseSuperArmorActive = false;
+	// ── Buff.RecentlyDamaged 状态（驱动敌人血条显示时长，与韧性池无关）──────
+	FTimerHandle RecentlyDamagedTimer;
 
 	void RefreshRecentlyDamagedState();
-	void TriggerSuperArmorCounterAttack();
-	void OnPoiseResetTimerEnd();
-	void OnSuperArmorTimerEnd();
+	void OnRecentlyDamagedTimerEnd();
 
 	// ── Just Combo pending state ──────────────────────────────────────
 	UPROPERTY(Transient)
@@ -412,36 +406,42 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HitReact")
 	FGameplayTag HitReactEventTag;
 
-	// ── 韧性（Poise）系─────────────────────────────────────────────
+	// ── 韧性（Poise）系统 ───────────────────────────────────────────────
 	/**
-	 * 动作韧性：GA_MeleeAttack 在命Notify 触发前设置（= AN_MeleeDamage.ActResilience），
-	 * ReceiveDamage 读取后立即清零。无需手动维护，GA 自动管理
+	 * 本次攻击造成的韧性伤害（= 解析后的 FActionData.ActResilience）。
+	 * GA_MeleeAttack 在伤害事件触发时写入，目标的 ReceiveDamage 读取后从韧性池中扣除。
+	 * 不在读取时清零 —— 一次挥击可能命中多个目标，每个目标都应吃到完整的韧性伤害；
+	 * 由 GA_MeleeAttack::EndAbility 在攻击结束时统一清零。
 	 */
 	UPROPERTY(BlueprintReadWrite, Category = "Poise")
-	float CurrentActionPoiseBonus = 0.f;
+	float CurrentActionPoiseDamage = 0.f;
+
+	/** 没有攻击动作数据来源时（投射物、符文触发等）使用的韧性伤害兜底值 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Poise", meta = (ClampMin = "0.0"))
+	float DefaultPoiseDamage = 10.f;
 
 	/**
-	 * 连续触发受击多少次后进入霸体（仅对非玩家生效）
-	 * 默认 3 次
+	 * 韧性池容量：Resilience 的初始值，也是每次被打断后回满的目标值。
+	 * 由 AYogCharacterBase::InitializeStats 从 FYogBaseAttributeData.Resilience 推送，
+	 * 填 0 视为未配置，保留此处默认值。
 	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Poise")
-	int32 SuperArmorThreshold = 3;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Poise", meta = (ClampMin = "0.0"))
+	float MaxPoise = 100.f;
 
-	/**
-	 * 霸体持续时间（秒）
-	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Poise")
-	float SuperArmorDuration = 2.f;
+	/** 返回本次攻击应造成的韧性伤害；未设置时回退到 DefaultPoiseDamage */
+	UFUNCTION(BlueprintPure, Category = "Poise")
+	float GetPendingActionPoiseDamage() const;
+
+	/** 攻击结束时清空待结算的韧性伤害 */
+	UFUNCTION(BlueprintCallable, Category = "Poise")
+	void ClearActionPoiseDamage() { CurrentActionPoiseDamage = 0.f; }
 
 	/**
 	 * 敌人受到攻击后保Buff.RecentlyDamaged 的时间
-	 * 到期时会移除状态并清空被动霸体的受击计数
+	 * 仅用于敌人血条显示时长，与韧性池无关
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Poise", meta = (ClampMin = "0.0"))
 	float RecentlyDamagedStateDuration = 3.f;
-
-	UFUNCTION(BlueprintPure, Category = "Poise")
-	int32 GetPoiseHitCount() const { return PoiseHitCount; }
 
 	UFUNCTION(BlueprintPure, Category = "Poise")
 	float GetRecentlyDamagedStateRemainingTime() const;

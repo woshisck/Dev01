@@ -1,7 +1,7 @@
 ﻿# 关卡系统 — 程序技术文档
 
-> 最后更新：2026-04-13（与代码对齐；FRoomDifficultyTier 新增全部奖励/Buff字段；FFloorConfig 删除已移走字段；FBuffEntry / FPlannedEnemy 新增；BuildWavePlan 更新成本算法；主城房间逻辑；EnemyData 新增字段）  
-> 配套文档：[跨关状态持久化](CrossLevelState_Technical.md)、[传送门系统设计](../../../00_入口与规范/缺失引用记录.md)
+> 最后更新：2026-10-15（传送门改由门自身的 DestinationLevel 决定目标，开门移交 AYogRoomDirector + Lua；删除 APortal.Index、FPortalDestConfig、ActivatePortals / ActivateHubPortals）  
+> 配套文档：[跨关状态持久化](CrossLevelState_Technical.md)、[传送门系统配置指南](Portal_ConfigGuide.md)
 
 ---
 
@@ -9,7 +9,7 @@
 
 ```
 数据层（Data Assets）
-  ├── URoomDataAsset       单房间配置（敌人池 / 符文 Buff / 战利品 / 传送门目标 / 难度档位）
+  ├── URoomDataAsset       单房间配置（敌人池 / 符文 Buff / 战利品 / 难度档位）
   └── UCampaignDataAsset   局内关卡序列（FloorTable，每关含总难度分 + 关卡类型参数）
 
 逻辑层（GameMode）
@@ -31,12 +31,11 @@
 | `RoomTags` | `FGameplayTagContainer` | 类型 Tag（`Room.Type.*`）+ 层级 Tag（`Room.Layer.*`），供系统按类型选取 |
 | `EnemyPool` | `TArray<FEnemyEntry>` | 敌人池，含难度分和每关类型上限 |
 | `BuffPool` | `TArray<FBuffEntry>` | 进关时随机选 N 个条目；每条目含 RuneDA + DifficultyScore（每只怪身上激活 Flow Graph，并从波次预算额外扣除对应分数）|
-| `bIsHubRoom` | `bool` | 主城/枢纽房间标记；勾选后跳过波次刷怪，所有传送门立即全开，目标 FloorTable[0] |
+| `bIsHubRoom` | `bool` | 主城/枢纽房间标记；勾选后跳过波次刷怪（开门仍由地图的 RoomDirector 负责）|
 | `LootPool` | `TArray<TObjectPtr<URuneDataAsset>>` | 符文掉落池，关卡结束三选一 |
 | `LowDifficulty` | `FRoomDifficultyTier` | 低分段难度配置（Score ≤ GameMode.LowDifficultyScoreMax）|
 | `MediumDifficulty` | `FRoomDifficultyTier` | 中分段难度配置 |
 | `HighDifficulty` | `FRoomDifficultyTier` | 高分段难度配置（Score ≥ GameMode.HighDifficultyScoreMin）|
-| `PortalDestinations` | `TArray<FPortalDestConfig>` | 关卡结束各传送门的目标配置 |
 
 ### FRoomDifficultyTier（`SpawnTypes.h`）
 
@@ -108,14 +107,24 @@ TObjectPtr<URuneDataAsset>          SelectedEnemyBuff;  // BuildWavePlan 时选�
 
 > 注意：`GoldMin/GoldMax`、`BuffCount`、`CommonWeight/RareWeight/EpicWeight`、`FloorNumber` 已从 FFloorConfig 移除，现全部在 **FRoomDifficultyTier** 中按难度档位配置。
 
-### FPortalDestConfig（`RoomDataAsset.h`）
+### APortal（`Source/DevKit/Public/Map/Portal.h`）
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `PortalIndex` | `int32` | 对应场景中 APortal.Index |
-| `RoomPool` | `TArray<TObjectPtr<URoomDataAsset>>` | 此门专属的 DA_Room 候选池；为空时回退到 Campaign 全局 RoomPool |
+| 字段/函数 | 说明 |
+|-----------|------|
+| `DestinationLevel` | 本门通往的关卡名，在地图里摆门时手填。唯一的目标来源 |
+| `Open(Level, Room, PreRolledBuffs)` | 开门并写入 `SelectedLevel` / `SelectedRoom`；`Room` 可为空 |
+| `MarkUnavailable()` | 本局永不开启：套用 `NeverOpenArt` 并关碰撞 |
+| `TryEnter(Player)` | 按住 E 触发：锁输入 + 渐黑 → `TransitionToLevel` |
 
-> 关卡文件名 = 选中 DA_Room 的 `RoomName` 字段，直接用于 `OpenLevel` 调用。
+> 目标关卡不再由 DA_Room 的索引表分配，`APortal::Index` 与 `FPortalDestConfig` 已删除。
+
+### AYogRoomDirector（`Source/DevKit/Public/Map/YogRoomDirector.h`）
+
+| 字段/函数 | 说明 |
+|-----------|------|
+| `LuaModule` | 绑定的 Lua 模块路径，点号分隔，默认 `Maps.RoomDirector` |
+| `OnRoomStart()` | BeginPlay 后一帧触发，此时场景内所有 Actor 都已 BeginPlay |
+| `OpenPortal(Portal)` | 读 `Portal->DestinationLevel` 并开门；Lua 无法自行构造 `TArray<FBuffEntry>`，故由 C++ 代劳 |
 
 ### AMobSpawner（`Source/DevKit/Public/Mob/MobSpawner.h`）
 
@@ -139,12 +148,11 @@ StartPlay()
        ├─ 从 GI.PendingRoomData 读取传送门传递的 DA_Room（切关传递）
        │    └─ 若为空：第一关用 DefaultStartingRoom，后续骰子选 RollRoomTypeForFloor + SelectRoomByTag
        ├─ 检查 ActiveRoomData->bIsHubRoom：
-       │    ├─ true  → CurrentFloor = 0，跳过波次刷怪，调用 ActivateHubPortals()
+       │    ├─ true  → CurrentFloor = 0，跳过波次刷怪（开门交给 RoomDirector）
        │    └─ false → 正常波次流程（见下）
        ├─ 根据 Config.TotalDifficultyScore 选档（Low/Medium/High）→ 取对应 Tier（含全部奖励参数）
        ├─ SelectRoomBuffs() → ActiveRoomBuffs（TArray<FBuffEntry>，进关时确定，刷怪时施加）
        ├─ GenerateWavePlans(TotalDifficultyScore, MaxWaveCount, MaxEnemiesPerWave, ActiveRoomData)
-       ├─ 标记场景中未登记在 PortalDestinations 的门为 NeverOpen
        └─ 延迟 InitialSpawnDelay 秒后 → TriggerNextWave()
 ```
 
@@ -271,25 +279,17 @@ EnterArrangementPhase()
   ├─ 设置 CurrentPhase = ELevelPhase::Arrangement  ← 解除背包战斗锁
   ├─ 解锁背包 SetLocked(false)
   ├─ 发放金币 RandRange(ActiveTier.GoldMin, ActiveTier.GoldMax)
-  ├─ SpawnActor<ARewardPickup>(LastEnemyKillLocation)
-  └─ ActivatePortals()
+  └─ SpawnActor<ARewardPickup>(LastEnemyKillLocation)
 
 > **背包锁定说明**：`BackpackScreenWidget::IsInCombatPhase()` 检查 `CurrentPhase == ELevelPhase::Combat`（而非 `HasAliveEnemies()`）。默认值即 `Combat`，因此进入关卡时（刷怪前）背包就已锁定；`EnterArrangementPhase()` 将 Phase 改为 `Arrangement` 后解锁。主城 Hub Room 在 `StartLevelSpawning` 直接写 `Arrangement`，背包始终可操作。
 
-ActivatePortals()（普通关卡；传送门目标在 ActiveRoomData.PortalDestinations）
-  ├─ 读下一关 FloorConfig → RollRoomTypeForFloor → RequiredRoomType（所有门共享此类型）
-  ├─ Fisher-Yates 洗牌 PortalDestinations
-  └─ 遍历洗牌后的列表：
-       ├─ SelectRoomByTag(Cfg, RequiredRoomType) → ChosenRoom
-       │    优先级：门专属 RoomPool → Campaign 全局 RoomPool → 门专属池任意 → Normal 兜底
-       ├─ 第一个必开（bAtLeastOneOpened=false）；后续 50% 概率
-       └─ Portal->Open(ChosenRoom->RoomName, ChosenRoom)（关卡名 = DA_Room.RoomName）
+开门（由地图自身的 AYogRoomDirector + Lua 负责，GameMode 不参与）
+  ├─ RoomDirector.lua: ReceiveBeginPlay  → 收集场景内所有 APortal 并 DisablePortal
+  ├─ RoomDirector.lua: OnRoomStart       → 跑完所有 AMobSpawner，登记刷出的怪
+  └─ 存活数归零                          → 逐门 OpenPortal(Portal)
+                                            └─ Portal->Open(Portal->DestinationLevel, nullptr, {})
 
-ActivateHubPortals()（主城/枢纽房间专用）
-  ├─ 所有已配置的传送门立即全开（不走 50% 随机）
-  └─ 目标均为 FloorTable[0]（CurrentFloor=0 → TransitionToLevel 写入 PendingNextFloor=1）
-
-玩家接触 APortal → EnterPortal() → GM->TransitionToLevel(LevelName, SelectedRoom)
+玩家按住 E → APortal::TryEnter() → FinishEntry() → GM->TransitionToLevel(SelectedLevel, SelectedRoom)
   ├─ 锁背包
   ├─ 写入 GI.PendingRunState（HP/Gold/Phase/符文/武器）
   ├─ GI.PendingNextFloor = CurrentFloor + 1
@@ -312,9 +312,8 @@ ActivateHubPortals()（主城/枢纽房间专用）
 | `CheckDemandSpawn()` | `YogGameMode.cpp` | 按需补刷 |
 | `CheckLevelComplete()` | `YogGameMode.cpp` | 判断关卡是否结束 |
 | `EnterArrangementPhase()` | `YogGameMode.cpp` | 进入整理阶段：金币 + RewardPickup + 开门 |
-| `ActivatePortals()` | `YogGameMode.cpp` | 普通关卡：随机开门并分配下一关 RoomData |
-| `ActivateHubPortals()` | `YogGameMode.cpp` | 主城：全部传送门立即开启，目标 FloorTable[0] |
-| `SelectRoomByTag()` | `YogGameMode.cpp` | 按类型 Tag 从 RoomPool 中选 DA_Room |
+| `OpenPortal()` | `YogRoomDirector.cpp` | 开一扇门，目标取自该门的 `DestinationLevel` |
+| `SelectRoomByTag()` | `YogGameMode.cpp` | 按类型 Tag 从 Campaign RoomPool 中选 DA_Room |
 | `RollRoomTypeForFloor()` | `YogGameMode.cpp` | 按概率骰出下一关的房间类型 Tag |
 | `TransitionToLevel()` | `YogGameMode.cpp` | 保存状态 + OpenLevel |
 | `SpawnEnemyFromPool()` | `YogGameMode.cpp` | 白名单过滤 Spawner + 生成敌人 + 施加房间 Buff + 敌人专属 Buff |
@@ -356,7 +355,7 @@ ActivateHubPortals()（主城/枢纽房间专用）
 | 刷怪时将 HealthMultiplier/DamageMultiplier 施加到敌人属性 | 高 | ⚠️ 未实现 |
 | 符文三选一蓝图 UI（绑定 OnLootGenerated）| 高 | ⚠️ 未实现 |
 | 金币 HUD（绑定 OnGoldChanged）| 中 | ⚠️ 未实现 |
-| 传送门最少/最多开门数量配置（MinOpenPortals / MaxOpenPortals）| 中 | ⚠️ 未实现（当前固定"第一个必开 + 后续 50%"）|
+| 房间类型（下一关是普通/精英/商店）重新接入新的开门流程 | 中 | ⚠️ 未实现（当前门只认 DestinationLevel）|
 | 波次触发条件可配置化（当前 AllEnemiesDead 硬编码）| 远期 | ⏳ 规划中 |
 | 随机关卡生成系统（取代手动 FloorTable）| 远期 | ⏳ 规划中 |
 | 商店关卡类型 | 远期 | ⏳ 规划中 |
@@ -371,12 +370,12 @@ ActivateHubPortals()（主城/枢纽房间专用）
 - ✅ 刷怪特效接口（AMobSpawner::OnEnemySpawned BlueprintImplementableEvent）
 - ✅ 跨关状态持久化（FRunState 完整实现，见 CrossLevelState_Technical.md）
 - ✅ 切关入口（TransitionToLevel 由 Portal 触发）
-- ✅ 传送门目标配置在 DA_Room（PortalDestinations）
+- ✅ 传送门目标配置在门自身（APortal.DestinationLevel），由地图的 RoomDirector 清怪后开启
 - ✅ 房间类型骰子（RollRoomTypeForFloor + SelectRoomByTag）
 - ✅ 关卡 Buff 有效成本计入波次预算（BuffPool 条目含 DifficultyScore，每只怪扣分）
 - ✅ 敌人专属 Buff 池（EnemyData.EnemyBuffPool，BuildWavePlan 时随机选取，扣分）
 - ✅ 单波敌人上限（MaxEnemiesPerWave，0=不限，超出时优选高分怪）
-- ✅ 主城/枢纽房间支持（bIsHubRoom，跳过刷怪，所有传送门立即开启）
+- ✅ 主城/枢纽房间支持（bIsHubRoom，跳过刷怪）
 - ✅ 奖励配置移至难度档位（GoldMin/Max、BuffCount、符文权重全在 FRoomDifficultyTier）
 - ✅ 敌人行为树字段（EnemyData.BehaviorTree）
 

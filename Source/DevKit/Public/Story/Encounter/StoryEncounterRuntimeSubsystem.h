@@ -40,7 +40,6 @@ private:
 	bool ExecuteActorEnabledAction(const FStoryEncounterAction& Action, const FStoryEventContext& Context) const;
 	bool ExecuteSpawnRewardPickupAction(const FStoryEncounterAction& Action, const FStoryEventContext& Context);
 	bool ExecuteSetRoomRewardOverrideAction(const FStoryEncounterAction& Action, const FStoryEventContext& Context) const;
-	bool ExecuteSetPortalOverrideAction(const FStoryEncounterAction& Action, const FStoryEventContext& Context) const;
 	void ExecuteEncounterNodeCore(FName EncounterId, const FStoryEncounterNode& Node,
 		const FStoryEventContext& Context);
 	void ExecuteEncounterAction(FName EncounterId, const FStoryEncounterAction& Action, const FStoryEventContext& Context);

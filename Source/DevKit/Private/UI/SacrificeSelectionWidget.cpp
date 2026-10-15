@@ -637,10 +637,7 @@ TArray<UButton*> USacrificeSelectionWidget::GetFocusableButtons() const
 
 TArray<FCombatCardInstance> USacrificeSelectionWidget::GetDeckCards() const
 {
-	APlayerCharacterBase* Player = OwningPlayer.Get();
-	return (Player && Player->CombatDeckComponent)
-		? Player->CombatDeckComponent->GetFullDeckSnapshot()
-		: TArray<FCombatCardInstance>();
+	return TArray<FCombatCardInstance>();
 }
 
 bool USacrificeSelectionWidget::PaySelectedCost()

@@ -406,15 +406,6 @@ TArray<FStoryEncounterWorkbenchMessage> FStoryEncounterEditorModel::Validate(
 					}
 					break;
 
-				case EStoryEncounterActionKind::SetPortalOverride:
-					if (!Action.bClearPortalOverride && Action.ForcedPortalIndex < 0)
-					{
-						AddWorkbenchMessage(Messages, EStoryEncounterWorkbenchMessageSeverity::Error,
-							FString::Printf(TEXT("%s is a portal override but ForcedPortalIndex is invalid."), *Prefix),
-							EncounterMap, NAME_None, EncounterMap->EncounterId, Node.NodeId);
-					}
-					break;
-
 				default:
 					break;
 				}
@@ -857,8 +848,6 @@ FString FStoryEncounterEditorModel::ActionKindToChinese(EStoryEncounterActionKin
 		return TEXT("关卡对象控制");
 	case EStoryEncounterActionKind::SetRoomRewardOverride:
 		return TEXT("房间奖励覆盖");
-	case EStoryEncounterActionKind::SetPortalOverride:
-		return TEXT("传送门覆盖");
 	case EStoryEncounterActionKind::SpawnRewardPickup:
 		return TEXT("生成奖励拾取物");
 	default:
@@ -943,11 +932,6 @@ FString FStoryEncounterEditorModel::DescribeAction(FName EncounterId, const FSto
 			*KindText,
 			Action.RewardLootOptions.Num(),
 			Action.bClearRoomRewardOverride ? TEXT("，清除覆盖") : TEXT(""));
-	case EStoryEncounterActionKind::SetPortalOverride:
-		return FString::Printf(TEXT("%s：PortalIndex=%d%s"),
-			*KindText,
-			Action.ForcedPortalIndex,
-			Action.bClearPortalOverride ? TEXT("，清除覆盖") : TEXT(""));
 	case EStoryEncounterActionKind::SpawnRewardPickup:
 		return FString::Printf(TEXT("%s：%d 个 Pickup，%d 项奖励%s"),
 			*KindText,

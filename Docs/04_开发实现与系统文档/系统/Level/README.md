@@ -27,7 +27,6 @@
 | 指定关卡资产 | `RoomDataOverride` |
 | 指定奖励内容 | `RewardOptionsOverride` |
 | 指定 Buff 池 | `BuffsOverride` |
-| 强制单传送门 | `bForceSinglePortal` |
 | 抑制清房奖励 | `bSuppressRoomClearRewardPickup` |
 
 完整字段列表见 [../Story/DirectorInterfaces.md](../Story/DirectorInterfaces.md)

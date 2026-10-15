@@ -4,7 +4,6 @@
 #include "UI/GlassFrameWidget.h"
 #include "WeaponGlassIconWidget.generated.h"
 
-class UImage;
 class UWeaponGlassAnimDA;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnWeaponGlassHidden);
@@ -31,15 +30,9 @@ protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	TObjectPtr<UImage> HeatColorOverlay;
+	// UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 
 private:
-	void RefreshHeatOverlay(int32 Phase);
-
-	UFUNCTION()
-	void OnHeatPhaseChanged(int32 Phase);
-
 	UPROPERTY()
 	TObjectPtr<const UWeaponGlassAnimDA> AnimDA;
 

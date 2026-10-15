@@ -57,12 +57,6 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Enemy Weapon|Combat")
 	TObjectPtr<UAbilityData> AbilityData;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Enemy Weapon|AI")
-	bool bOverrideAttackProfile = true;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Enemy Weapon|AI", meta = (EditCondition = "bOverrideAttackProfile"))
-	FEnemyAIAttackProfile AttackProfile;
-
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Enemy Weapon|Attributes")
 	FEnemyWeaponAttributeModifiers AttributeModifiers;
 

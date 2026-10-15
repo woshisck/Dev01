@@ -3,7 +3,6 @@
 #include "Components/BillboardComponent.h"
 #include "Components/BoxComponent.h"
 #include "Components/StaticMeshComponent.h"
-#include "Component/BackpackGridComponent.h"
 #include "Component/InteractPromptComponent.h"
 #include "NiagaraComponent.h"
 #include "SaveGame/YogSaveSubsystem.h"
@@ -84,9 +83,8 @@ void APortal::Open(FName InSelectedLevel, URoomDataAsset* InSelectedRoom,
 	TriggerLinkedDoorOpenEvents();
 
 	UE_LOG(LogTemp, Log,
-		TEXT("[StoryRewardDebug] Portal Open Portal=%s Index=%d SelectedLevel=%s SelectedRoom=%s"),
+		TEXT("[StoryRewardDebug] Portal Open Portal=%s SelectedLevel=%s SelectedRoom=%s"),
 		*GetNameSafe(this),
-		Index,
 		*SelectedLevel.ToString(),
 		*GetNameSafe(SelectedRoom));
 
@@ -95,8 +93,8 @@ void APortal::Open(FName InSelectedLevel, URoomDataAsset* InSelectedRoom,
 	{
 		const FBuffEntry& E = PreRolledBuffs[i];
 		const FName RuneName = E.RuneDA ? E.RuneDA->GetRuneName() : NAME_None;
-		UE_LOG(LogTemp, Log, TEXT("Portal[%d] PreRolled[%d]: Asset=%s RuneName=%s"),
-			Index, i,
+		UE_LOG(LogTemp, Log, TEXT("Portal[%s] PreRolled[%d]: Asset=%s RuneName=%s"),
+			*GetName(), i,
 			E.RuneDA ? *E.RuneDA->GetName() : TEXT("null"),
 			*RuneName.ToString());
 	}
@@ -198,31 +196,6 @@ void APortal::MarkUnavailable()
 	NeverOpen();
 }
 
-void APortal::MarkUnavailableForPreview(FName InSelectedLevel, URoomDataAsset* InSelectedRoom)
-{
-	SelectedLevel = InSelectedLevel;
-	SelectedRoom = InSelectedRoom;
-	PreRolledBuffs.Reset();
-	bWillNeverOpen = true;
-	bIsOpen = false;
-
-	if (OpenVFXComp) OpenVFXComp->Deactivate();
-	if (IdleVFXComp) IdleVFXComp->Deactivate();
-	TriggerLinkedDoorCloseEvents();
-
-	const FPortalArtConfig& UnavailableArt =
-		(NeverOpenArt.Mesh || NeverOpenArt.IdleVFX || NeverOpenArt.OpenVFX)
-			? NeverOpenArt
-			: ClosedArt;
-	ApplyArtConfig(UnavailableArt, false);
-
-	if (CollisionVolume)
-	{
-		CollisionVolume->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		CollisionVolume->SetGenerateOverlapEvents(false);
-	}
-}
-
 void APortal::YogOpenLevel(FName LevelName)
 {
 	UGameplayStatics::OpenLevel(GetWorld(), LevelName, true);
@@ -257,7 +230,7 @@ void APortal::HandlePlayerEnterRange(APlayerCharacterBase* Player)
 	SetInteractPromptVisible(true);
 	K2_OnHighlightChanged(true);
 	K2_OnPortalRangeEntered();
-	UE_LOG(LogTemp, Log, TEXT("Portal[%d]: 玩家进入交互范围（按住 E 进入）"), Index);
+	UE_LOG(LogTemp, Log, TEXT("Portal[%s]: 玩家进入交互范围（按住 E 进入）"), *GetName());
 }
 
 void APortal::HandlePlayerExitRange(APlayerCharacterBase* Player)
@@ -268,7 +241,7 @@ void APortal::HandlePlayerExitRange(APlayerCharacterBase* Player)
 	SetInteractPromptVisible(false);
 	K2_OnHighlightChanged(false);
 	K2_OnPortalRangeExited();
-	UE_LOG(LogTemp, Log, TEXT("Portal[%d]: 玩家离开交互范围"), Index);
+	UE_LOG(LogTemp, Log, TEXT("Portal[%s]: 玩家离开交互范围"), *GetName());
 }
 
 // v3 完整过场：Portal 主导业务流程；HUD 仅负责视觉 BlackoutFade
@@ -299,15 +272,15 @@ void APortal::TriggerLinkedDoorEvent(FName EventName)
 		UFunction* Function = Target->FindFunction(EventName);
 		if (!Function)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("Portal[%d]: Door event '%s' not found on %s"),
-				Index, *EventName.ToString(), *GetNameSafe(Target));
+			UE_LOG(LogTemp, Warning, TEXT("Portal[%s]: Door event '%s' not found on %s"),
+				*GetName(), *EventName.ToString(), *GetNameSafe(Target));
 			continue;
 		}
 
 		if (Function->NumParms != 0)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("Portal[%d]: Door event '%s' on %s must not have parameters"),
-				Index, *EventName.ToString(), *GetNameSafe(Target));
+			UE_LOG(LogTemp, Warning, TEXT("Portal[%s]: Door event '%s' on %s must not have parameters"),
+				*GetName(), *EventName.ToString(), *GetNameSafe(Target));
 			continue;
 		}
 
@@ -319,17 +292,17 @@ void APortal::TryEnter(APlayerCharacterBase* Player)
 {
 	if (bEntryInProgress)
 	{
-		UE_LOG(LogTemp, Verbose, TEXT("Portal[%d]: TryEnter 重入被忽略"), Index);
+		UE_LOG(LogTemp, Verbose, TEXT("Portal[%s]: TryEnter 重入被忽略"), *GetName());
 		return;
 	}
 
 	// 前置校验（任一失败 → log + return；此时尚未锁输入，无需恢复）
-	if (!bIsOpen || SelectedLevel.IsNone() || !Player || !SelectedRoom)
+	// SelectedRoom 可为空：手动摆放的门只填目标关卡，房间配置由下一关自行解析。
+	if (!bIsOpen || SelectedLevel.IsNone() || !Player)
 	{
 		UE_LOG(LogTemp, Warning,
-			TEXT("Portal[%d]: TryEnter 前置失败 bIsOpen=%d Level=%s Room=%s Player=%s"),
-			Index, bIsOpen ? 1 : 0, *SelectedLevel.ToString(),
-			SelectedRoom ? *SelectedRoom->GetName() : TEXT("null"),
+			TEXT("Portal[%s]: TryEnter 前置失败 bIsOpen=%d Level=%s Player=%s"),
+			*GetName(), bIsOpen ? 1 : 0, *SelectedLevel.ToString(),
 			Player ? *Player->GetName() : TEXT("null"));
 		return;
 	}
@@ -338,8 +311,8 @@ void APortal::TryEnter(APlayerCharacterBase* Player)
 	AYogGameMode*      GM = Cast<AYogGameMode>(GetWorld()->GetAuthGameMode());
 	if (!PC || !GM)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Portal[%d]: TryEnter 拿不到 PC=%s GM=%s"),
-			Index, PC ? TEXT("OK") : TEXT("null"), GM ? TEXT("OK") : TEXT("null"));
+		UE_LOG(LogTemp, Warning, TEXT("Portal[%s]: TryEnter 拿不到 PC=%s GM=%s"),
+			*GetName(), PC ? TEXT("OK") : TEXT("null"), GM ? TEXT("OK") : TEXT("null"));
 		return;
 	}
 
@@ -347,12 +320,8 @@ void APortal::TryEnter(APlayerCharacterBase* Player)
 	EntryPlayer      = Player;
 	K2_OnEntrySequenceStart();
 
-	// 锁输入 + 锁背包，避免过场中玩家干扰
+	// 锁输入，避免过场中玩家干扰
 	PC->DisableInput(PC);
-	if (UBackpackGridComponent* Backpack = Player->GetBackpackGridComponent())
-	{
-		Backpack->SetLocked(true);
-	}
 
 	// 触发 HUD 渐黑（视觉接口；HUD 不感知业务流程）
 	if (AYogHUD* HUD = Cast<AYogHUD>(PC->GetHUD()))
@@ -368,8 +337,8 @@ void APortal::TryEnter(APlayerCharacterBase* Player)
 	GetWorld()->GetTimerManager().SetTimer(
 		EntryFinishTimer, this, &APortal::FinishEntry, FinishDelay, false);
 
-	UE_LOG(LogTemp, Log, TEXT("Portal[%d]: TryEnter 启动过场 walk=%.2fs failSafe=%.2fs"),
-		Index, PortalEntryWalkDuration, FinishDelay);
+	UE_LOG(LogTemp, Log, TEXT("Portal[%s]: TryEnter 启动过场 walk=%.2fs failSafe=%.2fs"),
+		*GetName(), PortalEntryWalkDuration, FinishDelay);
 }
 
 void APortal::TickEntryMovement()
@@ -395,9 +364,9 @@ void APortal::FinishEntry()
 	AYogGameMode* GM = Cast<AYogGameMode>(GetWorld()->GetAuthGameMode());
 	if (!GM)        { AbortEntry(TEXT("GameMode 失效")); return; }
 
-	if (SelectedLevel.IsNone() || !SelectedRoom)
+	if (SelectedLevel.IsNone())
 	{
-		AbortEntry(TEXT("SelectedLevel/Room 失效"));
+		AbortEntry(TEXT("SelectedLevel 失效"));
 		return;
 	}
 
@@ -415,8 +384,8 @@ void APortal::FinishEntry()
 		SaveSubsystem->WriteSaveGame();
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("Portal[%d]: FinishEntry → TransitionToLevel(%s)"),
-		Index, *SelectedLevel.ToString());
+	UE_LOG(LogTemp, Log, TEXT("Portal[%s]: FinishEntry → TransitionToLevel(%s)"),
+		*GetName(), *SelectedLevel.ToString());
 
 	// 切关（OpenLevel 后本 actor 销毁，bEntryInProgress 不需要复位）
 	GM->TransitionToLevel(SelectedLevel, SelectedRoom);
@@ -424,7 +393,7 @@ void APortal::FinishEntry()
 
 void APortal::AbortEntry(const TCHAR* Reason)
 {
-	UE_LOG(LogTemp, Error, TEXT("Portal[%d]: AbortEntry — %s"), Index, Reason);
+	UE_LOG(LogTemp, Error, TEXT("Portal[%s]: AbortEntry — %s"), *GetName(), Reason);
 
 	GetWorld()->GetTimerManager().ClearTimer(EntryWalkTickTimer);
 	GetWorld()->GetTimerManager().ClearTimer(EntryFinishTimer);
@@ -438,10 +407,6 @@ void APortal::AbortEntry(const TCHAR* Reason)
 			{
 				HUD->EndBlackoutFade(0.2f);   // 快速恢复画面
 			}
-		}
-		if (UBackpackGridComponent* Backpack = Player->GetBackpackGridComponent())
-		{
-			Backpack->SetLocked(false);
 		}
 	}
 

@@ -27,15 +27,12 @@
 #include "Component/CombatDeckComponent.h"
 #include "Character/YogPlayerControllerBase.h"
 #include "Engine/GameInstance.h"
-#include "GameModes/YogGameMode.h"
 #include "UI/WeaponFloatWidget.h"
 #include "UI/YogHUD.h"
 #include "Data/LevelInfoPopupDA.h"
 #include "Story/Encounter/StoryEncounterGraph.h"
 #include "Story/Encounter/StoryEncounterPointDataAsset.h"
 #include "Story/Encounter/StoryEncounterRuntimeSubsystem.h"
-
-static constexpr bool bDisableLegacyHeatBackpackRuneForCardTestSpawner = true;
 
 static AYogHUD* GetYogHUDForPlayer(APlayerCharacterBase* Player)
 {
@@ -338,7 +335,6 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 			{
 				Player->InactiveWeaponFromSpawner->ResetToAvailable();
 			}
-			Player->OnHeatPhaseChanged.RemoveDynamic(Player->InactiveWeaponInstance, &AWeaponInstance::OnHeatPhaseChanged);
 			Player->InactiveWeaponInstance->Destroy();
 			Player->InactiveWeaponInstance = nullptr;
 		}
@@ -355,7 +351,6 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 			NewInactiveWeapon = UYogBlueprintFunctionLibrary::SpawnWeaponOnCharacter(Player, Player->GetTransform(), SpawnData, false);
 			if (NewInactiveWeapon)
 			{
-				NewInactiveWeapon->HeatOverlayMaterial = WeaponDefinition->HeatOverlayMaterial;
 				NewInactiveWeapon->SetActorHiddenInGame(true);
 				NewInactiveWeapon->SetActorEnableCollision(false);
 			}
@@ -381,7 +376,6 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 			Player->EquippedFromSpawner->ResetToAvailable();
 
 		// 解绑热度委托，再销
-		Player->OnHeatPhaseChanged.RemoveDynamic(Player->EquippedWeaponInstance, &AWeaponInstance::OnHeatPhaseChanged);
 		Player->EquippedWeaponInstance->Destroy();
 		Player->EquippedWeaponInstance = nullptr;
 	}
@@ -406,29 +400,9 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 		NewWeapon = UYogBlueprintFunctionLibrary::SpawnWeaponOnCharacter(Player, Player->GetTransform(), SpawnData);
 	}
 
-	// ── 3. 传入热度材质 + 绑定热度委托 ──────────────────────────────
-	if (NewWeapon && !bDisableLegacyHeatBackpackRuneForCardTestSpawner)
-	{
-		// DA Overlay 材质传给武器实例，无需BP 里手动赋
-		NewWeapon->HeatOverlayMaterial = WeaponDefinition->HeatOverlayMaterial;
-
-		Player->OnHeatPhaseChanged.AddDynamic(NewWeapon, &AWeaponInstance::OnHeatPhaseChanged);
-		Player->EquippedWeaponInstance = NewWeapon;
-
-		// 查当前实际热度阶段，追赶同步（防止升阶早于武器拾取）
-		int32 CurrentPhase = 0;
-		if (UAbilitySystemComponent* ASC = Player->GetAbilitySystemComponent())
-		{
-			if      (ASC->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Heat.Phase.3")))) CurrentPhase = 3;
-			else if (ASC->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Heat.Phase.2")))) CurrentPhase = 2;
-			else if (ASC->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Heat.Phase.1")))) CurrentPhase = 1;
-		}
-		Player->OnHeatPhaseChanged.Broadcast(CurrentPhase);
-	}
-	else if (NewWeapon)
+	if (NewWeapon)
 	{
 		Player->EquippedWeaponInstance = NewWeapon;
-		UE_LOG(LogTemp, Warning, TEXT("[WeaponSpawner] Legacy heat weapon overlay disabled for combat card test"));
 	}
 	else
 	{
@@ -437,36 +411,6 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red,
 				TEXT("[WeaponSpawner] 武器生成失败，NewWeapon 为空"));
 		}
-	}
-
-	// ── 4. 注入背包配置 ───────────────────────────────────────────────
-	if (!bDisableLegacyHeatBackpackRuneForCardTestSpawner && Player->BackpackGridComponent)
-	{
-		UBackpackGridComponent* BG = Player->BackpackGridComponent;
-		BG->ApplyBackpackConfig(
-			WeaponDefinition->BackpackConfig.GridWidth,
-			WeaponDefinition->BackpackConfig.GridHeight,
-			WeaponDefinition->BackpackConfig.ActivationZoneConfig);
-
-		// ── 4b. 放置武器初始符文到热度一激活区 ──────────────────────────
-		if (WeaponDefinition->InitialRunes.Num() > 0)
-		{
-			TArray<FIntPoint> Phase1Cells = BG->GetActivationZoneCellsForPhase(0);
-			for (URuneDataAsset* RuneDA : WeaponDefinition->InitialRunes)
-			{
-				if (!RuneDA) continue;
-				FRuneInstance RuneInst = RuneDA->CreateInstance();
-				for (const FIntPoint& Cell : Phase1Cells)
-				{
-					if (BG->TryPlaceRune(RuneInst, Cell))
-						break;
-				}
-			}
-		}
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[WeaponSpawner] Legacy backpack/rune config disabled for combat card test"));
 	}
 
 	// ── 5. 记录状──────────────────────────────────────────────────
@@ -479,11 +423,7 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 	// ── 5.25 注入战斗卡组typed AbilityData ───────────────────────
 	// TryPickupWeapon 自己实现了装备流程，不走 WeaponDefinition::SetupWeaponToCharacter
 	// 因此这里需要同步加载武DA 上的 InitialCombatDeck / InitialRunes / typed AbilityData
-	if (UCombatDeckComponent* CombatDeck = Player->CombatDeckComponent.Get())
-	{
-		CombatDeck->LoadDeckFromWeapon(WeaponDefinition);
-		Player->CaptureEquippedWeaponDeckState();
-	}
+	Player->CaptureEquippedWeaponDeckState();
 
 	Player->ApplyAbilityDataFromWeapon(WeaponDefinition);
 	Player->RefreshEquippedWeaponSkillAbilityGrant();
@@ -501,10 +441,6 @@ void AWeaponSpawner::TryPickupWeapon(APlayerCharacterBase* Player)
 
 
 	TriggerPickupStoryEncounter(Player);
-	if (AYogGameMode* GameMode = GetWorld() ? Cast<AYogGameMode>(GetWorld()->GetAuthGameMode()) : nullptr)
-	{
-		GameMode->NotifyPlayerWeaponEquipped(Player);
-	}
 
 	// HUD 信息区内折叠浮窗 缩略图飞向左下角武器图标
 	if (AYogHUD* HUD = GetYogHUDForPlayer(Player))

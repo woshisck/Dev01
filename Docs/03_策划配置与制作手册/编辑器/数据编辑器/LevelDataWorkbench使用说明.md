@@ -24,7 +24,6 @@
 | `RoomTags` | 标记房间类型、层级、用途，例如普通房、商店房、事件房 |
 | `EnemyPool` | 本房间可刷出的敌人池 |
 | `LootPool` | 本房间可给出的奖励池 |
-| `PortalDestinations` | 本房间通往下一关的传送门配置 |
 
 左侧用于选中一个房间，方便在中间区域编辑它的细则。
 
@@ -38,13 +37,12 @@
 - 奖励池。
 - 房间类型标签。
 - 是否主城/枢纽房。
-- 传送门出口。
 - 商店、事件、祭坛等房间专属配置。
 
 配置原则：
 
 - 普通战斗体验放在 `EnemyPool / LootPool / RoomTags`。
-- 下一关出口放在 `PortalDestinations`。
+- 下一关出口不在这里配置，填在地图里每扇传送门的 `DestinationLevel` 上。
 - 教程和故事流程不要写死在房间细则里，应该通过右侧全局流程表的 `GlobalStageTag / StoryEventTags` 控制。
 
 ### 右侧：全局流程
@@ -69,18 +67,14 @@
 
 ## 传送门配置
 
-当前版本不强制使用 Generic Graph。
+传送门不在本工作台里配置。一关通往另一关由**地图里的门自己**决定：
 
-一关通往另一关仍由 `RoomDataAsset.PortalDestinations` 控制：
+| 位置 | 字段 | 用途 |
+| --- | --- | --- |
+| 场景中的 `BP_Portal` | `DestinationLevel` | 这扇门通往的关卡 |
+| 场景中的 `B_RoomDirector` | `LuaModule` | 房间清怪后开门的脚本 |
 
-| 字段 | 用途 |
-| --- | --- |
-| `PortalIndex` | 场景中传送门 Actor 的编号，和 `APortal.Index` 对应 |
-| `RoomTypeTag` | 这扇门希望通往的房间类型 |
-| `RoomPool` | 这扇门专属的候选房间池 |
-| `PreviewTitle / PreviewDescription` | 传送门 UI 预览文案 |
-
-后续如果需要更强的可视化，可以在中间区域增加 Generic Graph 视图，把每个 Root 节点表示为一个 `PortalIndex`。但这不是当前教程开发的阻塞项。
+详见 [传送门系统配置指南](../../../04_开发实现与系统文档/系统/Level/Portal_ConfigGuide.md)。
 
 ## 推荐工作流
 

@@ -2,7 +2,6 @@
 
 
 #include "Character/PlayerCharacterBase.h"
-#include "UI/BackpackStyleDataAsset.h"
 #include "UI/DamageEdgeFlashWidget.h"
 #include "Character/YogCharacterMovementComponent.h"
 #include "Camera/CameraComponent.h"
@@ -25,12 +24,10 @@
 #include "AbilitySystem/Abilities/YogAbilitySet.h"
 #include "Data/GASTemplate.h"
 #include "Item/ItemSpawner.h"
-#include "Component/BackpackGridComponent.h"
 #include "System/YogRunEconomySubsystem.h"
 #include "Engine/AssetManager.h"
 #include "Engine/StreamableManager.h"
 #include "MetaProgression/YogMetaProgressionSubsystem.h"
-#include "Component/CombatDeckComponent.h"
 #include "Component/CombatItemComponent.h"
 #include "Component/CharacterDataComponent.h"
 #include "Component/PlayerActiveSkillComponent.h"
@@ -230,8 +227,6 @@ APlayerCharacterBase::APlayerCharacterBase(const FObjectInitializer& ObjectIniti
 
 	CameraOcclusionFadeComponent = CreateDefaultSubobject<UYogCameraOcclusionFadeComponent>(TEXT("CameraOcclusionFadeComponent"));
 
-	BackpackGridComponent = CreateDefaultSubobject<UBackpackGridComponent>(TEXT("BackpackGridComponent"));
-	CombatDeckComponent = CreateDefaultSubobject<UCombatDeckComponent>(TEXT("CombatDeckComponent"));
 	CombatItemComponent = CreateDefaultSubobject<UCombatItemComponent>(TEXT("CombatItemComponent"));
 	ActiveSkillComponent = CreateDefaultSubobject<UPlayerActiveSkillComponent>(TEXT("ActiveSkillComponent"));
 	PlayerAttributeSet = CreateDefaultSubobject<UPlayerAttributeSet>(TEXT("PlayerAttributeSet"));
@@ -326,12 +321,7 @@ void APlayerCharacterBase::ReviveFromDeath(float ReviveHealthPercent, float Prot
 	const float ReviveHealth = AYogGameMode::CalculatePlayerReviveHealth(MaxHealth, ReviveHealthPercent);
 	ASC->SetNumericAttributeBase(UBaseAttributeSet::GetHealthAttribute(), ReviveHealth);
 
-	static const FGameplayTag SuperArmorTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.SuperArmor"), false);
 	static const FGameplayTag InvulnerableTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Invulnerable"), false);
-	if (SuperArmorTag.IsValid())
-	{
-		ASC->AddLooseGameplayTag(SuperArmorTag);
-	}
 	if (InvulnerableTag.IsValid())
 	{
 		ASC->AddLooseGameplayTag(InvulnerableTag);
@@ -353,12 +343,7 @@ void APlayerCharacterBase::EndReviveProtection()
 {
 	if (UYogAbilitySystemComponent* ASC = GetASC())
 	{
-		static const FGameplayTag SuperArmorTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.SuperArmor"), false);
 		static const FGameplayTag InvulnerableTag = FGameplayTag::RequestGameplayTag(TEXT("Buff.Invulnerable"), false);
-		if (SuperArmorTag.IsValid())
-		{
-			ASC->RemoveLooseGameplayTag(SuperArmorTag);
-		}
 		if (InvulnerableTag.IsValid())
 		{
 			ASC->RemoveLooseGameplayTag(InvulnerableTag);
@@ -675,34 +660,7 @@ void APlayerCharacterBase::CaptureEquippedWeaponDeckState()
 		return;
 	}
 
-	if (!CombatDeckComponent)
-	{
-		InitializeWeaponDeckStateFromDefinition(EquippedWeaponDeckState, EquippedWeaponDef);
-		return;
-	}
-
-	EquippedWeaponDeckState.Reset();
-
-	const TArray<URuneDataAsset*> SourceAssets = CombatDeckComponent->GetDeckSourceAssets();
-	EquippedWeaponDeckState.SourceAssets.Reserve(SourceAssets.Num());
-	for (URuneDataAsset* SourceAsset : SourceAssets)
-	{
-		if (SourceAsset)
-		{
-			EquippedWeaponDeckState.SourceAssets.Add(SourceAsset);
-		}
-	}
-
-	const TArray<FCombatCardInstance> AttackCards = CombatDeckComponent->GetFullDeckSnapshot();
-	EquippedWeaponDeckState.AttackCardOrientations.Reserve(AttackCards.Num());
-	for (const FCombatCardInstance& Card : AttackCards)
-	{
-		EquippedWeaponDeckState.AttackCardOrientations.Add(Card.LinkOrientation);
-	}
-
-	EquippedWeaponDeckState.ShuffleCooldownDuration = CombatDeckComponent->GetShuffleCooldownDuration();
-	EquippedWeaponDeckState.MaxActiveSequenceSize = CombatDeckComponent->GetMaxActiveSequenceSize();
-	EquippedWeaponDeckState.bInitialized = true;
+	InitializeWeaponDeckStateFromDefinition(EquippedWeaponDeckState, EquippedWeaponDef);
 }
 
 void APlayerCharacterBase::InitializeEquippedWeaponDeckStateFromDefinition()
@@ -723,21 +681,6 @@ void APlayerCharacterBase::InitializeWeaponDeckStateFromDefinition(FWeaponCombat
 		return;
 	}
 
-	TArray<URuneDataAsset*> SourceAssets;
-	if (CombatDeckComponent)
-	{
-		CombatDeckComponent->BuildDefaultWeaponDeckSourceAssets(WeaponDefinition, SourceAssets);
-	}
-
-	DeckState.SourceAssets.Reserve(SourceAssets.Num());
-	for (URuneDataAsset* SourceAsset : SourceAssets)
-	{
-		if (SourceAsset)
-		{
-			DeckState.SourceAssets.Add(SourceAsset);
-		}
-	}
-
 	DeckState.ShuffleCooldownDuration = WeaponDefinition->ShuffleCooldownDuration;
 	DeckState.MaxActiveSequenceSize = WeaponDefinition->MaxActiveSequenceSize;
 	DeckState.bInitialized = true;
@@ -745,42 +688,15 @@ void APlayerCharacterBase::InitializeWeaponDeckStateFromDefinition(FWeaponCombat
 
 void APlayerCharacterBase::LoadCombatDeckFromWeaponDeckState(FWeaponCombatDeckRuntimeState& DeckState, const UWeaponDefinition* WeaponDefinition)
 {
-	if (!CombatDeckComponent)
-	{
-		return;
-	}
-
 	if (!WeaponDefinition)
 	{
 		DeckState.Reset();
-		TArray<URuneDataAsset*> EmptyDeck;
-		CombatDeckComponent->LoadDeckFromExactSourceAssets(EmptyDeck, 0.0f, 0);
 		return;
 	}
 
 	if (!DeckState.bInitialized)
 	{
 		InitializeWeaponDeckStateFromDefinition(DeckState, WeaponDefinition);
-	}
-
-	TArray<URuneDataAsset*> SourceAssets;
-	SourceAssets.Reserve(DeckState.SourceAssets.Num());
-	for (const TObjectPtr<URuneDataAsset>& SourceAsset : DeckState.SourceAssets)
-	{
-		if (SourceAsset)
-		{
-			SourceAssets.Add(SourceAsset.Get());
-		}
-	}
-
-	CombatDeckComponent->LoadDeckFromExactSourceAssets(
-		SourceAssets,
-		DeckState.ShuffleCooldownDuration,
-		DeckState.MaxActiveSequenceSize);
-
-	if (!DeckState.AttackCardOrientations.IsEmpty())
-	{
-		CombatDeckComponent->ApplyDeckOrientations(DeckState.AttackCardOrientations);
 	}
 }
 
@@ -816,7 +732,6 @@ void APlayerCharacterBase::RestoreInactiveWeaponFromDefinition(UWeaponDefinition
 {
 	if (InactiveWeaponInstance)
 	{
-		OnHeatPhaseChanged.RemoveDynamic(InactiveWeaponInstance, &AWeaponInstance::OnHeatPhaseChanged);
 		InactiveWeaponInstance->Destroy();
 		InactiveWeaponInstance = nullptr;
 	}
@@ -839,7 +754,6 @@ void APlayerCharacterBase::RestoreInactiveWeaponFromDefinition(UWeaponDefinition
 		AWeaponInstance* NewInactiveWeapon = UYogBlueprintFunctionLibrary::SpawnWeaponOnCharacter(this, GetTransform(), SpawnData, false);
 		if (NewInactiveWeapon)
 		{
-			NewInactiveWeapon->HeatOverlayMaterial = WeaponDefinition->HeatOverlayMaterial;
 			NewInactiveWeapon->SetActorHiddenInGame(true);
 			NewInactiveWeapon->SetActorEnableCollision(false);
 			LastSpawnedWeapon = NewInactiveWeapon;
@@ -856,14 +770,12 @@ void APlayerCharacterBase::ResetToDefaultUnarmedCombatState()
 
 	if (EquippedWeaponInstance)
 	{
-		OnHeatPhaseChanged.RemoveDynamic(EquippedWeaponInstance, &AWeaponInstance::OnHeatPhaseChanged);
 		EquippedWeaponInstance->Destroy();
 		EquippedWeaponInstance = nullptr;
 	}
 
 	if (InactiveWeaponInstance)
 	{
-		OnHeatPhaseChanged.RemoveDynamic(InactiveWeaponInstance, &AWeaponInstance::OnHeatPhaseChanged);
 		InactiveWeaponInstance->Destroy();
 		InactiveWeaponInstance = nullptr;
 	}
@@ -942,7 +854,6 @@ void APlayerCharacterBase::SwitchWeapon(bool bForceRecoveryCancel)
 
 	if (EquippedWeaponInstance)
 	{
-		OnHeatPhaseChanged.RemoveDynamic(EquippedWeaponInstance, &AWeaponInstance::OnHeatPhaseChanged);
 		EquippedWeaponInstance->SetActorHiddenInGame(true);
 		EquippedWeaponInstance->SetActorEnableCollision(false);
 	}
@@ -973,12 +884,6 @@ void APlayerCharacterBase::SwitchWeapon(bool bForceRecoveryCancel)
 	RefreshEquippedWeaponSkillAbilityGrant();
 
 	LoadCombatDeckFromWeaponDeckState(EquippedWeaponDeckState, EquippedWeaponDef);
-
-	if (EquippedWeaponInstance)
-	{
-		OnHeatPhaseChanged.AddDynamic(EquippedWeaponInstance, &AWeaponInstance::OnHeatPhaseChanged);
-		OnHeatPhaseChanged.Broadcast(CurrentHeatPhase);
-	}
 
 	RelinkWeaponAnimLayer();
 	OnWeaponSwitched.Broadcast();
@@ -1052,27 +957,12 @@ void APlayerCharacterBase::ClearRunCarriedStateForHub()
 		BuffFlowComponent->StopAllBuffFlows();
 	}
 
-	if (CombatDeckComponent)
-	{
-		TArray<URuneDataAsset*> EmptyDeck;
-		CombatDeckComponent->LoadDeckFromExactSourceAssets(EmptyDeck, 0.0f, 0);
-		CombatDeckComponent->RefreshDeckView();
-	}
-
 	if (UGameInstance* GI = GetGameInstance())
 	{
 		if (UYogRunEconomySubsystem* Economy = GI->GetSubsystem<UYogRunEconomySubsystem>())
 		{
 			Economy->ResetForNewRun();
 		}
-	}
-
-	if (BackpackGridComponent)
-	{
-		BackpackGridComponent->RestorePlacedRunes({}, true);
-		BackpackGridComponent->RestoreRuntimeHiddenPassiveRunes({});
-		BackpackGridComponent->RestorePhase(0);
-		BackpackGridComponent->SetLocked(false);
 	}
 
 	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponent())
@@ -1147,25 +1037,14 @@ void APlayerCharacterBase::RestoreRunState(const FRunState& State)
 		}
 	}
 
-	if (CombatDeckComponent && !State.CombatDeckCards.IsEmpty())
+	if (!State.CombatDeckCards.IsEmpty())
 	{
-		TArray<URuneDataAsset*> RestoredDeckAssets;
-		RestoredDeckAssets.Reserve(State.CombatDeckCards.Num());
-		for (URuneDataAsset* SourceAsset : State.CombatDeckCards)
-		{
-			RestoredDeckAssets.Add(SourceAsset);
-		}
-		CombatDeckComponent->LoadDeckFromExactSourceAssets(
-			RestoredDeckAssets,
+		RestoreDeckRuntimeStateFromRunStateFields(
+			EquippedWeaponDeckState,
+			State.CombatDeckCards,
+			State.CombatDeckCardOrientations,
 			State.CombatDeckShuffleCooldownDuration,
 			State.CombatDeckMaxActiveSequenceSize);
-
-		if (!State.CombatDeckCardOrientations.IsEmpty())
-		{
-			CombatDeckComponent->ApplyDeckOrientations(State.CombatDeckCardOrientations);
-		}
-
-		CaptureEquippedWeaponDeckState();
 	}
 	else
 	{
@@ -1195,29 +1074,14 @@ void APlayerCharacterBase::RestoreRunState(const FRunState& State)
 		}
 	}
 
-	if (BackpackGridComponent)
+	if (UAbilitySystemComponent* HeatASC = GetAbilitySystemComponent();
+		HeatASC
+		&& HeatASC->HasAttributeSetForAttribute(UBaseAttributeSet::GetHeatAttribute())
+		&& HeatASC->HasAttributeSetForAttribute(UBaseAttributeSet::GetMaxHeatAttribute()))
 	{
-		BackpackGridComponent->RestorePlacedRunes(State.PlacedRunes);
-		BackpackGridComponent->RestorePhase(State.CurrentPhase);
-
-		if (UAbilitySystemComponent* HeatASC = GetAbilitySystemComponent();
-			HeatASC
-			&& HeatASC->HasAttributeSetForAttribute(UBaseAttributeSet::GetHeatAttribute())
-			&& HeatASC->HasAttributeSetForAttribute(UBaseAttributeSet::GetMaxHeatAttribute()))
-		{
-			const float MaxHeat = HeatASC->GetNumericAttribute(UBaseAttributeSet::GetMaxHeatAttribute());
-			float HeatToSet = State.CurrentHeat;
-
-			if (HeatToSet > MaxHeat && MaxHeat > KINDA_SMALL_NUMBER)
-			{
-				BackpackGridComponent->IncrementPhase();
-				HeatToSet = FMath::Max(0.f, HeatToSet - MaxHeat);
-			}
-
-			HeatToSet = FMath::Clamp(HeatToSet, 0.f, MaxHeat);
-			HeatASC->SetNumericAttributeBase(UBaseAttributeSet::GetHeatAttribute(), HeatToSet);
-			BackpackGridComponent->OnHeatValueChanged(HeatToSet);
-		}
+		const float MaxHeat = HeatASC->GetNumericAttribute(UBaseAttributeSet::GetMaxHeatAttribute());
+		const float HeatToSet = FMath::Clamp(State.CurrentHeat, 0.f, MaxHeat);
+		HeatASC->SetNumericAttributeBase(UBaseAttributeSet::GetHeatAttribute(), HeatToSet);
 	}
 
 	// 恢复献祭恩赐
@@ -1225,12 +1089,6 @@ void APlayerCharacterBase::RestoreRunState(const FRunState& State)
 	if (ActiveSacrificeGrace)
 	{
 		AcquireSacrificeGrace(ActiveSacrificeGrace);
-	}
-
-	// 恢复运行时隐藏被动符文（无形状、跳过格子系统）
-	if (BackpackGridComponent && !State.HiddenPassiveRuneInstances.IsEmpty())
-	{
-		BackpackGridComponent->RestoreRuntimeHiddenPassiveRunes(State.HiddenPassiveRuneInstances);
 	}
 
 	RestoreSacrificeOfferingCosts(State.SacrificeOfferingCosts);
@@ -1245,47 +1103,6 @@ void APlayerCharacterBase::RestoreRunState(const FRunState& State)
 		}
 		ActiveSkillComponent->SetSkillLoadout(RestoredSkills);
 	}
-}
-
-void APlayerCharacterBase::GrantCraftedStarterRunesAsync()
-{
-	UYogMetaProgressionSubsystem* MetaSys = GetGameInstance()
-		? GetGameInstance()->GetSubsystem<UYogMetaProgressionSubsystem>() : nullptr;
-	if (!MetaSys) return;
-
-	const TArray<FPrimaryAssetId>& CraftedRunes = MetaSys->GetCraftedStarterRunes();
-	if (CraftedRunes.IsEmpty()) return;
-
-	TArray<FSoftObjectPath> SoftPaths;
-	SoftPaths.Reserve(CraftedRunes.Num());
-	for (const FPrimaryAssetId& Id : CraftedRunes)
-	{
-		FSoftObjectPath Path = UAssetManager::Get().GetPrimaryAssetPath(Id);
-		if (Path.IsValid())
-		{
-			SoftPaths.Add(Path);
-		}
-	}
-	if (SoftPaths.IsEmpty()) return;
-
-	TWeakObjectPtr<APlayerCharacterBase> WeakThis(this);
-	UAssetManager::Get().GetStreamableManager().RequestAsyncLoad(
-		SoftPaths,
-		FStreamableDelegate::CreateLambda([WeakThis, SoftPaths]()
-		{
-			APlayerCharacterBase* Player = WeakThis.Get();
-			if (!Player || !Player->BackpackGridComponent) return;
-
-			for (const FSoftObjectPath& Path : SoftPaths)
-			{
-				if (URuneDataAsset* RuneDA = Cast<URuneDataAsset>(Path.ResolveObject()))
-				{
-					Player->BackpackGridComponent->AddHiddenPassiveRune(RuneDA->CreateInstance());
-				}
-			}
-		}),
-		FStreamableManager::DefaultAsyncLoadPriority
-	);
 }
 
 void APlayerCharacterBase::ItemInteract(const AItemSpawner* item)
@@ -1314,43 +1131,8 @@ void APlayerCharacterBase::NotifyActorEndOverlap(AActor* OtherActor)
 	Super::NotifyActorEndOverlap(OtherActor);
 }
 
-UBackpackGridComponent* APlayerCharacterBase::GetBackpackGridComponent()
-{
-	return BackpackGridComponent;
-}
-
 void APlayerCharacterBase::AddRuneToInventory(const FRuneInstance& Rune)
 {
-	if (BackpackGridComponent)
-	{
-		// 1. 升级检查：背包已有同名符文 升级而非新占格子
-		FPlacedRune* Existing = BackpackGridComponent->FindRuneByName(Rune.RuneConfig.RuneName);
-		if (Existing)
-		{
-			if (Existing->Rune.UpgradeLevel < 2)
-			{
-				Existing->Rune.UpgradeLevel++;
-				UE_LOG(LogTemp, Log, TEXT("AddRuneToInventory: %s 升级Lv.%d"),
-					*Rune.RuneConfig.RuneName.ToString(), Existing->Rune.UpgradeLevel + 1);
-				BackpackGridComponent->NotifyRuneUpgraded(Existing->Rune.RuneGuid);
-			}
-			return;
-		}
-
-		// 2. 无形状符文：跳过格子系统，直接作为隐藏被动激
-		if (Rune.Shape.Cells.IsEmpty())
-		{
-			UE_LOG(LogTemp, Log, TEXT("AddRuneToInventory: %s 无形隐藏被动激"),
-				*Rune.RuneConfig.RuneName.ToString());
-			BackpackGridComponent->AddHiddenPassiveRune(Rune);
-			return;
-		}
-
-		// 3. 普通符文：进入待放置列表（玩家在背UI 手动拖入格子
-		UE_LOG(LogTemp, Log, TEXT("AddRuneToInventory: %s 待放置列"),
-			*Rune.RuneConfig.RuneName.ToString());
-	}
-
 	PendingRunes.Add(Rune);
 }
 
@@ -1397,11 +1179,7 @@ bool APlayerCharacterBase::ApplySacrificeOfferingCost(const FAltarSacrificeEntry
 	switch (CostEntry.CostType)
 	{
 	case ESacrificeOfferingCostType::SacrificeDeckCard:
-		if (!CombatDeckComponent || DeckCardIndex == INDEX_NONE)
-		{
-			return false;
-		}
-		return CombatDeckComponent->RemoveCardAtIndex(DeckCardIndex);
+		return false;
 
 	case ESacrificeOfferingCostType::AttackUpDamageTakenUp:
 		{
@@ -1493,13 +1271,6 @@ void APlayerCharacterBase::BeginPlay()
 		FollowCamera->FieldOfView = DefaultCameraFOV;
 	}
 
-	// BackpackGridComponent ASC 关联，使符文激活时可施GE
-	if (BackpackGridComponent && GetAbilitySystemComponent())
-	{
-		BackpackGridComponent->InitWithASC(GetAbilitySystemComponent());
-	}
-
-
 	// 初始化技能充能系
 	if (UYogAbilitySystemComponent* YogASC = Cast<UYogAbilitySystemComponent>(GetAbilitySystemComponent()))
 	{
@@ -1523,9 +1294,6 @@ void APlayerCharacterBase::BeginPlay()
 		);
 		// 新技能在此处继续 RegisterSkill 即可，无需额外 C++ 改动
 	}
-
-	// 注册热度阶段 Tag 事件，驱动武器边缘发光材
-	SetupHeatPhaseTagListeners();
 
 	// 切关后重新激活献祭恩赐（热度重充+ 衰退速率归零 + FA 重启
 	if (ActiveSacrificeGrace)
@@ -1593,10 +1361,6 @@ void APlayerCharacterBase::BeginPlay()
 	// to route the first real weapon to the inactive slot instead of equipping it.
 	if (!EquippedWeaponDef && DefaultUnarmedWeaponDef)
 	{
-		if (UCombatDeckComponent* CombatDeck = CombatDeckComponent.Get())
-		{
-			CombatDeck->LoadDeckFromWeapon(DefaultUnarmedWeaponDef);
-		}
 		if (UYogAbilitySystemComponent* YogASC = Cast<UYogAbilitySystemComponent>(GetAbilitySystemComponent()))
 		{
 			YogASC->ApplyWeaponTypeTag(DefaultUnarmedWeaponDef->WeaponType);
@@ -1655,10 +1419,6 @@ void APlayerCharacterBase::Tick(float DeltaSeconds)
 	if (DamageGlowElapsed >= 0.f)
 	{
 		TickDamagePlayerGlow(DeltaSeconds);
-	}
-	else
-	{
-		TickPlayerPhaseGlow(DeltaSeconds);
 	}
 }
 
@@ -1760,10 +1520,6 @@ void APlayerCharacterBase::PlayDamageScreenFlash()
 void APlayerCharacterBase::StartDamagePlayerGlow()
 {
 	UMaterialInterface* OverlayMaterial = DamagePlayerOverlayMaterial.Get();
-	if (!OverlayMaterial)
-	{
-		OverlayMaterial = PhaseUpPlayerOverlayMaterial.Get();
-	}
 	if (!OverlayMaterial || !GetMesh())
 	{
 		return;
@@ -1805,14 +1561,7 @@ void APlayerCharacterBase::TickDamagePlayerGlow(float DeltaTime)
 		DamageGlowElapsed = -1.f;
 		if (GetMesh())
 		{
-			if (PhaseGlowElapsed >= 0.f && PlayerOverlayDynMat)
-			{
-				GetMesh()->SetOverlayMaterial(PlayerOverlayDynMat);
-			}
-			else
-			{
-				GetMesh()->SetOverlayMaterial(nullptr);
-			}
+			GetMesh()->SetOverlayMaterial(nullptr);
 		}
 	}
 }
@@ -1904,144 +1653,6 @@ void APlayerCharacterBase::OnRep_PlayerState()
 	Super::OnRep_PlayerState();
 }
 
-void APlayerCharacterBase::SetupHeatPhaseTagListeners()
-{
-	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
-	if (!ASC) return;
-
-	// 监听各阶tag 新增 广播对应 Phase
-	ASC->RegisterGameplayTagEvent(
-		FGameplayTag::RequestGameplayTag(TEXT("Buff.Heat.Phase.1")),
-		EGameplayTagEventType::NewOrRemoved)
-		.AddUObject(this, &APlayerCharacterBase::OnHeatPhaseTagChanged);
-
-	ASC->RegisterGameplayTagEvent(
-		FGameplayTag::RequestGameplayTag(TEXT("Buff.Heat.Phase.2")),
-		EGameplayTagEventType::NewOrRemoved)
-		.AddUObject(this, &APlayerCharacterBase::OnHeatPhaseTagChanged);
-
-	ASC->RegisterGameplayTagEvent(
-		FGameplayTag::RequestGameplayTag(TEXT("Buff.Heat.Phase.3")),
-		EGameplayTagEventType::NewOrRemoved)
-		.AddUObject(this, &APlayerCharacterBase::OnHeatPhaseTagChanged);
-
-	// 监听 parent tag 归零 广播 Phase=0（关闭发光）
-	ASC->RegisterGameplayTagEvent(
-		FGameplayTag::RequestGameplayTag(TEXT("Buff.Heat.Phase")),
-		EGameplayTagEventType::NewOrRemoved)
-		.AddUObject(this, &APlayerCharacterBase::OnHeatPhaseParentTagChanged);
-}
-
-void APlayerCharacterBase::OnHeatPhaseTagChanged(const FGameplayTag Tag, int32 NewCount)
-{
-	if (NewCount <= 0) return; // 移除事件交由 parent tag 回调处理
-
-	static const FGameplayTag Phase1 = FGameplayTag::RequestGameplayTag(TEXT("Buff.Heat.Phase.1"));
-	static const FGameplayTag Phase2 = FGameplayTag::RequestGameplayTag(TEXT("Buff.Heat.Phase.2"));
-	static const FGameplayTag Phase3 = FGameplayTag::RequestGameplayTag(TEXT("Buff.Heat.Phase.3"));
-
-	int32 BroadcastPhase = 0;
-	if      (Tag == Phase1) BroadcastPhase = 1;
-	else if (Tag == Phase2) BroadcastPhase = 2;
-	else if (Tag == Phase3) BroadcastPhase = 3;
-	CurrentHeatPhase = BroadcastPhase;
-	OnHeatPhaseChanged.Broadcast(BroadcastPhase);
-	StartPlayerPhaseGlow(BroadcastPhase);
-
-	// 手柄震动
-	if (PhaseUpForceFeedback)
-	{
-		if (APlayerController* PC = Cast<APlayerController>(GetController()))
-		{
-			PC->ClientPlayForceFeedback(PhaseUpForceFeedback);
-		}
-	}
-}
-
-void APlayerCharacterBase::OnHeatPhaseParentTagChanged(const FGameplayTag Tag, int32 NewCount)
-{
-	if (NewCount == 0)
-	{
-		CurrentHeatPhase = 0;
-		OnHeatPhaseChanged.Broadcast(0);
-	}
-}
-
-void APlayerCharacterBase::StartPlayerPhaseGlow(int32 Phase)
-{
-	if (Phase == 0 || !PhaseUpPlayerOverlayMaterial) return;
-
-	FLinearColor GlowColors[5] = {
-		FLinearColor::Black,
-		FLinearColor(0.9f,  1.0f,  1.8f ),
-		FLinearColor(2.5f,  1.0f,  0.08f),
-		FLinearColor(5.5f,  4.0f,  0.3f ),
-		FLinearColor(5.5f,  4.0f,  0.3f ),
-	};
-	if (HeatStyleDA)
-	{
-		GlowColors[1] = HeatStyleDA->Phase1GlowColor;
-		GlowColors[2] = HeatStyleDA->Phase2GlowColor;
-		GlowColors[3] = HeatStyleDA->Phase3GlowColor;
-		GlowColors[4] = HeatStyleDA->Phase3GlowColor;
-	}
-
-	if (!PlayerOverlayDynMat)
-	{
-		PlayerOverlayDynMat = UMaterialInstanceDynamic::Create(PhaseUpPlayerOverlayMaterial, this);
-	}
-
-	const int32 Idx = FMath::Clamp(Phase, 0, 4);
-	PlayerOverlayDynMat->SetVectorParameterValue(TEXT("EmissiveColor"), GlowColors[Idx]);
-	PlayerOverlayDynMat->SetScalarParameterValue(TEXT("SweepProgress"), 0.f);
-	PlayerOverlayDynMat->SetScalarParameterValue(TEXT("GlowAlpha"), 1.f);
-	PlayerOverlayDynMat->SetScalarParameterValue(TEXT("IridIntensity"), GlowIridIntensity);
-	if (DamageGlowElapsed < 0.f)
-	{
-		GetMesh()->SetOverlayMaterial(PlayerOverlayDynMat);
-	}
-	PhaseGlowElapsed = 0.f;
-}
-
-void APlayerCharacterBase::TickPlayerPhaseGlow(float DeltaTime)
-{
-	if (PhaseGlowElapsed < 0.f) return;
-
-	PhaseGlowElapsed += DeltaTime;
-
-	const float HoldEnd      = GlowSweepDuration + GlowHoldDuration;
-	const float TotalDuration = HoldEnd + GlowFadeDuration;
-
-	float SweepProgress, GlowAlpha;
-
-	if (PhaseGlowElapsed < GlowSweepDuration)
-	{
-		SweepProgress = PhaseGlowElapsed / GlowSweepDuration;
-		GlowAlpha     = 1.f;
-	}
-	else if (PhaseGlowElapsed < HoldEnd)
-	{
-		SweepProgress = 1.f;
-		GlowAlpha     = 1.f;
-	}
-	else if (PhaseGlowElapsed < TotalDuration)
-	{
-		SweepProgress = 1.f;
-		GlowAlpha     = 1.f - (PhaseGlowElapsed - HoldEnd) / GlowFadeDuration;
-	}
-	else
-	{
-		GetMesh()->SetOverlayMaterial(nullptr);
-		PhaseGlowElapsed = -1.f;
-		return;
-	}
-
-	if (PlayerOverlayDynMat)
-	{
-		PlayerOverlayDynMat->SetScalarParameterValue(TEXT("SweepProgress"), SweepProgress);
-		PlayerOverlayDynMat->SetScalarParameterValue(TEXT("GlowAlpha"), GlowAlpha);
-	}
-}
 
 void APlayerCharacterBase::RegisterInteractable(AActor* Interactable)
 {

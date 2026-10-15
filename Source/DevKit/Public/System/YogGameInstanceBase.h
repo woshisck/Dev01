@@ -204,7 +204,7 @@ public:
 	UPROPERTY()
 	FRunState PendingRunState;
 
-	// 下一关要使用的房间配置（ActivatePortals 由传送门写入，StartLevelSpawning 读取）
+	// 下一关要使用的房间配置（由传送门切关时写入，StartLevelSpawning 读取）
 	UPROPERTY()
 	TObjectPtr<URoomDataAsset> PendingRoomData;
 

@@ -56,33 +56,6 @@ static bool HasAnyDefaultMovementBlockStateTag(const UAbilitySystemComponent* AS
 		(KnockbackTag.IsValid() && ASC->HasMatchingGameplayTag(KnockbackTag));
 }
 
-static bool HasPlayerAttackStateTag(const UAbilitySystemComponent* ASC)
-{
-	if (!ASC)
-	{
-		return false;
-	}
-
-	static const FName AttackStateTagNames[] = {
-		TEXT("Character.State.Skill.Attack"),
-		TEXT("Character.State.Skill.WeaponSkill"),
-		TEXT("Character.State.Movement.Dash"),
-		TEXT("PlayerState.AbilityCast.Attack"),
-		TEXT("PlayerState.AbilityCast.WeaponSkill"),
-		TEXT("PlayerState.AbilityCast.Dash"),
-	};
-
-	for (const FName& TagName : AttackStateTagNames)
-	{
-		const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(TagName, false);
-		if (Tag.IsValid() && ASC->HasMatchingGameplayTag(Tag))
-		{
-			return true;
-		}
-	}
-	return false;
-}
-
 static FGameplayTag GetRecentlyDamagedTag()
 {
 	return FGameplayTag::RequestGameplayTag(TEXT("Buff.RecentlyDamaged"), false);
@@ -766,36 +739,6 @@ void UYogAbilitySystemComponent::OnTagUpdated(const FGameplayTag& Tag, bool TagE
 		}
 	}
 
-	// =========================================================
-	// SuperArmor Fresnel ���⣺tag ��/���Զ� Start/Stop��ͳһ����
-	// C++ Poise �Զ�����·���� FA AddTag ·����������η���� E001��
-	// =========================================================
-	{
-		static const FGameplayTag SuperArmorTag =
-			FGameplayTag::RequestGameplayTag(TEXT("Buff.SuperArmor"), false);
-		if (SuperArmorTag.IsValid() && Tag == SuperArmorTag)
-		{
-			if (AYogCharacterBase* Char = Cast<AYogCharacterBase>(GetAvatarActor()))
-			{
-				if (TagExists)
-				{
-					// Poise counter armor is short and punchy; externally granted armor should read as stable.
-					Char->StartSuperArmorFlashWithMode(bPoiseSuperArmorActive);
-					FGameplayTagContainer HitReactTags;
-					HitReactTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Action.HitReact"), false));
-					if (!HitReactTags.IsEmpty())
-					{
-						CancelAbilities(&HitReactTags);
-					}
-				}
-				else
-				{
-					Char->StopSuperArmorFlash();
-				}
-			}
-		}
-	}
-
 	// Conflict/blocking must resolve before reactions, so a reaction can never
 	// activate an ability the same tag is meant to block.
 	ProcessStateConflict(Tag, TagExists);
@@ -1317,90 +1260,33 @@ void UYogAbilitySystemComponent::ReceiveDamage(
 		return;
 	}
 
-	// =========================================================
-	// ���ԣ�Poise���Ƚϣ������Ƿ񴥷��ܻ�����
-	// ��������Ч���� = Resilience���� + �������ԣ��� GA ������ǰ���ã�
-	// =========================================================
-	float AttackerPoise = 0.f;
-	if (SourceASC)
-	{
-		AttackerPoise = SourceASC->GetNumericAttribute(UBaseAttributeSet::GetResilienceAttribute())
-		              + SourceASC->CurrentActionPoiseBonus;
-		SourceASC->CurrentActionPoiseBonus = 0.f; // ��ȡ���������㣬�����֡����
-	}
+	// Buff.RecentlyDamaged drives enemy health-bar visibility and is independent of the
+	// poise pool, so refresh it on every hit regardless of whether this hit staggers.
+	RefreshRecentlyDamagedState();
 
-	const bool bPlayerAttackHitReactImmune = Cast<APlayerCharacterBase>(GetAvatarActor()) && HasPlayerAttackStateTag(this);
-	const float DefenderBasePoise = GetNumericAttribute(UBaseAttributeSet::GetResilienceAttribute());
-	constexpr float PlayerAttackUninterruptiblePoise = 9999.f;
-	const float DefenderPoise = bPlayerAttackHitReactImmune
-		? FMath::Max(DefenderBasePoise, PlayerAttackUninterruptiblePoise)
-		: DefenderBasePoise;
-	static const FGameplayTag SuperArmorTag =
-		FGameplayTag::RequestGameplayTag(TEXT("Buff.SuperArmor"), false);
-	const bool bHasSuperArmorTag = SuperArmorTag.IsValid() && HasMatchingGameplayTag(SuperArmorTag);
-	const bool bHadBlockingSuperArmor = bHasSuperArmorTag || bPoiseSuperArmorActive;
-	bool bActivatedSuperArmor = false;
-	APawn* DefenderPawn = Cast<APawn>(GetAvatarActor());
-	const bool bEnemyDefender = DefenderPawn && !DefenderPawn->IsPlayerControlled();
+	// =========================================================
+	// Poise pool: subtract this attack's poise damage. Staggering happens only on the
+	// hit that empties the pool, which then refills to full.
+	// =========================================================
+	const float PoiseDamage = SourceASC ? SourceASC->GetPendingActionPoiseDamage() : DefaultPoiseDamage;
+	const float PoiseBefore = GetNumericAttribute(UBaseAttributeSet::GetResilienceAttribute());
+	const float PoiseAfter = PoiseBefore - PoiseDamage;
+	const bool bBroke = PoiseAfter <= 0.f;
 
-	UE_LOG(LogTemp, Warning, TEXT("[Poise] Target=%s Attacker=%.0f Defender=%.0f BaseDefender=%.0f PlayerAttackImmune=%d SuperArmorTag=%d BlockingSuperArmor=%d Enemy=%d"),
+	// An overwhelming hit refills rather than going negative, so no overflow carries
+	// into the refilled pool.
+	SetNumericAttributeBase(UBaseAttributeSet::GetResilienceAttribute(), bBroke ? MaxPoise : PoiseAfter);
+
+	UE_LOG(LogTemp, Log, TEXT("[Poise] %s %.0f - %.0f -> %.0f / %.0f Broke=%d"),
 		*GetNameSafe(GetAvatarActor()),
-		AttackerPoise,
-		DefenderPoise,
-		DefenderBasePoise,
-		bPlayerAttackHitReactImmune ? 1 : 0,
-		(int32)bHasSuperArmorTag,
-		(int32)bHadBlockingSuperArmor,
-		(int32)bEnemyDefender);
+		PoiseBefore,
+		PoiseDamage,
+		bBroke ? MaxPoise : PoiseAfter,
+		MaxPoise,
+		bBroke ? 1 : 0);
 
-	// =========================================================
-	// ���������������ң��������ܵ���ʵ�˺� �� �������
-	// =========================================================
-	if (bEnemyDefender && !bHadBlockingSuperArmor)
+	if (!bBroke)
 	{
-		PoiseHitCount++;
-		RefreshRecentlyDamagedState();
-
-		UE_LOG(LogTemp, Log, TEXT("[Poise] PoiseHitCount=%d/%d on %s"),
-			PoiseHitCount, SuperArmorThreshold, *GetNameSafe(GetAvatarActor()));
-
-		if (SuperArmorThreshold > 0 && PoiseHitCount >= SuperArmorThreshold)
-		{
-			PoiseHitCount = 0;
-			bActivatedSuperArmor = true;
-			bPoiseSuperArmorActive = true;
-			// AddLooseGameplayTag �ᴥ�� OnTagUpdated �� �Զ� StartSuperArmorFlash
-			if (SuperArmorTag.IsValid())
-			{
-				AddLooseGameplayTag(SuperArmorTag);
-			}
-			UE_LOG(LogTemp, Warning, TEXT("[Poise] SuperArmor ACTIVATED on %s (%.1fs)"),
-				*GetNameSafe(GetAvatarActor()), SuperArmorDuration);
-			TriggerSuperArmorCounterAttack();
-
-			if (UWorld* W = GetWorld())
-				W->GetTimerManager().SetTimer(
-					SuperArmorTimer, this, &UYogAbilitySystemComponent::OnSuperArmorTimerEnd, SuperArmorDuration, false);
-		}
-	}
-
-	// Permanent Resilience is still logged for balancing, but it should not make players
-	// or enemies permanently immune to hit reaction. Player attack state is the explicit
-	// uninterruptible case; enemy super armor is handled below.
-	const bool bPoiseBlocksHitReact = bPlayerAttackHitReactImmune;
-	const bool bBlockingSuperArmor = bHadBlockingSuperArmor || bActivatedSuperArmor ||
-		(SuperArmorTag.IsValid() && HasMatchingGameplayTag(SuperArmorTag));
-	if (bPoiseBlocksHitReact || bBlockingSuperArmor)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[HitReact][Poise] SkipHitReact Target=%s AttackerPoise=%.0f DefenderPoise=%.0f Enemy=%d PoiseBlocked=%d SuperArmorTag=%d BlockingSuperArmor=%d ActivatedSuperArmorNow=%d"),
-			*GetNameSafe(GetAvatarActor()),
-			AttackerPoise,
-			DefenderPoise,
-			bEnemyDefender ? 1 : 0,
-			bPoiseBlocksHitReact ? 1 : 0,
-			bHasSuperArmorTag ? 1 : 0,
-			bBlockingSuperArmor ? 1 : 0,
-			bActivatedSuperArmor ? 1 : 0);
 		return;
 	}
 
@@ -1433,21 +1319,26 @@ void UYogAbilitySystemComponent::RefreshRecentlyDamagedState()
 		if (Duration > 0.0f)
 		{
 			W->GetTimerManager().SetTimer(
-				PoiseResetTimer, this, &UYogAbilitySystemComponent::OnPoiseResetTimerEnd, Duration, false);
+				RecentlyDamagedTimer, this, &UYogAbilitySystemComponent::OnRecentlyDamagedTimerEnd, Duration, false);
 		}
 		else
 		{
-			W->GetTimerManager().ClearTimer(PoiseResetTimer);
-			OnPoiseResetTimerEnd();
+			W->GetTimerManager().ClearTimer(RecentlyDamagedTimer);
+			OnRecentlyDamagedTimerEnd();
 		}
 	}
+}
+
+float UYogAbilitySystemComponent::GetPendingActionPoiseDamage() const
+{
+	return CurrentActionPoiseDamage > 0.f ? CurrentActionPoiseDamage : DefaultPoiseDamage;
 }
 
 float UYogAbilitySystemComponent::GetRecentlyDamagedStateRemainingTime() const
 {
 	if (const UWorld* W = GetWorld())
 	{
-		return W->GetTimerManager().GetTimerRemaining(PoiseResetTimer);
+		return W->GetTimerManager().GetTimerRemaining(RecentlyDamagedTimer);
 	}
 
 	return -1.0f;
@@ -1457,10 +1348,9 @@ void UYogAbilitySystemComponent::ClearRecentlyDamagedState()
 {
 	if (UWorld* W = GetWorld())
 	{
-		W->GetTimerManager().ClearTimer(PoiseResetTimer);
+		W->GetTimerManager().ClearTimer(RecentlyDamagedTimer);
 	}
 
-	PoiseHitCount = 0;
 	const FGameplayTag RecentlyDamagedTag = GetRecentlyDamagedTag();
 	if (RecentlyDamagedTag.IsValid())
 	{
@@ -1468,65 +1358,9 @@ void UYogAbilitySystemComponent::ClearRecentlyDamagedState()
 	}
 }
 
-void UYogAbilitySystemComponent::OnPoiseResetTimerEnd()
+void UYogAbilitySystemComponent::OnRecentlyDamagedTimerEnd()
 {
 	ClearRecentlyDamagedState();
-	UE_LOG(LogTemp, Log, TEXT("[Poise] PoiseHitCount reset on %s"), *GetNameSafe(GetAvatarActor()));
-}
-
-void UYogAbilitySystemComponent::TriggerSuperArmorCounterAttack()
-{
-	APawn* DefenderPawn = Cast<APawn>(GetAvatarActor());
-	if (!DefenderPawn || DefenderPawn->IsPlayerControlled())
-	{
-		return;
-	}
-
-	FGameplayTagContainer HitReactTags;
-	HitReactTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Action.HitReact"), false));
-	if (!HitReactTags.IsEmpty())
-	{
-		CancelAbilities(&HitReactTags);
-	}
-
-	if (AAIController* AI = Cast<AAIController>(DefenderPawn->GetController()))
-	{
-		AI->StopMovement();
-		if (UBrainComponent* Brain = AI->GetBrainComponent())
-		{
-			if (Brain->IsPaused())
-			{
-				Brain->ResumeLogic(TEXT("SuperArmorCounterAttack"));
-			}
-		}
-	}
-
-	FGameplayTagContainer AttackTags;
-	AttackTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Enemy.Melee.LAtk1"), false));
-	AttackTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Enemy.Melee.LAtk2"), false));
-	AttackTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Enemy.Melee.LAtk3"), false));
-	AttackTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Enemy.Melee.LAtk4"), false));
-	AttackTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Enemy.Melee.HAtk1"), false));
-	AttackTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Enemy.Melee.HAtk2"), false));
-	AttackTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Enemy.Melee.HAtk3"), false));
-	AttackTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Enemy.Melee.HAtk4"), false));
-
-	if (AttackTags.IsEmpty())
-	{
-		return;
-	}
-
-	const bool bActivated = TryActivateRandomAbilitiesByTag(AttackTags, false);
-	UE_LOG(LogTemp, Warning, TEXT("[Poise] SuperArmor counter attack on %s -> %d"),
-		*GetNameSafe(GetAvatarActor()), (int32)bActivated);
-}
-
-void UYogAbilitySystemComponent::OnSuperArmorTimerEnd()
-{
-	bPoiseSuperArmorActive = false;
-	// RemoveLooseGameplayTag �ᴥ�� OnTagUpdated �� �Զ� StopSuperArmorFlash
-	RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.SuperArmor")));
-	UE_LOG(LogTemp, Warning, TEXT("[Poise] SuperArmor EXPIRED on %s"), *GetNameSafe(GetAvatarActor()));
 }
 
 // =========================================================

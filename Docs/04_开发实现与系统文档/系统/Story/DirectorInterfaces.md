@@ -25,16 +25,15 @@
 
 | 字段 | 类型 | 效果 |
 | --- | --- | --- |
-| `bForceSinglePortal` | bool | 强制只显示一个传送门 |
-| `PortalIndex` | int32 | 指定传送门索引 |
-| `RoomDataOverride` | URoomDataAsset* | 指定下一关使用的关卡资产 |
 | `bOverrideRewardOptions` | bool | 是否覆盖奖励选项 |
 | `RewardOptionsOverride` | TArray\<FLootOption\> | 指定奖励选项（符文/金币/材料） |
 | `bSuppressRoomClearRewardPickup` | bool | 抑制普通清房奖励 |
 | `bMarkLastEnemyAsSpecialRewardEnemy` | bool | 最后一个敌人携带特殊奖励 |
 | `SpecialRewardEnemyLootOptions` | TArray\<FLootOption\> | 特殊奖励敌人的掉落 |
-| `bOverrideBuffs` | bool | 是否覆盖关卡 Buff 池 |
-| `BuffsOverride` | TArray\<FBuffEntry\> | 指定本关敌人的 Buff 列表 |
+| `RoomDataOverride` | URoomDataAsset* | ⚠️ 暂无消费方：原本由 `ActivatePortals` 读取，开门流程迁到 RoomDirector 后未重新接线 |
+| `bOverrideBuffs` / `BuffsOverride` | bool / TArray\<FBuffEntry\> | ⚠️ 同上，预骰 Buff 原本在开门时写入，目前无人读取 |
+
+> `bForceSinglePortal` / `PortalIndex` 已随 `APortal::Index` 一并删除：门与门之间不再有编号，"只开一扇"需要由地图自己的 Lua 决定开哪些门。
 
 ---
 
@@ -141,10 +140,10 @@
 
 #### 锁定/解锁传送门
 
-- **当前状态**：传送门由 GameMode 管理，无独立的导演控制接口
+- **当前状态**：开门由地图的 `AYogRoomDirector` + Lua 负责，导演侧只能通过 `USNode_EnablePortal`（按 Actor Tag 匹配）开门
 - **需求**：教程中需要在特定步骤前阻止玩家进入传送门
 - **注意**：实现时需明确碰撞、视觉、HUD 预览、`TryEnter` 防重入、`DisablePortal/NeverOpen` 的关系，不只是加一个 bool 字段
-- **候选接口**（未实现）：`APortal::SetLocked(bool)` 或 `GameMode::SetPortalLocked(int32, bool)`
+- **候选接口**（未实现）：`APortal::SetLocked(bool)`，按 Actor Tag 定位目标门
 - **状态**：✗ 候选接口，未实现
 
 ---
@@ -165,10 +164,9 @@
 
 | 导演控制需求 | 覆盖方式 |
 | --- | --- |
-| 指定下一关的关卡类型 | `FStoryNextRoomPlan.RoomDataOverride` ✓ |
+| 指定下一关的关卡类型 | `FStoryNextRoomPlan.RoomDataOverride` ⚠️ 字段仍在，暂无消费方 |
 | 指定掉落奖励内容 | `FStoryNextRoomPlan.RewardOptionsOverride` ✓ |
-| 指定关卡 Buff 池 | `FStoryNextRoomPlan.BuffsOverride` ✓ |
-| 强制单传送门 | `FStoryNextRoomPlan.bForceSinglePortal` ✓ |
+| 指定关卡 Buff 池 | `FStoryNextRoomPlan.BuffsOverride` ⚠️ 字段仍在，暂无消费方 |
 | 抑制清房奖励 | `FStoryNextRoomPlan.bSuppressRoomClearRewardPickup` ✓ |
 | 显示教程弹窗 | `StoryEngine.ExecuteStoryAction(ShowTutorialPopup)` ✓ |
 | 写入进度标志（永久） | `StoryEngine.SetStoryFlag(Save)` ✓ |

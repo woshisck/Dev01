@@ -96,7 +96,7 @@ Deprecated compatibility tags such as `PlayerState.AbilityCast.LightAtk.*`、`He
 | `Character.State.Feared` | `Buff.Status.Feared` |
 | `Character.State.Frozen` | `Buff.Status.Frozen` |
 | `Character.State.Stunned` | `Buff.Status.Stunned` |
-| `Character.State.SuperArmor` | `Buff.Status.SuperArmor` |
+| ~~`Character.State.SuperArmor`~~ | 已作废（2026-10-15 霸体机制整体移除，两个标签都已删除） |
 
 These are sustained buff/debuff/status-effect semantics, not momentary character action states. Keep the old tags only for compatibility until assets are migrated and resaved.
 

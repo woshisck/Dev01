@@ -229,7 +229,6 @@ EStoryEncounterActionKind ParseActionKind(const FString& Value)
 	if (Value.Equals(TEXT("SetActorEnabled"), ESearchCase::IgnoreCase)) return EStoryEncounterActionKind::SetActorEnabled;
 	if (Value.Equals(TEXT("SpawnRewardPickup"), ESearchCase::IgnoreCase)) return EStoryEncounterActionKind::SpawnRewardPickup;
 	if (Value.Equals(TEXT("SetRoomRewardOverride"), ESearchCase::IgnoreCase)) return EStoryEncounterActionKind::SetRoomRewardOverride;
-	if (Value.Equals(TEXT("SetPortalOverride"), ESearchCase::IgnoreCase)) return EStoryEncounterActionKind::SetPortalOverride;
 	return EStoryEncounterActionKind::WeakHint;
 }
 
@@ -318,8 +317,6 @@ FStoryEncounterAction ParseAction(const TSharedPtr<FJsonObject>& Object)
 	Action.bPlayRewardPickupFocusCue = GetBool(Object, TEXT("playRewardPickupFocusCue"), Action.bPlayRewardPickupFocusCue);
 	Action.bClearRoomRewardOverride = GetBool(Object, TEXT("clearRoomRewardOverride"), Action.bClearRoomRewardOverride);
 	Action.RewardOverrideTarget = ParseRewardOverrideTarget(GetString(Object, TEXT("rewardOverrideTarget")));
-	Action.ForcedPortalIndex = GetInt(Object, TEXT("forcedPortalIndex"), Action.ForcedPortalIndex);
-	Action.bClearPortalOverride = GetBool(Object, TEXT("clearPortalOverride"), Action.bClearPortalOverride);
 	const FString LevelFlowPath = GetString(Object, TEXT("levelFlow"));
 	if (!LevelFlowPath.IsEmpty())
 	{

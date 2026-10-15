@@ -86,10 +86,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Portal")
 	void MarkUnavailable();
 
-	UFUNCTION(BlueprintCallable, Category = "Portal")
-	void MarkUnavailableForPreview(FName InSelectedLevel, URoomDataAsset* InSelectedRoom);
-
-	// GameMode 在关卡结束时调用，分配目标关卡 / 房间配置 / 已预骰的关卡 Buff 列表并开启门。
+	// 分配目标关卡 / 房间配置 / 已预骰的关卡 Buff 列表并开启门。
 	// PreRolledBuffs 与 GI->PendingRoomBuffs 同型；本门各自缓存，仅在玩家确认进入时由 TryEnter 写入 GI。
 	UFUNCTION(BlueprintCallable)
 	void Open(FName InSelectedLevel, URoomDataAsset* InSelectedRoom,
@@ -140,15 +137,15 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, Category = "Portal|FX", meta = (DisplayName = "On Entry Sequence Start"))
 	void K2_OnEntrySequenceStart();
 
-	// 场景中唯一标识（与 CampaignData.PortalDestinations[i].PortalIndex 对应）
+	// 本门通往的关卡名，在地图里摆放这扇门时直接填写
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Portal")
-	int32 Index = 0;
+	FName DestinationLevel;
 
-	// GameMode 写入的目标关卡名（关卡结束时由随机池选定）
+	// Open() 写入的目标关卡名（默认来自 DestinationLevel）
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Portal")
 	FName SelectedLevel;
 
-	// GameMode 写入的下一关房间配置（骰子决定类型后从类型池中选定）
+	// Open() 写入的下一关房间配置，可为空
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Portal")
 	TObjectPtr<URoomDataAsset> SelectedRoom;
 
@@ -156,7 +153,7 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Portal")
 	bool bIsOpen = false;
 
-	// 关卡开始时确定永不开启（未登记在 PortalDestinations 中）
+	// 本局内确定永不开启（MarkUnavailable）
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Portal")
 	bool bWillNeverOpen = false;
 
@@ -208,7 +205,7 @@ public:
 	/**
 	 * 目标关卡 → 对应美术配置。
 	 * Key 填关卡资产名称（FName），如 "L1_Forest"、"L1_Desert"。
-	 * GameMode 调用 Open() 时已确定 SelectedLevel，EnablePortal 会自动查此 Map。
+	 * Open() 调用时已确定 SelectedLevel，EnablePortal 会自动查此 Map。
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Portal|Art")
 	TMap<FName, FPortalArtConfig> DestinationArtMap;

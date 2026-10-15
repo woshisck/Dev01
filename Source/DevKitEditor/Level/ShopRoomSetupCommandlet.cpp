@@ -376,21 +376,6 @@ namespace ShopRoomSetup
 		}
 	}
 
-	void EnsureDefaultPortals(URoomDataAsset* Room)
-	{
-		if (!Room || !Room->PortalDestinations.IsEmpty())
-		{
-			return;
-		}
-
-		for (int32 Index = 0; Index < 3; ++Index)
-		{
-			FPortalDestConfig Config;
-			Config.PortalIndex = Index;
-			Room->PortalDestinations.Add(Config);
-		}
-	}
-
 	bool ConfigureShopRoom(
 		URoomDataAsset* Room,
 		UShopDataAsset* ShopData,
@@ -425,7 +410,6 @@ namespace ShopRoomSetup
 		}
 		Room->ShopWidgetClass = WidgetClass;
 		Room->ShopSpawnOffset = FVector(260.0f, 0.0f, 0.0f);
-		EnsureDefaultPortals(Room);
 
 		Room->MarkPackageDirty();
 		DirtyPackages.AddUnique(Room->GetPackage());

@@ -12,7 +12,6 @@
 class UMontageConfigDA;
 class UMontageAttackDataAsset;
 class UYogAnimNotifyState_Damage;
-class UAbilityTask_ApplyRootMotionMoveToForce;
 class UAbilitySystemComponent;
 class AYogCharacterBase;
 class ACharacter;
@@ -94,9 +93,6 @@ private:
 	UPROPERTY()
 	FComboAttackConfig ActiveComboAttackConfig;
 
-	UPROPERTY()
-	TObjectPtr<UAbilityTask_ApplyRootMotionMoveToForce> EnemyLungeTask;
-
 	/** Non-zero while a montage curve is driving this enemy's movement. */
 	uint16 EnemyLungeRootMotionSourceID = 0;
 
@@ -110,7 +106,6 @@ private:
 	const UAN_MeleeDamage* LastFiredDamageNotify = nullptr;
 	const UYogAnimNotifyState_Damage* LastFiredDamageWindow = nullptr;
 
-	bool bCombatDeckCardResolvedThisActivation = false;
 	bool bCombatDeckFromDashSave = false;
 	bool bNextActivationFromDashSave = false;
 	bool bActiveComboAttackConfigValid = false;
@@ -140,8 +135,11 @@ private:
 
 	void TryStartEnemyRadialLunge(UAnimMontage* Montage);
 
-	/** Starts curve-driven movement for Montage, returning false if it has no movement curve. */
-	bool TryStartEnemyMontageCurveMove(ACharacter* Character, UAnimMontage* Montage, const FVector& Direction);
+	/**
+	 * Starts curve-driven movement for Montage along Character's current planar facing,
+	 * returning false if it has no movement curve.
+	 */
+	bool TryStartEnemyMontageCurveMove(ACharacter* Character, UAnimMontage* Montage);
 
 	void StopEnemyCurveMove();
 

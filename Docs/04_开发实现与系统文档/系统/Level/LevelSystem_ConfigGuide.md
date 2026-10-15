@@ -133,16 +133,9 @@ BuffPool 中的每个条目是一个 **FBuffEntry**，包含两个字段：
 
 ---
 
-### 1.7 配置传送门目标（Portal Destinations）
+### 1.7 配置传送门目标
 
-关卡结束时各传送门可去往哪里。详见 [传送门配置指南](Portal_ConfigGuide.md)。
-
-**传送门目标配置在 DA_Room（不在 DA_Campaign）**，每条记录对应一个门：
-
-| 字段 | 说明 |
-|------|------|
-| **Portal Index** | 与场景中 APortal.Index 对应（0 开始） |
-| **Room Pool** | 此门专属的 DA_Room 候选池（按类型 Tag 过滤后随机选）；为空则只走 Campaign 全局 RoomPool |
+**传送门不在 DA_Room 里配置。** 目标关卡填在地图里每扇门自己的 `DestinationLevel` 上，开门由地图中的 `B_RoomDirector` 在清怪后负责。详见 [传送门配置指南](Portal_ConfigGuide.md)。
 
 ---
 
@@ -182,12 +175,12 @@ BuffPool 中的每个条目是一个 **FBuffEntry**，包含两个字段：
 勾选 DA_Room 的 **Is Hub Room** 后，该房间视为主城/枢纽：
 
 - **不进行波次刷怪**（跳过整个 GenerateWavePlans 流程）
-- **关卡开始时立即开启所有已配置的传送门**（无随机，全部直接开）
-- 传送门目标指向 FloorTable 第 0 关（即 `CurrentFloor = 0` → 切关后进入 FloorTable[0]）
+- `CurrentFloor = 0`，切关后进入 FloorTable[0]
+- 房间里没有怪，地图的 `AYogRoomDirector` 会在开局直接开门
 
 **典型用法**：作为游戏开局的大厅关卡，传送门通往第一个战斗关。
 
-> Is Hub Room 勾选后，BuffPool / EnemyPool / 难度档位等字段可以不填（系统会跳过）。传送门配置仍然生效——需在 PortalDestinations 中指定各门可前往的 DA_Room 池。
+> Is Hub Room 勾选后，BuffPool / EnemyPool / 难度档位等字段可以不填（系统会跳过）。传送门不在 DA_Room 里配置——目标关卡填在场景中每扇门的 `DestinationLevel` 上，详见 [传送门系统配置指南](Portal_ConfigGuide.md)。
 
 ---
 

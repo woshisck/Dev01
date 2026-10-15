@@ -27,9 +27,6 @@ class APortal;
 class AWeaponInstance;
 class AHubFacilityActor;
 class UYogSaveGame;
-class UBackpackStyleDataAsset;
-class UBackpackGridComponent;
-class UCombatDeckComponent;
 class UCombatItemComponent;
 class UPlayerActiveSkillComponent;
 class UBuffFlowComponent;
@@ -59,11 +56,6 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPlayerStateDelegate, EPlayerState, 
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FItemInteractEndDelegate, APlayerCharacterBase*, Character);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FItemInteractStartDelegate, APlayerCharacterBase*, Character, AActor*, actor);
-
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FHeatUpdateDelegate, const float, HeatPercent);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FMaxHeatUpdateDelegate, const float, MaxHeatValue);
-// 热度阶段变化（0=无热度, 1=白光, 2=绿光, 3=橙黄, 4=过热红光）
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FHeatPhaseDelegate, int32, Phase);
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FWeaponSwitchedDelegate);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FWeaponSkillChangedDelegate, UWeaponSkillDataAsset*, WeaponSkill);
@@ -151,12 +143,6 @@ public:
 	virtual void NotifyActorEndOverlap(AActor* OtherActor) override;
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
-	TObjectPtr<UBackpackGridComponent> BackpackGridComponent;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
-	TObjectPtr<UCombatDeckComponent> CombatDeckComponent;
-
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat Item")
 	TObjectPtr<UCombatItemComponent> CombatItemComponent;
 
@@ -213,40 +199,6 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "State")
 	FPlayerStateDelegate OnFPlayerStateDeleg;
-
-	// 热度阶段广播（由热度系统调用，武器 Instance 订阅以更新发光颜色）
-	UPROPERTY(BlueprintAssignable, Category = "Heat")
-	FHeatPhaseDelegate OnHeatPhaseChanged;
-
-	/** 热度升阶时的手柄震动效果（在角色蓝图 Details 中填入 ForceFeedbackEffect 资产） */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Heat|Feedback")
-	TObjectPtr<UForceFeedbackEffect> PhaseUpForceFeedback;
-
-	// ─── 热度升阶视觉光效（玩家身体）─────────────────────────────────────
-
-	/** 玩家骨骼网格 Overlay 材质（需含 SweepProgress / GlowAlpha / EmissiveColor 三个参数） */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Heat|Visual")
-	TObjectPtr<UMaterialInterface> PhaseUpPlayerOverlayMaterial;
-
-	/** 热度颜色配置（与背包格子颜色统一来源，填入 DA_BackpackStyle） */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Heat|Visual")
-	TObjectPtr<UBackpackStyleDataAsset> HeatStyleDA;
-
-	/** 扫射动画时长（秒） */
-	UPROPERTY(EditDefaultsOnly, Category = "Heat|Visual", meta = (ClampMin = "0.1"))
-	float GlowSweepDuration = 0.5f;
-
-	/** 扫射结束后边缘光保持时长（秒） */
-	UPROPERTY(EditDefaultsOnly, Category = "Heat|Visual", meta = (ClampMin = "0.0"))
-	float GlowHoldDuration = 3.0f;
-
-	/** 边缘光淡出时长（秒） */
-	UPROPERTY(EditDefaultsOnly, Category = "Heat|Visual", meta = (ClampMin = "0.1"))
-	float GlowFadeDuration = 0.5f;
-
-	/** 炫彩强度（玩家边缘 Fresnel 极强处的彩虹光，0=关闭，推荐 0.2–0.35） */
-	UPROPERTY(EditDefaultsOnly, Category = "Heat|Visual", meta = (ClampMin = "0", ClampMax = "1"))
-	float GlowIridIntensity = 0.28f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Damage Feedback")
 	bool bEnableDamageReceivedFeedback = true;
@@ -332,9 +284,6 @@ public:
 	UPROPERTY()
 	TObjectPtr<AWeaponSpawner> EquippedFromSpawner;
 
-	UFUNCTION(BlueprintPure, Category = "Backpack")
-	UBackpackGridComponent* GetBackpackGridComponent();
-
 	// 将符文加入待放置列表（由 GameMode 的 SelectLoot 调用）
 	UFUNCTION(BlueprintCallable, Category = "Backpack")
 	void AddRuneToInventory(const FRuneInstance& Rune);
@@ -346,9 +295,6 @@ public:
 	// 切关后从 GameInstance.PendingRunState 恢复 HP / 金币 / 符文 / 热度阶段
 	void RestoreRunStateFromGI();
 	void RestoreRunState(const FRunState& State);
-
-	// BeginPlay 时异步加载局外打造的起始符文并作为隐藏被动授予（新局/续局均执行）
-	void GrantCraftedStarterRunesAsync();
 
 	// BeginPlay 末尾重新 Link 武器动画层（GAS 授能可能覆盖切关时已 Link 的层）
 	void RelinkWeaponAnimLayer();
@@ -477,9 +423,6 @@ public:
 
 	friend UPlayerAttributeSet;
 
-	UFUNCTION(BlueprintPure, Category = "Heat")
-	int32 GetCurrentHeatPhase() const { return CurrentHeatPhase; }
-
 protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Camera")
@@ -495,15 +438,6 @@ protected:
 	TObjectPtr<AYogCameraPawn> CameraPawnActor;
 
 private:
-	void SetupHeatPhaseTagListeners();
-	void OnHeatPhaseTagChanged(const FGameplayTag Tag, int32 NewCount);
-	void OnHeatPhaseParentTagChanged(const FGameplayTag Tag, int32 NewCount);
-
-	/** 触发玩家身体扫射+边缘光效果 */
-	void StartPlayerPhaseGlow(int32 Phase);
-	/** Tick 内逐帧更新材质参数 */
-	void TickPlayerPhaseGlow(float DeltaTime);
-
 	UFUNCTION()
 	void HandleDamageReceivedFeedback(UYogAbilitySystemComponent* SourceASC, float Damage);
 
@@ -516,10 +450,8 @@ private:
 	void ApplyRecoveryCancelWeaponSwitchBonus();
 	void ClearRecoveryCancelBonus();
 
-	int32 CurrentHeatPhase = 0;
 	UPROPERTY()
 	TArray<FSacrificeOfferingCostState> ActiveSacrificeOfferingCosts;
-	float PhaseGlowElapsed = -1.f;
 	float DamageGlowElapsed = -1.f;
 	float PreviousDamageGlobalTimeDilation = 1.f;
 	FTSTicker::FDelegateHandle DamageTimeDilationTickerHandle;
@@ -528,7 +460,6 @@ private:
 	bool bRunStateRestoredFromGI = false;
 	FTimerHandle ReviveProtectionTimerHandle;
 	FTimerHandle RecoveryCancelBonusTimerHandle;
-	UPROPERTY() TObjectPtr<UMaterialInstanceDynamic> PlayerOverlayDynMat;
 	UPROPERTY() TObjectPtr<UMaterialInstanceDynamic> DamageOverlayDynMat;
 	UPROPERTY() TObjectPtr<UDamageEdgeFlashWidget> DamageEdgeFlashWidget;
 

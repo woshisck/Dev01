@@ -25,7 +25,7 @@
 
 - 在编辑器里运行一次生成器，生成或更新默认行为树、黑板、哨铃狱卒 DA、看守队长 DA 和对应 AbilityData 资产。
 - 在 `DA_Rat`、`DA_RottenGuard` 中按敌人定位微调 `MovementTuning`、`AwarenessTuning`、`AttackProfile`；默认值由生成器先写好。
-- 在攻击蒙太奇命中通知里配置老鼠流血、死亡守卫击退和霸体窗口。
+- 在攻击蒙太奇命中通知里配置老鼠流血和死亡守卫击退。
 - 制作 `BP_Enemy_AlarmBellJailer` 和 `BP_Enemy_GuardCaptain`，并把它们填入 `DA_AlarmBellJailer.EnemyClass`、`DA_GuardCaptain.EnemyClass`。
 - 为哨铃狱卒和看守队长补齐模型、AnimBP、蒙太奇、命中 Notify、召唤逻辑、队长号令 Buff 和低血火焰阶段效果。
 - 后续如需要固定巡逻路线，再扩展 PatrolRoute 资产；当前 V1 使用出生点周围随机巡逻。
@@ -244,7 +244,7 @@ Root
 | 攻击项 | AttackRole | 距离 | 权重 | 冷却 | 说明 |
 |---|---|---:|---:|---:|---|
 | `Sweep` | `CloseMelee` | 0-290 | 2 | 1.6 | 普通扫击 |
-| `Heavy` | `SpecialMovement` | 160-650 | 1 | 2.2 | 中远距离重攻击，距离大于 300 时会代码前冲，建议带前摇、击退和霸体窗口 |
+| `Heavy` | `SpecialMovement` | 160-650 | 1 | 2.2 | 中远距离重攻击，距离大于 300 时会代码前冲，建议带前摇和击退 |
 | `LAtk*` | `CloseMelee` | 0-260 | 2.5 | 0.9 | 由 `AbilityData` 中有效的 `Enemy.Melee.LAtk*` 自动补齐，用于近身丰富普通攻击池 |
 
 `Heavy` 默认前冲参数：
@@ -425,7 +425,7 @@ PIE 里检查：
 | `ApproachStyle` | `BruiserHold`，中远距离压制 |
 | `PreferredRange / AttackRange` | 650 / 900 |
 | `DetectionRadius / CombatEnterRadius` | 1200 / 950 |
-| `SuperArmorThreshold / Duration` | 4 / 2.2 |
+| `Resilience`（韧性池） | 180-220 |
 | `WhiffRepositionChance` | 0.6 |
 
 | 攻击项 | Tag | Role | 距离 | 冷却 | 说明 |

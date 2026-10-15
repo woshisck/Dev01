@@ -162,18 +162,19 @@ Story Director FA 是专为剧情引擎设计的 Flow Asset 类型，与 `ULevel
 
 | 属性 | 类型 | 说明 |
 | --- | --- | --- |
-| `PortalActorTag` | `FName` | 优先通过 Actor Tag 匹配（非空时优先于 Index） |
-| `PortalIndex` | `int32` | 按序号匹配；-1 = 忽略 |
+| `PortalActorTag` | `FName` | 按 Actor Tag 匹配；为空 = 匹配场景中所有门 |
 | `SelectedLevel` | `FName` | 目标关卡名；空 = 只启用不打开 |
-| `SelectedRoom` | `URoomDataAsset*` | 目标房间；null = 只启用不打开 |
+| `SelectedRoom` | `URoomDataAsset*` | 目标房间，可留空 |
 
 **引脚：** In → Out
 
 **执行逻辑：**
 
-1. `TActorIterator<APortal>` 遍历场景，匹配 Tag 或 Index
+1. `TActorIterator<APortal>` 遍历场景，按 Tag 过滤
 2. 调用 `EnablePortal()`（视觉激活）
-3. 若 `SelectedLevel` 非空且 `SelectedRoom` 非 null，追加调用 `Open(SelectedLevel, SelectedRoom, {})`
+3. 若 `SelectedLevel` 非空，追加调用 `Open(SelectedLevel, SelectedRoom, {})`
+
+> 本节点会覆盖门自己的 `DestinationLevel`。只想按门的既定目标开门时，交给地图的 `AYogRoomDirector` 即可。
 
 ---
 
@@ -189,21 +190,6 @@ Story Director FA 是专为剧情引擎设计的 Flow Asset 类型，与 `ULevel
 **引脚：** In → Out
 
 **说明：** 调用 `AYogGameMode::SetRoomRewardOptionsOverride()` 或 `ClearRoomRewardOptionsOverride()`。GameMode 不是 AYogGameMode 时打印 Warning 并跳过。
-
----
-
-### USNode_SetPortalOverride — 强制传送门目的地
-
-**分类：** `StoryDirector|Level`
-
-| 属性 | 类型 | 说明 |
-| --- | --- | --- |
-| `bClearOverride` | `bool` | true = 清除强制覆盖，恢复正常传送门逻辑 |
-| `PortalIndex` | `int32` | 强制目的地序号（bClearOverride=false 时生效）；默认 0 |
-
-**引脚：** In → Out
-
-**说明：** 调用 `AYogGameMode::SetForcedPortalOverride()` 或 `ClearForcedPortalOverride()`。
 
 ---
 
@@ -251,7 +237,6 @@ Story Director FA 是专为剧情引擎设计的 Flow Asset 类型，与 `ULevel
 | `SetQuestObjective` | `USNode_SetQuestObjective` | |
 | `SetActorEnabled` | `USNode_SetActorEnabled` | |
 | `SetRoomRewardOverride` | `USNode_SetRoomRewardOverride` | |
-| `SetPortalOverride` | `USNode_SetPortalOverride` | |
 | `SpawnRewardPickup` | `USNode_SpawnRewardPickup` | |
 | `PlayLevelFlow` | — | DA Actions[] 保留；Story FA 内不需要嵌套 Level FA |
 | `Dialogue` | — | 阶段二对话系统，暂缓 |

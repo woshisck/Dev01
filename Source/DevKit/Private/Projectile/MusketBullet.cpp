@@ -325,27 +325,6 @@ void AMusketBullet::ResolveCombatDeckOnHit()
         return;
     }
 
-    APlayerCharacterBase* PlayerSource = Cast<APlayerCharacterBase>(SourceCharacter);
-    if (!PlayerSource || !PlayerSource->CombatDeckComponent)
-    {
-        return;
-    }
-
-    FCombatDeckActionContext Context;
-    Context.ActionType = CombatDeckActionType;
-    Context.ActionSlot = CombatDeckActionSlot;
-    Context.FlowRole = bCombatDeckComboFinisher ? ECombatDeckFlowRole::Finisher : CombatDeckFlowRole;
-    Context.bIsComboFinisher = bCombatDeckComboFinisher;
-    Context.ReleaseMode = bCombatDeckComboFinisher ? ECombatCardReleaseMode::Finisher : ECombatCardReleaseMode::Normal;
-    Context.bFromDashSave = bCombatDeckFromDashSave;
-    Context.TriggerTiming = ECombatCardTriggerTiming::OnHit;
-    Context.AttackInstanceGuid = CombatDeckAttackInstanceGuid.IsValid()
-        ? CombatDeckAttackInstanceGuid
-        : FGuid::NewGuid();
-    Context.AttackDamage = CombatDeckAttackDamage > 0.f ? CombatDeckAttackDamage : DamageMagnitude;
-
-    const FCombatCardResolveResult Result = PlayerSource->CombatDeckComponent->ResolveAttackCardWithContext(Context);
-    bCombatDeckResolved = Result.bHadCard;
 }
 
 void AMusketBullet::Expire()

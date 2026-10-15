@@ -4,18 +4,18 @@
 
 ## 已有功能
 
-- `EnemyData` 已支持刷怪分数、行为树、移动调参、攻击配置、敌人专属 Buff、预生成 FX 和霸体参数。
+- `EnemyData` 已支持刷怪分数、行为树、移动调参、攻击配置、敌人专属 Buff 和预生成 FX。
 - 敌人攻击命中已通过 `AN_MeleeDamage` 配置伤害、动作韧性、命中事件和附加效果。
 - 敌人 BP 配置已拆到《敌人BP配置说明》，AI 行为树和黑板配置已拆到《敌人AI配置说明》。
 
 ## 待做功能
 
 - 在老鼠和死亡守卫的 `EnemyData` 中按本文填写数值，尤其是 `AttackProfile`。
-- 在攻击蒙太奇中补齐流血、击退、霸体窗口等动作通知。
+- 在攻击蒙太奇中补齐流血、击退等动作通知。
 - 确认 BP 和 AI 配置分别按独立文档完成。
 
 面向：策划 / 关卡设计  
-适用范围：敌人 AI、动作命中、霸体和敌人专属 Buff
+适用范围：敌人 AI、动作命中、韧性和敌人专属 Buff
 
 ## 1. 敌人基础 DA
 
@@ -27,8 +27,9 @@
 | `DifficultyScore` | 刷怪难度分，分越高越优先刷 | 老鼠 2；死亡守卫 7-9 |
 | `BehaviorTree` | 此敌人的行为树 | 必填优先；留空才用 AIController fallback |
 | `AttackProfile` | C++ 攻击任务读取的攻击列表 | 见第 2 节；先按 `AttackRole` 分支，再按距离、冷却、权重选招 |
-| `SuperArmorThreshold` | 连续受击几次后触发霸体，0 为不触发 | 老鼠 0；死亡守卫 2-3 |
-| `SuperArmorDuration` | 霸体持续秒数 | 死亡守卫 1.5-2.0 |
+| `Resilience` | 韧性池容量，决定被打出硬直需要的命中次数 | 老鼠 40-60；死亡守卫 120-160 |
+
+> 霸体（SuperArmor）机制已于 2026-10-15 整体移除，`SuperArmorThreshold` / `SuperArmorDuration` 字段不再存在。
 
 AI 移动和行为树配置见：
 
@@ -71,7 +72,7 @@ AI 移动和行为树配置见：
 | `AttackName` | `AttackRole` | `MinRange` | `MaxRange` | `Weight` | `Cooldown` | 程序位移 | 说明 |
 |---|---|---:|---:|---:|---:|---|---|
 | `Sweep` | `CloseMelee` | 0 | 290 | 2 | 1.6 | `None` | 中近距离普通扫击 |
-| `Heavy` | `SpecialMovement` | 160 | 650 | 1 | 2.2 | `RadialLunge` | 对应 `Enemy.Melee.HAtk2`，距离大于 300 时前冲，命中段可带击退和霸体窗口 |
+| `Heavy` | `SpecialMovement` | 160 | 650 | 1 | 2.2 | `RadialLunge` | 对应 `Enemy.Melee.HAtk2`，距离大于 300 时前冲，命中段可带击退 |
 
 死亡守卫 `Heavy` 的前冲参数推荐：
 
@@ -150,9 +151,9 @@ AI 移动和行为树配置见：
 | 动作 / Tag | 建议附加效果 |
 |---|---|
 | `Enemy.Melee.HAtk1` / `Sweep` | 普通高伤害或小击退 |
-| `Enemy.Melee.HAtk2` / `Heavy` | `AdditionalRuneEffects` 或 `OnHitEventTags` 绑定击退，蒙太奇前摇可挂霸体窗口 |
+| `Enemy.Melee.HAtk2` / `Heavy` | `AdditionalRuneEffects` 或 `OnHitEventTags` 绑定击退 |
 
-死亡守卫重攻击的霸体窗口用 `AnimNotifyState_AddGameplayTag` 添加 `Buff.Status.SuperArmor`，窗口结束自动移除。
+需要在动画窗口内临时授予状态 Tag 时用 `AnimNotifyState_AddGameplayTag`，窗口结束自动移除。
 
 死亡守卫“投掷小型敌人”本轮不实现。后续默认设计为：死亡守卫消耗附近小型敌人，投向玩家当前位置，落点有圆圈预警，落地范围伤害和减速，被投掷小怪命中或落地后死亡 / 隐藏。
 

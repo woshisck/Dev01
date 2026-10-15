@@ -140,7 +140,6 @@ private:
 	bool bIsHandlingMeleeEvent = false;
 	bool bActiveHoldMontage = false;
 	bool bHoldReleaseReceived = false;
-	bool bCombatDeckCardResolvedThisActivation = false;
 
 	UPROPERTY()
 	FCombatCardResolveResult ActiveCombatCardResult;

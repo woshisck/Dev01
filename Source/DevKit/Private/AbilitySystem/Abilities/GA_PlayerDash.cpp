@@ -319,27 +319,6 @@ void UGA_PlayerDash::ActivateAbility(
 
 	Task->ReadyForActivation();
 
-	if (bResolveCombatDeck && Player && Player->CombatDeckComponent)
-	{
-		FCombatDeckActionContext Context;
-		Context.ActionType = ECardRequiredAction::Any;
-		Context.ActionSlot = CombatDeckActionSlot;
-		Context.FlowRole = CombatDeckFlowRole;
-		Context.WeaponDef = Player->EquippedWeaponDef;
-		Context.bIsComboFinisher = CombatDeckFlowRole == ECombatDeckFlowRole::Finisher;
-		Context.ReleaseMode = Context.bIsComboFinisher ? ECombatCardReleaseMode::Finisher : ECombatCardReleaseMode::Normal;
-		Context.TriggerTiming = CombatDeckTriggerTiming;
-		Context.bConsumeOnCommit = CombatDeckTriggerTiming == ECombatCardTriggerTiming::OnCommit;
-		Context.AttackInstanceGuid = ActiveCombatDeckGuid;
-		Context.AbilityTag = FirstTag;
-
-		const FCombatCardResolveResult Result = Player->CombatDeckComponent->ResolveAttackCardWithContext(Context);
-		if (Result.bHadCard)
-		{
-			ActiveCombatCardResult = Result;
-		}
-	}
-
 	// 广播 Ability.Event.Dash 给玩家（BGC 事件驱动型符文监听此事件
 	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
 	{
@@ -373,18 +352,6 @@ void UGA_PlayerDash::EndAbility(
 	bool bWasCancelled)
 {
 	ACharacter* Character = Cast<ACharacter>(ActorInfo ? ActorInfo->AvatarActor.Get() : nullptr);
-	if (ActiveCombatCardResult.bHadCard)
-	{
-		if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(Character))
-		{
-			if (Player->CombatDeckComponent)
-			{
-				Player->CombatDeckComponent->StopCardFlow(ActiveCombatCardResult.ResolvedCard);
-				Player->CombatDeckComponent->StopCardFlow(ActiveCombatCardResult.LinkedSourceCard);
-				Player->CombatDeckComponent->StopCardFlow(ActiveCombatCardResult.LinkedTargetCard);
-			}
-		}
-	}
 	ActiveCombatCardResult = FCombatCardResolveResult();
 	ActiveCombatDeckGuid = FGuid();
 

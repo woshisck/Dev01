@@ -58,7 +58,6 @@ enum class EStoryEncounterActionKind : uint8
 	Deprecated_TutorialAreaHint UMETA(Hidden),
 	SpawnRewardPickup UMETA(DisplayName = "Spawn Reward Pickup"),
 	SetRoomRewardOverride UMETA(DisplayName = "Set Room Reward Override"),
-	SetPortalOverride UMETA(DisplayName = "Set Portal Override"),
 };
 
 USTRUCT(BlueprintType)
@@ -170,12 +169,6 @@ struct DEVKIT_API FStoryEncounterAction
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Action|Reward Override")
 	EStoryRewardOverrideTarget RewardOverrideTarget = EStoryRewardOverrideTarget::CurrentRoom;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Action|Portal Override")
-	int32 ForcedPortalIndex = 0;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Action|Portal Override")
-	bool bClearPortalOverride = false;
 };
 
 USTRUCT(BlueprintType)

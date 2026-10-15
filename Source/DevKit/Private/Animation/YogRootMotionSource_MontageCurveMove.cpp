@@ -42,8 +42,7 @@ bool FYogRootMotionSource_MontageCurveMove::Matches(const FRootMotionSource* Oth
 	// Safe cast: FRootMotionSource::Matches() already established ScriptStruct equality.
 	const FYogRootMotionSource_MontageCurveMove* OtherCast = static_cast<const FYogRootMotionSource_MontageCurveMove*>(Other);
 
-	return Montage == OtherCast->Montage
-		&& FVector::PointsAreNear(Direction, OtherCast->Direction, 0.1f);
+	return Montage == OtherCast->Montage;
 }
 
 void FYogRootMotionSource_MontageCurveMove::PrepareRootMotion(
@@ -81,6 +80,11 @@ void FYogRootMotionSource_MontageCurveMove::PrepareRootMotion(
 			bHasPreviousCurveValue = true;
 		}
 
+		// Re-read every tick so rotation applied while the montage plays steers the travel.
+		FVector Direction = Character.GetActorForwardVector();
+		Direction.Z = 0.f;
+		Direction = Direction.GetSafeNormal();
+
 		// RootMotionParams translation is consumed as a velocity, so convert the distance
 		// the curve advanced this tick back into cm/s.
 		Velocity = Direction * ((CurveValue - PreviousCurveValue) / MovementTickTime);
@@ -88,10 +92,11 @@ void FYogRootMotionSource_MontageCurveMove::PrepareRootMotion(
 		PreviousPosition = Position;
 
 		UE_LOG(LogYogMontageMove, Verbose,
-			TEXT("Prepare %s: Pos=%.3f Curve=%.2f Vel=%s MoveMode=%d"),
+			TEXT("Prepare %s: Pos=%.3f Curve=%.2f Dir=%s Vel=%s MoveMode=%d"),
 			*GetNameSafe(Montage),
 			Position,
 			CurveValue,
+			*Direction.ToCompactString(),
 			*Velocity.ToCompactString(),
 			static_cast<int32>(MoveComponent.MovementMode.GetValue()));
 	}
@@ -114,7 +119,6 @@ bool FYogRootMotionSource_MontageCurveMove::NetSerialize(FArchive& Ar, UPackageM
 		return false;
 	}
 
-	Ar << Direction;
 	Ar << Montage;
 
 	bOutSuccess = true;

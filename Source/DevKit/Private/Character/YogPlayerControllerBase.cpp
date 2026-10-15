@@ -190,7 +190,6 @@ void AYogPlayerControllerBase::OnPossess(APawn* InPawn)
 			if (APlayerCharacterBase* DeferredPlayer = WeakPlayer.Get())
 			{
 				DeferredPlayer->RestoreRunStateFromGI();
-				DeferredPlayer->GrantCraftedStarterRunesAsync();
 			}
 		}));
 	}

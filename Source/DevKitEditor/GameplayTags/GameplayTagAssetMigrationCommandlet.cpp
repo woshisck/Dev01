@@ -201,7 +201,6 @@ namespace GameplayTagAssetMigration
 			AddExact(Migrations, TEXT("Character.State.Feared"), TEXT("Buff.Fear"));
 			AddExact(Migrations, TEXT("Character.State.Frozen"), TEXT("Buff.Freeze"));
 			AddExact(Migrations, TEXT("Character.State.Stunned"), TEXT("Buff.Stun"));
-			AddExact(Migrations, TEXT("Character.State.SuperArmor"), TEXT("Buff.SuperArmor"));
 
 			AddExact(Migrations, TEXT("Tutorial.Hint.HeavyCard"), TEXT("Tutorial.Hint.WeaponSkillFinisher"));
 			AddExact(Migrations, TEXT("Story.Encounter.Progress.EM_FirstRun_Tutorial.first_run.heavy_card_obtained"), TEXT("Story.Encounter.Progress.EM_FirstRun_Tutorial.first_run.weapon_skill_finisher_obtained"));

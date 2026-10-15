@@ -299,11 +299,6 @@ void AYogCharacterBase::PossessedBy(AController* NewController)
 {
 	Super::PossessedBy(NewController);
 
-
-	//const FMovementData& moveData = CharacterData->GetMovementData();
-	//const FYogBaseAttributeData& characterData = CharacterData->GetBaseAttributeData();
-	//BaseAttributeSet->Init(CharacterData);
-
 	HealthChangedDelegateHandle = GetASC()->GetGameplayAttributeValueChangeDelegate(BaseAttributeSet->GetHealthAttribute()).AddUObject(this, &AYogCharacterBase::HealthChanged);
 	MaxHealthChangedDelegateHandle = GetASC()->GetGameplayAttributeValueChangeDelegate(BaseAttributeSet->GetMaxHealthAttribute()).AddUObject(this, &AYogCharacterBase::MaxHealthChanged);
 
@@ -513,13 +508,7 @@ void AYogCharacterBase::HealthChanged(const FOnAttributeChangeData& Data)
 	const bool bSuppressDamageFeedback = AbilitySystemComponent && AbilitySystemComponent->ConsumeSuppressNextDamageFeedback();
 	if (Data.NewValue < Data.OldValue && IsAlive() && AbilitySystemComponent && !bSuppressDamageFeedback)
 	{
-		// HitReact is driven by ReceiveDamage so poise and super-armor can gate it.
-		if (!AbilitySystemComponent->HasMatchingGameplayTag(
-			FGameplayTag::RequestGameplayTag(TEXT("Buff.SuperArmor"), false)))
-		{
-			// Temporarily disabled so hit-impact VFX/sound can be reviewed without the white mesh overlay.
-			StartHitFlash();
-		}
+		StartHitFlash();
 	}
 
 	if (!IsAlive() && !bIsDead)
@@ -723,7 +712,12 @@ void AYogCharacterBase::InitializeStats(const FYogBaseAttributeData* attributeDa
 		AttributeStatsComponent->OverrideAttribute(BaseAttributeSet->GetMoveSpeedAttribute(), attributeData->MoveSpeed);
 		AttributeStatsComponent->OverrideAttribute(BaseAttributeSet->GetDodgeAttribute(), attributeData->Dodge);
 
-		AttributeStatsComponent->OverrideAttribute(BaseAttributeSet->GetResilienceAttribute(), attributeData->Resilience);
+		if (AbilitySystemComponent && attributeData->Resilience > 0.f)
+		{
+			AbilitySystemComponent->MaxPoise = attributeData->Resilience;
+		}
+		AttributeStatsComponent->OverrideAttribute(BaseAttributeSet->GetResilienceAttribute(),
+			AbilitySystemComponent ? AbilitySystemComponent->MaxPoise : attributeData->Resilience);
 		AttributeStatsComponent->OverrideAttribute(BaseAttributeSet->GetResistAttribute(), attributeData->Resist);
 
 		AttributeStatsComponent->OverrideAttribute(BaseAttributeSet->GetDmgTakenAttribute(), attributeData->DmgTaken);
@@ -795,46 +789,8 @@ void AYogCharacterBase::StopPreAttackFlash()
 {
 	bPreAttackActive = false;
 
-	if (HitFlashElapsed < 0.f && !bSuperArmorFlashActive && !bFinisherAuraFlashActive)
+	if (HitFlashElapsed < 0.f && !bFinisherAuraFlashActive)
 	{
-		GetMesh()->SetOverlayMaterial(nullptr);
-	}
-}
-
-void AYogCharacterBase::StartSuperArmorFlash()
-{
-	StartSuperArmorFlashWithMode(true);
-}
-
-void AYogCharacterBase::StartSuperArmorFlashWithMode(bool bShouldPulse)
-{
-	if (!CharacterFlashMaterial) return;
-
-	if (!FlashDynMat)
-		FlashDynMat = UMaterialInstanceDynamic::Create(CharacterFlashMaterial, this);
-
-	GetMesh()->SetOverlayMaterial(FlashDynMat);
-	bSuperArmorFlashActive  = true;
-	bSuperArmorFlashPulsing = bShouldPulse;
-	SuperArmorFlashElapsed  = 0.f;
-
-	if (!bShouldPulse)
-	{
-		FlashDynMat->SetVectorParameterValue(TEXT("FlashColor"), FLinearColor(5.f, 3.f, 0.f));
-		FlashDynMat->SetScalarParameterValue(TEXT("FlashAlpha"), SuperArmorStableAlpha);
-	}
-}
-
-void AYogCharacterBase::StopSuperArmorFlash()
-{
-	bSuperArmorFlashActive = false;
-	bSuperArmorFlashPulsing = true;
-	SuperArmorFlashElapsed = 0.f;
-
-	if (HitFlashElapsed < 0.f && !bPreAttackActive && !bFinisherAuraFlashActive)
-	{
-		if (FlashDynMat)
-			FlashDynMat->SetScalarParameterValue(TEXT("FlashAlpha"), 0.f);
 		GetMesh()->SetOverlayMaterial(nullptr);
 	}
 }
@@ -858,7 +814,7 @@ void AYogCharacterBase::StopFinisherAuraFlash()
 	bFinisherAuraFlashActive = false;
 	FinisherAuraFlashElapsed = 0.f;
 
-	if (HitFlashElapsed < 0.f && !bSuperArmorFlashActive && !bPreAttackActive)
+	if (HitFlashElapsed < 0.f && !bPreAttackActive)
 	{
 		if (FlashDynMat)
 		{
@@ -886,13 +842,13 @@ void AYogCharacterBase::TickCharacterFlash(float DeltaTime)
 		{
 			HitFlashElapsed = -1.f;
 
-			if (!bSuperArmorFlashActive && !bPreAttackActive && !bFinisherAuraFlashActive)
+			if (!bPreAttackActive && !bFinisherAuraFlashActive)
 				GetMesh()->SetOverlayMaterial(nullptr);
 		}
 		return;
 	}
 
-	// ── 霸体金光脉冲（第二优先级）────────────────────────────────────────────
+	// ── 终结技金光脉冲（第二优先级）──────────────────────────────────────────
 	if (bFinisherAuraFlashActive && FlashDynMat)
 	{
 		FinisherAuraFlashElapsed += DeltaTime;
@@ -900,21 +856,6 @@ void AYogCharacterBase::TickCharacterFlash(float DeltaTime)
 
 		FlashDynMat->SetVectorParameterValue(TEXT("FlashColor"), FLinearColor(6.f, 4.f, 0.35f));
 		FlashDynMat->SetScalarParameterValue(TEXT("FlashAlpha"), Alpha * FinisherAuraMaxAlpha);
-		return;
-	}
-
-	if (bSuperArmorFlashActive && FlashDynMat)
-	{
-		if (bSuperArmorFlashPulsing)
-		{
-			SuperArmorFlashElapsed += DeltaTime;
-		}
-		const float Alpha = bSuperArmorFlashPulsing
-			? FMath::Abs(FMath::Sin(SuperArmorFlashElapsed * SuperArmorPulseFreq * PI))
-			: SuperArmorStableAlpha;
-
-		FlashDynMat->SetVectorParameterValue(TEXT("FlashColor"), FLinearColor(5.f, 3.f, 0.f));
-		FlashDynMat->SetScalarParameterValue(TEXT("FlashAlpha"), Alpha);
 		return;
 	}
 

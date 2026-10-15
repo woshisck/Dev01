@@ -185,15 +185,6 @@ public:
 
 	const TArray<FLootOption>& GetRoomRewardOptionsOverride() const { return RoomRewardOptionsOverride; }
 
-	UFUNCTION(BlueprintCallable, Category = "LevelFlow|Story Override")
-	void SetForcedPortalOverride(int32 PortalIndex);
-
-	UFUNCTION(BlueprintCallable, Category = "LevelFlow|Story Override")
-	void ClearForcedPortalOverride();
-
-	UFUNCTION(BlueprintPure, Category = "LevelFlow|Story Override")
-	bool HasForcedPortalOverride() const { return bHasForcedPortalOverride; }
-
 	// 进关后延迟多少秒再开始刷怪（给特效/动画和 AI 初始化预留时间）
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LevelFlow", meta = (ClampMin = "0.0"))
 	float InitialSpawnDelay = 1.5f;
@@ -239,9 +230,6 @@ public:
 	// Portal 触发切关：保存跑局状态（含选定房间）后 OpenLevel（由 APortal::EnterPortal 调用）
 	UFUNCTION(BlueprintCallable, Category = "LevelFlow")
 	void TransitionToLevel(FName NextLevel, URoomDataAsset* NextRoom = nullptr);
-
-	UFUNCTION(BlueprintCallable, Category = "LevelFlow")
-	void NotifyPlayerWeaponEquipped(APlayerCharacterBase* Player);
 
 	UFUNCTION(BlueprintCallable, Category = "GameOver")
 	void HandlePlayerDeath(APlayerCharacterBase* Player);
@@ -316,10 +304,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Campaign")
 	TObjectPtr<UCampaignDataAsset> CampaignData;
 
-	// Hub portals stay sealed until the player is carrying a weapon.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Campaign")
-	bool bInitialRoomPortalsRequireWeapon = true;
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Campaign|StoryEvent")
 	TObjectPtr<UStoryEventRegistryDA> StoryEventRegistry;
 
@@ -355,30 +339,16 @@ public:
 	void HandleLifecycleEnemySpawned(AEnemyCharacterBase* SpawnedEnemy, FBuffFlowLifecycleContext& Context);
 	void HandleLifecycleEnemySpawnFailed(FBuffFlowLifecycleContext& Context);
 
-	/**
-	 * 根据当前总难度分选取房间的难度档位（Low / Medium / High）。
-	 * 公共静态：StartLevelSpawning（当前关）和 ActivatePortals 预骰下一关 Buff 时共用，
-	 * 避免选档逻辑漂移。
-	 */
-	static const FRoomDifficultyTier& ResolveTier(const URoomDataAsset& Room, int32 TotalScore,
-	                                              int32 LowMax, int32 HighMin);
-
 protected:
 	virtual void HandleStartingNewPlayer_Implementation(APlayerController* NewPlayer) override;
 
-	// ---- 传送门激活 ----
-	void ActivatePortals();
-
-	// 主城/枢纽房间：立即全开所有已配置的传送门（不走 50% 随机规则）
-	void ActivateHubPortals();
-	bool ShouldDelayInitialRoomPortalsUntilWeapon() const;
 	void EnsureHubActiveSkillTerminal();
 
 	// 根据 FFloorConfig 的概率权重骰出此关的房间类型 Tag（Room.Type.Normal/Elite/Shop/Event）
 	FGameplayTag RollRoomTypeForFloor(const FFloorConfig& Config);
 
-	// 按类型 Tag 选取 DA_Room：先查传送门专属 RoomPool，再查 Campaign 全局 RoomPool，最后退化为 Normal
-	URoomDataAsset* SelectRoomByTag(const FPortalDestConfig* PortalDest, FGameplayTag RequiredTag);
+	// 按类型 Tag 从 Campaign 全局 RoomPool 选取 DA_Room，找不到时退化为 Normal
+	URoomDataAsset* SelectRoomByTag(FGameplayTag RequiredTag);
 
 	// ---- 刷怪算法 ----
 
@@ -562,12 +532,6 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Transient, Category = "LevelFlow|Story Override", meta = (AllowPrivateAccess = "true"))
 	TArray<FLootOption> RoomRewardOptionsOverride;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Transient, Category = "LevelFlow|Story Override", meta = (AllowPrivateAccess = "true"))
-	bool bHasForcedPortalOverride = false;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Transient, Category = "LevelFlow|Story Override", meta = (AllowPrivateAccess = "true"))
-	int32 ForcedPortalOverrideIndex = 0;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Transient, Category = "Campaign", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UCampaignDataAsset> ActiveCampaignData;

@@ -468,13 +468,14 @@ FString UDataEditorLibrary::ExportEnemyAIToCSV(const FString& OutFilePath)
 	PF.CreateDirectoryTree(*FPaths::GetPath(Path));
 
 	FString Csv;
-	Csv += TEXT("AssetName,DifficultyScore,DetectionRadius,CombatEnterRadius,PreferredRange,AttackRange,StrafeChance,MaxWalkSpeedOverride,SuperArmorThreshold\n");
+	Csv += TEXT("AssetName,DifficultyScore,DetectionRadius,CombatEnterRadius,PreferredRange,AttackRange,StrafeChance,MaxWalkSpeedOverride,Resilience\n");
 	for (UEnemyData* DA : All)
 	{
 		if (!DA) continue;
 		const FEnemyAIMovementTuning& Mv = DA->MovementTuning;
 		const FEnemyAIAwarenessTuning& Aw = DA->AwarenessTuning;
-		Csv += FString::Printf(TEXT("%s,%d,%.1f,%.1f,%.1f,%.1f,%.2f,%.1f,%d\n"),
+		const FYogBaseAttributeData* Attr = DA->GetBaseAttributeData();
+		Csv += FString::Printf(TEXT("%s,%d,%.1f,%.1f,%.1f,%.1f,%.2f,%.1f,%.1f\n"),
 			*CsvEscape(DA->GetName()),
 			DA->DifficultyScore,
 			Aw.DetectionRadius,
@@ -483,7 +484,7 @@ FString UDataEditorLibrary::ExportEnemyAIToCSV(const FString& OutFilePath)
 			Mv.AttackRange,
 			Mv.StrafeChance,
 			Mv.MaxWalkSpeedOverride,
-			DA->SuperArmorThreshold);
+			Attr ? Attr->Resilience : 0.f);
 	}
 
 	if (!FFileHelper::SaveStringToFile(Csv, *Path, FFileHelper::EEncodingOptions::ForceUTF8))

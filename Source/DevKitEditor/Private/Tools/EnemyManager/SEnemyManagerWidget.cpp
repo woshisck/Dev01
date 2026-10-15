@@ -1391,9 +1391,6 @@ bool SEnemyManagerWidget::IsPropertyVisible(const FPropertyAndParent& PropertyAn
 			GET_MEMBER_NAME_CHECKED(UEnemyData, EnemyBuffPool),
 			GET_MEMBER_NAME_CHECKED(UEnemyData, MovementTuning),
 			GET_MEMBER_NAME_CHECKED(UEnemyData, AwarenessTuning),
-			GET_MEMBER_NAME_CHECKED(UEnemyData, AttackProfile),
-			GET_MEMBER_NAME_CHECKED(UEnemyData, SuperArmorThreshold),
-			GET_MEMBER_NAME_CHECKED(UEnemyData, SuperArmorDuration),
 			GET_MEMBER_NAME_CHECKED(UEnemyData, RecentlyDamagedStateDuration),
 		});
 	case EEnemyManagerPage::SpawnAndRewards:

@@ -168,108 +168,26 @@ namespace EnemyAITemplateGenerator
 		Blackboard.MarkPackageDirty();
 	}
 
-	FEnemyAIAttackOption MakeAttackOption(
-		const TCHAR* AttackName,
-		const TCHAR* TagName,
-		float MinRange,
-		float MaxRange,
-		float Weight,
-		float Cooldown,
-		EEnemyAIAttackRole AttackRole = EEnemyAIAttackRole::CloseMelee,
-		EEnemyAIAttackMovementMode MovementMode = EEnemyAIAttackMovementMode::None,
-		float LungeStartRange = 0.0f,
-		float LungeDistance = 0.0f,
-		float LungeDuration = 0.35f,
-		float MovementAttackRangeMultiplier = 2.5f,
-		float MovementAttackCooldown = 10.0f,
-		float MinHealthPercent = 0.0f,
-		float MaxHealthPercent = 1.0f,
-		bool bRequestRepositionOnResolve = false,
-		float RepositionAngleMin = 60.0f,
-		float RepositionAngleMax = 120.0f,
-		bool bPreAttackFlash = true)
+	// Attack definition authored onto a single StateTree state. The state name identifies the
+	// attack; selection order is the order states are added to Combat.
+	struct FAttackStateSpec
 	{
-		FEnemyAIAttackOption Option;
-		Option.AttackName = FName(AttackName);
-		Option.MinRange = MinRange;
-		Option.MaxRange = MaxRange;
-		Option.Weight = Weight;
-		Option.Cooldown = Cooldown;
-		Option.bPreAttackFlash = bPreAttackFlash;
-		Option.MinHealthPercent = MinHealthPercent;
-		Option.MaxHealthPercent = MaxHealthPercent;
-		Option.AttackRole = AttackRole;
-		Option.AttackMovementMode = MovementMode;
-		Option.LungeStartRange = LungeStartRange;
-		Option.LungeDistance = LungeDistance;
-		Option.LungeDuration = LungeDuration;
-		Option.MovementAttackRangeMultiplier = MovementAttackRangeMultiplier;
-		Option.MovementAttackCooldown = MovementAttackCooldown;
-		Option.bRequestRepositionOnResolve = bRequestRepositionOnResolve;
-		Option.RepositionAngleMin = RepositionAngleMin;
-		Option.RepositionAngleMax = RepositionAngleMax;
+		const TCHAR* StateName = nullptr;
+		TArray<const TCHAR*> TagNames;
+		float MinRange = 0.f;
+		float MaxRange = 300.f;
+		float Cooldown = 1.f;
+		bool bPreAttackFlash = true;
+		bool bIsReposition = false;
+		bool bRequestRepositionOnResolve = false;
+		float MinHealthPercent = 0.f;
+		float MaxHealthPercent = 1.f;
+	};
 
-		const FGameplayTag AbilityTag = FGameplayTag::RequestGameplayTag(FName(TagName), false);
-		if (AbilityTag.IsValid())
-		{
-			Option.AbilityTags.AddTag(AbilityTag);
-		}
-
-		return Option;
-	}
-
-	void UpsertAttackOption(FEnemyAIAttackProfile& AttackProfile, const FEnemyAIAttackOption& Option)
-	{
-		for (FEnemyAIAttackOption& Existing : AttackProfile.Attacks)
-		{
-			if (Existing.AttackName == Option.AttackName)
-			{
-				Existing = Option;
-				return;
-			}
-		}
-
-		AttackProfile.Attacks.Add(Option);
-	}
-
-	bool AttackOptionHasAbilityTag(const FEnemyAIAttackOption& Option, const FGameplayTag& AbilityTag)
-	{
-		return AbilityTag.IsValid() && Option.AbilityTags.HasTagExact(AbilityTag);
-	}
-
-	bool AttackProfileHasAbilityTag(const FEnemyAIAttackProfile& AttackProfile, const FGameplayTag& AbilityTag)
-	{
-		for (const FEnemyAIAttackOption& Attack : AttackProfile.Attacks)
-		{
-			if (AttackOptionHasAbilityTag(Attack, AbilityTag))
-			{
-				return true;
-			}
-		}
-		return false;
-	}
-
-	void UpsertAttackOptionByTag(FEnemyAIAttackProfile& AttackProfile, const FEnemyAIAttackOption& Option)
-	{
-		for (const FGameplayTag& AbilityTag : Option.AbilityTags)
-		{
-			if (!AbilityTag.IsValid())
-			{
-				continue;
-			}
-
-			for (FEnemyAIAttackOption& Existing : AttackProfile.Attacks)
-			{
-				if (AttackOptionHasAbilityTag(Existing, AbilityTag))
-				{
-					Existing = Option;
-					return;
-				}
-			}
-		}
-
-		UpsertAttackOption(AttackProfile, Option);
-	}
+	// ST_Enemy_DefaultMelee is shared by every default-melee enemy, so its engage distances
+	// are tree-level constants rather than per-enemy MovementTuning. Sized for the Rat.
+	constexpr float MeleeEngageRange = 180.f;
+	constexpr float MeleeStopDistance = 150.f;
 
 	void EnsureGASTemplateAbility(UGASTemplate& GASTemplate, TSubclassOf<UYogGameplayAbility> AbilityClass)
 	{
@@ -313,120 +231,6 @@ namespace EnemyAITemplateGenerator
 		EnsureGASTemplateAbility(GASTemplate, UGA_Enemy_Skill4::StaticClass());
 	}
 
-	FString GetAttackNameFromTag(const FGameplayTag& AbilityTag)
-	{
-		const FString TagString = AbilityTag.ToString();
-		int32 LastDotIndex = INDEX_NONE;
-		return TagString.FindLastChar(TEXT('.'), LastDotIndex) ? TagString.RightChop(LastDotIndex + 1) : TagString;
-	}
-
-	bool IsGeneratedAttackTag(const FString& TagString)
-	{
-		return TagString.StartsWith(TEXT("Enemy.Melee."))
-			|| TagString.StartsWith(TEXT("Enemy.Range."))
-			|| TagString.StartsWith(TEXT("Enemy.Skill."));
-	}
-
-	FEnemyAIAttackOption MakeGeneratedAttackOptionFromAbilityTag(const UEnemyData& EnemyData, const FGameplayTag& AbilityTag)
-	{
-		const FString TagString = AbilityTag.ToString();
-		const FString AttackName = GetAttackNameFromTag(AbilityTag);
-		const float CloseAttackRange = FMath::Max(EnemyData.MovementTuning.AttackRange, 1.0f);
-
-		if (TagString.StartsWith(TEXT("Enemy.Skill.")))
-		{
-			const float SkillRange = FMath::Max(EnemyData.AwarenessTuning.CombatEnterRadius, CloseAttackRange);
-			return MakeAttackOption(
-				*AttackName,
-				*TagString,
-				0.0f,
-				SkillRange,
-				1.0f,
-				15.0f,
-				EEnemyAIAttackRole::Skill);
-		}
-
-		if (TagString.StartsWith(TEXT("Enemy.Range.")))
-		{
-			const float RangedMax = FMath::Max(EnemyData.AwarenessTuning.CombatEnterRadius, CloseAttackRange);
-			const float RangedMin = TagString.Contains(TEXT(".HAtk")) ? CloseAttackRange : 0.0f;
-			return MakeAttackOption(
-				*AttackName,
-				*TagString,
-				RangedMin,
-				RangedMax,
-				TagString.Contains(TEXT(".HAtk")) ? 1.2f : 2.0f,
-				TagString.Contains(TEXT(".HAtk")) ? 4.0f : 2.2f,
-				EEnemyAIAttackRole::Skill);
-		}
-
-		if (TagString.Contains(TEXT(".LAtk")))
-		{
-			return MakeAttackOption(
-				*AttackName,
-				*TagString,
-				0.0f,
-				CloseAttackRange,
-				2.5f,
-				0.9f,
-				EEnemyAIAttackRole::CloseMelee);
-		}
-
-		const float HeavyCloseRange = FMath::Max(CloseAttackRange + EnemyData.MovementTuning.AttackRangeExitBuffer, CloseAttackRange);
-		return MakeAttackOption(
-			*AttackName,
-			*TagString,
-			0.0f,
-			HeavyCloseRange,
-			1.25f,
-			1.4f,
-			EEnemyAIAttackRole::CloseMelee);
-	}
-
-	void SyncAttackProfileFromAbilityData(UEnemyData& EnemyData)
-	{
-		const UAbilityData* AbilityData = EnemyData.AbilityData;
-		if (!AbilityData)
-		{
-			return;
-		}
-
-		TArray<FGameplayTag> ValidAttackTags;
-		auto AddValidAttackTag = [&ValidAttackTags, AbilityData](const FGameplayTag& AbilityTag)
-		{
-			const FString TagString = AbilityTag.ToString();
-			if (!AbilityTag.IsValid() || !IsGeneratedAttackTag(TagString) || !AbilityData->HasAbility(AbilityTag))
-			{
-				return;
-			}
-			ValidAttackTags.AddUnique(AbilityTag);
-		};
-
-		for (const TPair<FGameplayTag, TObjectPtr<UAnimMontage>>& MontageEntry : AbilityData->MontageMap)
-		{
-			AddValidAttackTag(MontageEntry.Key);
-		}
-		for (const TPair<FGameplayTag, FAbilityMontageConfigList>& ConfigEntry : AbilityData->MontageConfigMap)
-		{
-			AddValidAttackTag(ConfigEntry.Key);
-		}
-
-		ValidAttackTags.Sort([](const FGameplayTag& A, const FGameplayTag& B)
-		{
-			return A.ToString() < B.ToString();
-		});
-
-		for (const FGameplayTag& AbilityTag : ValidAttackTags)
-		{
-			if (AttackProfileHasAbilityTag(EnemyData.AttackProfile, AbilityTag))
-			{
-				continue;
-			}
-
-			EnemyData.AttackProfile.Attacks.Add(MakeGeneratedAttackOptionFromAbilityTag(EnemyData, AbilityTag));
-		}
-	}
-
 	void ConfigureDefaultEnemyData(UEnemyData& EnemyData, EDefaultEnemyProfile Profile)
 	{
 		FEnemyAIAwarenessTuning Awareness;
@@ -440,8 +244,6 @@ namespace EnemyAITemplateGenerator
 		Awareness.PatrolWaitMin = 0.6f;
 		Awareness.PatrolWaitMax = 1.5f;
 		EnemyData.AwarenessTuning = Awareness;
-		EnemyData.AttackProfile.RecentAttackMemoryDuration = 2.0f;
-		EnemyData.AttackProfile.RepeatAttackWeightMultiplier = 0.25f;
 
 		switch (Profile)
 		{
@@ -462,8 +264,6 @@ namespace EnemyAITemplateGenerator
 			EnemyData.MovementTuning.MaxWalkSpeedOverride = 0.f;
 			EnemyData.MovementTuning.CombatSlotLockDuration = 1.2f;
 			EnemyData.MovementTuning.AttackRangeExitBuffer = 40.f;
-			UpsertAttackOptionByTag(EnemyData.AttackProfile, MakeAttackOption(TEXT("QuickBite"), TEXT("Enemy.Melee.LAtk1"), 0.f, 170.f, 2.0f, 0.8f));
-			UpsertAttackOptionByTag(EnemyData.AttackProfile, MakeAttackOption(TEXT("Bite"), TEXT("Enemy.Melee.LAtk2"), 0.f, 180.f, 1.0f, 1.1f));
 			break;
 
 		case EDefaultEnemyProfile::RottenGuard:
@@ -483,21 +283,6 @@ namespace EnemyAITemplateGenerator
 			EnemyData.MovementTuning.MaxWalkSpeedOverride = 420.f;
 			EnemyData.MovementTuning.CombatSlotLockDuration = 0.4f;
 			EnemyData.MovementTuning.AttackRangeExitBuffer = 40.f;
-			UpsertAttackOptionByTag(EnemyData.AttackProfile, MakeAttackOption(TEXT("Sweep"), TEXT("Enemy.Melee.HAtk1"), 0.f, 290.f, 2.0f, 1.6f));
-			UpsertAttackOptionByTag(EnemyData.AttackProfile, MakeAttackOption(
-				TEXT("Heavy"),
-				TEXT("Enemy.Melee.HAtk2"),
-				160.f,
-				650.f,
-				1.0f,
-				2.2f,
-				EEnemyAIAttackRole::SpecialMovement,
-				EEnemyAIAttackMovementMode::RadialLunge,
-				300.f,
-				280.f,
-				0.35f,
-				2.5f,
-				10.0f));
 			break;
 
 		case EDefaultEnemyProfile::AlarmBellJailer:
@@ -525,30 +310,13 @@ namespace EnemyAITemplateGenerator
 			EnemyData.MovementTuning.MaxWalkSpeedOverride = 360.f;
 			EnemyData.MovementTuning.CombatSlotLockDuration = 0.4f;
 			EnemyData.MovementTuning.AttackRangeExitBuffer = 70.f;
-			EnemyData.AttackProfile.WhiffRepositionChance = 0.75f;
-
-			UpsertAttackOptionByTag(EnemyData.AttackProfile, MakeAttackOption(TEXT("BellAlarm"), TEXT("Enemy.Skill.Skill1"), 250.f, 900.f, 2.2f, 14.0f, EEnemyAIAttackRole::Skill));
-			UpsertAttackOptionByTag(EnemyData.AttackProfile, MakeAttackOption(TEXT("BellShock"), TEXT("Enemy.Skill.Skill2"), 0.f, 520.f, 1.0f, 9.0f, EEnemyAIAttackRole::Skill));
-
-			FEnemyAIAttackOption BatonShove = MakeAttackOption(TEXT("BatonShove"), TEXT("Enemy.Melee.LAtk1"), 0.f, 220.f, 1.0f, 2.4f);
-			BatonShove.bRequestRepositionOnResolve = true;
-			UpsertAttackOptionByTag(EnemyData.AttackProfile, BatonShove);
-
-			FEnemyAIAttackOption PanicRetreat = MakeAttackOption(TEXT("PanicRetreat"), TEXT("Enemy.Melee.LAtk2"), 0.f, 700.f, 1.0f, 4.0f, EEnemyAIAttackRole::Reposition);
-			PanicRetreat.bPreAttackFlash = false;
-			PanicRetreat.LungeDistance = 360.f;
-			PanicRetreat.LungeDuration = 0.4f;
-			PanicRetreat.RepositionAngleMin = 0.f;
-			PanicRetreat.RepositionAngleMax = 25.f;
-			UpsertAttackOptionByTag(EnemyData.AttackProfile, PanicRetreat);
+			EnemyData.MovementTuning.WhiffRepositionChance = 0.75f;
 			break;
 		}
 
 		case EDefaultEnemyProfile::GuardCaptain:
 		{
 			EnemyData.DifficultyScore = 10;
-			EnemyData.SuperArmorThreshold = 4;
-			EnemyData.SuperArmorDuration = 2.2f;
 			EnemyData.RecentlyDamagedStateDuration = 3.5f;
 			EnemyData.AwarenessTuning.DetectionRadius = 1200.f;
 			EnemyData.AwarenessTuning.CombatEnterRadius = 950.f;
@@ -572,30 +340,7 @@ namespace EnemyAITemplateGenerator
 			EnemyData.MovementTuning.MaxWalkSpeedOverride = 360.f;
 			EnemyData.MovementTuning.CombatSlotLockDuration = 0.3f;
 			EnemyData.MovementTuning.AttackRangeExitBuffer = 80.f;
-			EnemyData.AttackProfile.RecentAttackMemoryDuration = 3.0f;
-			EnemyData.AttackProfile.RepeatAttackWeightMultiplier = 0.2f;
-			EnemyData.AttackProfile.WhiffRepositionChance = 0.6f;
-
-			UpsertAttackOptionByTag(EnemyData.AttackProfile, MakeAttackOption(TEXT("ExecutionShot"), TEXT("Enemy.Range.LAtk1"), 320.f, 950.f, 2.0f, 3.2f, EEnemyAIAttackRole::Skill));
-			UpsertAttackOptionByTag(EnemyData.AttackProfile, MakeAttackOption(TEXT("SuppressiveShot"), TEXT("Enemy.Range.HAtk1"), 450.f, 1050.f, 1.1f, 8.0f, EEnemyAIAttackRole::Skill));
-			UpsertAttackOptionByTag(EnemyData.AttackProfile, MakeAttackOption(TEXT("SummonJailer"), TEXT("Enemy.Skill.Skill1"), 450.f, 1100.f, 1.1f, 18.0f, EEnemyAIAttackRole::Skill));
-			UpsertAttackOptionByTag(EnemyData.AttackProfile, MakeAttackOption(TEXT("CommandBuff"), TEXT("Enemy.Skill.Skill2"), 0.f, 950.f, 1.2f, 16.0f, EEnemyAIAttackRole::Skill));
-
-			FEnemyAIAttackOption CaptainPush = MakeAttackOption(TEXT("CaptainPush"), TEXT("Enemy.Melee.HAtk1"), 0.f, 300.f, 2.4f, 5.0f);
-			CaptainPush.bRequestRepositionOnResolve = true;
-			UpsertAttackOptionByTag(EnemyData.AttackProfile, CaptainPush);
-
-			FEnemyAIAttackOption TacticalRetreat = MakeAttackOption(TEXT("TacticalRetreat"), TEXT("Enemy.Melee.HAtk2"), 0.f, 1000.f, 1.0f, 3.0f, EEnemyAIAttackRole::Reposition);
-			TacticalRetreat.bPreAttackFlash = false;
-			TacticalRetreat.LungeDistance = 520.f;
-			TacticalRetreat.LungeDuration = 0.45f;
-			TacticalRetreat.RepositionAngleMin = 0.f;
-			TacticalRetreat.RepositionAngleMax = 25.f;
-			UpsertAttackOptionByTag(EnemyData.AttackProfile, TacticalRetreat);
-
-			FEnemyAIAttackOption FlameIgnition = MakeAttackOption(TEXT("FlameIgnition"), TEXT("Enemy.Skill.Skill4"), 0.f, 900.f, 3.0f, 60.0f, EEnemyAIAttackRole::Skill);
-			FlameIgnition.MaxHealthPercent = 0.35f;
-			UpsertAttackOptionByTag(EnemyData.AttackProfile, FlameIgnition);
+			EnemyData.MovementTuning.WhiffRepositionChance = 0.6f;
 			break;
 		}
 
@@ -626,16 +371,10 @@ namespace EnemyAITemplateGenerator
 			EnemyData.MovementTuning.MaxWalkSpeedOverride = 380.f;
 			EnemyData.MovementTuning.CombatSlotLockDuration = 0.3f;
 			EnemyData.MovementTuning.AttackRangeExitBuffer = 60.f;
-			EnemyData.AttackProfile.RecentAttackMemoryDuration = 0.f;
-			EnemyData.AttackProfile.RepeatAttackWeightMultiplier = 1.0f;
-			EnemyData.AttackProfile.WhiffRepositionChance = 0.f;
-
-			UpsertAttackOptionByTag(EnemyData.AttackProfile, MakeAttackOption(TEXT("HeavySlam"), TEXT("Enemy.Melee.HAtk1"), 0.f, 250.f, 1.0f, 1.8f));
+			EnemyData.MovementTuning.WhiffRepositionChance = 0.f;
 			break;
 		}
 		}
-
-		SyncAttackProfileFromAbilityData(EnemyData);
 	}
 
 	UStateTree* CreateOrLoadStateTree(const FString& PackagePath, bool bDryRun, TArray<FString>& ReportLines, TArray<UPackage*>& DirtyPackages)
@@ -685,12 +424,35 @@ namespace EnemyAITemplateGenerator
 		return Task;
 	}
 
-	UStateTreeState& AddAttackState(UStateTreeState& Parent, const TCHAR* StateName, EEnemyAIAttackRole Role)
+	// One state per attack. The task fails when the attack is out of range or on cooldown,
+	// which falls through to the next sibling and eventually to the chase state.
+	UStateTreeState& AddAttackState(UStateTreeState& Parent, const FAttackStateSpec& Spec)
 	{
-		UStateTreeState& State = Parent.AddChildState(FName(StateName));
+		UStateTreeState& State = Parent.AddChildState(FName(Spec.StateName));
 		State.SelectionBehavior = EStateTreeStateSelectionBehavior::TryEnterState;
-		TStateTreeEditorNode<FStateTreeTask_EnemyAttackByProfile>& Task = AddNamedTask<FStateTreeTask_EnemyAttackByProfile>(State, StateName);
-		Task.GetInstanceData().RequiredAttackRole = Role;
+
+		TStateTreeEditorNode<FStateTreeTask_EnemyAttackByProfile>& Task =
+			AddNamedTask<FStateTreeTask_EnemyAttackByProfile>(State, Spec.StateName);
+		FStateTreeTask_EnemyAttackByProfileInstanceData& Data = Task.GetInstanceData();
+
+		for (const TCHAR* TagName : Spec.TagNames)
+		{
+			const FGameplayTag AbilityTag = FGameplayTag::RequestGameplayTag(FName(TagName), false);
+			if (AbilityTag.IsValid())
+			{
+				Data.AbilityTags.AddTag(AbilityTag);
+			}
+		}
+
+		Data.MinRange = Spec.MinRange;
+		Data.MaxRange = Spec.MaxRange;
+		Data.Cooldown = Spec.Cooldown;
+		Data.bPreAttackFlash = Spec.bPreAttackFlash;
+		Data.bIsReposition = Spec.bIsReposition;
+		Data.bRequestRepositionOnResolve = Spec.bRequestRepositionOnResolve;
+		Data.MinHealthPercent = Spec.MinHealthPercent;
+		Data.MaxHealthPercent = Spec.MaxHealthPercent;
+
 		State.AddTransition(EStateTreeTransitionTrigger::OnStateSucceeded, EStateTreeTransitionType::GotoState, &Parent);
 		State.AddTransition(EStateTreeTransitionTrigger::OnStateFailed, EStateTreeTransitionType::NextSelectableState);
 		return State;
@@ -752,9 +514,14 @@ namespace EnemyAITemplateGenerator
 	// declare what they add on top of it.
 	void AddBossCombatBody(UStateTreeState& Phase)
 	{
-		// The attack task itself fails when nothing in the profile is in range or off
-		// cooldown, which is the signal to fall through to the chase state.
-		AddAttackState(Phase, TEXT("Heavy Attack"), EEnemyAIAttackRole::CloseMelee);
+		// The attack task fails when it is out of range or on cooldown, which is the signal to
+		// fall through to the chase state.
+		FAttackStateSpec HeavySlam;
+		HeavySlam.StateName = TEXT("Heavy Attack");
+		HeavySlam.TagNames = { TEXT("Enemy.Melee.HAtk1") };
+		HeavySlam.MaxRange = 250.f;
+		HeavySlam.Cooldown = 1.8f;
+		AddAttackState(Phase, HeavySlam);
 
 		// Chase exits to the recheck wait rather than straight back to the phase: the task
 		// succeeds the instant the pawn is in range, so a direct loop would spin every
@@ -831,10 +598,23 @@ namespace EnemyAITemplateGenerator
 		}
 		Phase2Enter.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::NextSelectableState);
 
-		// Extra roles unlocked by phase 2. Harmless before they are authored on DA_Boss:
-		// the attack task fails and AddAttackState already falls through to the next state.
-		AddAttackState(Phase2, TEXT("Phase 2 Skill"), EEnemyAIAttackRole::Skill);
-		AddAttackState(Phase2, TEXT("Phase 2 Special Movement"), EEnemyAIAttackRole::SpecialMovement);
+		// Extra attacks unlocked by phase 2. Harmless before the montages are authored on
+		// DA_Boss: the task fails on the missing ability and falls through to the next state.
+		FAttackStateSpec Phase2Skill;
+		Phase2Skill.StateName = TEXT("Phase 2 Skill");
+		Phase2Skill.TagNames = { TEXT("Enemy.Skill.Skill1") };
+		Phase2Skill.MaxRange = 900.f;
+		Phase2Skill.Cooldown = 12.f;
+		AddAttackState(Phase2, Phase2Skill);
+
+		FAttackStateSpec Phase2Charge;
+		Phase2Charge.StateName = TEXT("Phase 2 Charge");
+		Phase2Charge.TagNames = { TEXT("Enemy.Melee.HAtk2") };
+		Phase2Charge.MinRange = 300.f;
+		Phase2Charge.MaxRange = 650.f;
+		Phase2Charge.Cooldown = 2.2f;
+		AddAttackState(Phase2, Phase2Charge);
+
 		AddBossCombatBody(Phase2);
 
 		// No enter condition: phase 1 is the always-selectable fallback, so a boss at full
@@ -921,13 +701,15 @@ namespace EnemyAITemplateGenerator
 			EditorData->AddEvaluator<FStateTreeEvaluator_EnemyAwareness>();
 		Awareness.SetNodeName(TEXT("Update Enemy Awareness"));
 
-		TStateTreeEditorNode<FStateTreeEvaluator_EnemyCombatMove>& CombatMove =
-			EditorData->AddEvaluator<FStateTreeEvaluator_EnemyCombatMove>();
-		CombatMove.SetNodeName(TEXT("Update Enemy Combat Move"));
+		// Supplies the Target the range conditions measure against. They have no fallback:
+		// an unbound Target reads null and the condition silently always fails.
+		TStateTreeEditorNode<FStateTreeEvaluator_PlayerReference>& PlayerReference =
+			EditorData->AddEvaluator<FStateTreeEvaluator_PlayerReference>();
+		PlayerReference.SetNodeName(TEXT("Player Reference"));
 
 		UStateTreeState& Root = EditorData->AddRootState();
 		Root.SelectionBehavior = EStateTreeStateSelectionBehavior::TrySelectChildrenInOrder;
-		Root.Description = TEXT("Generated enemy AI root. State order mirrors the default melee behavior tree.");
+		Root.Description = TEXT("Generated enemy AI root. Combat is a flat Attack -> Chase -> Recheck progression.");
 
 		UStateTreeState& Dead = Root.AddChildState(TEXT("Dead"));
 		Dead.SelectionBehavior = EStateTreeStateSelectionBehavior::TryEnterState;
@@ -960,42 +742,74 @@ namespace EnemyAITemplateGenerator
 			SummonData.bCountsForLevelClear = Summon->bCountsForLevelClear;
 		}
 
-		// Press the advantage: after a connect, retry close melee ahead of the skill
-		// and special-movement branches so landed hits chain into pressure instead of
-		// cycling back out through approach range. Added first because Combat selects
-		// children in order. MaxAge scopes it to the attack that just resolved --
-		// bLastAttackWhiffed latches until the next attack, so without it a single
-		// early hit would keep this branch selected for the rest of the fight.
-		UStateTreeState& PressAdvantage = AddAttackState(Combat, TEXT("Press Advantage"), EEnemyAIAttackRole::CloseMelee);
-		TStateTreeEditorNode<FStateTreeCondition_LastAttackOutcome>& PressAdvantageCondition =
-			PressAdvantage.AddEnterCondition<FStateTreeCondition_LastAttackOutcome>();
-		PressAdvantageCondition.SetNodeName(TEXT("Last Attack Outcome Is Hit"));
-		PressAdvantageCondition.GetInstanceData().RequiredOutcome = EYogAttackOutcome::Hit;
-		PressAdvantageCondition.GetInstanceData().MaxAge = 1.5f;
+		// Combat is a flat three-step progression, selected in order every time Combat is
+		// re-entered:
+		//
+		//   Attack   [target within MeleeEngageRange]  -- activate GA, run it, succeed
+		//   Chase    [target beyond MeleeEngageRange]  -- close to MeleeStopDistance, succeed
+		//   Recheck  [always]                          -- short wait, then re-select
+		//
+		// The two range conditions are mutually exclusive, which is what keeps this from
+		// spinning: if Attack is in range but fails to activate (stunned, hit-reacting, no
+		// montage authored), Chase is not selectable either, so selection lands on the
+		// Recheck wait instead of bouncing between Attack and an instantly-succeeding Chase.
+		UStateTreeState& Attack = Combat.AddChildState(TEXT("Attack"));
+		Attack.SelectionBehavior = EStateTreeStateSelectionBehavior::TryEnterState;
+		TStateTreeEditorNode<FStateTreeCondition_TargetWithin2DDistance>& AttackRangeCondition =
+			Attack.AddEnterCondition<FStateTreeCondition_TargetWithin2DDistance>();
+		AttackRangeCondition.SetNodeName(TEXT("Target Within Engage Range"));
+		AttackRangeCondition.GetInstanceData().Distance = MeleeEngageRange;
 
-		// Reposition is gated on the whiff flag the controller sets in
-		// NotifyAttackResolved; without it this branch is attempted on every
-		// combat re-selection, which reads as reposition spam.
-		UStateTreeState& Reposition = AddAttackState(Combat, TEXT("Post Attack Reposition"), EEnemyAIAttackRole::Reposition);
-		Reposition.AddEnterCondition<FStateTreeCondition_EnemyPostAttackReposition>()
-			.SetNodeName(TEXT("Enemy Post Attack Reposition"));
+		TStateTreeEditorNode<FStateTreeTask_ActivateAbilityByTag>& AttackTask =
+			AddNamedTask<FStateTreeTask_ActivateAbilityByTag>(Attack, TEXT("Activate Attack Ability"));
+		FStateTreeTask_ActivateAbilityByTagInstanceData& AttackData = AttackTask.GetInstanceData();
+		// The task validates each tag against the pawn's own AbilityData, so this one shared
+		// list covers every default-melee enemy: each only fires what it actually has.
+		for (const TCHAR* TagName : { TEXT("Enemy.Melee.LAtk1"), TEXT("Enemy.Melee.LAtk2"),
+		                              TEXT("Enemy.Melee.HAtk1"), TEXT("Enemy.Melee.HAtk2") })
+		{
+			const FGameplayTag AbilityTag = FGameplayTag::RequestGameplayTag(FName(TagName), false);
+			if (AbilityTag.IsValid())
+			{
+				AttackData.AbilityTags.AddTag(AbilityTag);
+			}
+		}
+		AttackData.bPreAttackFlash = true;
+		AttackData.bReportAttackOutcome = true;
 
-		AddAttackState(Combat, TEXT("Skill"), EEnemyAIAttackRole::Skill);
-		AddAttackState(Combat, TEXT("Special Movement"), EEnemyAIAttackRole::SpecialMovement);
-		AddAttackState(Combat, TEXT("Close Melee"), EEnemyAIAttackRole::CloseMelee);
+		Attack.AddTransition(EStateTreeTransitionTrigger::OnStateSucceeded, EStateTreeTransitionType::GotoState, &Combat);
+		Attack.AddTransition(EStateTreeTransitionTrigger::OnStateFailed, EStateTreeTransitionType::NextSelectableState);
 
-		// Every attack task fails when nothing in the profile is in range or off
-		// cooldown, which is the signal to close distance. Chase exits to the recheck
-		// wait rather than straight back to Combat: the task succeeds the instant the
-		// pawn is in range, so a direct loop would spin every frame while attacks are
-		// on cooldown.
-		UStateTreeState& ChaseTarget = AddChaseState(Combat, TEXT("Chase Target"));
-		ChaseTarget.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::NextSelectableState);
+		UStateTreeState& ChaseTarget = Combat.AddChildState(TEXT("Chase Target"));
+		ChaseTarget.SelectionBehavior = EStateTreeStateSelectionBehavior::TryEnterState;
+		TStateTreeEditorNode<FStateTreeCondition_TargetBeyond2DDistance>& ChaseRangeCondition =
+			ChaseTarget.AddEnterCondition<FStateTreeCondition_TargetBeyond2DDistance>();
+		ChaseRangeCondition.SetNodeName(TEXT("Target Beyond Engage Range"));
+		ChaseRangeCondition.GetInstanceData().Distance = MeleeEngageRange;
+
+		TStateTreeEditorNode<FStateTreeTask_ChasePlayerUntilDistance>& ChaseTask =
+			AddNamedTask<FStateTreeTask_ChasePlayerUntilDistance>(ChaseTarget, TEXT("Chase Player Until In Range"));
+		FStateTreeTask_ChasePlayerUntilDistanceInstanceData& ChaseData = ChaseTask.GetInstanceData();
+		// Stops inside the engage range so the follow-up Attack is comfortably in range
+		// rather than right on the boundary.
+		ChaseData.StopDistance = MeleeStopDistance;
+		ChaseData.AcceptanceRadius = 35.f;
+		ChaseData.RepathInterval = 0.2f;
+
+		ChaseTarget.AddTransition(EStateTreeTransitionTrigger::OnStateSucceeded, EStateTreeTransitionType::GotoState, &Combat);
+		ChaseTarget.AddTransition(EStateTreeTransitionTrigger::OnStateFailed, EStateTreeTransitionType::NextSelectableState);
 
 		UStateTreeState& CombatRecheck = Combat.AddChildState(TEXT("Combat Recheck"));
 		CombatRecheck.SelectionBehavior = EStateTreeStateSelectionBehavior::TryEnterState;
 		AddNamedTask<FStateTreeTask_EnemyPatrolWait>(CombatRecheck, TEXT("Combat Recheck Wait"));
 		CombatRecheck.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::GotoState, &Combat);
+
+		EditorData->AddPropertyBinding(
+			FPropertyBindingPath(PlayerReference.ID, GET_MEMBER_NAME_CHECKED(FStateTreeEvaluator_PlayerReferenceInstanceData, PlayerPawn)),
+			FPropertyBindingPath(AttackRangeCondition.ID, GET_MEMBER_NAME_CHECKED(FStateTreeCondition_TargetWithin2DDistanceInstanceData, Target)));
+		EditorData->AddPropertyBinding(
+			FPropertyBindingPath(PlayerReference.ID, GET_MEMBER_NAME_CHECKED(FStateTreeEvaluator_PlayerReferenceInstanceData, PlayerPawn)),
+			FPropertyBindingPath(ChaseRangeCondition.ID, GET_MEMBER_NAME_CHECKED(FStateTreeCondition_TargetBeyond2DDistanceInstanceData, Target)));
 
 		// Alert and Patrol run their wait and move tasks in parallel on a single
 		// state: FStateTreeTask_MoveToControllerTarget stays Running until its path
@@ -1243,7 +1057,7 @@ int32 UEnemyAITemplateGeneratorCommandlet::Main(const FString& Params)
 
 		ReportLines.Add(TEXT(""));
 		ReportLines.Add(TEXT("## StateTree"));
-		ReportLines.Add(TEXT("- State order: Dead -> Combat (Phase 2 [HP <= 50%: Enter Phase -> Skill -> Special Movement -> Heavy Attack -> Chase -> Recheck] -> Phase 1 [Heavy Attack -> Chase -> Recheck]) -> Alert (Approach -> Wait) -> Idle (holds position)."));
+		ReportLines.Add(TEXT("- State order: Dead -> Combat (Phase 2 [HP <= 50%: Enter Phase -> Phase 2 Skill -> Phase 2 Charge -> Heavy Attack -> Chase -> Recheck] -> Phase 1 [Heavy Attack -> Chase -> Recheck]) -> Alert (Approach -> Wait) -> Idle (holds position)."));
 		UStateTree* BossStateTree = CreateOrLoadStateTree(BossStateTreePath, bDryRun, ReportLines, DirtyPackages);
 		if (!bDryRun && BossStateTree)
 		{
@@ -1308,7 +1122,9 @@ int32 UEnemyAITemplateGeneratorCommandlet::Main(const FString& Params)
 
 		ReportLines.Add(TEXT(""));
 		ReportLines.Add(TEXT("## StateTree"));
-		ReportLines.Add(TEXT("- State order: Dead -> Combat (Press Advantage [last attack hit] -> Post Attack Reposition [last attack whiffed] -> Skill -> Special Movement -> Close Melee -> Chase Target -> Combat Recheck) -> Alert (wait + approach) -> Patrol (pick + wait + move)."));
+		ReportLines.Add(TEXT("- State order: Dead -> Combat (Attack [within 180] -> Chase Target [beyond 180, stops at 150] -> Combat Recheck) -> Alert (wait + approach) -> Patrol (pick + wait + move)."));
+		ReportLines.Add(TEXT("- Combat uses Activate Ability By Tag and Chase Player Until Distance. Attack tags are Enemy.Melee.LAtk1/LAtk2/HAtk1/HAtk2; the task validates each against the pawn's own AbilityData, so each enemy only fires what it has."));
+		ReportLines.Add(TEXT("- No attack cooldown gate yet: an in-range enemy attacks as fast as its montages allow."));
 		UStateTree* StateTree = CreateOrLoadStateTree(StateTreePath, bDryRun, ReportLines, DirtyPackages);
 		if (!bDryRun && StateTree)
 		{

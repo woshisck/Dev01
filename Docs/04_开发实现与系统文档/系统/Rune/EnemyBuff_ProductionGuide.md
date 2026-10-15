@@ -12,7 +12,7 @@
 
 | 文件 | 改动 |
 |------|------|
-| `Config/Tags/BuffTag.ini` | 新增 `Buff.Status.SuperArmor`、`Buff.Status.Enraged`、`Buff.Status.Cursed` |
+| `Config/Tags/BuffTag.ini` | 新增 `Buff.Status.Enraged`、`Buff.Status.Cursed` |
 | `Config/DefaultGameplayTags.ini` | 新增 `Ability.Event.DeathAnimComplete`、`Ability.Event.Attack.CritHit` |
 | `Source/.../DamageExecution.cpp` | 修复 DmgTaken clamp：capture 失败才用 1.0 兜底，允许 < 1.0 减伤 |
 | `Source/.../GA_Dead.cpp` | `StartDeathDelay()` 头部广播 `Ability.Event.DeathAnimComplete` |
@@ -35,7 +35,9 @@
 
 **机制：** 持续监听 HP，当 HP < 75% 时一次性激活：
 - `DmgTaken × 1.5`（受到伤害增加 50%）
-- 授予 `Buff.Status.SuperArmor`（受击不产生硬直，YogAbilitySystemComponent 的 Poise 系统检测此 tag 跳过 HitReact 事件）
+- `Resilience +100`（韧性池翻倍，需要更多次命中才会被打出硬直）
+
+> 2026-10-15：霸体机制已整体移除。本符文原先授予的 `Buff.Status.SuperArmor` 已改为韧性池加成，风险收益结构不变。
 
 **表现：** 触发时爆发金色光芒 GC；激活期间轻微金色 Fresnel 边缘光。
 
@@ -66,7 +68,7 @@
     ↓ True
 [Do Once ⑤]                     ← 只触发一次（HP 来回穿越 75% 不重复激活）
     ↓ Out
-[Apply Gameplay Effect ⑥]       ← 授予霸体并提高承伤
+[Apply Gameplay Effect ⑥]       ← 提高韧性池并提高承伤
     Effect = GE_Fearless
     Target = BuffOwner
 ```
@@ -78,7 +80,7 @@
 >
 > **DmgTaken 承伤原理：** `DamageExecution.cpp` 公式 `FinalDamage = AttackPower × Attack × DmgTaken`，DmgTaken = 1.5 即受到伤害增加 50%。（clamp 仍允许 < 1.0 的减伤倍率按需生效）
 >
-> **SuperArmor 原理：** `YogAbilitySystemComponent.cpp` Poise 系统检测 `Buff.Status.SuperArmor` tag，持有时跳过 HitReact GA 的触发事件，攻击动画不被打断。
+> **韧性原理：** `YogAbilitySystemComponent::ReceiveDamage` 每次命中从 `Resilience` 池扣除攻击方的 `ActResilience`，扣到 0 的那一下才发 `Action.HitReact` 并把池回满。池越大，被打出硬直所需的命中次数越多。
 
 ### DA_EnemyBuff_Fearless
 
@@ -288,19 +290,12 @@ Content Browser 新建文件夹：`Content/Docs/BuffDocs/EnemyBuff/`
 
 **1. GE_PoisonSplash 配置** — ✅ 完全正确
 
-**2. SuperArmor 闪光衔接（已修复 + 编译通过）**
-
-- `YogAbilitySystemComponent::OnTagUpdated` 加了 SuperArmor 分支：tag 加/减自动调 `StartSuperArmorFlash`/`StopSuperArmorFlash`
-- 删除了 Poise 路径的手动调用，避免双触发
-- 现在 C++ Poise 自动霸体 ✅ 和 FA AddTag ✅ 两条路都有金色 Fresnel
-
-**3. 无畏 + 死咒的 VFX/UI 制作位置**
+**2. 无畏 + 死咒的 VFX/UI 制作位置**
 
 |项目|实现方式|还需做|
 |---|---|---|
 |无畏 触发瞬间金色爆发|Niagara FX + GameplayCue Notify 资产|新建（路径建议 `Content/Effect/GameplayCue/GC_Fearless_Burst.uasset`），FA 加 `[Trigger Gameplay Cue]`|
-|无畏 持续金色 Fresnel|C++ Overlay Material（已有 `CharacterFlashMaterial`）|✅ 已自动衔接|
+|无畏 持续金色 Fresnel|GameplayCue Notify|新建（霸体 Overlay 已移除，需改由 GC 驱动）|
 |死咒 紫黑咒印飞向击杀者|Niagara FX + GC Notify|新建（`GC_DeathCurse_Cast.uasset`），FA 在 ApplyAttributeModifier 后加 `[Trigger Gameplay Cue]`，Source=BuffOwner，Target=LastDamageCauser|
 |死咒 血条紫色污染|UI 蓝图监听 `Buff.Status.Cursed` tag|WBP 健康条蓝图加 tag 监听 + 紫色 Overlay|
 
-要我把 ASC 这个改动 + SuperArmor tag 一起合一个 commit，然后 pull --rebase + push 吗？

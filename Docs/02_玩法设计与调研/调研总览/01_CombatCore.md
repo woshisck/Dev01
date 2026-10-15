@@ -118,25 +118,17 @@
   1. 玩家攻击命中敌人，应短暂冻结约 50ms
   2. FA 中加 `[OnCritHit] → [AddTag: Buff.Status.HitStop.Freeze]`，暴击命中应触发更强冻结
 
-### [COMBAT-005] 韧性系统（Poise vs Resilience）+ 霸体
-- **设计需求**：普通敌人能被打断，精英要重击 / 暴击才能打断；连续受击触发霸体反制 — 玩家不能无限连击。
-- **状态**：✅ C++完成；⚙ DA 待填（ENEMY-DA-002）
+### [COMBAT-005] 韧性系统（Poise）
+- **设计需求**：普通敌人能被打断，精英要多打几下才能打断 — 玩家不能无限连击。
+- **状态**：✅ C++完成；⚙ DT 待填（`DT_BaseAttribute.Resilience` 需逐行填写韧性池容量）
+- **实现模型**：韧性池。每次命中按攻击方 `ActResilience` 扣除防御方 `Resilience`，扣到 0 的那一下触发 `Action.HitReact` 并把池回满。
 - **核心文件**：
-  - `Public/AbilitySystem/Attribute/BaseAttributeSet.h`（`Resilience` 属性）
-  - `Public/AbilitySystem/YogAbilitySystemComponent.h` + `.cpp`（`ReceiveDamage` 比较攻方 / 防方韧性，`PoiseHitCount` 计数 5s 内重置）
-  - `Private/AbilitySystem/Abilities/GA_MeleeAttack.cpp`（OnEventReceived 写 `CurrentActionPoiseBonus`）
-- **设计文档**：[PoiseSystem_ConfigGuide](../../04_开发实现与系统文档/系统/Combat/PoiseSystem_ConfigGuide.md)
-- **验收方式**：精英敌人 Resilience=150，玩家轻击（20+100=120 < 150）应不打出受击；重击（50+100=150 ≥ 150）应打出
+  - `Public/AbilitySystem/Attribute/BaseAttributeSet.h`（`Resilience` 属性 = 韧性池）
+  - `Public/AbilitySystem/YogAbilitySystemComponent.h` + `.cpp`（`MaxPoise` 池容量，`ReceiveDamage` 扣除与回满）
+  - `Private/AbilitySystem/Abilities/GA_MeleeAttack.cpp`（OnEventReceived 写 `CurrentActionPoiseDamage`）
+- **验收方式**：敌人 Resilience=100、玩家轻击 ActResilience=20，前 4 下不应打出受击，第 5 下打出受击并回满
 
-### [COMBAT-008] 霸体金光 + 敌人韧性 DA 化
-- **设计需求**：霸体要有视觉提示（金黄脉冲）；不同敌人的韧性参数（Threshold / Duration）能在 DA 配。
-- **状态**：✅ C++完成；⚙ DA 待填（ENEMY-DA-002 — 给所有 DA_Enemy_* 填 SuperArmorThreshold/Duration）
-- **核心文件**：
-  - `Public/Data/EnemyData.h`（`SuperArmorThreshold` / `SuperArmorDuration` 字段）
-  - `Private/Character/EnemyCharacterBase.cpp`（BeginPlay 自动推到 ASC）
-  - `Public/AbilitySystem/YogAbilitySystemComponent.h` + `.cpp`（`StartSuperArmorFlash` / `StopSuperArmorFlash`，6Hz 脉冲）
-- **设计文档**：[CharacterFlash_Technical](../../04_开发实现与系统文档/系统/VFX/CharacterFlash_Technical.md)
-- **验收方式**：连续轻击同一敌人 3 次，第 4 次起敌人应发金黄脉冲 2s 内免疫受击
+> 霸体（SuperArmor）机制已于 2026-10-15 整体移除：`Buff.SuperArmor` / `Buff.Status.SuperArmor` 标签、金光 Fresnel、复活授予与 `SuperArmorThreshold`/`Duration` 配置均已删除。原 COMBAT-008 作废。
 
 ---
 

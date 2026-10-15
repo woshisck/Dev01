@@ -52,6 +52,8 @@ public class DevKit : ModuleRules
                 "StateTreeModule",
                 "GameplayStateTreeModule",
                 "CelesLightRuntime",
+                // Public because AYogRoomDirector implements IUnLuaInterface in its header
+                "UnLua",
 
             });
 
@@ -72,8 +74,7 @@ public class DevKit : ModuleRules
                 "AnimGraphRuntime",
                 // Lua is built as a DLL, so any module calling the lua_* C API directly must link it
                 // explicitly rather than relying on UnLua's public dependency.
-                "Lua",
-                "UnLua"
+                "Lua"
             });
 
 		// Uncomment if you are using Slate UI

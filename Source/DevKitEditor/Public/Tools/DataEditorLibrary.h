@@ -119,7 +119,7 @@ public:
 
 	/**
 	 * 导出所有 UEnemyData 的 AI 调参快照。
-	 * 列：AssetName, DifficultyScore, DetectionRadius, CombatEnterRadius, PreferredRange, AttackRange, StrafeChance, MaxWalkSpeedOverride, SuperArmorThreshold
+	 * 列：AssetName, DifficultyScore, DetectionRadius, CombatEnterRadius, PreferredRange, AttackRange, StrafeChance, MaxWalkSpeedOverride, Resilience
 	 * @param OutFilePath 留空则写入 Saved/Balance/EnemyAI_<时间戳>.csv
 	 * @return 实际写入路径，失败返回空字符串
 	 */

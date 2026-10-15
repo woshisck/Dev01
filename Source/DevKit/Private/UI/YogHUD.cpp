@@ -1311,8 +1311,7 @@ void AYogHUD::BindCombatDeckWidget(APawn* Pawn)
 		return;
 	}
 
-	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(Pawn);
-	MainHUDWidget->CombatDeckBar->BindToCombatDeck(Player ? Player->CombatDeckComponent : nullptr);
+	MainHUDWidget->CombatDeckBar->BindToCombatDeck(nullptr);
 }
 
 void AYogHUD::EnsureCombatItemWidget()

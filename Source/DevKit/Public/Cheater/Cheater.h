@@ -7,7 +7,6 @@
 #include "Cheater.generated.h"
 
 class APlayerCharacterBase;
-class UBackpackGridComponent;
 
 UCLASS()
 class DEVKIT_API UYogCheatManager : public UCheatManager
@@ -19,7 +18,6 @@ public:
 	/** 直接设置热度值（0 ~ MaxHeat*/
 	UFUNCTION(Exec) void Yog_SetHeat(float Value);
 	/** 强制设置热度阶段=无，1/2/3=Phase1-3*/
-	UFUNCTION(Exec) void Yog_SetPhase(int32 Phase);
 	/** 将热度设为满值（MaxHeat），触发升阶判断 */
 	UFUNCTION(Exec) void Yog_MaxHeat();
 	/** 冻结/解冻热度衰减（通过授予/移除 Buff.Heat.Active 实现*/
@@ -28,10 +26,8 @@ public:
 	// ── 背包 / 符文 ───────────────────────────────────────────────────────────
 	/** RuneID 给予玩家一个符文（加入 PendingRunes，需手动放入格子*/
 	UFUNCTION(Exec) void Yog_GiveRune(int32 RuneID);
-	UFUNCTION(Exec) void Yog_GiveMoonlightLinkCards();
 	UFUNCTION(Exec) void Yog_SetLevelEnded();
 	/** 清空背包中所有已放置符文 */
-	UFUNCTION(Exec) void Yog_ClearRunes();
 	/** 直接设置金币数量 */
 	UFUNCTION(Exec) void Yog_SetGold(int32 Amount);
 
@@ -61,13 +57,11 @@ public:
 	/** 打印玩家所有属性当前*/
 	UFUNCTION(Exec) void Yog_PrintAttributes();
 	/** 打印背包内所有已放置符文信息 */
-	UFUNCTION(Exec) void Yog_PrintRunes();
 	/** 列出所有可GM 命令 */
 	UFUNCTION(Exec) void Yog_Help();
 
 private:
 	APlayerCharacterBase* GetPlayerChar() const;
-	UBackpackGridComponent* GetBGC() const;
 
 	bool bGodModeActive = false;
 };

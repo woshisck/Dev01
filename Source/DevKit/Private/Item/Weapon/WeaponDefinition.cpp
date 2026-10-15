@@ -9,8 +9,6 @@
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "Data/WeaponSkillDataAsset.h"
 
-static constexpr bool bDisableLegacyHeatBackpackRuneForCardTest = true;
-
 void UWeaponDefinition::SetupWeaponToCharacter(USkeletalMeshComponent* AttachTarget, APlayerCharacterBase* ReceivingChar)
 {
 	// End the outgoing skill before replacing its weapon definition or runtime
@@ -20,8 +18,6 @@ void UWeaponDefinition::SetupWeaponToCharacter(USkeletalMeshComponent* AttachTar
 	// ── 0. 清理旧武器（解绑委托 + 销毁） ────────────────────────────────
 	if (ReceivingChar->EquippedWeaponInstance)
 	{
-		ReceivingChar->OnHeatPhaseChanged.RemoveDynamic(
-			ReceivingChar->EquippedWeaponInstance, &AWeaponInstance::OnHeatPhaseChanged);
 		ReceivingChar->EquippedWeaponInstance->Destroy();
 		ReceivingChar->EquippedWeaponInstance = nullptr;
 	}
@@ -53,27 +49,9 @@ void UWeaponDefinition::SetupWeaponToCharacter(USkeletalMeshComponent* AttachTar
 
 		LastSpawnedWeapon = NewActor;
 	}
-	// ── 热度委托绑定 + 阶段追赶同步 ─────────────────────────────────────
-	if (LastSpawnedWeapon && !bDisableLegacyHeatBackpackRuneForCardTest)
-	{
-		LastSpawnedWeapon->HeatOverlayMaterial = HeatOverlayMaterial;
-		ReceivingChar->OnHeatPhaseChanged.AddDynamic(LastSpawnedWeapon, &AWeaponInstance::OnHeatPhaseChanged);
-		ReceivingChar->EquippedWeaponInstance = LastSpawnedWeapon;
-
-		// 查当前热度阶段并立刻同步（切关恢复时 Phase 可能已非 0
-		int32 CurrentPhase = 0;
-		if (UAbilitySystemComponent* ASC = ReceivingChar->GetAbilitySystemComponent())
-		{
-			if      (ASC->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Heat.Phase.3")))) CurrentPhase = 3;
-			else if (ASC->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Heat.Phase.2")))) CurrentPhase = 2;
-			else if (ASC->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(TEXT("Buff.Heat.Phase.1")))) CurrentPhase = 1;
-		}
-		ReceivingChar->OnHeatPhaseChanged.Broadcast(CurrentPhase);
-	}
-	else if (LastSpawnedWeapon)
+	if (LastSpawnedWeapon)
 	{
 		ReceivingChar->EquippedWeaponInstance = LastSpawnedWeapon;
-		UE_LOG(LogTemp, Warning, TEXT("[WeaponDefinition] Legacy heat weapon overlay disabled for combat card test"));
 	}
 
 	// 记录当前装备的武DA，供切关时写RunState
@@ -82,30 +60,7 @@ void UWeaponDefinition::SetupWeaponToCharacter(USkeletalMeshComponent* AttachTar
 	ReceivingChar->ApplyAbilityDataFromWeapon(this);
 	ReceivingChar->RefreshEquippedWeaponSkillAbilityGrant();
 
-	// ── 注入背包配置（格子尺+ 激活区───────────────────────────────
-	UE_LOG(LogTemp, Warning, TEXT("[WeaponDefinition] SetupWeaponToCharacter reached end. BackpackConfig W=%d H=%d, Char=%s"),
-		BackpackConfig.GridWidth, BackpackConfig.GridHeight,
-		ReceivingChar ? *ReceivingChar->GetName() : TEXT("null"));
-
-	if (!bDisableLegacyHeatBackpackRuneForCardTest && (ReceivingChar ? ReceivingChar->BackpackGridComponent.Get() : nullptr))
-	{
-		UBackpackGridComponent* BG = ReceivingChar->BackpackGridComponent.Get();
-		UE_LOG(LogTemp, Warning, TEXT("[WeaponDefinition] Calling ApplyBackpackConfig W=%d H=%d"), BackpackConfig.GridWidth, BackpackConfig.GridHeight);
-		BG->ApplyBackpackConfig(
-			BackpackConfig.GridWidth,
-			BackpackConfig.GridHeight,
-			BackpackConfig.ActivationZoneConfig);
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[WeaponDefinition] Legacy backpack/rune config disabled for combat card test"));
-	}
-
-	if (UCombatDeckComponent* CombatDeck = ReceivingChar ? ReceivingChar->CombatDeckComponent.Get() : nullptr)
-	{
-		CombatDeck->LoadDeckFromWeapon(this);
-		ReceivingChar->CaptureEquippedWeaponDeckState();
-	}
+	ReceivingChar->CaptureEquippedWeaponDeckState();
 
 	// ── 武器类型 Tag 守卫：挂当前 WeaponType LooseTag ─────────────────
 	// 让玩家专属攻GA ActivationRequiredTags 能匹配通过

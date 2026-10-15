@@ -12,7 +12,7 @@
 | 命中闪白 HitFlash (VFX-001) | 受击瞬间发白光 | ✅ 编译通过 | ✅ 自动触发 |
 | 攻击前摇闪红 PreAttackFlash + ANS (VFX-002 / 003) | 敌人前摇预警 | ✅ 编译通过 | ⚙ 敌人攻击蒙太奇拖 ANS（VFX-004）+ 敌人 BP 填 CharacterFlashMaterial（VFX-006）|
 | 热度升阶发光（玩家身体 + 武器 + 玻璃边缘炫彩）(VFX-004 / 005) | 全身亮起 + 神秘炫彩边缘 | ✅ 编译通过 | ✅ 材质 / 参数已配 |
-| 霸体金光（视觉副）(COMBAT-008 副) | 6Hz 金黄正弦脉冲 | ✅ 编译通过 | ⚙ DA SuperArmor 参数（与 ENEMY-DA-002 同批）|
+| ~~霸体金光（视觉副）(COMBAT-008 副)~~ | — | 已作废 | 霸体机制 2026-10-15 整体移除 |
 | 敌人预生成粒子 PreSpawnFX (FEAT-028) | 出生前播警示 FX | ✅ 编译通过 | ⚙ DA_Enemy_*.PreSpawnFX 待填（ENEMY-DA-001）|
 | 热度升阶手柄震动 (FEEL-001) | 升阶瞬间震动 | ✅ 编译通过 | ✅ B_PlayerOne 已赋 FFE |
 | 相机 6 状态系统 YogCameraPawn (CAM-001) | 俯视角 ARPG 镜头 + 边界约束 + 命中震动 | ✅ 编译通过 | ✅ |
@@ -60,11 +60,9 @@
   1. 升 Phase 1 玩家身体应扫射白光 → 保持 → 淡出
   2. 武器同步 Phase 颜色（白 / 绿 / 橙黄 / 过热红）
 
-### [COMBAT-008 副] 霸体金光
-> 主条目在 [01_CombatCore.md](01_CombatCore.md) 的 [COMBAT-008]，此处只列视觉
-- 连续受击 ≥ Threshold → 6Hz 金黄正弦脉冲（`FLinearColor(5,3,0)`）
-- 优先级：命中白闪 > 霸体金光 > 攻击前红光
-- 配 `SuperArmorPulseFreq`（蓝图 Details）/ `SuperArmorThreshold` / `SuperArmorDuration`（DA）
+### [COMBAT-008 副] 霸体金光（已作废）
+> 霸体机制已于 2026-10-15 整体移除：`Buff.SuperArmor` 标签、金光 Fresnel 层级与 `SuperArmorThreshold`/`Duration` 配置均已删除。
+> 当前金光层级只剩终结技提示（`StartFinisherAuraFlash`），优先级：命中白闪 > 终结技金光 > 攻击前红光。
 
 ### [FEAT-028] 敌人预生成粒子（PreSpawnFX）
 - **设计需求**：敌人出生前在地面播一段警示 FX，给玩家心理准备时间。

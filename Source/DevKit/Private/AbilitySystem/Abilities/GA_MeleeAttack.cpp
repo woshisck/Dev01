@@ -9,7 +9,6 @@
 #include "AbilitySystem/GameplayEffect/GE_MeleeAttackFrame.h"
 #include "AbilitySystem/GameplayEffect/YogGameplayEffect.h"
 #include "AbilitySystemBlueprintLibrary.h"
-#include "Abilities/Tasks/AbilityTask_ApplyRootMotionMoveToForce.h"
 #include "Animation/AN_MeleeDamage.h"
 #include "Animation/YogAnimNotifyState_Damage.h"
 #include "Animation/AnimInstance.h"
@@ -724,85 +723,7 @@ void UGA_MeleeAttack::PrimeCombatDeckHitContext(const FGameplayEventData& EventD
 
 FCombatCardResolveResult UGA_MeleeAttack::ResolveCombatDeck(ECombatCardTriggerTiming TriggerTiming)
 {
-	FCombatCardResolveResult EmptyResult;
-	const bool bResolveFromHitNotify = TriggerTiming == ECombatCardTriggerTiming::OnHit;
-	if (!bResolveFromHitNotify && bCombatDeckCardResolvedThisActivation)
-	{
-		return EmptyResult;
-	}
-
-	APlayerCharacterBase* PlayerOwner = Cast<APlayerCharacterBase>(GetAvatarActorFromActorInfo());
-	if (!PlayerOwner)
-	{
-		PlayerOwner = Cast<APlayerCharacterBase>(GetOwningActorFromActorInfo());
-	}
-
-	if (!PlayerOwner || !PlayerOwner->CombatDeckComponent)
-	{
-		return EmptyResult;
-	}
-
-	FCombatDeckActionContext Context;
-	Context.ActionType = GetCombatDeckActionType();
-	const FGameplayTag CharacterWeaponSkillTag = FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.WeaponSkill"), false);
-	const FGameplayTag LegacyWeaponSkillTag = FGameplayTag::RequestGameplayTag(TEXT("PlayerState.AbilityCast.WeaponSkill"), false);
-	Context.ActionSlot = (CharacterWeaponSkillTag.IsValid() && AbilityTags.HasTag(CharacterWeaponSkillTag))
-		|| (LegacyWeaponSkillTag.IsValid() && AbilityTags.HasTag(LegacyWeaponSkillTag))
-		? ECombatDeckActionSlot::WeaponSkill
-		: ECombatDeckActionSlot::Attack;
-	// Legacy Combo1/2/3/4 tags may still select montages, but combat cards no
-	// longer use combo count as gameplay context. Card order and FlowRole drive
-	// build sequencing now.
-	Context.ComboIndex = 0;
-	Context.ComboNodeId = NAME_None;
-	Context.ComboTags.Reset();
-	Context.AbilityTag = FGameplayTag();
-	Context.WeaponDef = PlayerOwner->EquippedWeaponDef;
-	Context.bIsComboFinisher = false;
-	Context.FlowRole = Context.bIsComboFinisher ? ECombatDeckFlowRole::Finisher : CombatDeckFlowRole;
-	Context.ReleaseMode = Context.bIsComboFinisher ? ECombatCardReleaseMode::Finisher : ECombatCardReleaseMode::Normal;
-	Context.bComboContinued = bComboContinued;
-	Context.bExitedComboState = bExitedComboState;
-	Context.bFromDashSave = bCombatDeckFromDashSave;
-	Context.TriggerTiming = TriggerTiming;
-	Context.AttackInstanceGuid = bResolveFromHitNotify
-		? FGuid::NewGuid()
-		: Context.AttackInstanceGuid.IsValid()
-		? Context.AttackInstanceGuid
-		: (ActiveAttackGuid.IsValid() ? ActiveAttackGuid : FGuid::NewGuid());
-	if (!Context.AbilityTag.IsValid())
-	{
-		for (const FGameplayTag& Tag : AbilityTags)
-		{
-			Context.AbilityTag = Tag;
-			break;
-		}
-	}
-
-	UE_LOG(LogTemp, Warning,
-		TEXT("[CombatDeckContext] Runtime=%d Action=%s Slot=%s Role=%s ComboIndex=%d Node=%s Continued=%d Exited=%d Trigger=%d Ability=%s Guid=%s"),
-		0,
-		*StaticEnum<ECardRequiredAction>()->GetNameStringByValue(static_cast<int64>(Context.ActionType)),
-		*StaticEnum<ECombatDeckActionSlot>()->GetNameStringByValue(static_cast<int64>(Context.ActionSlot)),
-		*StaticEnum<ECombatDeckFlowRole>()->GetNameStringByValue(static_cast<int64>(Context.FlowRole)),
-		Context.ComboIndex,
-		*Context.ComboNodeId.ToString(),
-		Context.bComboContinued ? 1 : 0,
-		Context.bExitedComboState ? 1 : 0,
-		static_cast<int32>(Context.TriggerTiming),
-		Context.AbilityTag.IsValid() ? *Context.AbilityTag.ToString() : TEXT("(none)"),
-		*Context.AttackInstanceGuid.ToString());
-
-	const FCombatCardResolveResult Result = PlayerOwner->CombatDeckComponent->ResolveAttackCardWithContext(Context);
-	if (Result.bHadCard)
-	{
-		if (!bResolveFromHitNotify)
-		{
-			bCombatDeckCardResolvedThisActivation = true;
-		}
-		ActiveCombatCardResult = Result;
-	}
-	return Result;
+	return FCombatCardResolveResult();
 }
 
 void UGA_MeleeAttack::TryResolveCombatDeckOnHit()
@@ -911,109 +832,37 @@ void UGA_MeleeAttack::TryStartEnemyRadialLunge(UAnimMontage* Montage)
 		return;
 	}
 
-	// A movement curve on the montage is its own opt-in, so curve-driven attacks skip the
-	// data-asset gates below: the animator decides which montages move the enemy. It also
-	// needs no attack-profile data, so it still drives enemies whose attack was triggered
-	// outside YogStateTreeTask_EnemyAttackByProfile (debug StateTrees, direct activation).
-	const bool bCurveDriven = Montage && Montage->HasCurveData(YogMontageMove::MoveDistanceCurveName);
-
-	AActor* TargetActor = ActiveEnemyAttackContext.bValid ? ActiveEnemyAttackContext.TargetActor.Get() : nullptr;
-	if (!TargetActor)
+	// A MoveDistance curve on the montage is the only thing that moves an enemy during an
+	// attack, and it is its own opt-in: the animator decides which montages travel. That also
+	// means this still works for attacks triggered outside the StateTree task (debug
+	// StateTrees, direct activation), which carry no runtime context at all.
+	if (!Montage || !Montage->HasCurveData(YogMontageMove::MoveDistanceCurveName))
 	{
-		if (bCurveDriven)
+		return;
+	}
+
+	// Face the target first so the curve travels along the aimed facing. With no target we
+	// keep whatever facing the montage started with.
+	if (AActor* TargetActor = ActiveEnemyAttackContext.bValid ? ActiveEnemyAttackContext.TargetActor.Get() : nullptr)
+	{
+		FVector ToTarget = TargetActor->GetActorLocation() - Character->GetActorLocation();
+		ToTarget.Z = 0.0f;
+		if (!ToTarget.IsNearlyZero())
 		{
-			// Nothing to aim at, so travel along the facing the montage started with.
-			FVector ForwardDirection = Character->GetActorForwardVector();
-			ForwardDirection.Z = 0.0f;
-			ForwardDirection = ForwardDirection.GetSafeNormal();
-			if (!ForwardDirection.IsNearlyZero())
+			const FRotator FaceTargetRotation(0.0f, ToTarget.Rotation().Yaw, 0.0f);
+			Character->SetActorRotation(FaceTargetRotation);
+			if (AController* Controller = Character->GetController())
 			{
-				TryStartEnemyMontageCurveMove(Character, Montage, ForwardDirection);
+				Controller->SetControlRotation(FaceTargetRotation);
 			}
 		}
-		return;
 	}
 
-	const FEnemyAIAttackOption& AttackOption = ActiveEnemyAttackContext.AttackOption;
-	const bool bReposition = AttackOption.AttackRole == EEnemyAIAttackRole::Reposition;
-
-	const float CurrentDistance = FVector::Dist2D(Character->GetActorLocation(), TargetActor->GetActorLocation());
-
-	if (!bCurveDriven)
-	{
-		// Reposition options drive the dash through their role rather than a movement mode,
-		// so they bypass the AI movement-attack cooldown machinery.
-		if (!bReposition && AttackOption.AttackMovementMode != EEnemyAIAttackMovementMode::RadialLunge)
-		{
-			return;
-		}
-
-		// LungeStartRange is a gap-close gate for toward-target lunges; a reposition dash can
-		// fire at any range (it usually triggers point-blank after a whiff).
-		if ((!bReposition && CurrentDistance < AttackOption.LungeStartRange)
-			|| AttackOption.LungeDistance <= 0.0f
-			|| AttackOption.LungeDuration <= 0.0f)
-		{
-			return;
-		}
-	}
-
-	FVector ToTarget = TargetActor->GetActorLocation() - Character->GetActorLocation();
-	ToTarget.Z = 0.0f;
-	if (ToTarget.IsNearlyZero())
-	{
-		return;
-	}
-	ToTarget = ToTarget.GetSafeNormal();
-
-	FVector DashDirection;
-	if (bReposition)
-	{
-		const float Angle = FMath::FRandRange(AttackOption.RepositionAngleMin, AttackOption.RepositionAngleMax);
-		const float Sign = FMath::RandBool() ? 1.0f : -1.0f;
-		DashDirection = (-ToTarget).RotateAngleAxis(Sign * Angle, FVector::UpVector);
-	}
-	else
-	{
-		DashDirection = ToTarget;
-	}
-
-	// Always face the target so a follow-up attack is aimed correctly, even when the dash
-	// itself travels sideways.
-	const FRotator FaceTargetRotation(0.0f, ToTarget.Rotation().Yaw, 0.0f);
-	Character->SetActorRotation(FaceTargetRotation);
-	if (AController* Controller = Character->GetController())
-	{
-		Controller->SetControlRotation(FaceTargetRotation);
-	}
-
-	if (bCurveDriven)
-	{
-		TryStartEnemyMontageCurveMove(Character, Montage, DashDirection);
-		return;
-	}
-
-	const FVector TargetLocation = Character->GetActorLocation() + DashDirection * AttackOption.LungeDistance;
-	EnemyLungeTask = UAbilityTask_ApplyRootMotionMoveToForce::ApplyRootMotionMoveToForce(
-		this,
-		FName(TEXT("EnemyRadialLunge")),
-		TargetLocation,
-		AttackOption.LungeDuration,
-		false,
-		EMovementMode::MOVE_Walking,
-		true,
-		nullptr,
-		ERootMotionFinishVelocityMode::MaintainLastRootMotionVelocity,
-		FVector::ZeroVector,
-		0.0f);
-
-	if (EnemyLungeTask)
-	{
-		EnemyLungeTask->ReadyForActivation();
-	}
+	// A retreat is authored as a negative curve rather than a flipped direction here.
+	TryStartEnemyMontageCurveMove(Character, Montage);
 }
 
-bool UGA_MeleeAttack::TryStartEnemyMontageCurveMove(ACharacter* Character, UAnimMontage* Montage, const FVector& Direction)
+bool UGA_MeleeAttack::TryStartEnemyMontageCurveMove(ACharacter* Character, UAnimMontage* Montage)
 {
 	if (!Character || !Montage || !Montage->HasCurveData(YogMontageMove::MoveDistanceCurveName))
 	{
@@ -1030,17 +879,15 @@ bool UGA_MeleeAttack::TryStartEnemyMontageCurveMove(ACharacter* Character, UAnim
 
 	TSharedPtr<FYogRootMotionSource_MontageCurveMove> CurveMove = MakeShared<FYogRootMotionSource_MontageCurveMove>();
 	CurveMove->InstanceName = FName(TEXT("EnemyMontageCurveMove"));
-	CurveMove->Direction = Direction;
 	CurveMove->Montage = Montage;
 
 	EnemyLungeRootMotionSourceID = Movement->ApplyRootMotionSource(CurveMove);
 
 	UE_LOG(LogYogMontageMove, Log,
-		TEXT("CurveMove applied on %s: Montage=%s ID=%u Dir=%s MoveMode=%d"),
+		TEXT("CurveMove applied on %s: Montage=%s ID=%u MoveMode=%d"),
 		*GetNameSafe(Character),
 		*GetNameSafe(Montage),
 		EnemyLungeRootMotionSourceID,
-		*Direction.ToCompactString(),
 		static_cast<int32>(Movement->MovementMode.GetValue()));
 
 	return EnemyLungeRootMotionSourceID != 0;
@@ -1072,7 +919,6 @@ void UGA_MeleeAttack::ActivateAbility(
 	const FGameplayAbilityActivationInfo ActivationInfo,
 	const FGameplayEventData* TriggerEventData)
 {
-	bCombatDeckCardResolvedThisActivation = false;
 	bCombatDeckFromDashSave = bNextActivationFromDashSave;
 	bNextActivationFromDashSave = false;
 	bComboContinued = false;
@@ -1087,7 +933,6 @@ void UGA_MeleeAttack::ActivateAbility(
 	ActiveComboAttackData = nullptr;
 	ActiveComboAttackConfig = FComboAttackConfig();
 	bActiveComboAttackConfigValid = false;
-	EnemyLungeTask = nullptr;
 	EnemyLungeRootMotionSourceID = 0;
 	ActiveEnemyAttackContext = FEnemyAIAttackRuntimeContext();
 	ActiveAttackGuid.Invalidate();
@@ -1316,7 +1161,6 @@ void UGA_MeleeAttack::ActivateAbility(
 		{
 			static const FGameplayTag TAG_ActDamage    = FGameplayTag::RequestGameplayTag("Attribute.ActDamage");
 			static const FGameplayTag TAG_ActRange     = FGameplayTag::RequestGameplayTag("Attribute.ActRange");
-			static const FGameplayTag TAG_ActRes       = FGameplayTag::RequestGameplayTag("Attribute.ActResilience");
 			static const FGameplayTag TAG_ActDmgReduce = FGameplayTag::RequestGameplayTag("Attribute.ActDmgReduce");
 
 			FGameplayEffectContextHandle ContextHandle = ASC->MakeEffectContext();
@@ -1344,7 +1188,6 @@ void UGA_MeleeAttack::ActivateAbility(
 				const FActionData ActionData = GetAbilityActionData();
 				SpecHandle.Data->SetSetByCallerMagnitude(TAG_ActDamage,    ActionData.ActDamage);
 				SpecHandle.Data->SetSetByCallerMagnitude(TAG_ActRange,     ActionData.ActRange);
-				SpecHandle.Data->SetSetByCallerMagnitude(TAG_ActRes,       ActionData.ActResilience);
 				SpecHandle.Data->SetSetByCallerMagnitude(TAG_ActDmgReduce, ActionData.ActDmgReduce);
 				StatBeforeATKHandle = ASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
 				const float PostStatBeforeAttack = ASC->GetNumericAttribute(UBaseAttributeSet::GetAttackAttribute());
@@ -1499,12 +1342,6 @@ void UGA_MeleeAttack::EndAbility(
 		}
 	}
 
-	if (EnemyLungeTask)
-	{
-		EnemyLungeTask->EndTask();
-		EnemyLungeTask = nullptr;
-	}
-
 	StopEnemyCurveMove();
 
 	// 安全清理：技能结束时清空未消费的暂存数据（蒙太奇被打断未触发 OnEventReceived 时保护用
@@ -1521,6 +1358,13 @@ void UGA_MeleeAttack::EndAbility(
 	{
 		if (ASC) ASC->RemoveActiveGameplayEffect(StatBeforeATKHandle);
 		StatBeforeATKHandle = FActiveGameplayEffectHandle();
+	}
+
+	// Cleared here rather than when a target reads it, so every target of one sweep
+	// takes the full poise damage instead of only the first.
+	if (UYogAbilitySystemComponent* YogASC = Cast<UYogAbilitySystemComponent>(ASC))
+	{
+		YogASC->ClearActionPoiseDamage();
 	}
 
 	if (bHasStatBeforeAttributeSnapshot && ASC)
@@ -1619,16 +1463,6 @@ void UGA_MeleeAttack::EndAbility(
 		}
 	}
 
-	if (APlayerCharacterBase* PlayerOwner = Cast<APlayerCharacterBase>(GetAvatarActorFromActorInfo()))
-	{
-		if (ActiveCombatCardResult.bHadCard && PlayerOwner->CombatDeckComponent)
-		{
-			PlayerOwner->CombatDeckComponent->StopCardFlow(ActiveCombatCardResult.ResolvedCard);
-			PlayerOwner->CombatDeckComponent->StopCardFlow(ActiveCombatCardResult.LinkedSourceCard);
-			PlayerOwner->CombatDeckComponent->StopCardFlow(ActiveCombatCardResult.LinkedTargetCard);
-		}
-	}
-
 	if (const AYogCharacterBase* AvatarCharacter = Cast<AYogCharacterBase>(GetAvatarActorFromActorInfo()))
 	{
 		if (UMontageVFXBindingComponent* VFXBindingComponent =
@@ -1649,11 +1483,10 @@ void UGA_MeleeAttack::EndAbility(
 			{
 				// A reposition move deals no damage by design; treat it as resolved (not a
 				// whiff) so it clears the flag instead of re-triggering itself endlessly.
-				const bool bRepositionMove =
-					ActiveEnemyAttackContext.AttackOption.AttackRole == EEnemyAIAttackRole::Reposition;
+				const bool bRepositionMove = ActiveEnemyAttackContext.bIsReposition;
 				const bool bWhiffed = !bRepositionMove && !EnemyOwner->bAttackHitConnected;
 				const bool bForceReposition = !bRepositionMove
-					&& ActiveEnemyAttackContext.AttackOption.bRequestRepositionOnResolve;
+					&& ActiveEnemyAttackContext.bRequestRepositionOnResolve;
 				YogAI->NotifyAttackResolved(bWhiffed, bForceReposition);
 			}
 		}
@@ -1979,16 +1812,6 @@ void UGA_MeleeAttack::RestoreAttrsPostCard(
 		return;
 	}
 
-	if (APlayerCharacterBase* PlayerOwner = Cast<APlayerCharacterBase>(GetAvatarActorFromActorInfo()))
-	{
-		if (PlayerOwner->CombatDeckComponent)
-		{
-			PlayerOwner->CombatDeckComponent->StopCardFlow(CardResult.ResolvedCard);
-			PlayerOwner->CombatDeckComponent->StopCardFlow(CardResult.LinkedSourceCard);
-			PlayerOwner->CombatDeckComponent->StopCardFlow(CardResult.LinkedTargetCard);
-		}
-	}
-
 	if (!Snapshot.bValid || !ASC)
 	{
 		return;
@@ -2055,7 +1878,7 @@ void UGA_MeleeAttack::OnEventReceived(FGameplayTag EventTag, FGameplayEventData 
 		LastFiredDamageNotify = FiredNotify;
 		if (UYogAbilitySystemComponent* SourceASC = Cast<UYogAbilitySystemComponent>(GetAbilitySystemComponentFromActorInfo()))
 		{
-			SourceASC->CurrentActionPoiseBonus = GetAbilityActionData().ActResilience;
+			SourceASC->CurrentActionPoiseDamage = GetAbilityActionData().ActResilience;
 		}
 	}
 
@@ -2087,7 +1910,7 @@ void UGA_MeleeAttack::OnEventReceived(FGameplayTag EventTag, FGameplayEventData 
 		LastFiredDamageWindow = FiredDamageWindow;
 		if (UYogAbilitySystemComponent* SourceASC = Cast<UYogAbilitySystemComponent>(GetAbilitySystemComponentFromActorInfo()))
 		{
-			SourceASC->CurrentActionPoiseBonus = FiredDamageWindow->ResolveActionData(OwnerCharacter).ActResilience;
+			SourceASC->CurrentActionPoiseDamage = FiredDamageWindow->ResolveActionData(OwnerCharacter).ActResilience;
 		}
 	}
 

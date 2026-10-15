@@ -127,13 +127,10 @@ void UAttributeStatComponent::DivideAttribute(FGameplayAttribute attribute, floa
 
 void UAttributeStatComponent::OverrideAttribute(FGameplayAttribute attribute, float value_override) const
 {
-	if (value_override)
-	{
-		UAbilitySystemComponent* abilitySystemComponent = GetOwnerAbilitySystemComponent(this);
-		if (!HasAttributeSet(this, abilitySystemComponent, attribute)) return;
+	UAbilitySystemComponent* abilitySystemComponent = GetOwnerAbilitySystemComponent(this);
+	if (!HasAttributeSet(this, abilitySystemComponent, attribute)) return;
 
-		abilitySystemComponent->SetNumericAttributeBase(attribute, value_override);
-	}
+	abilitySystemComponent->SetNumericAttributeBase(attribute, value_override);
 }
 
 float UAttributeStatComponent::GetStat_Attack() const

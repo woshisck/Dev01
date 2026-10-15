@@ -11,10 +11,10 @@
   - The portal UI now collapses any rune/card reward set to one generic card icon.
   - Gold uses the existing gold icon; material uses the question icon.
 - First-run next-room plan:
-  - Use `SetNextRoomPlan` for forced portal, room override, reward override, enemy buff override, and special enemy reward setup.
-  - `PortalIndex` defaults to `0`; change it in the node if the target door should be different.
+  - Use `SetNextRoomPlan` for reward override and special enemy reward setup.
+  - Portal targets are no longer part of the plan: set `DestinationLevel` on each placed portal instead.
 - Prayer room:
-  - Fill `RoomDataOverride` with the real prayer room `RoomDataAsset` when that asset is ready.
+  - Point the portal that leads there at the prayer room map via `DestinationLevel`.
 - Moonlight special enemy:
   - Fill `SpecialRewardEnemyAuraFX` with the persistent blue aura Niagara asset.
   - Confirm `SpecialRewardEnemyLootOptions` contains only the Moonlight card.
@@ -27,7 +27,7 @@
   - Dummy kill still drops the Heavy card tutorial pickup.
   - First combat room portal previews gold with the gold icon.
 - After first gold room:
-  - Next portal opens only the configured `PortalIndex`.
+  - Clearing the room opens the placed portals, each leading to its own `DestinationLevel`.
   - BuffCardRoom preview shows the enemy buff plus one generic card icon.
   - It must not show Attack / Heavy / Split as three separate icons.
   - Clearing the room drops one reward pickup that opens the three-card choice.
@@ -60,7 +60,7 @@
   - Check the portal widget is using the latest code and not a stale packaged build.
   - Confirm the reward options are `ELootType::Rune`; non-rune options are intentionally shown separately.
 - If the prayer room is not reached:
-  - Check `RoomDataOverride` is assigned in the relevant `SetNextRoomPlan` node.
-  - Check the forced `PortalIndex` points to the visible/open portal.
+  - Check the portal leading there has the prayer room map in its `DestinationLevel`.
+  - Check the map contains an `AYogRoomDirector`; without one nothing opens the doors.
 - If Moonlight drops twice:
   - Check `bSuppressRoomClearRewardPickup` is enabled for the Moonlight special enemy room plan.

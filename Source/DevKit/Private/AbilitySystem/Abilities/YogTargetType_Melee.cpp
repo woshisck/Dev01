@@ -110,7 +110,7 @@ static void DrawHitboxDebug(UWorld* World, const FVector& Loc, float Yaw,
 // UYogTargetType_MeleeBase — 共用逻辑
 // ===========================================================
 
-FActionData UYogTargetType_MeleeBase::GetActionData(AYogCharacterBase* TargetingCharacter, const FGameplayEventData& EventData) const
+static FActionData YogTargetType_BuildAuthoredActionData(AYogCharacterBase* TargetingCharacter, const FGameplayEventData& EventData)
 {
 	if (TargetingCharacter)
 	{
@@ -162,6 +162,21 @@ FActionData UYogTargetType_MeleeBase::GetActionData(AYogCharacterBase* Targeting
 	}
 
 	return FActionData();
+}
+
+FActionData UYogTargetType_MeleeBase::GetActionData(AYogCharacterBase* TargetingCharacter, const FGameplayEventData& EventData) const
+{
+	FActionData Data = YogTargetType_BuildAuthoredActionData(TargetingCharacter, EventData);
+
+	// Single choke point for search radius, IsTargetHit and DrawHitboxDebug, so the drawn
+	// ring always equals the tested one. Matches the telegraph and the VFX annulus plane,
+	// which resolve the same way off their own authored data.
+	if (TargetingCharacter)
+	{
+		Data.ActRange = TargetingCharacter->ResolveEffectiveAttackRange(Data.ActRange);
+	}
+
+	return Data;
 }
 
 bool UYogTargetType_MeleeBase::ShouldDrawDebugHitbox(const FGameplayEventData& EventData) const

@@ -152,11 +152,6 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "场景拾取|动画", meta = (DisplayName = "武器动画层"))
 	TSubclassOf<UYogAnimInstance> WeaponLayer;
 
-	// 热度阶段 Overlay 材质（带 Fresnel + EmissiveColor 参数）
-	// 武器被拾取时由 WeaponSpawner 自动传给 WeaponInstance
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "热度效果", meta = (DisplayName = "热度叠加材质"))
-	TObjectPtr<UMaterialInterface> HeatOverlayMaterial;
-
 	// Deprecated compatibility data for the old heat/backpack rune grid.
 	UPROPERTY()
 	FBackpackConfig BackpackConfig;

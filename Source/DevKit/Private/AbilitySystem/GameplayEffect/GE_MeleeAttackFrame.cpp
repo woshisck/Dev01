@@ -9,7 +9,6 @@ UGE_MeleeAttackFrame::UGE_MeleeAttackFrame()
 
 	static const FGameplayTag TAG_ActDamage    = FGameplayTag::RequestGameplayTag("Attribute.ActDamage");
 	static const FGameplayTag TAG_ActRange     = FGameplayTag::RequestGameplayTag("Attribute.ActRange");
-	static const FGameplayTag TAG_ActRes       = FGameplayTag::RequestGameplayTag("Attribute.ActResilience");
 	static const FGameplayTag TAG_ActDmgReduce = FGameplayTag::RequestGameplayTag("Attribute.ActDmgReduce");
 
 	auto AddMod = [this](FGameplayAttribute Attr, EGameplayModOp::Type Op, FGameplayTag Tag)
@@ -25,6 +24,5 @@ UGE_MeleeAttackFrame::UGE_MeleeAttackFrame()
 
 	AddMod(UBaseAttributeSet::GetAttackAttribute(), EGameplayModOp::Additive, TAG_ActDamage);
 	AddMod(UBaseAttributeSet::GetAttackRangeAttribute(), EGameplayModOp::Override,  TAG_ActRange);
-	AddMod(UBaseAttributeSet::GetResilienceAttribute(),  EGameplayModOp::Override,  TAG_ActRes);
 	AddMod(UBaseAttributeSet::GetResistAttribute(),      EGameplayModOp::Override,  TAG_ActDmgReduce);
 }

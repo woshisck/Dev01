@@ -61,10 +61,6 @@ void USacrificeRuneComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	if (APlayerCharacterBase* Player = GetPlayerOwner())
 	{
-		if (Player->CombatDeckComponent)
-		{
-			Player->CombatDeckComponent->OnCardResolved.RemoveDynamic(this, &USacrificeRuneComponent::HandleCardResolved);
-		}
 		if (UYogAbilitySystemComponent* ASC = Player->GetASC())
 		{
 			ASC->DealtDamage.RemoveDynamic(this, &USacrificeRuneComponent::HandlePlayerDamageDealt);
@@ -229,10 +225,6 @@ void USacrificeRuneComponent::EnsureBindings()
 	if (UYogAbilitySystemComponent* ASC = Player->GetASC())
 	{
 		ASC->DealtDamage.AddUniqueDynamic(this, &USacrificeRuneComponent::HandlePlayerDamageDealt);
-	}
-	if (Player->CombatDeckComponent)
-	{
-		Player->CombatDeckComponent->OnCardResolved.AddUniqueDynamic(this, &USacrificeRuneComponent::HandleCardResolved);
 	}
 	bBindingsInitialized = true;
 }

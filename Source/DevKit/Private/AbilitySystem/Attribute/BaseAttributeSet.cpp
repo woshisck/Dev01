@@ -9,10 +9,8 @@
 #include "GameplayEffect.h"
 #include "GameplayEffectExtension.h"
 #include "Character/PlayerCharacterBase.h"
-#include "Component/BackpackGridComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
-static constexpr bool bDisableLegacyHeatRuntimeForCardTest = true;
 
 static bool BaseAttributeSetHasInvulnerableTag(const UAbilitySystemComponent* ASC)
 {
@@ -100,6 +98,13 @@ void UBaseAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribute, 
 		AdjustAttributeForMaxChange(ArmorHP, MaxArmorHP, NewValue, GetArmorHPAttribute());
 	}
 
+	if (Attribute == GetResilienceAttribute())
+	{
+		// No upper bound: the only refill writes exactly UYogAbilitySystemComponent::MaxPoise,
+		// so clamping here would only fight rune-granted bonus poise.
+		NewValue = FMath::Max(0.f, NewValue);
+	}
+
 	if (Attribute == GetShieldAttribute())
 	{
 		NewValue = FMath::Max(0.f, NewValue);
@@ -107,13 +112,8 @@ void UBaseAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribute, 
 
 	if (Attribute == GetHeatAttribute())
 	{
-		if (bDisableLegacyHeatRuntimeForCardTest)
-		{
-			NewValue = 0.f;
-			return;
-		}
-
-		NewValue = FMath::Clamp(NewValue, 0.0f, GetMaxHeat());
+		NewValue = 0.f;
+		return;
 	}
 
 }
@@ -125,30 +125,7 @@ bool UBaseAttributeSet::PreGameplayEffectExecute(FGameplayEffectModCallbackData&
 
 	if (Data.EvaluatedData.Attribute == GetHeatAttribute())
 	{
-		if (bDisableLegacyHeatRuntimeForCardTest)
-		{
-			return false;
-		}
-
-		CachedPreEffectHeat = GetHeat();
-
-		// 热度减少时，以下任一 Tag 存在则阻断（return false = GE 不执行）：
-		//   Buff.Heat.Active       — 战斗状态保热（攻击/受伤后短暂持有）
-		//   Buff.HeatDecayBlocked  — 符文主动阻断（如 Rune 1002 热度提升，激活期间禁止衰减）
-		if (Data.EvaluatedData.Magnitude < 0.f)
-		{
-			static const FGameplayTag HeatActiveTag =
-				FGameplayTag::RequestGameplayTag(TEXT("Buff.Heat.Active"), false);
-			static const FGameplayTag HeatDecayBlockedTag =
-				FGameplayTag::RequestGameplayTag(TEXT("Buff.HeatDecayBlocked"), false);
-
-			UAbilitySystemComponent* ASC = GetOwningAbilitySystemComponent();
-			if ((HeatActiveTag.IsValid()        && ASC->HasMatchingGameplayTag(HeatActiveTag))       ||
-			    (HeatDecayBlockedTag.IsValid()   && ASC->HasMatchingGameplayTag(HeatDecayBlockedTag)))
-			{
-				return false;
-			}
-		}
+		return false;
 	}
 	return true;
 }
@@ -197,64 +174,8 @@ void UBaseAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallba
 
 	if (Data.EvaluatedData.Attribute == GetHeatAttribute())
 	{
-		if (bDisableLegacyHeatRuntimeForCardTest)
-		{
-			SetHeat(0.f);
-			return;
-		}
-
-		float NewHeat = GetHeat();
-
-		// 先判断升阶条件：热度在本次 GE 施加【之前】就已满，且本次是 LastHit
-		// 若热度不足就先自然堆叠到上限，等下一次 LastHit 再升阶
-		const bool bWasAlreadyFull = (CachedPreEffectHeat >= GetMaxHeat());
-
-		if (NewHeat >= GetMaxHeat())
-		{
-			static const FGameplayTag CanPhaseUpTag =
-				FGameplayTag::RequestGameplayTag(TEXT("Action.Heat.CanPhaseUp"), false);
-
-			const bool bHasTagInAsset   = Data.EffectSpec.Def && Data.EffectSpec.Def->GetAssetTags().HasTag(CanPhaseUpTag);
-			const bool bHasTagInDynamic = Data.EffectSpec.GetDynamicAssetTags().HasTag(CanPhaseUpTag);
-			const bool bCanPhaseUp      = CanPhaseUpTag.IsValid() && (bHasTagInAsset || bHasTagInDynamic);
-
-			if (bCanPhaseUp && bWasAlreadyFull)
-			{
-				// 热度已满 + LastHit → 升阶（最高阶段时卡住热度）
-				APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(GetOwningActor());
-				if (Player)
-				{
-					UBackpackGridComponent* BGC = Player->GetBackpackGridComponent();
-					if (BGC)
-					{
-						if (BGC->GetCurrentPhase() >= 3)
-						{
-							// 已是最高阶段，热度卡在上限，不触发升阶
-							SetHeat(GetMaxHeat());
-						}
-						else
-						{
-							UE_LOG(LogTemp, Warning, TEXT("[Heat] 升阶触发 | Heat=%.0f/%.0f | bWasAlreadyFull=%d | Owner=%s"),
-								CachedPreEffectHeat, GetMaxHeat(), (int32)bWasAlreadyFull, *GetNameSafe(GetOwningActor()));
-							if (GEngine)
-								GEngine->AddOnScreenDebugMessage(-1, 4.f, FColor::Orange,
-									FString::Printf(TEXT("[热度升阶] 热度满额触发 → Phase+1")));
-							BGC->OnPhaseUpReady.Broadcast();
-							SetHeat(0.f);
-						}
-					}
-				}
-			}
-			else
-			{
-				// 热度不足（LastHit 打过来但还没满）或普通攻击：卡在上限
-				SetHeat(GetMaxHeat());
-			}
-		}
-		else
-		{
-			SetHeat(FMath::Clamp(NewHeat, 0.f, GetMaxHeat()));
-		}
+		SetHeat(0.f);
+		return;
 	}
 
 	if (Data.EvaluatedData.Attribute == GetHealthAttribute())
@@ -345,19 +266,7 @@ void UBaseAttributeSet::PostAttributeChange(const FGameplayAttribute& Attribute,
 
 	if (Attribute == GetHeatAttribute())
 	{
-		if (bDisableLegacyHeatRuntimeForCardTest)
-		{
-			return;
-		}
-
-		// 通知背包组件更新热度等级（传绝对值）
-		if (APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(GetOwningActor()))
-		{
-			if (UBackpackGridComponent* BGC = Player->GetBackpackGridComponent())
-			{
-				BGC->OnHeatValueChanged(NewValue);
-			}
-		}
+		return;
 	}
 
 	// ArmorHP 变化时同步 Buff.Armored Tag
@@ -420,32 +329,6 @@ void UBaseAttributeSet::PostAttributeChange(const FGameplayAttribute& Attribute,
 			}
 		}
 	}
-
-}
-
-void UBaseAttributeSet::Init(UCharacterData* data)
-{
-	const FYogBaseAttributeData* YogBaseData = data->GetBaseAttributeData();
-
-	SetAttack(YogBaseData->Attack);
-	SetAttackPower(YogBaseData->AttackPower);
-	SetMaxHealth(YogBaseData->MaxHealth);
-	SetMaxHeat(YogBaseData->MaxHeat);
-	SetShield(YogBaseData->Shield);
-	SetAttackSpeed(YogBaseData->AttackSpeed);
-	SetAttackRange(YogBaseData->AttackRange);
-	SetSanity(YogBaseData->Sanity);
-	SetMoveSpeed(YogBaseData->MoveSpeed);
-	SetDodge(YogBaseData->Dodge);
-	SetResilience(YogBaseData->Resilience);
-	SetResist(YogBaseData->Resist);
-	SetDmgTaken(YogBaseData->DmgTaken);
-	UE_LOG(LogTemp, Warning, TEXT("[DmgTakenTrace] INIT %s -> %.2f (from CharacterData %s)"),
-		*GetNameSafe(GetOwningActor()), YogBaseData->DmgTaken, *GetNameSafe(data));
-	SetCrit_Rate(YogBaseData->Crit_Rate);
-	SetCrit_Damage(YogBaseData->Crit_Damage);
-	SetMaxArmorHP(YogBaseData->MaxArmorHP);
-	SetArmorHP(YogBaseData->MaxArmorHP);
 
 }
 

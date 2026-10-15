@@ -63,16 +63,12 @@ bool FGameModeFindRoomDataForLoadedMapTest::RunTest(const FString& Parameters)
 	URoomDataAsset* StartRoom = NewObject<URoomDataAsset>(Campaign);
 	StartRoom->RoomName = FName(TEXT("/Game/Maps/Dungeon/FirstLevel"));
 
-	URoomDataAsset* PortalOnlyRoom = NewObject<URoomDataAsset>(Campaign);
-	PortalOnlyRoom->RoomName = FName(TEXT("/Game/Maps/Dungeon/SecondLevel"));
-
-	FPortalDestConfig Dest;
-	Dest.PortalIndex = 0;
-	Dest.RoomPool.Add(PortalOnlyRoom);
-	StartRoom->PortalDestinations.Add(Dest);
+	URoomDataAsset* SecondRoom = NewObject<URoomDataAsset>(Campaign);
+	SecondRoom->RoomName = FName(TEXT("/Game/Maps/Dungeon/SecondLevel"));
 
 	Campaign->DefaultStartingRoom = StartRoom;
 	Campaign->RoomPool.Add(StartRoom);
+	Campaign->RoomPool.Add(SecondRoom);
 
 	TestEqual(
 		TEXT("Starting room resolves from the loaded map's short name"),
@@ -80,14 +76,9 @@ bool FGameModeFindRoomDataForLoadedMapTest::RunTest(const FString& Parameters)
 		StartRoom);
 
 	TestEqual(
-		TEXT("Room reachable only through a portal pool still resolves"),
-		AYogGameMode::FindRoomDataForLoadedMap(Campaign, TEXT("SecondLevel")),
-		PortalOnlyRoom);
-
-	TestEqual(
 		TEXT("Map name matching ignores case"),
 		AYogGameMode::FindRoomDataForLoadedMap(Campaign, TEXT("secondlevel")),
-		PortalOnlyRoom);
+		SecondRoom);
 
 	TestNull(
 		TEXT("Unknown map falls back to no room data"),

@@ -21,13 +21,17 @@ namespace YogMontageMove
 }
 
 /**
- * Drives a character along a direction using a cumulative-distance curve sampled from the
+ * Drives a character along its own facing using a cumulative-distance curve sampled from the
  * montage currently playing on it. Exists because several skeletons in this project have no
  * root bone, so authored root motion is unavailable.
  *
  * Sampling is keyed off the montage's playback position rather than this source's own
  * elapsed time, so the motion stays locked to the animation when the play rate changes
  * (attack speed stat, HitStop slow/freeze) instead of drifting out of sync.
+ *
+ * The travel direction is re-read from the character every tick rather than captured when the
+ * move starts, so turning the actor mid-montage (ANS_AttackRotate, AI facing updates) steers
+ * the path instead of being ignored.
  */
 USTRUCT()
 struct DEVKIT_API FYogRootMotionSource_MontageCurveMove : public FRootMotionSource
@@ -37,10 +41,6 @@ struct DEVKIT_API FYogRootMotionSource_MontageCurveMove : public FRootMotionSour
 	FYogRootMotionSource_MontageCurveMove();
 
 	virtual ~FYogRootMotionSource_MontageCurveMove() = default;
-
-	/** World-space unit vector, locked when the movement starts. */
-	UPROPERTY()
-	FVector Direction = FVector::ZeroVector;
 
 	UPROPERTY()
 	TObjectPtr<UAnimMontage> Montage = nullptr;

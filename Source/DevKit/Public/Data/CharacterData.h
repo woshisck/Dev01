@@ -48,8 +48,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float Dodge = 0;
 
+	// Size of the poise pool. Resilience starts here and refills to it on every stagger break.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float Resilience = 0;
+	float Resilience = 100;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float Resist = 0;

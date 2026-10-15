@@ -7,7 +7,7 @@
 - 敌人 BP 仍使用项目层 `AYogAIController` / 其蓝图子类，不需要修改引擎。
 - `AYogAIController` 已接入 Crowd PathFollowing，用于更好的寻路和避让。
 - 敌人生成会读取 `EnemyData.EnemyClass`，并在生成后自动 Spawn Default Controller。
-- 敌人 `BeginPlay` 已从 `EnemyData` 推送 `SuperArmorThreshold` / `SuperArmorDuration` 到 ASC。
+- 敌人 `BeginPlay` 已从 `EnemyData` 推送 `RecentlyDamagedStateDuration` 到 ASC。
 
 ## 待做功能
 
@@ -49,7 +49,7 @@
 | 哨铃狱卒 | `Content/Docs/Data/Enemy/AlarmBellJailer/DA_AlarmBellJailer` |
 | 看守队长 | `Content/Docs/Data/Enemy/GuardCaptain/DA_GuardCaptain` |
 
-`EnemyData` 里再配置 `EnemyClass`、`BehaviorTree`、`MovementTuning`、霸体参数和敌人专属 Buff。
+`EnemyData` 里再配置 `EnemyClass`、`BehaviorTree`、`MovementTuning` 和敌人专属 Buff。
 
 ## 3. CharacterMovement
 

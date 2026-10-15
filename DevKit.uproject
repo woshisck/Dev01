@@ -65,7 +65,7 @@
 		},
 		{
 			"Name": "UnLuaTestSuite",
-			"Enabled": true
+			"Enabled": false
 		},
 		{
 			"Name": "ModularGameplay",

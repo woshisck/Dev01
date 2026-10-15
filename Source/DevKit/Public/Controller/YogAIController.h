@@ -53,13 +53,10 @@ public:
 		float RepathInterval,
 		float AcceptanceRadius);
 
-	float GetMovementAttackRange(const FEnemyAIAttackOption& Attack) const;
-	void NotifyAttackActivated(const FEnemyAIAttackOption& Attack);
-	bool IsAttackCooldownReadyForAI(const FEnemyAIAttackOption& Attack, float* OutRemainingCooldown = nullptr) const;
-	bool IsRecentAttackRepeat(const FEnemyAIAttackOption& Attack, float MemoryDuration, float* OutRepeatAge = nullptr) const;
-	bool CanUseMovementAttack(const FEnemyAIAttackOption& Attack, float DistanceToTarget, float* OutRemainingCooldown = nullptr) const;
-	void NotifyMovementAttackActivated(const FEnemyAIAttackOption& Attack);
-	void RefreshMovementAttackCooldownReset(float DistanceToTarget);
+	// Attack cooldowns are owned here rather than by the StateTree task: task instance data is
+	// reallocated on every state entry, so a deadline stored there would never survive.
+	void NotifyAttackActivated(const FGameplayTag& AbilityTag, float Cooldown);
+	bool IsAttackCooldownReadyForAI(const FGameplayTag& AbilityTag, float* OutRemainingCooldown = nullptr) const;
 
 	// Records the outcome of the most recently completed enemy profile attack on the
 	// blackboard: bLastAttackWhiffed reflects whether it missed, and LastWhiffTime is
@@ -148,11 +145,7 @@ private:
 	int32 LastCombatMoveRequestResultCode = 0;
 	bool bLastCombatMoveRequestTargetMoved = false;
 	float LastAwarenessDebugLogTime = -FLT_MAX;
-	TMap<FName, float> MovementAttackCooldownEndTimes;
-	TMap<FName, float> AttackCooldownEndTimes;
-	TMap<FName, float> InvalidMovementAttackAbilityLogTimes;
-	FName LastSelectedAttackKey = NAME_None;
-	float LastSelectedAttackTime = -FLT_MAX;
+	TMap<FGameplayTag, float> AttackCooldownEndTimes;
 	bool bCombatAttackInProgress = false;
 	float CombatStartTime = -FLT_MAX;
 };

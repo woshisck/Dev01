@@ -3,8 +3,6 @@
 #include "Cheater/Cheater.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Character/EnemyCharacterBase.h"
-#include "Component/BackpackGridComponent.h"
-#include "Component/CombatDeckComponent.h"
 #include "Combat/FinisherDeprecation.h"
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
@@ -21,81 +19,10 @@
 
 // ─── 内部辅助 ─────────────────────────────────────────────────────────────────
 
-static const TCHAR* GYogMoonlightLinkCardPaths[] = {
-	TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Moonlight_Forward.DA_Rune512_Moonlight_Forward"),
-	TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Moonlight_Reversed.DA_Rune512_Moonlight_Reversed"),
-	TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Burn.DA_Rune512_Burn"),
-	TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Poison.DA_Rune512_Poison"),
-	TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Shield.DA_Rune512_Shield"),
-	TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Pierce.DA_Rune512_Pierce"),
-	TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Attack.DA_Rune512_Attack"),
-	TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_ReduceDamage.DA_Rune512_ReduceDamage"),
-	TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Splash.DA_Rune512_Splash"),
-	TEXT("/Game/Docs/BuffDocs/V2-RuneCard/512Generated/DA_Rune512_Split.DA_Rune512_Split"),
-};
-
 static APlayerCharacterBase* FindCheatPlayer(UWorld* World)
 {
 	APlayerController* PC = World ? World->GetFirstPlayerController() : nullptr;
 	return PC ? Cast<APlayerCharacterBase>(PC->GetPawn()) : nullptr;
-}
-
-static void GiveMoonlightLinkCardsToWorld(UWorld* World)
-{
-	APlayerCharacterBase* Char = FindCheatPlayer(World);
-	UCombatDeckComponent* CombatDeck = Char ? Char->CombatDeckComponent : nullptr;
-	if (!CombatDeck)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[GM] Yog_GiveMoonlightLinkCards: CombatDeckComponent not found."));
-		if (GEngine)
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("[GM] Moonlight cards failed: no combat deck."));
-		}
-		return;
-	}
-
-	int32 AddedCount = 0;
-	TArray<FString> MissingCards;
-	for (const TCHAR* CardPath : GYogMoonlightLinkCardPaths)
-	{
-		URuneDataAsset* RuneAsset = LoadObject<URuneDataAsset>(nullptr, CardPath);
-		if (!RuneAsset)
-		{
-			MissingCards.Add(CardPath);
-			UE_LOG(LogTemp, Warning, TEXT("[GM] Yog_GiveMoonlightLinkCards: failed to load %s"), CardPath);
-			continue;
-		}
-
-		if (CombatDeck->AddCardFromRuneReward(RuneAsset))
-		{
-			++AddedCount;
-		}
-		else
-		{
-			MissingCards.Add(CardPath);
-			UE_LOG(LogTemp, Warning, TEXT("[GM] Yog_GiveMoonlightLinkCards: failed to add %s"), CardPath);
-		}
-	}
-
-	CombatDeck->RefreshDeckView();
-
-	const FString Message = FString::Printf(
-		TEXT("[GM] Moonlight link cards added: %d/%d"),
-		AddedCount,
-		UE_ARRAY_COUNT(GYogMoonlightLinkCardPaths));
-	UE_LOG(LogTemp, Log, TEXT("%s"), *Message);
-	if (!MissingCards.IsEmpty())
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[GM] Missing moonlight cards: %s"), *FString::Join(MissingCards, TEXT(", ")));
-	}
-	if (GEngine)
-	{
-		GEngine->AddOnScreenDebugMessage(
-			-1,
-			6.f,
-			MissingCards.IsEmpty() ? FColor::Green : FColor::Yellow,
-			Message);
-	}
 }
 
 static void SetLevelEndedForWorld(UWorld* World)
@@ -115,12 +42,6 @@ static void SetLevelEndedForWorld(UWorld* World)
 	{
 		GameMode->CurrentPhase = ELevelPhase::Combat;
 		GameMode->EnterArrangementPhase();
-	}
-
-	APlayerCharacterBase* Char = FindCheatPlayer(World);
-	if (UBackpackGridComponent* Backpack = Char ? Char->GetBackpackGridComponent() : nullptr)
-	{
-		Backpack->SetLocked(false);
 	}
 
 	const FString Message = TEXT("[GM] Level set to ended / Arrangement phase.");
@@ -204,16 +125,6 @@ static void ToggleRuntimeGMPanelForWorld(UWorld* World)
 #endif
 }
 
-static FAutoConsoleCommandWithWorld GGiveMoonlightLinkCardsCommand(
-	TEXT("Yog_GiveMoonlightLinkCards"),
-	TEXT("Adds Moonlight link test cards directly to the current player's combat deck."),
-	FConsoleCommandWithWorldDelegate::CreateStatic(&GiveMoonlightLinkCardsToWorld));
-
-static FAutoConsoleCommandWithWorld GGiveMoonlightLinkCardsAliasCommand(
-	TEXT("Yog.GiveMoonlightLinkCards"),
-	TEXT("Adds Moonlight link test cards directly to the current player's combat deck."),
-	FConsoleCommandWithWorldDelegate::CreateStatic(&GiveMoonlightLinkCardsToWorld));
-
 static FAutoConsoleCommandWithWorld GSetLevelEndedCommand(
 	TEXT("Yog_SetLevelEnded"),
 	TEXT("Forces the current level into ended / Arrangement phase for card and backpack testing."),
@@ -242,12 +153,6 @@ APlayerCharacterBase* UYogCheatManager::GetPlayerChar() const
 	return PC ? Cast<APlayerCharacterBase>(PC->GetPawn()) : nullptr;
 }
 
-UBackpackGridComponent* UYogCheatManager::GetBGC() const
-{
-	APlayerCharacterBase* Char = GetPlayerChar();
-	return Char ? Char->BackpackGridComponent : nullptr;
-}
-
 // ─── 热度 ─────────────────────────────────────────────────────────────────────
 
 void UYogCheatManager::Yog_SetHeat(float Value)
@@ -261,23 +166,7 @@ void UYogCheatManager::Yog_SetHeat(float Value)
 	const float Clamped = FMath::Clamp(Value, 0.f, ASC->GetNumericAttribute(UBaseAttributeSet::GetMaxHeatAttribute()));
 	ASC->SetNumericAttributeBase(UBaseAttributeSet::GetHeatAttribute(), Clamped);
 
-	// 通知 BGC 更新热度阶段状
-	if (UBackpackGridComponent* BGC = GetBGC())
-	{
-		BGC->OnHeatValueChanged(Clamped);
-	}
-
 	UE_LOG(LogTemp, Log, TEXT("[GM] 热度设为 %.1f"), Clamped);
-}
-
-void UYogCheatManager::Yog_SetPhase(int32 Phase)
-{
-	UBackpackGridComponent* BGC = GetBGC();
-	if (!BGC) { UE_LOG(LogTemp, Warning, TEXT("[GM] Yog_SetPhase: 找不BGC")); return; }
-
-	const int32 Clamped = FMath::Clamp(Phase, 0, 3);
-	BGC->RestorePhase(Clamped);
-	UE_LOG(LogTemp, Log, TEXT("[GM] 热度阶段设为 %d"), Clamped);
 }
 
 void UYogCheatManager::Yog_MaxHeat()
@@ -290,11 +179,6 @@ void UYogCheatManager::Yog_MaxHeat()
 
 	const float Max = ASC->GetNumericAttribute(UBaseAttributeSet::GetMaxHeatAttribute());
 	ASC->SetNumericAttributeBase(UBaseAttributeSet::GetHeatAttribute(), Max);
-
-	if (UBackpackGridComponent* BGC = GetBGC())
-	{
-		BGC->OnHeatValueChanged(Max);
-	}
 
 	UE_LOG(LogTemp, Log, TEXT("[GM] 热度设为满%.1f"), Max);
 }
@@ -347,37 +231,9 @@ void UYogCheatManager::Yog_GiveRune(int32 RuneID)
 	UE_LOG(LogTemp, Warning, TEXT("[GM] Yog_GiveRune: 未找RuneID=%d DataAsset（确认已加载"), RuneID);
 }
 
-void UYogCheatManager::Yog_GiveMoonlightLinkCards()
-{
-	GiveMoonlightLinkCardsToWorld(GetWorld());
-}
-
 void UYogCheatManager::Yog_SetLevelEnded()
 {
 	SetLevelEndedForWorld(GetWorld());
-}
-
-void UYogCheatManager::Yog_ClearRunes()
-{
-	UBackpackGridComponent* BGC = GetBGC();
-	if (!BGC) return;
-
-	// 收集所Guid 后批量移除（避免迭代中修改数组）
-	TArray<FGuid> Guids;
-	for (const FPlacedRune& Placed : BGC->GetAllPlacedRunes())
-	{
-		if (!Placed.bIsPermanent)
-		{
-			Guids.Add(Placed.Rune.RuneGuid);
-		}
-	}
-
-	for (const FGuid& Guid : Guids)
-	{
-		BGC->RemoveRune(Guid);
-	}
-
-	UE_LOG(LogTemp, Log, TEXT("[GM] 已清空背包符文（%d 个）"), Guids.Num());
 }
 
 void UYogCheatManager::Yog_SetGold(int32 Amount)
@@ -522,11 +378,7 @@ void UYogCheatManager::Yog_UnlockFinisher()
 		return;
 	}
 
-	APlayerCharacterBase* Char = GetPlayerChar();
-	UCombatDeckComponent* CombatDeck = Char ? Char->CombatDeckComponent : nullptr;
-	const int32 RequiredBattles = CombatDeck
-		? FMath::Max(0, CombatDeck->TemporaryFinisherUnlockCompletedBattles)
-		: 3;
+	const int32 RequiredBattles = 3;
 	GameMode->CompletedCombatBattleCount = FMath::Max(GameMode->CompletedCombatBattleCount, RequiredBattles);
 
 	if (UYogGameInstanceBase* GI = World ? Cast<UYogGameInstanceBase>(World->GetGameInstance()) : nullptr)
@@ -535,11 +387,6 @@ void UYogCheatManager::Yog_UnlockFinisher()
 		{
 			GI->PendingRunState.CompletedCombatBattleCount = GameMode->CompletedCombatBattleCount;
 		}
-	}
-
-	if (CombatDeck)
-	{
-		CombatDeck->RefreshDeckView();
 	}
 
 	const FString Message = FString::Printf(
@@ -560,16 +407,14 @@ void UYogCheatManager::Yog_PrintHeat()
 	if (!Char) return;
 
 	UYogAbilitySystemComponent* ASC = Char->GetASC();
-	UBackpackGridComponent* BGC = GetBGC();
-	if (!ASC || !BGC) return;
+	if (!ASC) return;
 
 	const float Heat    = ASC->GetNumericAttribute(UBaseAttributeSet::GetHeatAttribute());
 	const float MaxHeat = ASC->GetNumericAttribute(UBaseAttributeSet::GetMaxHeatAttribute());
-	const int32 Phase   = BGC->GetCurrentPhase();
 
-	UE_LOG(LogTemp, Log, TEXT("[GM] 热度: %.1f / %.1f  |  阶段: %d"), Heat, MaxHeat, Phase);
+	UE_LOG(LogTemp, Log, TEXT("[GM] 热度: %.1f / %.1f"), Heat, MaxHeat);
 	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Cyan,
-		FString::Printf(TEXT("[GM] Heat: %.1f / %.1f  Phase: %d"), Heat, MaxHeat, Phase));
+		FString::Printf(TEXT("[GM] Heat: %.1f / %.1f"), Heat, MaxHeat));
 }
 
 void UYogCheatManager::Yog_PrintTags()
@@ -619,28 +464,6 @@ void UYogCheatManager::Yog_PrintAttributes()
 	GEngine->AddOnScreenDebugMessage(-1, 6.f, FColor::Green, TEXT("[GM] 属性已打印Output Log"));
 }
 
-void UYogCheatManager::Yog_PrintRunes()
-{
-	UBackpackGridComponent* BGC = GetBGC();
-	if (!BGC) return;
-
-	const TArray<FPlacedRune>& Runes = BGC->GetAllPlacedRunes();
-	UE_LOG(LogTemp, Log, TEXT("[GM] 背包符文（共 %d 个）:"), Runes.Num());
-
-	for (const FPlacedRune& Placed : Runes)
-	{
-		UE_LOG(LogTemp, Log, TEXT("  [%s] ID=%d  Lv=%d  Pivot=(%d,%d)  Active=%s  Permanent=%s"),
-			*Placed.Rune.RuneConfig.RuneName.ToString(),
-			Placed.Rune.RuneConfig.RuneID,
-			Placed.Rune.UpgradeLevel,
-			Placed.Pivot.X, Placed.Pivot.Y,
-			Placed.bIsActivated ? TEXT("Y") : TEXT("N"),
-			Placed.bIsPermanent ? TEXT("Y") : TEXT("N"));
-	}
-
-	GEngine->AddOnScreenDebugMessage(-1, 6.f, FColor::Orange,
-		FString::Printf(TEXT("[GM] 符文: %d 个，详见 Output Log"), Runes.Num()));
-}
 
 void UYogCheatManager::Yog_Help()
 {
@@ -648,12 +471,10 @@ void UYogCheatManager::Yog_Help()
 		TEXT("[GM Commands 星骸降临]\n")
 		TEXT("── 热度 ──\n")
 		TEXT("  Yog_SetHeat <float>       设置热度值\n")
-		TEXT("  Yog_SetPhase <0-3>        强制设置热度阶段\n")
 		TEXT("  Yog_MaxHeat               热度设为满值\n")
 		TEXT("  Yog_FreezeHeat <0/1>      冻结/解冻热度衰减\n")
 		TEXT("── 背包 ──\n")
 		TEXT("  Yog_GiveRune <RuneID>     给予符文（入待放置列表）\n")
-		TEXT("  Yog_ClearRunes            清空已放置符文\n")
 		TEXT("  Yog_SetGold <int>         设置金币\n")
 		TEXT("── 玩家属──\n")
 		TEXT("  Yog_GodMode               切换无敌模式\n")
@@ -670,7 +491,6 @@ void UYogCheatManager::Yog_Help()
 		TEXT("  Yog_PrintHeat             打印热度/阶段\n")
 		TEXT("  Yog_PrintTags             打印玩家所Tag\n")
 		TEXT("  Yog_PrintAttributes       打印所有属性值\n")
-		TEXT("  Yog_PrintRunes            打印背包符文列表\n")
 		TEXT("  Yog_Help                  显示此帮");
 
 	UE_LOG(LogTemp, Log, TEXT("%s"), Help);

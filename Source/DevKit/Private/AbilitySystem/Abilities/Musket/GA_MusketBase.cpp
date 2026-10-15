@@ -171,28 +171,7 @@ FGuid UGA_MusketBase::ResolveCombatDeckOnFire(
     float Damage,
     float BaseYawOffsetDeg)
 {
-    const FGuid AttackGuid = FGuid::NewGuid();
-    APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(CachedCharacter);
-    if (!Player || !Player->CombatDeckComponent)
-    {
-        return AttackGuid;
-    }
-
-    FCombatDeckActionContext Context;
-    Context.ActionType = ActionType;
-    Context.ActionSlot = ActionSlot;
-    Context.FlowRole = bIsComboFinisher ? ECombatDeckFlowRole::Finisher : FlowRole;
-    Context.bIsComboFinisher = bIsComboFinisher;
-    Context.ReleaseMode = bIsComboFinisher ? ECombatCardReleaseMode::Finisher : ECombatCardReleaseMode::Normal;
-    Context.bFromDashSave = bFromDashSave;
-    Context.TriggerTiming = ECombatCardTriggerTiming::OnCommit;
-    Context.AttackInstanceGuid = AttackGuid;
-    Context.AttackDamage = Damage;
-    Context.RangedBaseYawOffsetDeg = BaseYawOffsetDeg;
-    Context.RangedProjectileClass = BulletClass;
-    Context.RangedDamageEffectClass = BulletDamageEffectClass;
-    Player->CombatDeckComponent->ResolveAttackCardWithContext(Context);
-    return AttackGuid;
+    return FGuid::NewGuid();
 }
 
 void UGA_MusketBase::ApplyCombatDeckContextToBullet(
