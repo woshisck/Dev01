@@ -225,13 +225,13 @@ AEnemyCharacterBase* AMobSpawner::SpawnMobForStory(const FStoryMobSpawnOptions& 
     TSubclassOf<AEnemyCharacterBase> EnemyClass = Options.EnemyClassOverride;
     if (!EnemyClass)
     {
-        if (EnemySpawnClassis.IsEmpty() || !EnemySpawnClassis[0])
+        if (MobPool.IsEmpty() || !MobPool[0].EnemyData || !MobPool[0].EnemyData->EnemyClass)
         {
-            UE_LOG(LogTemp, Warning, TEXT("[MobSpawner][StorySpawn] %s skipped: no EnemyClassOverride or EnemySpawnClassis[0]."),
+            UE_LOG(LogTemp, Warning, TEXT("[MobSpawner][StorySpawn] %s skipped: no EnemyClassOverride and MobPool[0] carries no enemy class."),
                 *GetNameSafe(this));
             return nullptr;
         }
-        EnemyClass = EnemySpawnClassis[0];
+        EnemyClass = MobPool[0].EnemyData->EnemyClass;
     }
 
     const FVector SpawnLocation = Options.bSpawnAtSpawnerLocation
@@ -482,11 +482,10 @@ void AMobSpawner::SelectLuaSpawnRule()
         }
     }
 
-    UE_LOG(LogTemp, Log, TEXT("[MobSpawner][Lua] %s selected rule %s from %d candidates (budget %d, pool %d)."),
+    UE_LOG(LogTemp, Log, TEXT("[MobSpawner][Lua] %s selected rule %s from %d candidates (pool %d)."),
         *GetNameSafe(this),
         *ActiveLuaRuleModule,
         LuaSpawnRulePool.Num(),
-        SpawnDifficultyBudget,
         MobPool.Num());
 }
 
@@ -495,15 +494,22 @@ int32 AMobSpawner::GetMobPoolSize() const
     return MobPool.Num();
 }
 
-int32 AMobSpawner::GetMobPoolDifficultyScore(int32 PoolIndex) const
+bool AMobSpawner::CanSpawnEnemyClass(TSubclassOf<AEnemyCharacterBase> EnemyClass) const
 {
-    const int32 Index = PoolIndex - 1;
-    if (!MobPool.IsValidIndex(Index) || !MobPool[Index].EnemyData)
+    if (!EnemyClass)
     {
-        return 0;
+        return false;
     }
 
-    return MobPool[Index].EnemyData->DifficultyScore;
+    for (const FEnemyEntry& Entry : MobPool)
+    {
+        if (Entry.EnemyData && Entry.EnemyData->EnemyClass == EnemyClass)
+        {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 AEnemyCharacterBase* AMobSpawner::SpawnFromMobPool(int32 PoolIndex, FVector Location)

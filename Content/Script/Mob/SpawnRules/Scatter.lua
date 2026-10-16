@@ -1,16 +1,14 @@
 --
--- Spawn rule: buys mobs with the spawner's budget and scatters them across reachable NavMesh
--- points inside the spawner's SpawnRadius.
+-- Spawn rule: drops one mob per MobPool entry across reachable NavMesh points inside the
+-- spawner's SpawnRadius.
 --
-
-local SpawnBudget = require("Mob.SpawnBudget")
+-- Repeat an entry in the pool to spawn that enemy more than once.
+--
 
 local M = {}
 
 function M.Run(Spawner)
-    local Picked = SpawnBudget.Purchase(Spawner)
-
-    for _, Index in ipairs(Picked) do
+    for Index = 1, Spawner:GetMobPoolSize() do
         local Location = Spawner:PrepareSpawnLocation()
         -- PrepareSpawnLocation returns zero when no reachable point was found.
         if Location.X ~= 0 or Location.Y ~= 0 or Location.Z ~= 0 then

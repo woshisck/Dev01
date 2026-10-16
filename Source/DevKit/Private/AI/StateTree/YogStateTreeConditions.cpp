@@ -12,12 +12,6 @@
 #include "Kismet/GameplayStatics.h"
 #include "StateTreeExecutionContext.h"
 
-static const UAbilitySystemComponent* YogStateTreeGetASC(const AActor* Actor)
-{
-	const IAbilitySystemInterface* ASCInterface = Cast<IAbilitySystemInterface>(Actor);
-	return ASCInterface ? ASCInterface->GetAbilitySystemComponent() : nullptr;
-}
-
 bool FStateTreeCondition_EnemyAIState::TestCondition(FStateTreeExecutionContext& Context) const
 {
 	const FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
@@ -48,7 +42,7 @@ bool FStateTreeCondition_SelfHealthPercentBelow::TestCondition(FStateTreeExecuti
 		return false;
 	}
 
-	return YogStateTree::ResolveHealthPercent(YogStateTreeGetASC(Pawn)) <= InstanceData.Threshold;
+	return YogStateTree::ResolveHealthPercent(YogStateTree::ResolveASC(Pawn)) <= InstanceData.Threshold;
 }
 
 bool FStateTreeCondition_TimeInCombatAtLeast::TestCondition(FStateTreeExecutionContext& Context) const
@@ -98,7 +92,7 @@ bool FStateTreeCondition_PlayerHealthPercentBelow::TestCondition(FStateTreeExecu
 		return false;
 	}
 
-	return YogStateTree::ResolveHealthPercent(YogStateTreeGetASC(TargetActor)) <= InstanceData.Threshold;
+	return YogStateTree::ResolveHealthPercent(YogStateTree::ResolveASC(TargetActor)) <= InstanceData.Threshold;
 }
 
 bool FStateTreeCondition_EnemyPostAttackReposition::TestCondition(FStateTreeExecutionContext& Context) const
@@ -156,21 +150,15 @@ bool FStateTreeCondition_TargetWithin2DDistance::TestCondition(FStateTreeExecuti
 		return false;
 	}
 
-	// Under StateTreeComponentSchema the Actor context resolves to the AIController,
-	// whose own location never follows its pawn. Step down to the pawn so the
-	// measurement is taken from the body rather than the controller's spawn point.
-	const AActor* Self = InstanceData.Actor;
-	if (const AController* SelfController = Cast<AController>(Self))
-	{
-		Self = SelfController->GetPawn();
-	}
+	const AActor* Self = YogStateTree::ResolveSelfBody(InstanceData.Actor);
 	if (!Self)
 	{
 		return false;
 	}
 
+	const float Threshold = YogStateTree::ResolveDistanceThreshold(InstanceData.DistanceSource, InstanceData.Distance, Self);
 	const float Distance2D = FVector::Dist2D(Self->GetActorLocation(), InstanceData.Target->GetActorLocation());
-	return Distance2D <= InstanceData.Distance;
+	return Distance2D <= Threshold;
 }
 
 bool FStateTreeCondition_TargetBeyond2DDistance::TestCondition(FStateTreeExecutionContext& Context) const
@@ -181,15 +169,12 @@ bool FStateTreeCondition_TargetBeyond2DDistance::TestCondition(FStateTreeExecuti
 		return false;
 	}
 
-	const AActor* Self = InstanceData.Actor;
-	if (const AController* SelfController = Cast<AController>(Self))
-	{
-		Self = SelfController->GetPawn();
-	}
+	const AActor* Self = YogStateTree::ResolveSelfBody(InstanceData.Actor);
 	if (!Self)
 	{
 		return false;
 	}
 
-	return FVector::Dist2D(Self->GetActorLocation(), InstanceData.Target->GetActorLocation()) > InstanceData.Distance;
+	const float Threshold = YogStateTree::ResolveDistanceThreshold(InstanceData.DistanceSource, InstanceData.Distance, Self);
+	return FVector::Dist2D(Self->GetActorLocation(), InstanceData.Target->GetActorLocation()) > Threshold;
 }

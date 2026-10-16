@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "AITypes.h"
+#include "AI/StateTree/YogStateTreeShared.h"
 #include "StateTreeTaskBase.h"
 #include "Tasks/StateTreeAITask.h"
 #include "GameplayTagContainer.h"
@@ -48,8 +49,24 @@ struct FStateTreeTask_ChasePlayerUntilDistanceInstanceData
 	UPROPERTY(EditAnywhere, Category = Context)
 	TObjectPtr<AAIController> AIController = nullptr;
 
+	UPROPERTY(EditAnywhere, Category = Parameter)
+	EYogDistanceSource StopDistanceSource = EYogDistanceSource::FixedDistance;
+
+	/**
+	 * Where the chase succeeds and hands over to the attack. On AttackRangeAttribute
+	 * this is only the fallback, and StopDistanceAttributeScale trims the attribute
+	 * so the pawn stops inside its own range rather than on the boundary.
+	 */
 	UPROPERTY(EditAnywhere, Category = Parameter, meta = (ClampMin = "0.0"))
 	float StopDistance = 100.0f;
+
+	/**
+	 * Fraction of the AttackRange attribute to stop at. Below 1 the pawn ends the chase
+	 * comfortably inside range, which keeps the follow-up attack gate from flickering on
+	 * the boundary as the player drifts.
+	 */
+	UPROPERTY(EditAnywhere, Category = Parameter, meta = (ClampMin = "0.1", ClampMax = "1.0", EditCondition = "StopDistanceSource == EYogDistanceSource::AttackRangeAttribute"))
+	float StopDistanceAttributeScale = 0.85f;
 
 	UPROPERTY(EditAnywhere, Category = Parameter, meta = (ClampMin = "0.0"))
 	float AcceptanceRadius = 35.0f;

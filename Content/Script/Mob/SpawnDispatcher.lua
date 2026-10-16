@@ -10,10 +10,9 @@
 local M = {}
 
 -- Spawner API available to rules (all implemented in C++):
---   Spawner.SpawnDifficultyBudget            number  budget in UEnemyData::DifficultyScore units
 --   Spawner:GetMobPoolSize()                 number
---   Spawner:GetMobPoolDifficultyScore(i)     number  1-based, 0 when the entry is unusable
 --   Spawner:SpawnFromMobPool(i, Location)    actor   1-based, nil when capped or invalid
+--   Spawner:CanSpawnEnemyClass(Class)        bool
 --   Spawner:PrepareSpawnLocation()           FVector random reachable NavMesh point
 --   Spawner:K2_GetActorLocation()            FVector
 

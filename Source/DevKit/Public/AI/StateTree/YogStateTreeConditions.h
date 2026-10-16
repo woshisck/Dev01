@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "StateTreeConditionBase.h"
+#include "AI/StateTree/YogStateTreeShared.h"
 #include "Conditions/StateTreeAIConditionBase.h"
 #include "Data/EnemyData.h"
 #include "YogStateTreeConditions.generated.h"
@@ -234,10 +235,10 @@ struct DEVKIT_API FStateTreeCondition_LastAttackOutcome : public FStateTreeAICon
 };
 
 // ─── Target Within 2D Distance ──────────────────────────────────────────────
-// Passes when Target is within Distance of the tree owner, measured on XY only
-// so height difference is ignored. Put it on an OnTick transition to leave a
-// state the moment the player closes in. Derives from the common condition base
-// so it also works under StateTreeComponentSchema.
+// Passes when Target is within the resolved threshold of the tree owner,
+// measured on XY only so height difference is ignored. Put it on an OnTick
+// transition to leave a state the moment the player closes in. Derives from the
+// common condition base so it also works under StateTreeComponentSchema.
 
 USTRUCT()
 struct FStateTreeCondition_TargetWithin2DDistanceInstanceData
@@ -251,6 +252,10 @@ struct FStateTreeCondition_TargetWithin2DDistanceInstanceData
 	UPROPERTY(EditAnywhere, Category = Input, meta = (Optional))
 	TObjectPtr<AActor> Target = nullptr;
 
+	UPROPERTY(EditAnywhere, Category = Parameter)
+	EYogDistanceSource DistanceSource = EYogDistanceSource::FixedDistance;
+
+	/** Threshold when DistanceSource is FixedDistance, and the attribute fallback otherwise. */
 	UPROPERTY(EditAnywhere, Category = Parameter, meta = (ClampMin = "0.0"))
 	float Distance = 100.0f;
 };
@@ -266,6 +271,9 @@ struct DEVKIT_API FStateTreeCondition_TargetWithin2DDistance : public FStateTree
 	virtual bool TestCondition(FStateTreeExecutionContext& Context) const override;
 };
 
+// The inverse gate. Keep its DistanceSource matched with the Within condition it
+// is paired against: a mismatch leaves a band where neither state is selectable.
+
 USTRUCT()
 struct FStateTreeCondition_TargetBeyond2DDistanceInstanceData
 {
@@ -277,6 +285,10 @@ struct FStateTreeCondition_TargetBeyond2DDistanceInstanceData
 	UPROPERTY(EditAnywhere, Category = Input, meta = (Optional))
 	TObjectPtr<AActor> Target = nullptr;
 
+	UPROPERTY(EditAnywhere, Category = Parameter)
+	EYogDistanceSource DistanceSource = EYogDistanceSource::FixedDistance;
+
+	/** Threshold when DistanceSource is FixedDistance, and the attribute fallback otherwise. */
 	UPROPERTY(EditAnywhere, Category = Parameter, meta = (ClampMin = "0.0"))
 	float Distance = 100.0f;
 };

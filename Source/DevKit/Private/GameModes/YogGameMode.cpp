@@ -2505,13 +2505,13 @@ bool AYogGameMode::SpawnEnemyFromPool(const FPlannedEnemy& Planned)
 		return false;
 	}
 
-	// 只选包含该敌人 Class 的 Spawner（Spawner 的 EnemySpawnClassis 作为白名单）
+	// 只选 MobPool 里含该敌人 Class 的 Spawner（MobPool 作为白名单）
 	TArray<AMobSpawner*> ValidSpawners;
 	for (AActor* Actor : OutActors)
 	{
 		if (AMobSpawner* S = Cast<AMobSpawner>(Actor))
 		{
-			if (Planned.bAllowAnySpawner || S->EnemySpawnClassis.Contains(Planned.EnemyClass))
+			if (Planned.bAllowAnySpawner || S->CanSpawnEnemyClass(Planned.EnemyClass))
 				ValidSpawners.Add(S);
 		}
 	}
@@ -2588,7 +2588,7 @@ bool AYogGameMode::BeginSpawnEnemyFromPool(const FPlannedEnemy& Planned)
 	TArray<AMobSpawner*> ValidSpawners;
 	for (AActor* A : OutActors)
 		if (AMobSpawner* S = Cast<AMobSpawner>(A))
-			if (Planned.bAllowAnySpawner || S->EnemySpawnClassis.Contains(Planned.EnemyClass))
+			if (Planned.bAllowAnySpawner || S->CanSpawnEnemyClass(Planned.EnemyClass))
 				ValidSpawners.Add(S);
 
 	if (ValidSpawners.IsEmpty())

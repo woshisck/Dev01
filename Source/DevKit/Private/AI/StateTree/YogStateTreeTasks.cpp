@@ -756,12 +756,34 @@ FStateTreeTask_MoveToControllerTarget::FStateTreeTask_MoveToControllerTarget()
 // approximates, so leave room for the two to disagree.
 static constexpr float YogStateTree_SnakeLegMargin = 50.0f;
 
+// Where the chase hands over to the attack. On AttackRangeAttribute the scale keeps the
+// pawn from stopping exactly on the attack gate's boundary, where a small drift by the
+// player would push it back out of range and restart the chase.
+static float YogStateTree_ResolveChaseStopDistance(
+	const FStateTreeTask_ChasePlayerUntilDistanceInstanceData& InstanceData,
+	const AActor* Self)
+{
+	if (InstanceData.StopDistanceSource != EYogDistanceSource::AttackRangeAttribute)
+	{
+		return InstanceData.StopDistance;
+	}
+
+	const TOptional<float> AttackRange = YogStateTree::ResolveAttackRange(Self);
+	if (!AttackRange.IsSet())
+	{
+		return InstanceData.StopDistance;
+	}
+
+	return AttackRange.GetValue() * FMath::Clamp(InstanceData.StopDistanceAttributeScale, 0.1f, 1.0f);
+}
+
 // One leg of the weave: advance toward the player, offset sideways onto whichever side the
 // caller has already chosen in bSnakeToRight. SnakeRandomness jitters both distances here.
 static FVector YogStateTree_ComputeSnakeWaypoint(
 	const APawn& Pawn,
 	const AActor& Player,
 	const FStateTreeTask_ChasePlayerUntilDistanceInstanceData& InstanceData,
+	float StopDistance,
 	float MinLegLength)
 {
 	const FVector PawnLocation = Pawn.GetActorLocation();
@@ -779,7 +801,7 @@ static FVector YogStateTree_ComputeSnakeWaypoint(
 
 	// Never place a leg past the stop distance, otherwise the weave carries the pawn through
 	// the player.
-	const float ForwardRoom = FMath::Max(DistanceToPlayer - InstanceData.StopDistance, 0.0f);
+	const float ForwardRoom = FMath::Max(DistanceToPlayer - StopDistance, 0.0f);
 	const float LegScale = 1.0f + FMath::FRandRange(-0.6f, 0.6f) * Randomness;
 
 	// A leg shorter than the move request's reach test is answered with AlreadyAtGoal, which
@@ -838,8 +860,12 @@ EStateTreeRunStatus FStateTreeTask_ChasePlayerUntilDistance::Tick(
 		return EStateTreeRunStatus::Running;
 	}
 
+	// Re-resolved every tick so a range buff or weapon swap mid-chase moves the handover
+	// point immediately instead of only on the next EnterState.
+	const float StopDistance = YogStateTree_ResolveChaseStopDistance(InstanceData, Pawn);
+
 	const float Distance = FVector::Dist2D(Pawn->GetActorLocation(), Player->GetActorLocation());
-	if (Distance <= InstanceData.StopDistance)
+	if (Distance <= StopDistance)
 	{
 		Controller->StopMovement();
 		return EStateTreeRunStatus::Succeeded;
@@ -862,7 +888,7 @@ EStateTreeRunStatus FStateTreeTask_ChasePlayerUntilDistance::Tick(
 	// player every frame, which would erase the lateral offset.
 	const bool bSnake = InstanceData.SnakeAmplitude > KINDA_SMALL_NUMBER
 		&& Distance > InstanceData.SnakeStraightenDistance
-		&& Distance > InstanceData.StopDistance + MinLegLength;
+		&& Distance > StopDistance + MinLegLength;
 
 	// Straightening out mid-leg leaves the pawn walking at a lateral corner with no snake waypoint
 	// to hand over from, and the Idle gate below would not re-issue until it brakes there. Treat the
@@ -914,7 +940,7 @@ EStateTreeRunStatus FStateTreeTask_ChasePlayerUntilDistance::Tick(
 				InstanceData.bSnakeToRight = !InstanceData.bSnakeToRight;
 			}
 
-			const FVector Waypoint = YogStateTree_ComputeSnakeWaypoint(*Pawn, *Player, InstanceData, MinLegLength);
+			const FVector Waypoint = YogStateTree_ComputeSnakeWaypoint(*Pawn, *Player, InstanceData, StopDistance, MinLegLength);
 			InstanceData.SnakeWaypoint = Waypoint;
 			InstanceData.bHasSnakeWaypoint = true;
 			InstanceData.SnakeLegStartDistance = FVector::Dist2D(Pawn->GetActorLocation(), Waypoint);
