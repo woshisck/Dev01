@@ -1,0 +1,14 @@
+{
+  "FileVersion": 3,
+  "Version": 1,
+  "VersionName": "1.0",
+  "FriendlyName": "DevKit Lua Rules",
+  "Description": "Bounded, isolated Lua conditions for the DevKit action-rule framework.",
+  "Category": "Gameplay",
+  "CanContainContent": false,
+  "EnabledByDefault": false,
+  "SupportedTargetPlatforms": ["Win64"],
+  "Modules": [
+    { "Name": "DevKitLuaRules", "Type": "Runtime", "LoadingPhase": "Default", "PlatformAllowList": ["Win64"] }
+  ]
+}

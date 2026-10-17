@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "id": "PlayerCombat.Example",
+  "actions": [
+    {
+      "id": "Attack",
+      "displayName": "普攻",
+      "abilityTags": [
+        "Character.State.Skill.Attack"
+      ],
+      "stateTags": [
+        "Character.State.Skill.Attack"
+      ]
+    },
+    {
+      "id": "Dash",
+      "displayName": "冲刺",
+      "abilityTags": [
+        "Character.State.Movement.Dash"
+      ],
+      "stateTags": [
+        "Character.State.Movement.Dash"
+      ]
+    },
+    {
+      "id": "WeaponSkill",
+      "displayName": "战技",
+      "abilityTags": [
+        "Character.State.Skill.WeaponSkill"
+      ],
+      "stateTags": [
+        "Character.State.Skill.WeaponSkill"
+      ]
+    }
+  ],
+  "rules": [
+    {
+      "id": "R001",
+      "enabled": false,
+      "subject": "player",
+      "effect": "block",
+      "current": "Dash",
+      "request": "Attack",
+      "condition": "",
+      "reason": "冲刺期间拒绝普攻请求（示例）"
+    },
+    {
+      "id": "R002",
+      "enabled": false,
+      "subject": "player",
+      "effect": "interrupt",
+      "current": "Attack",
+      "request": "Dash",
+      "condition": "",
+      "reason": "冲刺请求可打断普攻（示例）"
+    },
+    {
+      "id": "R003",
+      "enabled": false,
+      "subject": "player",
+      "effect": "interrupt",
+      "current": "Attack",
+      "request": "WeaponSkill",
+      "condition": "",
+      "reason": "战技请求可打断普攻（示例）"
+    },
+    {
+      "id": "R004",
+      "enabled": false,
+      "subject": "player",
+      "effect": "block",
+      "current": "Dash",
+      "request": "WeaponSkill",
+      "condition": "",
+      "reason": "冲刺期间拒绝战技请求（示例）"
+    }
+  ]
+}

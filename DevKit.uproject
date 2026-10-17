@@ -41,6 +41,15 @@
 	],
 	"Plugins": [
 		{
+			"Name": "YogLookDev",
+			"Enabled": true,
+			"TargetAllowList": [ "Editor" ]
+		},
+		{
+			"Name": "DevKitLuaRules",
+			"Enabled": true
+		},
+		{
 			"Name": "ModelingToolsEditorMode",
 			"Enabled": true,
 			"TargetAllowList": [

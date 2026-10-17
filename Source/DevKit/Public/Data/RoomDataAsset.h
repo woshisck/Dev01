@@ -20,6 +20,7 @@ class UNiagaraSystem;
 class USacrificeSelectionWidget;
 class UShopDataAsset;
 class UShopSelectionWidget;
+class UWorld;
 
 /**
  * URoomDataAsset — 单个关卡房间的完整配置
@@ -36,6 +37,10 @@ class DEVKIT_API URoomDataAsset : public UPrimaryDataAsset
     GENERATED_BODY()
 
 public:
+    /** Explicit editor association. Existing assets retain RoomName-based runtime loading. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Room", meta = (DisplayName = "关卡资产"))
+    TSoftObjectPtr<UWorld> LevelAsset;
+
 
     // =========================================================
     // 房间标识

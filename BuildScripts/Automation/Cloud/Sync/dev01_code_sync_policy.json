@@ -1,0 +1,97 @@
+{
+  "schemaVersion": 2,
+  "previousPolicySha256": "DF879A7DBC79E9C5B4B651CF9E32BFCA8E879A08F155235CD72D7863F615B271",
+  "classificationOnlyMigration": true,
+  "sharedLuaPrefixes": ["Content/Script/", "Plugins/UnLua/Content/Script/", "Plugins/UnLua/Content/IntelliSense/", "Plugins/UnLuaExtensions/LuaSocket/Content/Script/", "Plugins/UnLuaExtensions/LuaProtobuf/Content/Script/"],
+  "sharedTextExactPaths": ["Plugins/UnLuaTestSuite/Content/UnLuaPerformanceTestProxy.lua", "Plugins/DevKitLuaRules/Source/DevKitLuaRules/Private/ThirdParty/Lua/README.upstream", "Content/ActionRules/Examples/README.md", "Content/ActionRules/Examples/player_combat.example.json", "Content/ActionRules/Examples/conditions.lua", "Build/Dev01WorkflowCatalog.json"],
+  "sharedBinaryExactPaths": ["Tools/ActionRules/Templates/ActionRules_Template.xlsx"],
+  "excludedExactPaths": ["2Handed Hammer Set.zip", "Card Hand Template.7z", "UI_Reference/download (2).png"],
+  "generatedPathSegments": ["obj", "bin", "node_modules", "__pycache__", ".git", ".svn"],
+  "allowedSharedExtensions": [".c", ".cc", ".cpp", ".h", ".hpp", ".inl", ".m", ".mm", ".cs", ".csproj", ".ini", ".json", ".xml", ".md", ".txt", ".lua", ".py", ".ps1", ".sh", ".bat", ".cmd", ".uplugin", ".uproject", ".usf", ".ush", ".csv", ".toml", ".yaml", ".yml", ".cfg", ".cmake", ".js", ".cjs", ".mjs", ".ts", ".html", ".css", ".config", ".props", ".targets", ".rc", ".resx", ".editorconfig", ".natvis", ".sln"],
+  "description": "GitHub mirrors developer code and text configuration only. Perforce remains authoritative for the complete Unreal project.",
+  "sharedExactPaths": [
+    ".gitignore",
+    ".ignore",
+    ".p4ignore",
+    ".vsconfig",
+    "AGENTS.md",
+    "guide.md",
+    "DevKit.uproject"
+  ],
+  "sharedRootScriptExtensions": [
+    ".bat",
+    ".cmd",
+    ".ps1"
+  ],
+  "sharedPrefixes": [
+    "Source/",
+    "Config/",
+    "Shaders/",
+    "BuildScripts/",
+    "ThirdPartySource/",
+    "Tools/",
+    "Docs/"
+  ],
+  "sharedPluginSegments": [
+    "Source",
+    "Config",
+    "Shaders",
+    "Resources",
+    "Tests",
+    "ThirdPartyNotices"
+  ],
+  "gitOnlyPrefixes": [
+    ".github/"
+  ],
+  "gitOnlyExactPaths": [
+    ".gitattributes",
+    "README.md",
+    "LICENSE",
+    "UE58_StylizedLighting_Rebuild_Guide.md",
+    "Plugins/YogArt_Material/README.md",
+    "Dev01_ActionLock_Management_Proposal.md",
+    "Dev01_SaveSafety_Framework.md",
+    "YogGameMode_Refactor_Remaining.md"
+  ],
+  "forbiddenPrefixes": [
+    "Engine/",
+    "Content/",
+    "Binaries/",
+    "Intermediate/",
+    "Saved/",
+    "DerivedDataCache/",
+    "Build/",
+    "Docs/.obsidian/",
+    "Docs/GeneratedReports/",
+    "Docs/90_\u81ea\u52a8\u751f\u6210\u62a5\u544a/",
+    "Plugins/Market/Content/"
+  ],
+  "forbiddenPathSegments": [
+    "Content",
+    "Binaries",
+    "Intermediate",
+    "Saved",
+    "DerivedDataCache"
+  ],
+  "forbiddenExtensions": [
+    ".uasset",
+    ".umap",
+    ".ubulk",
+    ".uexp",
+    ".uptnl",
+    ".pak",
+    ".ucas",
+    ".utoc",
+    ".dll",
+    ".exe",
+    ".pdb",
+    ".lib",
+    ".exp",
+    ".obj",
+    ".a",
+    ".dylib",
+    ".so",
+    ".o",
+    ".wasm"
+  ]
+}

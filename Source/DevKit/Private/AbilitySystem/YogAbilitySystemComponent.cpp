@@ -1,4 +1,6 @@
 #include "AbilitySystem/YogAbilitySystemComponent.h"
+#include "ActionRules/DevKitActionRuleSubsystem.h"
+#include "Engine/World.h"
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "UI/CombatLogStatics.h"
 #include "AbilitySystem/Abilities/YogGameplayAbility.h"
@@ -220,16 +222,47 @@ UYogAbilitySystemComponent::UYogAbilitySystemComponent(const FObjectInitializer&
 
 void UYogAbilitySystemComponent::InitConflictTable()
 {
+	UStateConflictDataAsset* CandidateTable = ConflictTable;
+	if (!CandidateTable)
+	{
+		// Preserve the existing unassigned-table fallback, but resolve before changing live state.
+		CandidateTable = UDevAssetManager::Get().GetStateConflictData();
+	}
+
+	// Movement/AI categories currently own direct side effects, not reversible GAS tag counters.
+	// Compare against the installed map snapshot (the asset itself may have been edited in place).
+	// Do not discard its exit mapping while an old OR newly mapped state is already active.
+	static const FName SideEffectCategoryNames[] = { TEXT("Block.Movement"), TEXT("Block.AI") };
+	for (const FName CategoryName : SideEffectCategoryNames)
+	{
+		const FGameplayTag Category = FGameplayTag::RequestGameplayTag(CategoryName, false);
+		if (!Category.IsValid()) continue;
+		const FGameplayTagContainer* OldStates = BlockCategoryMap.Find(Category);
+		const FGameplayTagContainer* NewStates = CandidateTable ? CandidateTable->BlockCategoryMap.Find(Category) : nullptr;
+		const FGameplayTagContainer OldSnapshot = OldStates ? *OldStates : FGameplayTagContainer();
+		const FGameplayTagContainer NewSnapshot = NewStates ? *NewStates : FGameplayTagContainer();
+		if (OldSnapshot == NewSnapshot) continue;
+		FGameplayTagContainer RelatedStates = OldSnapshot;
+		RelatedStates.AppendTags(NewSnapshot);
+		if (HasAnyMatchingGameplayTags(RelatedStates))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[StateConflict] Rejected category remap for %s on %s: mapped states are active. End these states before reloading. Keeping installed table %s and all existing block contributions."),
+				*Category.ToString(), *GetNameSafe(GetOwner()), *GetNameSafe(LastAppliedConflictTable));
+			ConflictTable = LastAppliedConflictTable;
+			return;
+		}
+	}
+
+	ConflictTable = CandidateTable;
+	LastAppliedConflictTable = CandidateTable;
+	++LegacyStateConflictGeneration;
+	bLegacyStateConflictShuttingDown = false;
+	ClearLegacyStateConflictContributions();
 	ConflictMap.Reset();
 	BlockCategoryMap.Reset();
 	StateToBlockCategories.Reset();
 
 	// ����ͼδ�ֶ���ֵ���Զ��� DevAssetManager ȫ�����ü���
-	if (!ConflictTable)
-	{
-		ConflictTable = UDevAssetManager::Get().GetStateConflictData();
-	}
-
 	if (!ConflictTable)
 	{
 		UE_LOG(LogTemp, Verbose, TEXT("[StateConflict] ConflictTable is null on %s, system disabled."), *GetNameSafe(GetOwner()));
@@ -257,6 +290,9 @@ void UYogAbilitySystemComponent::InitConflictTable()
 			UE_LOG(LogTemp, Log, TEXT("[StateConflict] Map built: %s -> %s"), *StateTag.ToString(), *Pair.Key.ToString());
 		}
 	}
+
+	// A reload rebuilds blocks for existing explicit states, but never replays Cancel.
+	RebuildLegacyStateConflictContributions();
 
 	UE_LOG(LogTemp, Log, TEXT("[StateConflict] Initialized %d rules, %d block categories on %s."),
 		ConflictMap.Num(), BlockCategoryMap.Num(), *GetNameSafe(GetOwner()));
@@ -749,32 +785,92 @@ void UYogAbilitySystemComponent::OnTagUpdated(const FGameplayTag& Tag, bool TagE
 
 void UYogAbilitySystemComponent::ProcessStateConflict(const FGameplayTag& Tag, bool TagExists)
 {
-	// =========================================================
-	// ״̬��ͻ�����ݹ飬BlockAbilitiesWithTags �ڲ�Ҳ�ᴥ�� OnTagUpdated
-	// =========================================================
+	if (bLegacyStateConflictShuttingDown)
+		return;
+
+	FLegacyStateConflictEvent& QueuedEvent = PendingLegacyStateConflictEvents.AddDefaulted_GetRef();
+	QueuedEvent.Tag = Tag;
+	QueuedEvent.bExists = TagExists;
+	QueuedEvent.Generation = LegacyStateConflictGeneration;
 	if (bProcessingConflict)
 		return;
 
-	const FStateConflictRule* Rule = ConflictMap.Find(Tag);
-	if (!Rule)
-		return;
-
 	TGuardValue<bool> Guard(bProcessingConflict, true);
-
-	if (TagExists)
+	int32 EventIndex = 0;
+	constexpr int32 MaxEventsPerDrain = 1024;
+	while (PendingLegacyStateConflictEvents.IsValidIndex(EventIndex) && !bLegacyStateConflictShuttingDown)
 	{
-		// Tag ���� �� Block + Cancel
-		if (!Rule->BlockTags.IsEmpty())
-			BlockAbilitiesWithTags(Rule->BlockTags);
+		if (EventIndex >= MaxEventsPerDrain)
+		{
+			// Malformed cancellation/reaction cycles cannot hang the game. Restore
+			// consistent block contributions without replaying any further Cancel.
+			UE_LOG(LogTemp, Error, TEXT("[StateConflict] Reentrant event limit reached on %s; reconciling blocks without further cancellation."), *GetNameSafe(GetOwner()));
+			ClearLegacyStateConflictContributions();
+			RebuildLegacyStateConflictContributions();
+			break;
+		}
 
-		if (!Rule->CancelTags.IsEmpty())
-			CancelAbilities(&Rule->CancelTags);
+		// Callbacks can append events or replace the table: keep no array/map references.
+		const FLegacyStateConflictEvent Event = PendingLegacyStateConflictEvents[EventIndex++];
+		if (Event.Generation != LegacyStateConflictGeneration)
+			continue;
+		if (!Event.bExists)
+		{
+			ReleaseLegacyStateConflictContribution(Event.Tag);
+			continue;
+		}
+		if (LegacyStateConflictBlockContributions.Contains(Event.Tag))
+			continue;
+		const FStateConflictRule* Rule = ConflictMap.Find(Event.Tag);
+		if (!Rule)
+			continue;
+
+		const FGameplayTagContainer BlockTags = Rule->BlockTags;
+		const FGameplayTagContainer CancelTags = Rule->CancelTags;
+		LegacyStateConflictBlockContributions.Add(Event.Tag, BlockTags);
+		if (!BlockTags.IsEmpty())
+			BlockAbilitiesWithTags(BlockTags);
+		if (!CancelTags.IsEmpty())
+			CancelAbilities(&CancelTags);
 	}
-	else
+	PendingLegacyStateConflictEvents.Reset();
+}
+
+void UYogAbilitySystemComponent::ReleaseLegacyStateConflictContribution(const FGameplayTag& Tag)
+{
+	FGameplayTagContainer AppliedBlockTags;
+	if (LegacyStateConflictBlockContributions.RemoveAndCopyValue(Tag, AppliedBlockTags)
+		&& !AppliedBlockTags.IsEmpty())
 	{
-		// Tag �Ƴ� �� ��� Block
-		if (!Rule->BlockTags.IsEmpty())
-			UnBlockAbilitiesWithTags(Rule->BlockTags);
+		UnBlockAbilitiesWithTags(AppliedBlockTags);
+	}
+}
+
+void UYogAbilitySystemComponent::ClearLegacyStateConflictContributions()
+{
+	TMap<FGameplayTag, FGameplayTagContainer> Applied = MoveTemp(LegacyStateConflictBlockContributions);
+	LegacyStateConflictBlockContributions.Reset();
+	for (const TPair<FGameplayTag, FGameplayTagContainer>& Pair : Applied)
+	{
+		if (!Pair.Value.IsEmpty())
+			UnBlockAbilitiesWithTags(Pair.Value);
+	}
+}
+
+void UYogAbilitySystemComponent::RebuildLegacyStateConflictContributions()
+{
+	if (bLegacyStateConflictShuttingDown)
+		return;
+	FGameplayTagContainer OwnedTags;
+	GetOwnedGameplayTags(OwnedTags);
+	for (const TPair<FGameplayTag, FStateConflictRule>& Pair : ConflictMap)
+	{
+		if (OwnedTags.HasTagExact(Pair.Key) && !LegacyStateConflictBlockContributions.Contains(Pair.Key))
+		{
+			LegacyStateConflictBlockContributions.Add(Pair.Key, Pair.Value.BlockTags);
+			if (!Pair.Value.BlockTags.IsEmpty())
+				BlockAbilitiesWithTags(Pair.Value.BlockTags);
+		}
 	}
 }
 
@@ -974,7 +1070,15 @@ void UYogAbilitySystemComponent::ClearAllTagReactions()
 
 void UYogAbilitySystemComponent::OnUnregister()
 {
+	// Super teardown can cancel abilities and emit more owned-tag changes.
+	bLegacyStateConflictShuttingDown = true;
+	++LegacyStateConflictGeneration;
+	PendingLegacyStateConflictEvents.Reset();
+	ClearLegacyStateConflictContributions();
 	ClearAllTagReactions();
+	PendingActionRuleActivations.Reset();
+	ActiveActionRuleInstances.Reset();
+	ActionRuleValues.Reset();
 
 	Super::OnUnregister();
 }

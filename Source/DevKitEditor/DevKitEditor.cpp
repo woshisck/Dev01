@@ -21,6 +21,8 @@
 #include "Framework/Application/SlateApplication.h"
 #include "GameFramework/PlayerController.h"
 #include "EngineUtils.h"
+#include "HAL/PlatformProcess.h"
+#include "HAL/IConsoleManager.h"
 #include "LevelEditor.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/MessageDialog.h"
@@ -35,6 +37,8 @@
 #include "ToolMenuEntry.h"
 #include "ToolMenus.h"
 #include "Tools/SActionBalanceWidget.h"
+#include "Tools/Workflow/SDevKitWorkflowWidget.h"
+#include "Tools/ActionWorkbench/SDevKitActionWorkbenchWidget.h"
 #include "Tools/SBuffFlowDebugWidget.h"
 #include "Tools/SCharacterBalanceWidget.h"
 #include "Tools/SDataEditorWidget.h"
@@ -43,6 +47,7 @@
 #include "Tools/LevelRVT/SDevKitLevelRVTWidget.h"
 #include "Tools/LevelBatch/SDevKitLevelBatchProcessorWidget.h"
 #include "Tools/MapCreator/SDevKitMapCreatorWidget.h"
+#include "Tools/CharacterLookDev/SDevKitCharacterLookDevWidget.h"
 // The surface library owns both RVT decals and visible ground-object foliage entries.
 #include "Tools/RVTMeshDecal/SDevKitRVTMeshDecalWidget.h"
 #include "Tools/DecalCollection/SDevKitDecalCollectionWidget.h"
@@ -77,6 +82,22 @@ DEFINE_LOG_CATEGORY(DevKitEditor);
 namespace
 {
 	const FName RuneBalanceTabName(TEXT("DevKitRuneBalance"));
+	const FName WorkflowTabName(TEXT("DevKitWorkflow"));
+	const FName WorkflowOperationsTabName(TEXT("DevKitWorkflowOperations"));
+	struct FWorkflowWorkbenchSpec
+	{
+		FName TabName;
+		const TCHAR* WorkflowId;
+		const TCHAR* Title;
+	};
+	const FWorkflowWorkbenchSpec WorkflowWorkbenchSpecs[] =
+	{
+		{FName(TEXT("DevKitMaterialsWorkbench")), TEXT("materials"), TEXT("渲染工作台")},
+		{FName(TEXT("DevKitSurfaceWorkbench")), TEXT("surface"), TEXT("贴花工作台")},
+		{FName(TEXT("DevKitSceneWorkbench")), TEXT("scene"), TEXT("场景工作台")},
+		{FName(TEXT("DevKitGameplayWorkbench")), TEXT("gameplay"), TEXT("角色、战斗与玩法工作台")},
+		{FName(TEXT("DevKitPerformanceWorkbench")), TEXT("performance"), TEXT("性能工作台")}
+	};
 	const FName RuneEditorTabName(TEXT("DevKitRuneEditor"));
 	const FName CharacterBalanceTabName(TEXT("DevKitCharacterBalance"));
 	const FName WeaponManagerTabName(TEXT("DevKitWeaponManager"));
@@ -96,6 +117,7 @@ namespace
 	const FName VirtualTextureCollectionManagerTabName(TEXT("DevKitVirtualTextureCollectionManager"));
 	const FName RVTMaterialManagerTabName(TEXT("DevKitRVTMaterialManager"));
 	const FName MapCreatorTabName(TEXT("DevKitMapCreator"));
+	const FName CharacterLookDevTabName(TEXT("DevKitCharacterLookDev"));
 	const FName LevelRVTTabName(TEXT("DevKitLevelRVT"));
 	const FName RVTMeshDecalTabName(TEXT("DevKitRVTMeshDecal"));
 	const FName DecalCollectionTabName(TEXT("DevKitDecalCollection"));
@@ -276,6 +298,40 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 	virtual void StartupModule() override
 	{
 		RegisterDevKitEditorStyle();
+		SDevKitActionWorkbenchWidget::RegisterTab();
+		IConsoleManager::Get().RegisterConsoleCommand(TEXT("DevKit.Workflow.Open"), TEXT("Open the Dev01 workflow workbench."),
+			FConsoleCommandDelegate::CreateRaw(this, &FDevKitEditorModule::OpenWorkflowTab), ECVF_Default);
+		IConsoleManager::Get().RegisterConsoleCommand(TEXT("DevKit.Workflow.OpenPerformance"), TEXT("Open the Dev01 performance workbench."),
+			FConsoleCommandDelegate::CreateRaw(this, &FDevKitEditorModule::OpenPerformanceWorkbench), ECVF_Default);
+		IConsoleManager::Get().RegisterConsoleCommand(TEXT("DevKit.Workflow.OpenRendering"), TEXT("Open the Dev01 rendering workbench."),
+			FConsoleCommandDelegate::CreateRaw(this, &FDevKitEditorModule::OpenRenderingWorkbench), ECVF_Default);
+		IConsoleManager::Get().RegisterConsoleCommand(TEXT("DevKit.LookDev.Open"), TEXT("Open YogLookDev lighting comparison and its persistent review maps."),
+			FConsoleCommandDelegate::CreateRaw(this, &FDevKitEditorModule::OpenCharacterLookDevTab), ECVF_Default);
+		IConsoleManager::Get().RegisterConsoleCommand(TEXT("DevKit.Workflow.OrganizeAssets"), TEXT("Create local project asset collections without moving assets."),
+			FConsoleCommandDelegate::CreateStatic(&SDevKitWorkflowWidget::OrganizeAssets), ECVF_Default);
+		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(WorkflowTabName,
+			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnWorkflowTab))
+			.SetDisplayName(LOCTEXT("WorkflowTitle", "渲染工作台（兼容入口）"))
+			.SetMenuType(ETabSpawnerMenuType::Hidden);
+		for (const FWorkflowWorkbenchSpec& Spec : WorkflowWorkbenchSpecs)
+		{
+			const FString WorkflowId(Spec.WorkflowId);
+			FGlobalTabmanager::Get()->RegisterNomadTabSpawner(Spec.TabName,
+				FOnSpawnTab::CreateLambda([this, WorkflowId](const FSpawnTabArgs& Args)
+				{
+					return SpawnWorkflowTab(Args, WorkflowId);
+				}))
+				.SetDisplayName(FText::FromString(Spec.Title))
+				.SetMenuType(ETabSpawnerMenuType::Hidden);
+		}
+		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(WorkflowOperationsTabName,
+			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnWorkflowOperationsTab))
+			.SetDisplayName(LOCTEXT("WorkflowOperationsTitle", "发布与数据整理工作台"))
+			.SetMenuType(ETabSpawnerMenuType::Hidden);
+		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(FName(TEXT("DevKitStylizedLightingSettings")),
+			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnStylizedLightingSettingsTab))
+			.SetDisplayName(LOCTEXT("StylizedLightingSettingsWorkbenchTitle", "二分光影设置"))
+			.SetMenuType(ETabSpawnerMenuType::Hidden);
 		RegisterRuntimeGMPIEInputProcessor();
 
 		FEditorDelegates::OnMapOpened.AddRaw(this, &FDevKitEditorModule::OnMapOpened);
@@ -431,6 +487,13 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			.SetMenuType(ETabSpawnerMenuType::Hidden);
 
 		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
+			CharacterLookDevTabName,
+			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnCharacterLookDevTab))
+			.SetDisplayName(LOCTEXT("CharacterLookDevTabTitle", "LookDev 光照对比"))
+			.SetTooltipText(LOCTEXT("CharacterLookDevTabTooltip", "打开 YogLookDev 评审关卡，对比灯光场景并编辑方向光、天空光。"))
+			.SetMenuType(ETabSpawnerMenuType::Hidden);
+
+		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
 			LevelRVTTabName,
 			FOnSpawnTab::CreateRaw(this, &FDevKitEditorModule::SpawnLevelRVTTab))
 			.SetDisplayName(LOCTEXT("LevelRVTTabTitle", "关卡 RVT 工具"))
@@ -479,6 +542,12 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 
 	virtual void ShutdownModule() override
 	{
+		SDevKitActionWorkbenchWidget::UnregisterTab();
+		IConsoleManager::Get().UnregisterConsoleObject(TEXT("DevKit.Workflow.Open"), false);
+		IConsoleManager::Get().UnregisterConsoleObject(TEXT("DevKit.Workflow.OpenPerformance"), false);
+		IConsoleManager::Get().UnregisterConsoleObject(TEXT("DevKit.Workflow.OpenRendering"), false);
+		IConsoleManager::Get().UnregisterConsoleObject(TEXT("DevKit.LookDev.Open"), false);
+		IConsoleManager::Get().UnregisterConsoleObject(TEXT("DevKit.Workflow.OrganizeAssets"), false);
 		UnregisterRuntimeGMPIEInputProcessor();
 		UToolMenus::UnRegisterStartupCallback(this);
 		if (UToolMenus::IsToolMenuUIEnabled())
@@ -486,6 +555,11 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			UToolMenus::UnregisterOwner(this);
 		}
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(RuneBalanceTabName);
+		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(WorkflowTabName);
+		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(WorkflowOperationsTabName);
+		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(FName(TEXT("DevKitStylizedLightingSettings")));
+		for (const FWorkflowWorkbenchSpec& Spec : WorkflowWorkbenchSpecs)
+			FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(Spec.TabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(RuneEditorTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(CharacterBalanceTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(WeaponManagerTabName);
@@ -505,6 +579,7 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(VirtualTextureCollectionManagerTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(RVTMaterialManagerTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(MapCreatorTabName);
+		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(CharacterLookDevTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(LevelRVTTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(RVTMeshDecalTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(DecalCollectionTabName);
@@ -545,6 +620,72 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 	}
 
 	void OnMapOpened(const FString& Filename, bool bAsTemplate);
+
+	TSharedRef<SDockTab> SpawnWorkflowTab(const FSpawnTabArgs& SpawnTabArgs)
+	{
+		return SpawnWorkflowTab(SpawnTabArgs, TEXT("materials"));
+	}
+
+	TSharedRef<SDockTab> SpawnWorkflowTab(const FSpawnTabArgs& SpawnTabArgs, const FString& WorkflowId)
+	{
+		return SNew(SDockTab).TabRole(ETabRole::NomadTab)
+			[SNew(SDevKitWorkflowWidget).WorkflowId(WorkflowId)
+				.OnOpenDecalPlacement(FSimpleDelegate::CreateRaw(this, &FDevKitEditorModule::OpenDecalCollectionTab))];
+	}
+
+	TSharedRef<SDockTab> SpawnWorkflowOperationsTab(const FSpawnTabArgs& SpawnTabArgs)
+	{
+		TSharedRef<SDockTab> Tab = SNew(SDockTab).TabRole(ETabRole::NomadTab)
+			[SNew(SDevKitWorkflowWidget).WorkflowId(TEXT("materials"))
+				.OnOpenDecalPlacement(FSimpleDelegate::CreateRaw(this, &FDevKitEditorModule::OpenDecalCollectionTab))];
+		StaticCastSharedRef<SDevKitWorkflowWidget>(Tab->GetContent())->ShowOperations();
+		return Tab;
+	}
+
+	TSharedRef<SDockTab> SpawnStylizedLightingSettingsTab(const FSpawnTabArgs& SpawnTabArgs)
+	{
+		return SNew(SDockTab).TabRole(ETabRole::NomadTab)
+			[SDevKitWorkflowWidget::MakeStylizedLightingSettingsPanel()];
+	}
+
+	void OpenWorkflowTab()
+	{
+		FGlobalTabmanager::Get()->TryInvokeTab(WorkflowTabName);
+	}
+
+	void OpenPerformanceWorkbench()
+	{
+		FGlobalTabmanager::Get()->TryInvokeTab(FName(TEXT("DevKitPerformanceWorkbench")));
+	}
+
+	void OpenRenderingWorkbench()
+	{
+		FGlobalTabmanager::Get()->TryInvokeTab(FName(TEXT("DevKitMaterialsWorkbench")));
+	}
+
+	void OpenWorkflowOperations()
+	{
+		FGlobalTabmanager::Get()->TryInvokeTab(WorkflowOperationsTabName);
+	}
+
+	void FillWorkflowMenu(UToolMenu* Menu)
+	{
+		FToolMenuSection& Section = Menu->FindOrAddSection(TEXT("Dev01Workflows"));
+		for (const FWorkflowWorkbenchSpec& Spec : WorkflowWorkbenchSpecs)
+		{
+			const FName TabName = Spec.TabName;
+			const FName EntryName(*FString::Printf(TEXT("Open_%s"), Spec.WorkflowId));
+			Section.AddMenuEntry(EntryName, FText::FromString(Spec.Title),
+				FText::FromString(FString::Printf(TEXT("打开%s，不与其他工作流混在同一面板。"), Spec.Title)), FSlateIcon(),
+				FUIAction(FExecuteAction::CreateLambda([TabName](){ FGlobalTabmanager::Get()->TryInvokeTab(TabName); })));
+		}
+		Section.AddMenuEntry(TEXT("OpenOperations"), LOCTEXT("OperationsOpen", "构建、发布与数据整理"),
+			LOCTEXT("OperationsHint", "在独立工作台内检查版本、查看发布步骤和整理数据。"), FSlateIcon(),
+			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenWorkflowOperations)));
+		Section.AddSubMenu(TEXT("LegacyTools"), LOCTEXT("LegacyTools", "高级 / 独立工具"),
+			LOCTEXT("LegacyToolsHint", "保留原有工具入口和窗口布局。"),
+			FNewToolMenuDelegate::CreateRaw(this, &FDevKitEditorModule::FillDevKitDataMenu));
+	}
 
 	TSharedRef<SDockTab> SpawnRuneBalanceTab(const FSpawnTabArgs& SpawnTabArgs)
 	{
@@ -744,6 +885,19 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			];
 	}
 
+	TSharedRef<SDockTab> SpawnCharacterLookDevTab(const FSpawnTabArgs& SpawnTabArgs)
+	{
+		TSharedRef<SDevKitCharacterLookDevWidget> Widget = SNew(SDevKitCharacterLookDevWidget);
+		CharacterLookDevWidget = Widget;
+		Widget->Activate();
+		return SNew(SDockTab)
+			.TabRole(ETabRole::NomadTab)
+			.Label(LOCTEXT("CharacterLookDevTabLabel", "LookDev 光照对比"))
+			[
+				Widget
+			];
+	}
+
 	TSharedRef<SDockTab> SpawnLevelRVTTab(const FSpawnTabArgs& SpawnTabArgs)
 	{
 		return SNew(SDockTab)
@@ -929,7 +1083,7 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			TEXT("DevKitToolsMenu"),
 			LOCTEXT("DevKitToolsMenuLabel", "DevKit 工具"),
 			LOCTEXT("DevKitToolsMenuTooltip", "打开 DevKit 编辑器工具。"),
-			FNewToolMenuDelegate::CreateRaw(this, &FDevKitEditorModule::FillDevKitDataMenu));
+			FNewToolMenuDelegate::CreateRaw(this, &FDevKitEditorModule::FillWorkflowMenu));
 
 		UToolMenu* MainMenu = UToolMenus::Get()->ExtendMenu(TEXT("LevelEditor.MainMenu"));
 		FToolMenuSection& MainMenuSection = MainMenu->FindOrAddSection(NAME_None);
@@ -937,7 +1091,7 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			TEXT("YogToolMenu"),
 			LOCTEXT("YogToolMenuLabel", "YogTool"),
 			LOCTEXT("YogToolMenuTooltip", "打开 Yog 编辑器工具集合。"),
-			FNewToolMenuDelegate::CreateRaw(this, &FDevKitEditorModule::FillDevKitDataMenu));
+			FNewToolMenuDelegate::CreateRaw(this, &FDevKitEditorModule::FillWorkflowMenu));
 		YogToolEntry.InsertPosition = FToolMenuInsert(TEXT("Help"), EToolMenuInsertType::After);
 
 		FToolMenuEntry& DesignerEntry = MainMenuSection.AddSubMenu(
@@ -1031,6 +1185,20 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			GetMapCreatorIcon()));
 		MapCreatorEntry.ToolBarData.LabelOverride = LOCTEXT("OpenMapCreatorToolbarShortLabel", "地图创建器");
 
+		// The workbench replaces duplicate shortcuts. Individual tools remain in the advanced menu.
+		for (const FName EntryName : {FName(TEXT("OpenDevKitPerformanceToolsLauncher")),
+			FName(TEXT("OpenDevKitModelAssetCompliance")), FName(TEXT("OpenDevKitMaterialTextureRules")),
+			FName(TEXT("OpenDevKitTextureVTAudit")), FName(TEXT("OpenDevKitVTCManager")),
+			FName(TEXT("OpenDevKitEnvBatchTagger")), FName(TEXT("OpenDevKitLevelBatchProcessor")),
+			FName(TEXT("OpenDevKitMapCreator"))})
+		{
+			UToolMenus::Get()->RemoveEntry(TEXT("LevelEditor.LevelEditorToolBar.User"), TEXT("DevKitPerformanceTools"), EntryName);
+		}
+		UserSection.AddEntry(FToolMenuEntry::InitToolBarButton(TEXT("OpenDevKitWorkflow"),
+			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenWorkflowTab)),
+			LOCTEXT("WorkflowToolbar", "渲染工作台"), LOCTEXT("WorkflowToolbarTip", "打开渲染工作台，集中访问材质、风格化灯光与 LookDev；其他类别可从 YogTool 菜单打开"),
+			GetPerformanceToolsIcon()));
+
 	}
 
 	void FillDesignerMenu(UToolMenu* Menu)
@@ -1038,6 +1206,12 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 		FToolMenuSection& Section = Menu->FindOrAddSection(
 			TEXT("YogDesignerEditors"),
 			LOCTEXT("YogDesignerEditorsSection", "设计编辑器"));
+		Section.AddMenuEntry(
+			TEXT("OpenActionWorkbench"),
+			LOCTEXT("OpenActionWorkbenchLabel", "动作工作台"),
+			LOCTEXT("OpenActionWorkbenchTooltip", "管理状态 Tag、动作 Block/Cancel 关系，检查 PIE 实时状态。"),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateStatic(&SDevKitActionWorkbenchWidget::OpenTab)));
 		Section.AddMenuEntry(
 			TEXT("OpenStandaloneWeaponEditor"),
 			LOCTEXT("OpenStandaloneWeaponEditorLabel", "武器编辑器"),
@@ -1120,6 +1294,12 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 			LOCTEXT("OpenMapCreatorTooltip", "创建命名地图文件夹、Persistent 关卡、子关卡和地图定义数据。"),
 			GetMapCreatorIcon(),
 			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenMapCreatorTab)));
+		ArtAssetSection.AddMenuEntry(
+			TEXT("OpenCharacterLookDev"),
+			LOCTEXT("OpenCharacterLookDevLabel", "LookDev 光照对比"),
+			LOCTEXT("OpenCharacterLookDevTooltip", "打开 YogLookDev 评审关卡，切换灯光场景并编辑主光与环境光。"),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateRaw(this, &FDevKitEditorModule::OpenCharacterLookDevTab)));
 		ArtAssetSection.AddMenuEntry(
 			TEXT("OpenLevelRVT"),
 			LOCTEXT("OpenLevelRVTLabel", "关卡 RVT 工具"),
@@ -1402,6 +1582,15 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 		FGlobalTabmanager::Get()->TryInvokeTab(MapCreatorTabName);
 	}
 
+	void OpenCharacterLookDevTab()
+	{
+		if (TSharedPtr<SDevKitCharacterLookDevWidget> Existing = CharacterLookDevWidget.Pin())
+		{
+			Existing->Activate();
+		}
+		FGlobalTabmanager::Get()->TryInvokeTab(CharacterLookDevTabName);
+	}
+
 	void OpenLevelRVTTab()
 	{
 		FGlobalTabmanager::Get()->TryInvokeTab(LevelRVTTabName);
@@ -1486,6 +1675,7 @@ class FDevKitEditorModule : public FDefaultGameModuleImpl {
 	}
 
 private:
+	TWeakPtr<SDevKitCharacterLookDevWidget> CharacterLookDevWidget;
 	TArray<TSharedPtr<IAssetTypeActions>> RegisteredAssetTypeActions;
 	TStrongObjectPtr<UCombatLogEditorUtilityWidget> CombatLogWidgetInstance;
 	TSharedPtr<IInputProcessor> RuntimeGMPIEInputProcessor;

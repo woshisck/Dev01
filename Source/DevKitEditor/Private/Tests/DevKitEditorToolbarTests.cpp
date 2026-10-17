@@ -8,7 +8,7 @@
 #include "ToolMenus.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDevKitPerformanceQuickEntryToolbarTest,
-	"DevKitEditor.Toolbar.PerformanceQuickEntriesRegistered",
+	"DevKitEditor.Toolbar.UnifiedWorkflowEntryAndLegacyTabsRegistered",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
 bool FDevKitPerformanceQuickEntryToolbarTest::RunTest(const FString& Parameters)
@@ -48,14 +48,20 @@ bool FDevKitPerformanceQuickEntryToolbarTest::RunTest(const FString& Parameters)
 		return false;
 	}
 
-	const FToolMenuEntry* LauncherEntry = PerformanceSection->FindEntry(TEXT("OpenDevKitPerformanceToolsLauncher"));
-	TestNotNull(TEXT("Performance tools launcher toolbar button is registered"), LauncherEntry);
+	const FToolMenuEntry* WorkflowEntry = PerformanceSection->FindEntry(TEXT("OpenDevKitWorkflow"));
+	TestNotNull(TEXT("Unified workflow toolbar button is registered"), WorkflowEntry);
+	TestNull(TEXT("Duplicate performance launcher shortcut is removed"), PerformanceSection->FindEntry(TEXT("OpenDevKitPerformanceToolsLauncher")));
 
 	const FToolMenuEntry* MapCreatorEntry = PerformanceSection->FindEntry(TEXT("OpenDevKitMapCreator"));
-	TestNotNull(TEXT("Map creator toolbar button is registered"), MapCreatorEntry);
+	TestNull(TEXT("Map creator is reached through the scene workflow"), MapCreatorEntry);
 
 	const FToolMenuEntry* LevelBatchProcessorEntry = PerformanceSection->FindEntry(TEXT("OpenDevKitLevelBatchProcessor"));
-	TestNotNull(TEXT("Level batch processor toolbar button is registered"), LevelBatchProcessorEntry);
+	TestNull(TEXT("Level batch processor is reached through the scene workflow"), LevelBatchProcessorEntry);
+	for (const FName Tab : {FName(TEXT("DevKitWorkflow")), FName(TEXT("DevKitPerformanceToolsLauncher")),
+		FName(TEXT("DevKitMapCreator")), FName(TEXT("DevKitLevelBatchProcessor")), FName(TEXT("DevKitCharacterLookDev"))})
+	{
+		TestTrue(TEXT("Workflow and original standalone tabs remain available"), FGlobalTabmanager::Get()->HasTabSpawner(Tab));
+	}
 
 	const FName MainMenuName(TEXT("LevelEditor.MainMenu"));
 	UToolMenu* MainMenu = ToolMenus->FindMenu(MainMenuName);
@@ -90,9 +96,9 @@ bool FDevKitPerformanceQuickEntryToolbarTest::RunTest(const FString& Parameters)
 		FGlobalTabmanager::Get()->HasTabSpawner(FName(TEXT("DevKitEnemyManager"))));
 
 	return Entry != nullptr
-		&& LauncherEntry != nullptr
-		&& MapCreatorEntry != nullptr
-		&& LevelBatchProcessorEntry != nullptr
+		&& WorkflowEntry != nullptr
+		&& MapCreatorEntry == nullptr
+		&& LevelBatchProcessorEntry == nullptr
 		&& YogToolEntry != nullptr
 		&& DesignerEntry != nullptr
 		&& FGlobalTabmanager::Get()->HasTabSpawner(FName(TEXT("DevKitWeaponManager")))

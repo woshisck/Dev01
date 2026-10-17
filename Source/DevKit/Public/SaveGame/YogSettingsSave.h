@@ -99,8 +99,9 @@ struct FYogGraphicsSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Graphics")
 	bool bUseNanite = false;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Graphics")
-	bool bUseVirtualShadowMaps = false;
+	/** Serialized legacy preference only. The project always uses VSM. */
+	UPROPERTY(BlueprintReadWrite, Category = "Settings|Graphics", meta = (DeprecatedProperty, DeprecationMessage = "Shadow method is fixed to VSM; this legacy preference is ignored."))
+	bool bUseVirtualShadowMaps = true;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Graphics")
 	bool bPreferBatchedGeometryProxies = false;
