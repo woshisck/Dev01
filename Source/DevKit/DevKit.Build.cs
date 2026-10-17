@@ -60,6 +60,8 @@ public class DevKit : ModuleRules
 		PrivateDependencyModuleNames.AddRange(new string[] {
                 "Core",
                 "InputCore",
+                "Json",
+                "DevKitLuaRules",
                 "Engine",
                 "Slate",
                 "SlateCore",
@@ -77,7 +79,10 @@ public class DevKit : ModuleRules
                 "Lua"
             });
 
-		// Uncomment if you are using Slate UI
+        // Versioned rule bundles are staged inside the game's pak, not loaded from authoring spreadsheets.
+        RuntimeDependencies.Add("$(ProjectDir)/Content/ActionRules/...", StagedFileType.UFS);
+
+        // Uncomment if you are using Slate UI
 		// PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "SlateCore" });
 		
 		// Uncomment if you are using online features

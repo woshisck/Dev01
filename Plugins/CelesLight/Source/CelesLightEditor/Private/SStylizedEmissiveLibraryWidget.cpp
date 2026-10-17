@@ -29,6 +29,7 @@
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
+#include "Widgets/Layout/SExpandableArea.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Layout/SSplitter.h"
@@ -305,47 +306,53 @@ TSharedRef<SWidget> SStylizedEmissiveLibraryWidget::BuildPresetPanel()
 		.BorderImage(FAppStyle::GetBrush(TEXT("ToolPanel.GroupBorder")))
 		.Padding(8.0f)
 		[
-			SNew(SVerticalBox)
-			+ SVerticalBox::Slot()
-			.AutoHeight()
+			SNew(SExpandableArea)
+			.InitiallyCollapsed(false)
+			.AllowAnimatedTransition(false)
+			.HeaderPadding(FMargin(0.0f, 0.0f, 0.0f, 6.0f))
+			.HeaderContent()
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("PresetLibraryTitle", "预设库（拖动到场景）"))
 				.Font(FAppStyle::GetFontStyle(TEXT("DetailsView.CategoryFontStyle")))
 			]
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding(0.0f, 6.0f)
+			.BodyContent()
 			[
-				SAssignNew(SearchBox, SSearchBox)
-				.HintText(LOCTEXT("SearchPresetHint", "搜索预设、模型"))
-				.OnTextChanged(this, &SStylizedEmissiveLibraryWidget::HandleSearchChanged)
-			]
-			+ SVerticalBox::Slot()
-			.FillHeight(1.0f)
-			[
-				SAssignNew(PresetListView, SListView<FPresetItemPtr>)
-				.ListItemsSource(&PresetItems)
-				.SelectionMode(ESelectionMode::Single)
-				.OnGenerateRow(this, &SStylizedEmissiveLibraryWidget::GeneratePresetRow)
-				.OnSelectionChanged(this, &SStylizedEmissiveLibraryWidget::HandlePresetSelectionChanged)
-			]
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding(0.0f, 8.0f, 0.0f, 0.0f)
-			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot().AutoWidth().Padding(0.0f, 0.0f, 4.0f, 0.0f)
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(0.0f, 6.0f)
 				[
-					SNew(SButton).Text(LOCTEXT("NewPreset", "新建")).OnClicked(this, &SStylizedEmissiveLibraryWidget::CreatePreset)
+					SAssignNew(SearchBox, SSearchBox)
+					.HintText(LOCTEXT("SearchPresetHint", "搜索预设、模型"))
+					.OnTextChanged(this, &SStylizedEmissiveLibraryWidget::HandleSearchChanged)
 				]
-				+ SHorizontalBox::Slot().AutoWidth().Padding(0.0f, 0.0f, 4.0f, 0.0f)
+				+ SVerticalBox::Slot()
+				.FillHeight(1.0f)
 				[
-					SNew(SButton).Text(LOCTEXT("DuplicatePreset", "复制")).IsEnabled(this, &SStylizedEmissiveLibraryWidget::HasSelectedPreset).OnClicked(this, &SStylizedEmissiveLibraryWidget::DuplicatePreset)
+					SAssignNew(PresetListView, SListView<FPresetItemPtr>)
+					.ListItemsSource(&PresetItems)
+					.SelectionMode(ESelectionMode::Single)
+					.OnGenerateRow(this, &SStylizedEmissiveLibraryWidget::GeneratePresetRow)
+					.OnSelectionChanged(this, &SStylizedEmissiveLibraryWidget::HandlePresetSelectionChanged)
 				]
-				+ SHorizontalBox::Slot().AutoWidth()
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(0.0f, 8.0f, 0.0f, 0.0f)
 				[
-					SNew(SButton).Text(LOCTEXT("DeletePreset", "删除")).IsEnabled(this, &SStylizedEmissiveLibraryWidget::HasSelectedPreset).OnClicked(this, &SStylizedEmissiveLibraryWidget::DeletePreset)
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot().AutoWidth().Padding(0.0f, 0.0f, 4.0f, 0.0f)
+					[
+						SNew(SButton).Text(LOCTEXT("NewPreset", "新建")).OnClicked(this, &SStylizedEmissiveLibraryWidget::CreatePreset)
+					]
+					+ SHorizontalBox::Slot().AutoWidth().Padding(0.0f, 0.0f, 4.0f, 0.0f)
+					[
+						SNew(SButton).Text(LOCTEXT("DuplicatePreset", "复制")).IsEnabled(this, &SStylizedEmissiveLibraryWidget::HasSelectedPreset).OnClicked(this, &SStylizedEmissiveLibraryWidget::DuplicatePreset)
+					]
+					+ SHorizontalBox::Slot().AutoWidth()
+					[
+						SNew(SButton).Text(LOCTEXT("DeletePreset", "删除")).IsEnabled(this, &SStylizedEmissiveLibraryWidget::HasSelectedPreset).OnClicked(this, &SStylizedEmissiveLibraryWidget::DeletePreset)
+					]
 				]
 			]
 		];
@@ -357,64 +364,70 @@ TSharedRef<SWidget> SStylizedEmissiveLibraryWidget::BuildPreviewPanel()
 		.BorderImage(FAppStyle::GetBrush(TEXT("ToolPanel.GroupBorder")))
 		.Padding(8.0f)
 		[
-			SNew(SVerticalBox)
-			+ SVerticalBox::Slot()
-			.AutoHeight()
+			SNew(SExpandableArea)
+			.InitiallyCollapsed(false)
+			.AllowAnimatedTransition(false)
+			.HeaderPadding(FMargin(0.0f, 0.0f, 0.0f, 6.0f))
+			.HeaderContent()
 			[
 				SNew(STextBlock)
 				.Text(this, &SStylizedEmissiveLibraryWidget::GetSelectedPresetTitle)
 				.Font(FAppStyle::GetFontStyle(TEXT("DetailsView.CategoryFontStyle")))
 			]
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding(0.0f, 4.0f, 0.0f, 8.0f)
+			.BodyContent()
 			[
-				SNew(STextBlock)
-				.Text(this, &SStylizedEmissiveLibraryWidget::GetSelectedPresetSummary)
-				.AutoWrapText(true)
-				.ColorAndOpacity(FSlateColor::UseSubduedForeground())
-			]
-			+ SVerticalBox::Slot()
-			.FillHeight(1.0f)
-			[
-				SNew(SOverlay)
-				+ SOverlay::Slot()
-				[
-					SAssignNew(PreviewViewport, SStylizedEmissivePreviewViewport)
-				]
-				+ SOverlay::Slot()
-				.HAlign(HAlign_Center)
-				.VAlign(VAlign_Center)
-				[
-					SNew(SBorder)
-					.Visibility(this, &SStylizedEmissiveLibraryWidget::GetDataOnlyMessageVisibility)
-					.Padding(12.0f)
-					[
-						SNew(STextBlock)
-						.Text(LOCTEXT("DataOnlyPreview", "无 Mesh 数据预设\n运行时不显示物体，只输出风格化光照数据"))
-						.Justification(ETextJustify::Center)
-					]
-				]
-			]
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding(0.0f, 8.0f, 0.0f, 0.0f)
-			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot().AutoWidth().Padding(0.0f, 0.0f, 6.0f, 0.0f)
-				[
-					SNew(SButton)
-					.Text(LOCTEXT("PlacePreset", "放置到当前视口"))
-					.ToolTipText(LOCTEXT("PlacePresetTooltip", "在当前编辑器视口前方生成一次；也可以直接从左侧拖动到场景中的准确位置。"))
-					.IsEnabled(this, &SStylizedEmissiveLibraryWidget::HasSelectedPreset)
-					.OnClicked(this, &SStylizedEmissiveLibraryWidget::PlaceSelectedPreset)
-				]
-				+ SHorizontalBox::Slot().FillWidth(1.0f)
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(0.0f, 4.0f, 0.0f, 8.0f)
 				[
 					SNew(STextBlock)
-					.Text(this, &SStylizedEmissiveLibraryWidget::GetStatusText)
+					.Text(this, &SStylizedEmissiveLibraryWidget::GetSelectedPresetSummary)
 					.AutoWrapText(true)
 					.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+				]
+				+ SVerticalBox::Slot()
+				.FillHeight(1.0f)
+				[
+					SNew(SOverlay)
+					+ SOverlay::Slot()
+					[
+						SAssignNew(PreviewViewport, SStylizedEmissivePreviewViewport)
+					]
+					+ SOverlay::Slot()
+					.HAlign(HAlign_Center)
+					.VAlign(VAlign_Center)
+					[
+						SNew(SBorder)
+						.Visibility(this, &SStylizedEmissiveLibraryWidget::GetDataOnlyMessageVisibility)
+						.Padding(12.0f)
+						[
+							SNew(STextBlock)
+							.Text(LOCTEXT("DataOnlyPreview", "无 Mesh 数据预设\n运行时不显示物体，只输出风格化光照数据"))
+							.Justification(ETextJustify::Center)
+						]
+					]
+				]
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(0.0f, 8.0f, 0.0f, 0.0f)
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot().AutoWidth().Padding(0.0f, 0.0f, 6.0f, 0.0f)
+					[
+						SNew(SButton)
+						.Text(LOCTEXT("PlacePreset", "放置到当前视口"))
+						.ToolTipText(LOCTEXT("PlacePresetTooltip", "在当前编辑器视口前方生成一次；也可以直接从左侧拖动到场景中的准确位置。"))
+						.IsEnabled(this, &SStylizedEmissiveLibraryWidget::HasSelectedPreset)
+						.OnClicked(this, &SStylizedEmissiveLibraryWidget::PlaceSelectedPreset)
+					]
+					+ SHorizontalBox::Slot().FillWidth(1.0f)
+					[
+						SNew(STextBlock)
+						.Text(this, &SStylizedEmissiveLibraryWidget::GetStatusText)
+						.AutoWrapText(true)
+						.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+					]
 				]
 			]
 		];
@@ -426,37 +439,43 @@ TSharedRef<SWidget> SStylizedEmissiveLibraryWidget::BuildSettingsPanel()
 		.BorderImage(FAppStyle::GetBrush(TEXT("ToolPanel.GroupBorder")))
 		.Padding(8.0f)
 		[
-			SNew(SVerticalBox)
-			+ SVerticalBox::Slot()
-			.AutoHeight()
+			SNew(SExpandableArea)
+			.InitiallyCollapsed(false)
+			.AllowAnimatedTransition(false)
+			.HeaderPadding(FMargin(0.0f, 0.0f, 0.0f, 6.0f))
+			.HeaderContent()
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("PresetSettingsTitle", "预设配置"))
 				.Font(FAppStyle::GetFontStyle(TEXT("DetailsView.CategoryFontStyle")))
 			]
-			+ SVerticalBox::Slot()
-			.FillHeight(1.0f)
-			.Padding(0.0f, 6.0f)
+			.BodyContent()
 			[
-				DetailsView.ToSharedRef()
-			]
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot().AutoWidth().Padding(0.0f, 0.0f, 6.0f, 0.0f)
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot()
+				.FillHeight(1.0f)
+				.Padding(0.0f, 6.0f)
 				[
-					SNew(SButton)
-					.Text(LOCTEXT("SaveLibrary", "保存预设库"))
-					.IsEnabled_Lambda([this]() { return Library.IsValid(); })
-					.OnClicked(this, &SStylizedEmissiveLibraryWidget::SaveLibrary)
+					DetailsView.ToSharedRef()
 				]
-				+ SHorizontalBox::Slot().AutoWidth()
+				+ SVerticalBox::Slot()
+				.AutoHeight()
 				[
-					SNew(SButton)
-					.Text(LOCTEXT("ShowLibraryAsset", "在内容浏览器定位"))
-					.IsEnabled_Lambda([this]() { return Library.IsValid(); })
-					.OnClicked(this, &SStylizedEmissiveLibraryWidget::ShowLibraryInContentBrowser)
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot().AutoWidth().Padding(0.0f, 0.0f, 6.0f, 0.0f)
+					[
+						SNew(SButton)
+						.Text(LOCTEXT("SaveLibrary", "保存预设库"))
+						.IsEnabled_Lambda([this]() { return Library.IsValid(); })
+						.OnClicked(this, &SStylizedEmissiveLibraryWidget::SaveLibrary)
+					]
+					+ SHorizontalBox::Slot().AutoWidth()
+					[
+						SNew(SButton)
+						.Text(LOCTEXT("ShowLibraryAsset", "在内容浏览器定位"))
+						.IsEnabled_Lambda([this]() { return Library.IsValid(); })
+						.OnClicked(this, &SStylizedEmissiveLibraryWidget::ShowLibraryInContentBrowser)
+					]
 				]
 			]
 		];

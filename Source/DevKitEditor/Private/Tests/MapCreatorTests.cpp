@@ -115,4 +115,82 @@ bool FDevKitMapCreatorProvidesDefaultTemplatesTest::RunTest(const FString& Param
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDevKitMapCreatorBuildsIndividualSublevelPathsTest,
+	"DevKitEditor.MapCreator.BuildsIndividualSublevelPaths",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FDevKitMapCreatorBuildsIndividualSublevelPathsTest::RunTest(const FString& Parameters)
+{
+	const FString Parent = TEXT("/Game/Art/Map/Example/LevelAsset/L1_CommonLevel_Example");
+	FText Error;
+	for (const FString& Suffix : FDevKitMapCreatorService::GetSublevelSuffixes())
+	{
+		const FDevKitSublevelRequest Request{TEXT("/Game/Art/Map/Example/LevelAsset/"), Suffix, TEXT("L1")};
+		const TOptional<FString> Path = FDevKitMapCreatorService::BuildSublevelPath(Parent, Request, Error);
+		TestTrue(*FString::Printf(TEXT("Path for %s"), *Suffix), Path.IsSet());
+		if (Path.IsSet())
+		{
+			TestEqual(*FString::Printf(TEXT("Child naming for %s"), *Suffix), Path.GetValue(),
+				FString::Printf(TEXT("%s_%s"), *Parent, *Suffix));
+		}
+	}
+	const FDevKitSublevelRequest DefaultFolder{FString(), TEXT("Art"), TEXT("L2")};
+	const TOptional<FString> DefaultPath = FDevKitMapCreatorService::BuildSublevelPath(Parent, DefaultFolder, Error);
+	TestTrue(TEXT("Empty target uses parent map folder"), DefaultPath.IsSet());
+	if (DefaultPath.IsSet())
+	{
+		TestEqual(TEXT("Default target path"), DefaultPath.GetValue(), Parent + TEXT("_Art"));
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDevKitMapCreatorRejectsUnsafeSublevelPathsTest,
+	"DevKitEditor.MapCreator.RejectsUnsafeSublevelPaths",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FDevKitMapCreatorRejectsUnsafeSublevelPathsTest::RunTest(const FString& Parameters)
+{
+	const FString Parent = TEXT("/Game/Art/Map/L1_Example");
+	FText Error;
+	const TArray<FString> BadFolders{
+		TEXT("/Engine/Maps"), TEXT("/YogArt/Maps"), TEXT("/Game/Art/../Maps"), TEXT("X:/Temp/Maps")
+	};
+	for (const FString& Folder : BadFolders)
+	{
+		TestFalse(*FString::Printf(TEXT("Reject %s"), *Folder),
+			FDevKitMapCreatorService::BuildSublevelPath(Parent, {Folder, TEXT("Art"), TEXT("L1")}, Error).IsSet());
+	}
+	TestFalse(TEXT("Reject unsupported child type"),
+		FDevKitMapCreatorService::BuildSublevelPath(Parent, {TEXT("/Game/Art/Map"), TEXT("Other"), TEXT("L1")}, Error).IsSet());
+	TestFalse(TEXT("Reject unsupported lighting layer"),
+		FDevKitMapCreatorService::BuildSublevelPath(Parent, {TEXT("/Game/Art/Map"), TEXT("Light"), TEXT("L4")}, Error).IsSet());
+	TestFalse(TEXT("Reject object path instead of package"),
+		FDevKitMapCreatorService::BuildSublevelPath(Parent + TEXT(".L1_Example"),
+			{TEXT("/Game/Art/Map"), TEXT("Art"), TEXT("L1")}, Error).IsSet());
+	TestFalse(TEXT("Full stack cannot write engine content"),
+		FDevKitMapCreatorService::BuildPaths({TEXT("/Engine/Maps"), TEXT("L1"), TEXT("CommonLevel"), TEXT("Example")}, Error).IsSet());
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDevKitMapCreatorRejectsMissingEditorWorldTest,
+	"DevKitEditor.MapCreator.RejectsMissingEditorWorld",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FDevKitMapCreatorRejectsMissingEditorWorldTest::RunTest(const FString& Parameters)
+{
+	const FDevKitSublevelResult Created = FDevKitMapCreatorService::CreateAndAttachSublevel(nullptr,
+		{TEXT("/Game/Art/Map"), TEXT("Art"), TEXT("L1")});
+	TestFalse(TEXT("No world rejects creation"), Created.bSuccess);
+	TestFalse(TEXT("No file creation on rejection"), Created.bAssetCreated);
+	TestFalse(TEXT("No association on rejection"), Created.bAttached);
+	TestFalse(TEXT("No parent save on rejection"), Created.bParentSaved);
+	TestTrue(TEXT("Rejected operation explains cause"), !Created.Message.IsEmpty());
+	const FDevKitSublevelResult Attached = FDevKitMapCreatorService::AttachExistingSublevel(nullptr,
+		TEXT("/Game/Art/Map/Example_Art"));
+	TestFalse(TEXT("No world rejects existing association"), Attached.bSuccess);
+	TestFalse(TEXT("Existing asset remains untouched"), Attached.bAssetCreated);
+	TestFalse(TEXT("No existing association on rejection"), Attached.bAttached);
+	return true;
+}
+
 #endif

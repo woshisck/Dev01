@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Styling/AppStyle.h"
+#include "Styling/StyleColors.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
@@ -11,8 +12,7 @@ namespace DevKitArtToolUI
 	{
 		return SNew(SBorder)
 			.Padding(FMargin(12.f, 10.f))
-			.BorderImage(FAppStyle::GetBrush(TEXT("ToolPanel.GroupBorder")))
-			.BorderBackgroundColor(FLinearColor(0.055f, 0.075f, 0.095f, 1.f))
+			.BorderImage(FAppStyle::GetBrush(TEXT("Brushes.Panel")))
 			[
 				SNew(SVerticalBox)
 				+ SVerticalBox::Slot()
@@ -39,7 +39,6 @@ namespace DevKitArtToolUI
 		return SNew(SBorder)
 			.Padding(FMargin(10.f, 7.f))
 			.BorderImage(FAppStyle::GetBrush(TEXT("Brushes.Header")))
-			.BorderBackgroundColor(FLinearColor(0.10f, 0.20f, 0.27f, 1.f))
 			[
 				SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot()
@@ -50,7 +49,7 @@ namespace DevKitArtToolUI
 					SNew(STextBlock)
 					.Text(FText::AsNumber(Step))
 					.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")))
-					.ColorAndOpacity(FLinearColor(0.25f, 0.75f, 1.f))
+					.ColorAndOpacity(FStyleColors::Primary)
 				]
 				+ SHorizontalBox::Slot()
 				.FillWidth(1.f)
