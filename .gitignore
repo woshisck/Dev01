@@ -2017,3 +2017,4 @@ Plugins/ModularGameplayActors/Binaries/Win64/UnrealEditor.modules
 /Content/Developers/g
 Dev01_Menu.bat
 Dev01_Workflow.bat
+/Plugins/UnLua/Source/UnLuaDefaultParamCollectorUbtPlugin
