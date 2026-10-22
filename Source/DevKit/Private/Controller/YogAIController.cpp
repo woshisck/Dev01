@@ -6,6 +6,7 @@
 #include "BehaviorTree/BlackboardData.h"
 #include "BehaviorTree/BlackboardComponent.h"
 #include "BrainComponent.h"
+#include "DrawDebugHelpers.h"
 #include "Character/EnemyCharacterBase.h"
 #include "Component/CharacterDataComponent.h"
 #include "Data/AbilityData.h"
@@ -56,6 +57,56 @@ static TAutoConsoleVariable<float> CVarEnemyAIStateLogInterval(
 	TEXT("DevKit.EnemyAI.StateLogInterval"),
 	0.5f,
 	TEXT("Seconds between enemy AI awareness sample logs per AI when DevKit.EnemyAI.StateLog >= 2."));
+
+static TAutoConsoleVariable<int32> CVarEnemyAIDrawAwareness(
+	TEXT("DevKit.EnemyAI.DrawAwareness"),
+	0,
+	TEXT("1=draw each enemy's detection annulus and view cone in red."));
+
+#if ENABLE_DRAW_DEBUG
+static void YogAIController_DrawArc(const UWorld* World, const FVector& Center, const FVector& Forward, float Radius,
+	float HalfAngleDeg, const FColor& Color, float LifeTime)
+{
+	constexpr int32 MaxSegments = 48;
+	const int32 NumSegments = FMath::Max(2, FMath::CeilToInt(MaxSegments * HalfAngleDeg / 180.0f));
+	FVector Previous = FVector::ZeroVector;
+	for (int32 Index = -NumSegments; Index <= NumSegments; ++Index)
+	{
+		const float AngleDeg = HalfAngleDeg * static_cast<float>(Index) / static_cast<float>(NumSegments);
+		const FVector Point = Center + Forward.RotateAngleAxis(AngleDeg, FVector::UpVector) * Radius;
+		if (Index > -NumSegments)
+		{
+			DrawDebugLine(World, Previous, Point, Color, false, LifeTime, 0, 2.0f);
+		}
+		Previous = Point;
+	}
+}
+
+static void YogAIController_DrawAwarenessShape(const UWorld* World, const APawn& Pawn, const FEnemyAIAwarenessTuning& Tuning)
+{
+	const FColor Color = FLinearColor(1.0f, 0.0f, 0.0f).ToFColor(true);
+	const float LifeTime = 0.1f;
+	const FVector Center = Pawn.GetActorLocation();
+	const FVector Forward = Pawn.GetActorForwardVector().GetSafeNormal2D();
+	const bool bFullCircle = Tuning.DetectionHalfAngle >= 180.0f;
+	const float HalfAngle = FMath::Clamp(Tuning.DetectionHalfAngle, 0.0f, 180.0f);
+	const float InnerRadius = FMath::Clamp(Tuning.DetectionInnerRadius, 0.0f, Tuning.DetectionRadius);
+
+	YogAIController_DrawArc(World, Center, Forward, Tuning.DetectionRadius, HalfAngle, Color, LifeTime);
+	if (InnerRadius > KINDA_SMALL_NUMBER)
+	{
+		YogAIController_DrawArc(World, Center, Forward, InnerRadius, HalfAngle, Color, LifeTime);
+	}
+	if (!bFullCircle)
+	{
+		for (const float Sign : { -1.0f, 1.0f })
+		{
+			const FVector Edge = Forward.RotateAngleAxis(HalfAngle * Sign, FVector::UpVector);
+			DrawDebugLine(World, Center + Edge * InnerRadius, Center + Edge * Tuning.DetectionRadius, Color, false, LifeTime, 0, 2.0f);
+		}
+	}
+}
+#endif
 
 static const TCHAR* EnemyAIStateToString(EEnemyAIState State)
 {
@@ -972,6 +1023,12 @@ bool AYogAIController::UpdateAwarenessBlackboard(
 	const FEnemyAIAwarenessTuning Tuning = EnemyData ? EnemyData->AwarenessTuning : FEnemyAIAwarenessTuning();
 	const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
 	const EEnemyAIState CurrentState = static_cast<EEnemyAIState>(InBlackboard->GetValueAsEnum(EnemyAIStateKeyName));
+#if ENABLE_DRAW_DEBUG
+	if (CVarEnemyAIDrawAwareness.GetValueOnGameThread() > 0)
+	{
+		YogAIController_DrawAwarenessShape(GetWorld(), *ControlledPawn, Tuning);
+	}
+#endif
 	const float CombatExitRadius = Tuning.CombatExitRadius > 0.0f
 		? Tuning.CombatExitRadius
 		: Tuning.DetectionRadius + 300.0f;
@@ -980,7 +1037,20 @@ bool AYogAIController::UpdateAwarenessBlackboard(
 	if (PlayerPawn)
 	{
 		const float DistanceToPlayer = FVector::Dist2D(ControlledPawn->GetActorLocation(), PlayerPawn->GetActorLocation());
-		const bool bCanSeePlayer = DistanceToPlayer <= Tuning.DetectionRadius && LineOfSightTo(PlayerPawn);
+		// The annulus and cone only gate acquisition; an engaged enemy keeps tracking inside the full disc.
+		bool bInDetectionZone = DistanceToPlayer <= Tuning.DetectionRadius;
+		if (bInDetectionZone && CurrentState != EEnemyAIState::Combat)
+		{
+			bInDetectionZone = DistanceToPlayer >= Tuning.DetectionInnerRadius;
+			if (bInDetectionZone && Tuning.DetectionHalfAngle < 180.0f)
+			{
+				const FVector ToPlayer = (PlayerPawn->GetActorLocation() - ControlledPawn->GetActorLocation()).GetSafeNormal2D();
+				const FVector Forward = ControlledPawn->GetActorForwardVector().GetSafeNormal2D();
+				const float CosHalfAngle = FMath::Cos(FMath::DegreesToRadians(Tuning.DetectionHalfAngle));
+				bInDetectionZone = ToPlayer.IsNearlyZero() || FVector::DotProduct(Forward, ToPlayer) >= CosHalfAngle;
+			}
+		}
+		const bool bCanSeePlayer = bInDetectionZone && LineOfSightTo(PlayerPawn);
 		if (CVarEnemyAIStateLog.GetValueOnGameThread() >= 2)
 		{
 			const float LogInterval = FMath::Max(CVarEnemyAIStateLogInterval.GetValueOnGameThread(), 0.05f);

@@ -259,7 +259,7 @@ void ARewardPickup::TryPickup(APlayerCharacterBase* Player)
 
 	if (!GM || !PC || !HUD)
 	{
-		UE_LOG(LogTemp, Error, TEXT("[RewardPickup] TryPickup 失败：GM=%s PC=%s HUD=%s"),
+		UE_LOG(LogTemp, Error, TEXT("[RewardPickup] TryPickup 失败:GM=%s PC=%s HUD=%s"),
 			GM ? TEXT("OK") : TEXT("NULL"),
 			PC ? TEXT("OK") : TEXT("NULL"),
 			HUD ? TEXT("OK") : TEXT("NULL"));

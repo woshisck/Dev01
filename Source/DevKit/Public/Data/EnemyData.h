@@ -175,6 +175,16 @@ struct DEVKIT_API FEnemyAIAwarenessTuning
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Awareness", meta = (ClampMin = "0.0"))
 	float DetectionRadius = 900.f;
 
+	// Inner edge of the detection annulus. Targets closer than this are not noticed while the enemy
+	// is not in Combat. 0 gives a full disc.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Awareness", meta = (ClampMin = "0.0"))
+	float DetectionInnerRadius = 0.f;
+
+	// Half-angle in degrees of the detection cone around the enemy's forward vector.
+	// 180 covers every direction. Ignored once the enemy is in Combat.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Awareness", meta = (ClampMin = "0.0", ClampMax = "180.0", Units = "deg"))
+	float DetectionHalfAngle = 180.f;
+
 	// Inside this radius the enemy skips the notice delay and enters Combat immediately.
 	// 0 disables instant aggro so every engagement goes through NoticeDuration.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Awareness", meta = (ClampMin = "0.0"))
