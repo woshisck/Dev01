@@ -175,6 +175,8 @@ struct DEVKIT_API FEnemyAIAwarenessTuning
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Awareness", meta = (ClampMin = "0.0"))
 	float DetectionRadius = 900.f;
 
+	// Inside this radius the enemy skips the notice delay and enters Combat immediately.
+	// 0 disables instant aggro so every engagement goes through NoticeDuration.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Awareness", meta = (ClampMin = "0.0"))
 	float CombatEnterRadius = 650.f;
 
@@ -189,6 +191,12 @@ struct DEVKIT_API FEnemyAIAwarenessTuning
 	// exit radius, or LoseTargetDelay. Used by relentless pursuers like Nemesis.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Awareness")
 	bool bNeverLoseTargetOnceAcquired = false;
+
+	// Seconds the enemy stays alarmed after first noticing the player before it commits to
+	// Combat. Only applies outside CombatEnterRadius; the player leaving sight in the
+	// meantime lets AlertDuration run out and the enemy returns to Patrol.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Awareness", meta = (ClampMin = "0.0"))
+	float NoticeDuration = 1.5f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Awareness", meta = (ClampMin = "0.0"))
 	float AlertDuration = 4.0f;

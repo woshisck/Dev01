@@ -1,4 +1,5 @@
 #include "AI/StateTree/YogStateTreeTasks.h"
+#include "AI/StateTree/YogLuaSpawnLibrary.h"
 
 #include "AIController.h"
 #include "AbilitySystemComponent.h"
@@ -25,98 +26,17 @@
 #include "Kismet/GameplayStatics.h"
 #include "Story/Encounter/StoryEncounterPointDataAsset.h"
 #include "Story/Encounter/StoryEncounterRuntimeSubsystem.h"
+#include "UnLua.h"
+#include "UnLuaModule.h"
 
 // ─── Activate Ability By Tag ────────────────────────────────────────────────
-
-static bool FindReachableSpawnLocation(
-	UWorld* World,
-	const FVector& Origin,
-	float SpawnRadius,
-	float MinSpawnDistance,
-	int32 MaxAttempts,
-	FVector& OutLocation)
-{
-	if (!World || SpawnRadius <= 0.0f)
-	{
-		return false;
-	}
-
-	UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World);
-	if (!NavSys)
-	{
-		return false;
-	}
-
-	const float SafeMinDistance = FMath::Clamp(MinSpawnDistance, 0.0f, SpawnRadius);
-	const int32 SafeMaxAttempts = FMath::Max(MaxAttempts, 1);
-	for (int32 Attempt = 0; Attempt < SafeMaxAttempts; ++Attempt)
-	{
-		FNavLocation NavLocation;
-		if (!NavSys->GetRandomReachablePointInRadius(Origin, SpawnRadius, NavLocation))
-		{
-			continue;
-		}
-
-		if (SafeMinDistance > 0.0f
-			&& FVector::DistSquared2D(Origin, NavLocation.Location) < FMath::Square(SafeMinDistance))
-		{
-			continue;
-		}
-
-		OutLocation = NavLocation.Location;
-		return true;
-	}
-
-	return false;
-}
-
-static AEnemyCharacterBase* SpawnEnemyAtLocation(
-	UWorld* World,
-	AActor* SpawnOwner,
-	APawn* InstigatorPawn,
-	TSubclassOf<AEnemyCharacterBase> EnemyClass,
-	const FVector& SpawnLocation)
-{
-	if (!World || !EnemyClass)
-	{
-		return nullptr;
-	}
-
-	if (AMobSpawner* MobSpawner = Cast<AMobSpawner>(SpawnOwner))
-	{
-		return MobSpawner->SpawnMobAtLocation(EnemyClass, SpawnLocation);
-	}
-
-	AEnemyCharacterBase* Spawned = World->SpawnActorDeferred<AEnemyCharacterBase>(
-		EnemyClass,
-		FTransform(FRotator::ZeroRotator, SpawnLocation),
-		SpawnOwner,
-		InstigatorPawn,
-		ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn);
-	if (!Spawned)
-	{
-		return nullptr;
-	}
-
-	Spawned->FinishSpawning(FTransform(FRotator::ZeroRotator, SpawnLocation));
-	if (!Spawned->GetController())
-	{
-		Spawned->SpawnDefaultController();
-	}
-	if (AYogGameMode* GM = World->GetAuthGameMode<AYogGameMode>())
-	{
-		GM->RegisterEnemy(Spawned);
-	}
-
-	return Spawned;
-}
 
 static bool SpawnMobStep(FStateTreeTask_SpawnMobInstanceData& InstanceData, AActor* OriginActor, APawn* InstigatorPawn)
 {
 	UWorld* World = OriginActor->GetWorld();
 
 	FVector SpawnLocation = FVector::ZeroVector;
-	if (!FindReachableSpawnLocation(
+	if (!UYogLuaSpawnLibrary::FindReachableSpawnLocation(
 			World,
 			OriginActor->GetActorLocation(),
 			InstanceData.SpawnRadius,
@@ -129,7 +49,7 @@ static bool SpawnMobStep(FStateTreeTask_SpawnMobInstanceData& InstanceData, AAct
 
 	SpawnLocation.Z += InstanceData.SpawnZOffset;
 
-	AEnemyCharacterBase* Spawned = SpawnEnemyAtLocation(
+	AEnemyCharacterBase* Spawned = UYogLuaSpawnLibrary::SpawnEnemyAtLocation(
 		World, OriginActor, InstigatorPawn, InstanceData.EnemyClass, SpawnLocation);
 	if (!Spawned)
 	{
@@ -536,7 +456,7 @@ EStateTreeRunStatus FStateTreeTask_SpawnMobInReachableNavMesh::EnterState(
 	}
 
 	FVector SpawnLocation = FVector::ZeroVector;
-	if (!FindReachableSpawnLocation(
+	if (!UYogLuaSpawnLibrary::FindReachableSpawnLocation(
 			World,
 			OriginActor->GetActorLocation(),
 			InstanceData.SpawnRadius,
@@ -549,7 +469,7 @@ EStateTreeRunStatus FStateTreeTask_SpawnMobInReachableNavMesh::EnterState(
 
 	SpawnLocation.Z += InstanceData.SpawnZOffset;
 
-	AEnemyCharacterBase* SpawnedEnemy = SpawnEnemyAtLocation(
+	AEnemyCharacterBase* SpawnedEnemy = UYogLuaSpawnLibrary::SpawnEnemyAtLocation(
 		World,
 		OriginActor,
 		InstanceData.AIController ? InstanceData.AIController->GetPawn() : nullptr,
@@ -725,6 +645,176 @@ EStateTreeRunStatus FStateTreeTask_EnemyPatrolWait::Tick(
 	return InstanceData.RemainingTime <= 0.0f ? EStateTreeRunStatus::Succeeded : EStateTreeRunStatus::Running;
 }
 
+// ─── Random Walk Around Spawn ───────────────────────────────────────────────
+
+static void YogStateTreeTasks_BeginWait(FStateTreeTask_RandomWalkAroundSpawn::FInstanceDataType& InstanceData)
+{
+	float MinWait = InstanceData.WaitMin;
+	float MaxWait = InstanceData.WaitMax;
+	if (InstanceData.bUseEnemyDataTuning)
+	{
+		const APawn* Pawn = InstanceData.AIController ? InstanceData.AIController->GetPawn() : nullptr;
+		const AEnemyCharacterBase* Enemy = Cast<AEnemyCharacterBase>(Pawn);
+		const UCharacterDataComponent* DataComponent = Enemy ? Enemy->GetCharacterDataComponent() : nullptr;
+		if (const UEnemyData* EnemyData = DataComponent ? Cast<UEnemyData>(DataComponent->GetCharacterData()) : nullptr)
+		{
+			MinWait = EnemyData->AwarenessTuning.PatrolWaitMin;
+			MaxWait = EnemyData->AwarenessTuning.PatrolWaitMax;
+		}
+	}
+
+	MinWait = FMath::Max(0.0f, MinWait);
+	MaxWait = FMath::Max(MinWait, MaxWait);
+	InstanceData.WaitRemaining = FMath::FRandRange(MinWait, MaxWait);
+	InstanceData.bWalking = false;
+}
+
+// Returns false when no move could be started, in which case the caller should idle and retry.
+static bool YogStateTreeTasks_BeginWalk(FStateTreeTask_RandomWalkAroundSpawn::FInstanceDataType& InstanceData)
+{
+	AAIController* AIController = InstanceData.AIController;
+	APawn* Pawn = AIController ? AIController->GetPawn() : nullptr;
+	UNavigationSystemV1* NavSys = Pawn ? FNavigationSystem::GetCurrent<UNavigationSystemV1>(Pawn->GetWorld()) : nullptr;
+	if (!NavSys)
+	{
+		return false;
+	}
+
+	float Radius = InstanceData.WalkRadius;
+	if (InstanceData.bUseEnemyDataTuning)
+	{
+		const AEnemyCharacterBase* Enemy = Cast<AEnemyCharacterBase>(Pawn);
+		const UCharacterDataComponent* DataComponent = Enemy ? Enemy->GetCharacterDataComponent() : nullptr;
+		if (const UEnemyData* EnemyData = DataComponent ? Cast<UEnemyData>(DataComponent->GetCharacterData()) : nullptr)
+		{
+			Radius = EnemyData->AwarenessTuning.PatrolRadius;
+		}
+	}
+
+	const FVector PawnLocation = Pawn->GetActorLocation();
+	const float MinDistanceSq = FMath::Square(InstanceData.MinWalkDistance);
+
+	bool bFoundPoint = false;
+	FNavLocation NavLocation;
+	for (int32 Attempt = 0; Attempt < InstanceData.MaxPickAttempts; ++Attempt)
+	{
+		if (NavSys->GetRandomReachablePointInRadius(InstanceData.Origin, Radius, NavLocation)
+			&& FVector::DistSquared2D(NavLocation.Location, PawnLocation) >= MinDistanceSq)
+		{
+			bFoundPoint = true;
+			break;
+		}
+	}
+	if (!bFoundPoint)
+	{
+		return false;
+	}
+
+	InstanceData.CurrentWalkTarget = NavLocation.Location;
+
+	FAIMoveRequest MoveRequest;
+	MoveRequest.SetGoalLocation(NavLocation.Location);
+	MoveRequest.SetAcceptanceRadius(InstanceData.AcceptanceRadius);
+	MoveRequest.SetUsePathfinding(true);
+	MoveRequest.SetAllowPartialPath(true);
+	MoveRequest.SetCanStrafe(true);
+
+	const FPathFollowingRequestResult RequestResult = AIController->MoveTo(MoveRequest);
+	if (RequestResult.Code != EPathFollowingRequestResult::RequestSuccessful)
+	{
+		return false;
+	}
+
+	InstanceData.bWalking = true;
+	return true;
+}
+
+FStateTreeTask_RandomWalkAroundSpawn::FStateTreeTask_RandomWalkAroundSpawn()
+{
+	bShouldCallTick = true;
+}
+
+EStateTreeRunStatus FStateTreeTask_RandomWalkAroundSpawn::EnterState(
+	FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& /*Transition*/) const
+{
+	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+
+	const APawn* Pawn = InstanceData.AIController ? InstanceData.AIController->GetPawn() : nullptr;
+	if (!Pawn)
+	{
+		return EStateTreeRunStatus::Failed;
+	}
+
+	// The blackboard origin is the spawn point; an all-zero value means it was never written.
+	const UBlackboardComponent* Blackboard = InstanceData.AIController->GetBlackboardComponent();
+	FVector Origin = (Blackboard && !InstanceData.OriginKey.IsNone())
+		? Blackboard->GetValueAsVector(InstanceData.OriginKey)
+		: FVector::ZeroVector;
+	if (Origin.IsNearlyZero())
+	{
+		Origin = Pawn->GetActorLocation();
+	}
+	InstanceData.Origin = Origin;
+	InstanceData.CurrentWalkTarget = Origin;
+
+	if (InstanceData.bStartWithWait || !YogStateTreeTasks_BeginWalk(InstanceData))
+	{
+		YogStateTreeTasks_BeginWait(InstanceData);
+	}
+	return EStateTreeRunStatus::Running;
+}
+
+EStateTreeRunStatus FStateTreeTask_RandomWalkAroundSpawn::Tick(
+	FStateTreeExecutionContext& Context, const float DeltaTime) const
+{
+	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+
+	AAIController* AIController = InstanceData.AIController;
+	if (!AIController || !AIController->GetPawn())
+	{
+		return EStateTreeRunStatus::Failed;
+	}
+
+	if (InstanceData.bWalking)
+	{
+		// Arrival and abort are treated alike; either way the pawn idles, then picks a new point.
+		if (AIController->GetMoveStatus() == EPathFollowingStatus::Idle)
+		{
+			YogStateTreeTasks_BeginWait(InstanceData);
+		}
+		return EStateTreeRunStatus::Running;
+	}
+
+	InstanceData.WaitRemaining -= DeltaTime;
+	if (InstanceData.WaitRemaining > 0.0f)
+	{
+		return EStateTreeRunStatus::Running;
+	}
+
+	if (!InstanceData.bLoop)
+	{
+		return EStateTreeRunStatus::Succeeded;
+	}
+
+	if (!YogStateTreeTasks_BeginWalk(InstanceData))
+	{
+		YogStateTreeTasks_BeginWait(InstanceData);
+	}
+	return EStateTreeRunStatus::Running;
+}
+
+void FStateTreeTask_RandomWalkAroundSpawn::ExitState(
+	FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& /*Transition*/) const
+{
+	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+
+	if (InstanceData.bWalking && InstanceData.AIController)
+	{
+		InstanceData.AIController->StopMovement();
+	}
+	InstanceData.bWalking = false;
+}
+
 // ─── Move To Controller Target ──────────────────────────────────────────────
 
 FStateTreeTask_HoldPosition::FStateTreeTask_HoldPosition()
@@ -735,14 +825,39 @@ FStateTreeTask_HoldPosition::FStateTreeTask_HoldPosition()
 EStateTreeRunStatus FStateTreeTask_HoldPosition::EnterState(
 	FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& /*Transition*/) const
 {
-	const FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
 	if (!InstanceData.AIController)
 	{
 		return EStateTreeRunStatus::Failed;
 	}
 
 	InstanceData.AIController->StopMovement();
+
+	InstanceData.bSetFocus = false;
+	if (InstanceData.bFaceTarget)
+	{
+		const UBlackboardComponent* Blackboard = InstanceData.AIController->GetBlackboardComponent();
+		AActor* Target = (Blackboard && !InstanceData.TargetActorKey.IsNone())
+			? Cast<AActor>(Blackboard->GetValueAsObject(InstanceData.TargetActorKey))
+			: nullptr;
+		if (Target)
+		{
+			InstanceData.AIController->SetFocus(Target);
+			InstanceData.bSetFocus = true;
+		}
+	}
 	return EStateTreeRunStatus::Running;
+}
+
+void FStateTreeTask_HoldPosition::ExitState(
+	FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& /*Transition*/) const
+{
+	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+	if (InstanceData.bSetFocus && InstanceData.AIController)
+	{
+		InstanceData.AIController->ClearFocus(EAIFocusPriority::Gameplay);
+	}
+	InstanceData.bSetFocus = false;
 }
 
 FStateTreeTask_MoveToControllerTarget::FStateTreeTask_MoveToControllerTarget()
@@ -1282,4 +1397,380 @@ EStateTreeRunStatus FStateTreeTask_DebugPrint::EnterState(
 	}
 
 	return EStateTreeRunStatus::Succeeded;
+}
+
+// ─── Call Lua ───────────────────────────────────────────────────────────────
+
+namespace
+{
+	// Requires LuaModule and leaves it on top of the stack. Pushes the message handler
+	// below it so callers can lua_pcall with MsgHandlerIdx without a second lookup.
+	// Returns false (stack already unwound to Top) on any failure.
+	bool StateTree_RequireLuaModule(lua_State* L, int32 Top, const FString& LuaModule, int32& OutMsgHandlerIdx)
+	{
+		lua_pushcfunction(L, UnLua::ReportLuaCallError);
+		OutMsgHandlerIdx = lua_gettop(L);
+
+		lua_getglobal(L, "require");
+		lua_pushstring(L, TCHAR_TO_UTF8(*LuaModule));
+		if (lua_pcall(L, 1, 1, OutMsgHandlerIdx) != LUA_OK || !lua_istable(L, -1))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[StateTree][Lua] could not require '%s'."), *LuaModule);
+			lua_settop(L, Top);
+			return false;
+		}
+
+		return true;
+	}
+
+	// Looks up FieldName on the module left on top of the stack by StateTree_RequireLuaModule.
+	// Pops the module either way, leaving only FieldName (if a function) above the message handler.
+	bool StateTree_GetModuleFunction(lua_State* L, int32 Top, const char* FieldName)
+	{
+		const bool bIsFunction = lua_getfield(L, -1, FieldName) == LUA_TFUNCTION;
+		lua_remove(L, -2); // drop the module table, keep the field
+		if (!bIsFunction)
+		{
+			lua_settop(L, Top);
+		}
+		return bIsFunction;
+	}
+}
+
+FStateTreeTask_CallLua::FStateTreeTask_CallLua()
+{
+	bShouldCallTick = true;
+}
+
+EStateTreeRunStatus FStateTreeTask_CallLua::EnterState(
+	FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& /*Transition*/) const
+{
+	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+	InstanceData.bCheckedForTick = false;
+	InstanceData.bHasTick = false;
+
+	if (!InstanceData.Owner || InstanceData.LuaModule.IsEmpty())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[StateTree][Lua] Call Lua task has no Owner or LuaModule; failing."));
+		return EStateTreeRunStatus::Failed;
+	}
+
+	UnLua::FLuaEnv* Env = IUnLuaModule::Get().GetEnv(InstanceData.Owner);
+	lua_State* L = Env ? Env->GetMainState() : nullptr;
+	if (!L)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[StateTree][Lua] %s has no Lua env; '%s' skipped."),
+			*GetNameSafe(InstanceData.Owner),
+			*InstanceData.LuaModule);
+		return EStateTreeRunStatus::Failed;
+	}
+
+	const int32 Top = lua_gettop(L);
+	int32 MsgHandlerIdx;
+	if (!StateTree_RequireLuaModule(L, Top, InstanceData.LuaModule, MsgHandlerIdx))
+	{
+		return EStateTreeRunStatus::Failed;
+	}
+
+	if (!StateTree_GetModuleFunction(L, Top, "OnEnter"))
+	{
+		// OnEnter is optional: a module that only implements OnTick is valid.
+		return EStateTreeRunStatus::Running;
+	}
+
+	UnLua::PushUObject(L, InstanceData.Owner);
+	if (lua_pcall(L, 1, 1, MsgHandlerIdx) != LUA_OK)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[StateTree][Lua] %s '%s'.OnEnter errored."),
+			*GetNameSafe(InstanceData.Owner),
+			*InstanceData.LuaModule);
+		lua_settop(L, Top);
+		return EStateTreeRunStatus::Failed;
+	}
+
+	// Explicit false fails the task; nil/true/anything else keeps it Running.
+	const bool bFailed = lua_isboolean(L, -1) && !lua_toboolean(L, -1);
+	lua_settop(L, Top);
+	return bFailed ? EStateTreeRunStatus::Failed : EStateTreeRunStatus::Running;
+}
+
+EStateTreeRunStatus FStateTreeTask_CallLua::Tick(FStateTreeExecutionContext& Context, const float DeltaTime) const
+{
+	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+	if (!InstanceData.Owner || InstanceData.LuaModule.IsEmpty())
+	{
+		return EStateTreeRunStatus::Failed;
+	}
+
+	// Module confirmed on a prior tick to have no OnTick: skip the require + field lookup
+	// every frame rather than repeating it for a module that will never answer.
+	if (InstanceData.bCheckedForTick && !InstanceData.bHasTick)
+	{
+		return EStateTreeRunStatus::Running;
+	}
+
+	UnLua::FLuaEnv* Env = IUnLuaModule::Get().GetEnv(InstanceData.Owner);
+	lua_State* L = Env ? Env->GetMainState() : nullptr;
+	if (!L)
+	{
+		return EStateTreeRunStatus::Failed;
+	}
+
+	const int32 Top = lua_gettop(L);
+	int32 MsgHandlerIdx;
+	if (!StateTree_RequireLuaModule(L, Top, InstanceData.LuaModule, MsgHandlerIdx))
+	{
+		return EStateTreeRunStatus::Failed;
+	}
+
+	if (!StateTree_GetModuleFunction(L, Top, "OnTick"))
+	{
+		// Checked once per EnterState rather than once per Tick to avoid a require + field
+		// lookup every frame for the (common) case of a module with no OnTick at all.
+		InstanceData.bCheckedForTick = true;
+		InstanceData.bHasTick = false;
+		return EStateTreeRunStatus::Running;
+	}
+	InstanceData.bCheckedForTick = true;
+	InstanceData.bHasTick = true;
+
+	UnLua::PushUObject(L, InstanceData.Owner);
+	lua_pushnumber(L, DeltaTime);
+	if (lua_pcall(L, 2, 1, MsgHandlerIdx) != LUA_OK)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[StateTree][Lua] %s '%s'.OnTick errored."),
+			*GetNameSafe(InstanceData.Owner),
+			*InstanceData.LuaModule);
+		lua_settop(L, Top);
+		return EStateTreeRunStatus::Failed;
+	}
+
+	EStateTreeRunStatus Result = EStateTreeRunStatus::Running;
+	if (lua_isboolean(L, -1))
+	{
+		Result = lua_toboolean(L, -1) ? EStateTreeRunStatus::Succeeded : EStateTreeRunStatus::Failed;
+	}
+
+	lua_settop(L, Top);
+	return Result;
+}
+
+void FStateTreeTask_CallLua::ExitState(
+	FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& /*Transition*/) const
+{
+	const FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+	if (!InstanceData.Owner || InstanceData.LuaModule.IsEmpty())
+	{
+		return;
+	}
+
+	UnLua::FLuaEnv* Env = IUnLuaModule::Get().GetEnv(InstanceData.Owner);
+	lua_State* L = Env ? Env->GetMainState() : nullptr;
+	if (!L)
+	{
+		return;
+	}
+
+	const int32 Top = lua_gettop(L);
+	int32 MsgHandlerIdx;
+	if (!StateTree_RequireLuaModule(L, Top, InstanceData.LuaModule, MsgHandlerIdx))
+	{
+		return;
+	}
+
+	if (!StateTree_GetModuleFunction(L, Top, "OnExit"))
+	{
+		return;
+	}
+
+	UnLua::PushUObject(L, InstanceData.Owner);
+	if (lua_pcall(L, 1, 0, MsgHandlerIdx) != LUA_OK)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[StateTree][Lua] %s '%s'.OnExit errored."),
+			*GetNameSafe(InstanceData.Owner),
+			*InstanceData.LuaModule);
+	}
+
+	lua_settop(L, Top);
+}
+
+// ─── Call Lua Spawn ─────────────────────────────────────────────────────────
+
+static void StateTree_PushSpawnParams(lua_State* L, const FStateTreeTask_CallLuaSpawnInstanceData& InstanceData)
+{
+	lua_createtable(L, 0, 3);
+
+	if (InstanceData.EnemyData)
+	{
+		UnLua::PushUObject(L, InstanceData.EnemyData);
+	}
+	else
+	{
+		lua_pushnil(L);
+	}
+	lua_setfield(L, -2, "EnemyData");
+
+	lua_pushnumber(L, InstanceData.SpawnRadius);
+	lua_setfield(L, -2, "Radius");
+
+	lua_pushinteger(L, InstanceData.SpawnCount);
+	lua_setfield(L, -2, "Count");
+}
+
+// true -> Succeeded, false -> Failed, anything else (including nil) -> Running.
+static EStateTreeRunStatus StateTree_StatusFromLuaResult(lua_State* L)
+{
+	if (!lua_isboolean(L, -1))
+	{
+		return EStateTreeRunStatus::Running;
+	}
+
+	return lua_toboolean(L, -1) ? EStateTreeRunStatus::Succeeded : EStateTreeRunStatus::Failed;
+}
+
+FStateTreeTask_CallLuaSpawn::FStateTreeTask_CallLuaSpawn()
+{
+	bShouldCallTick = true;
+}
+
+EStateTreeRunStatus FStateTreeTask_CallLuaSpawn::EnterState(
+	FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& /*Transition*/) const
+{
+	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+	InstanceData.bCheckedForTick = false;
+	InstanceData.bHasTick = false;
+
+	if (!InstanceData.Owner || InstanceData.LuaModule.IsEmpty())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[StateTree][Lua] Call Lua Spawn task has no Owner or LuaModule; failing."));
+		return EStateTreeRunStatus::Failed;
+	}
+
+	UnLua::FLuaEnv* Env = IUnLuaModule::Get().GetEnv(InstanceData.Owner);
+	lua_State* L = Env ? Env->GetMainState() : nullptr;
+	if (!L)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[StateTree][Lua] %s has no Lua env; '%s' skipped."),
+			*GetNameSafe(InstanceData.Owner),
+			*InstanceData.LuaModule);
+		return EStateTreeRunStatus::Failed;
+	}
+
+	const int32 Top = lua_gettop(L);
+	int32 MsgHandlerIdx;
+	if (!StateTree_RequireLuaModule(L, Top, InstanceData.LuaModule, MsgHandlerIdx))
+	{
+		return EStateTreeRunStatus::Failed;
+	}
+
+	if (!StateTree_GetModuleFunction(L, Top, "OnEnter"))
+	{
+		return EStateTreeRunStatus::Running;
+	}
+
+	UnLua::PushUObject(L, InstanceData.Owner);
+	StateTree_PushSpawnParams(L, InstanceData);
+	if (lua_pcall(L, 2, 1, MsgHandlerIdx) != LUA_OK)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[StateTree][Lua] %s '%s'.OnEnter errored."),
+			*GetNameSafe(InstanceData.Owner),
+			*InstanceData.LuaModule);
+		lua_settop(L, Top);
+		return EStateTreeRunStatus::Failed;
+	}
+
+	const EStateTreeRunStatus Result = StateTree_StatusFromLuaResult(L);
+	lua_settop(L, Top);
+	return Result;
+}
+
+EStateTreeRunStatus FStateTreeTask_CallLuaSpawn::Tick(FStateTreeExecutionContext& Context, const float DeltaTime) const
+{
+	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+	if (!InstanceData.Owner || InstanceData.LuaModule.IsEmpty())
+	{
+		return EStateTreeRunStatus::Failed;
+	}
+
+	if (InstanceData.bCheckedForTick && !InstanceData.bHasTick)
+	{
+		return EStateTreeRunStatus::Running;
+	}
+
+	UnLua::FLuaEnv* Env = IUnLuaModule::Get().GetEnv(InstanceData.Owner);
+	lua_State* L = Env ? Env->GetMainState() : nullptr;
+	if (!L)
+	{
+		return EStateTreeRunStatus::Failed;
+	}
+
+	const int32 Top = lua_gettop(L);
+	int32 MsgHandlerIdx;
+	if (!StateTree_RequireLuaModule(L, Top, InstanceData.LuaModule, MsgHandlerIdx))
+	{
+		return EStateTreeRunStatus::Failed;
+	}
+
+	InstanceData.bCheckedForTick = true;
+	InstanceData.bHasTick = StateTree_GetModuleFunction(L, Top, "OnTick");
+	if (!InstanceData.bHasTick)
+	{
+		return EStateTreeRunStatus::Running;
+	}
+
+	UnLua::PushUObject(L, InstanceData.Owner);
+	lua_pushnumber(L, DeltaTime);
+	StateTree_PushSpawnParams(L, InstanceData);
+	if (lua_pcall(L, 3, 1, MsgHandlerIdx) != LUA_OK)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[StateTree][Lua] %s '%s'.OnTick errored."),
+			*GetNameSafe(InstanceData.Owner),
+			*InstanceData.LuaModule);
+		lua_settop(L, Top);
+		return EStateTreeRunStatus::Failed;
+	}
+
+	const EStateTreeRunStatus Result = StateTree_StatusFromLuaResult(L);
+	lua_settop(L, Top);
+	return Result;
+}
+
+void FStateTreeTask_CallLuaSpawn::ExitState(
+	FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& /*Transition*/) const
+{
+	const FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+	if (!InstanceData.Owner || InstanceData.LuaModule.IsEmpty())
+	{
+		return;
+	}
+
+	UnLua::FLuaEnv* Env = IUnLuaModule::Get().GetEnv(InstanceData.Owner);
+	lua_State* L = Env ? Env->GetMainState() : nullptr;
+	if (!L)
+	{
+		return;
+	}
+
+	const int32 Top = lua_gettop(L);
+	int32 MsgHandlerIdx;
+	if (!StateTree_RequireLuaModule(L, Top, InstanceData.LuaModule, MsgHandlerIdx))
+	{
+		return;
+	}
+
+	if (!StateTree_GetModuleFunction(L, Top, "OnExit"))
+	{
+		return;
+	}
+
+	UnLua::PushUObject(L, InstanceData.Owner);
+	StateTree_PushSpawnParams(L, InstanceData);
+	if (lua_pcall(L, 2, 0, MsgHandlerIdx) != LUA_OK)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[StateTree][Lua] %s '%s'.OnExit errored."),
+			*GetNameSafe(InstanceData.Owner),
+			*InstanceData.LuaModule);
+	}
+
+	lua_settop(L, Top);
 }

@@ -61,7 +61,6 @@ public class DevKit : ModuleRules
                 "Core",
                 "InputCore",
                 "Json",
-                "DevKitLuaRules",
                 "Engine",
                 "Slate",
                 "SlateCore",
@@ -78,6 +77,15 @@ public class DevKit : ModuleRules
                 // explicitly rather than relying on UnLua's public dependency.
                 "Lua"
             });
+
+        // Must match the DevKitLuaRules "Enabled" flag in DevKit.uproject: linking against a disabled
+        // plugin's DLL makes UnrealEditor-DevKit.dll fail to load (missing import, error 126).
+        bool bWithLuaRules = false;
+        if (bWithLuaRules)
+        {
+            PrivateDependencyModuleNames.Add("DevKitLuaRules");
+        }
+        PrivateDefinitions.Add("WITH_DEVKIT_LUA_RULES=" + (bWithLuaRules ? "1" : "0"));
 
         // Versioned rule bundles are staged inside the game's pak, not loaded from authoring spreadsheets.
         RuntimeDependencies.Add("$(ProjectDir)/Content/ActionRules/...", StagedFileType.UFS);

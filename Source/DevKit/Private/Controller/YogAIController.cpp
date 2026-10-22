@@ -341,6 +341,12 @@ void AYogAIController::EnterAlert(AActor* TargetActor, FVector AlertLocation, bo
 	BB->SetValueAsVector(TEXT("LastKnownTargetLocation"), AlertLocation);
 	BB->SetValueAsFloat(TEXT("AlertExpireTime"), CurrentTime + Tuning.AlertDuration);
 
+	// Stamp only on the non-Alert -> Alert edge so repeated sightings do not restart the notice timer.
+	if (PreviousState != EEnemyAIState::Alert)
+	{
+		AlertStartTime = CurrentTime;
+	}
+
 	if (bBroadcastAlert)
 	{
 		BroadcastAlert(TargetActor, AlertLocation);
@@ -1014,6 +1020,10 @@ bool AYogAIController::UpdateAwarenessBlackboard(
 			else if (DistanceToPlayer <= Tuning.CombatEnterRadius)
 			{
 				EnterCombat(PlayerPawn, true);
+			}
+			else if (CurrentState == EEnemyAIState::Alert && CurrentTime - AlertStartTime >= Tuning.NoticeDuration)
+			{
+				EnterCombat(PlayerPawn, false);
 			}
 			else
 			{

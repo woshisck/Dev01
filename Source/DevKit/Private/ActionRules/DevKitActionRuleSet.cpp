@@ -1,5 +1,7 @@
 #include "ActionRules/DevKitActionRuleSet.h"
+#if WITH_DEVKIT_LUA_RULES
 #include "DevKitLuaRuleVM.h"
+#endif
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
@@ -158,12 +160,18 @@ TSharedPtr<FDevKitActionRuleSet> FDevKitActionRuleSet::Parse(const FString& Json
 	}
 	if (bUsesLua || !Lua.IsEmpty())
 	{
+#if WITH_DEVKIT_LUA_RULES
 		Set->VM = MakeShared<FDevKitLuaRuleVM>();
 		if (!Set->VM->LoadSource(Lua, Error)) return nullptr;
 		// Validate callable names, without treating a sample invocation as semantic proof.
 		for (const auto& Rule : Set->Rules)
 			if (!Rule.Condition.IsEmpty() && !Set->VM->HasCondition(Rule.Condition))
 			{ Error = TEXT("Missing Lua condition: ") + Rule.Condition; return nullptr; }
+#else
+		// Reject at load time so a Lua-dependent profile never runs with its conditions silently ignored.
+		Error = TEXT("Profile uses Lua conditions, but the DevKitLuaRules plugin is disabled");
+		return nullptr;
+#endif
 	}
 	FTCHARToUTF8 Bytes(*(Json + TEXT("\n") + Lua));
 	Set->Revision = FMD5::HashBytes(reinterpret_cast<const uint8*>(Bytes.Get()), Bytes.Length());
@@ -184,11 +192,13 @@ FDevKitActionRuleDecision FDevKitActionRuleSet::Evaluate(const FGameplayTagConta
 	if (!Request) return D;
 	const TArray<int32>* RelevantRules = RulesByRequest.Find(Request->Id);
 	if (!RelevantRules) return D;
+#if WITH_DEVKIT_LUA_RULES
 	FDevKitLuaRuleContext Context;
 	Context.Subject = Subject; Context.Values = Values;
 	// Lua gets explicit tags plus parents so parent queries match GAS semantics.
 	for (const auto& T : OwnedTags.GetGameplayTagParents()) Context.OwnedTags.Add(T.ToString());
 	for (const auto& T : RequestTags.GetGameplayTagParents()) Context.RequestTags.Add(T.ToString());
+#endif
 	TMap<FString, bool> ConditionResults;
 	TMap<FString, FString> ConditionErrors;
 	for (const int32 RuleIndex : *RelevantRules)
@@ -203,12 +213,20 @@ FDevKitActionRuleDecision FDevKitActionRuleSet::Evaluate(const FGameplayTagConta
 			if (const bool* Cached = ConditionResults.Find(R.Condition)) bMatch = *Cached;
 			else if (const FString* CachedError = ConditionErrors.Find(R.Condition)) Error = *CachedError;
 			else if (ConditionResults.Num() + ConditionErrors.Num() >= 16) Error = TEXT("Request exceeds 16 distinct Lua condition evaluations");
+#if WITH_DEVKIT_LUA_RULES
 			else if (!VM || !VM->EvaluateCondition(R.Condition, Context, bMatch, Error))
 			{
 				if (Error.IsEmpty()) Error = TEXT("Lua runtime unavailable");
 				ConditionErrors.Add(R.Condition, Error);
 			}
 			else ConditionResults.Add(R.Condition, bMatch);
+#else
+			else
+			{
+				Error = TEXT("Lua runtime unavailable");
+				ConditionErrors.Add(R.Condition, Error);
+			}
+#endif
 		}
 		if (!Error.IsEmpty())
 		{

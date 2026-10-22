@@ -84,6 +84,10 @@ public:
 	// time-in-combat phase gate; re-aggro while already fighting does not reset it.
 	float GetCombatStartTime() const { return CombatStartTime; }
 
+	// World-time (seconds) of the last non-Alert -> Alert transition. Re-sighting the player
+	// while already alarmed does not reset it, so it measures how long the notice has run.
+	float GetAlertStartTime() const { return AlertStartTime; }
+
 	UFUNCTION(BlueprintCallable, Category = "AI|State")
 	void EnterCombat(AActor* TargetActor, bool bBroadcastAlert = true);
 
@@ -148,4 +152,5 @@ private:
 	TMap<FGameplayTag, float> AttackCooldownEndTimes;
 	bool bCombatAttackInProgress = false;
 	float CombatStartTime = -FLT_MAX;
+	float AlertStartTime = -FLT_MAX;
 };

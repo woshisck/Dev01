@@ -15,6 +15,8 @@ class UAbilitySystemComponent;
 class AActor;
 class AEnemyCharacterBase;
 class AYogCharacterBase;
+class UEnemyData;
+class UEnemyData;
 class UGameplayEffect;
 class USkeletalMesh;
 class UMaterialInterface;
@@ -27,6 +29,16 @@ struct FStateTreeTask_HoldPositionInstanceData
 
 	UPROPERTY(EditAnywhere, Category = Context)
 	TObjectPtr<AAIController> AIController = nullptr;
+
+	/** Turn toward the blackboard TargetActor while holding, e.g. an alarmed enemy facing the player. */
+	UPROPERTY(EditAnywhere, Category = Parameter)
+	bool bFaceTarget = false;
+
+	UPROPERTY(EditAnywhere, Category = Parameter, meta = (EditCondition = "bFaceTarget"))
+	FName TargetActorKey = TEXT("TargetActor");
+
+	// Runtime state (not reflected; persists for the active state's lifetime).
+	bool bSetFocus = false;
 };
 
 USTRUCT(meta = (DisplayName = "Hold Position", Category = "Yog|AI"))
@@ -39,6 +51,7 @@ struct DEVKIT_API FStateTreeTask_HoldPosition : public FStateTreeAIActionTaskBas
 	FStateTreeTask_HoldPosition();
 	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
 	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
+	virtual void ExitState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
 };
 
 USTRUCT()
@@ -251,6 +264,79 @@ struct DEVKIT_API FStateTreeTask_UpdateEnemyPatrolTarget : public FStateTreeAITa
 
 	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
 	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
+};
+
+// ─── Random Walk Around Spawn ───────────────────────────────────────────────
+// Self-contained patrol loop: picks a random reachable point around the spawn
+// position (blackboard OriginKey, written by AYogAIController::InitializePatrolState),
+// walks there, idles for a random wait, then picks the next point. Stays Running
+// while bLoop is set; otherwise succeeds after one walk + wait. Replaces the
+// Update Enemy Patrol Target + Move To Controller Target + Enemy Patrol Wait trio.
+
+USTRUCT()
+struct FStateTreeTask_RandomWalkAroundSpawnInstanceData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = Context)
+	TObjectPtr<AAIController> AIController = nullptr;
+
+	/** Blackboard vector key holding the spawn position. Falls back to the pawn location when unset. */
+	UPROPERTY(EditAnywhere, Category = Parameter)
+	FName OriginKey = TEXT("PatrolOriginLocation");
+
+	/** Read radius and wait range from EnemyData.AwarenessTuning instead of the values below. */
+	UPROPERTY(EditAnywhere, Category = Parameter)
+	bool bUseEnemyDataTuning = true;
+
+	UPROPERTY(EditAnywhere, Category = Parameter, meta = (ClampMin = "0.0", EditCondition = "!bUseEnemyDataTuning"))
+	float WalkRadius = 600.0f;
+
+	UPROPERTY(EditAnywhere, Category = Parameter, meta = (ClampMin = "0.0", EditCondition = "!bUseEnemyDataTuning"))
+	float WaitMin = 0.6f;
+
+	UPROPERTY(EditAnywhere, Category = Parameter, meta = (ClampMin = "0.0", EditCondition = "!bUseEnemyDataTuning"))
+	float WaitMax = 1.5f;
+
+	/** Picked points closer than this to the pawn are rejected so the walk is never a shuffle in place. */
+	UPROPERTY(EditAnywhere, Category = Parameter, meta = (ClampMin = "0.0"))
+	float MinWalkDistance = 150.0f;
+
+	UPROPERTY(EditAnywhere, Category = Parameter, meta = (ClampMin = "0.0"))
+	float AcceptanceRadius = 50.0f;
+
+	UPROPERTY(EditAnywhere, Category = Parameter, meta = (ClampMin = "1"))
+	int32 MaxPickAttempts = 8;
+
+	UPROPERTY(EditAnywhere, Category = Parameter)
+	bool bLoop = true;
+
+	/** Idle for a random wait before the first walk, so the enemy starts in idle rather than moving at once. */
+	UPROPERTY(EditAnywhere, Category = Parameter)
+	bool bStartWithWait = true;
+
+	UPROPERTY(EditAnywhere, Category = Output)
+	FVector CurrentWalkTarget = FVector::ZeroVector;
+
+	// Runtime state (not reflected; persists for the active state's lifetime).
+	FVector Origin = FVector::ZeroVector;
+	float WaitRemaining = 0.0f;
+	bool bWalking = false;
+};
+
+USTRUCT(meta = (DisplayName = "Random Walk Around Spawn", Category = "Yog|AI"))
+struct DEVKIT_API FStateTreeTask_RandomWalkAroundSpawn : public FStateTreeAIActionTaskBase
+{
+	GENERATED_BODY()
+
+	using FInstanceDataType = FStateTreeTask_RandomWalkAroundSpawnInstanceData;
+
+	FStateTreeTask_RandomWalkAroundSpawn();
+
+	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
+	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
+	virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) const override;
+	virtual void ExitState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
 };
 
 USTRUCT()
@@ -639,4 +725,105 @@ struct DEVKIT_API FStateTreeTask_DebugPrint : public FStateTreeTaskCommonBase
 
 	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
 	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
+};
+
+// ─── Call Lua ───────────────────────────────────────────────────────────────
+// Hands the state over to a Lua module for its duration, the same way
+// AMobSpawner::RunLuaSpawnRule hands a spawn rule to Lua: raw lua_State calls
+// against the owner's UnLua env, no IUnLuaInterface binding. A USTRUCT task
+// cannot implement that UInterface itself, so the module is required fresh on
+// every EnterState rather than bound once to a persistent Lua instance.
+//
+// LuaModule must return a table exposing OnEnter(Owner) -> bool|nil. Returning
+// false fails the task immediately; anything else (including nothing) keeps it
+// Running. OnTick(Owner, DeltaTime) and OnExit(Owner) are optional and called
+// only when present. OnTick may return true to succeed or false to fail; both
+// stop further ticking.
+//
+// All three calls are pcall-guarded: an error in Lua fails the task rather
+// than taking the owner's frame down with it.
+
+USTRUCT()
+struct FStateTreeTask_CallLuaInstanceData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = Context)
+	TObjectPtr<AActor> Owner = nullptr;
+
+	/** Module path relative to Content/Script, dot separated. e.g. "AI.Tasks.Taunt". */
+	UPROPERTY(EditAnywhere, Category = Parameter)
+	FString LuaModule;
+
+	// Set once OnTick is confirmed absent, so later ticks skip the require + field lookup.
+	bool bCheckedForTick = false;
+	bool bHasTick = false;
+};
+
+USTRUCT(meta = (DisplayName = "Call Lua", Category = "Yog|AI"))
+struct DEVKIT_API FStateTreeTask_CallLua : public FStateTreeTaskCommonBase
+{
+	GENERATED_BODY()
+
+	using FInstanceDataType = FStateTreeTask_CallLuaInstanceData;
+
+	FStateTreeTask_CallLua();
+
+	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
+	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
+	virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) const override;
+	virtual void ExitState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
+};
+
+// ─── Call Lua Spawn ─────────────────────────────────────────────────────────
+// Same contract as Call Lua, but also hands the module the authored spawn inputs
+// as a trailing Params table: { EnemyData = UEnemyData, Radius = number, Count = integer }.
+//
+//   OnEnter(Owner, Params)            -> bool|nil
+//   OnTick(Owner, DeltaTime, Params)  -> bool|nil
+//   OnExit(Owner, Params)
+//
+// Return values: true succeeds the task, false fails it, nil keeps it Running.
+// This applies to OnEnter as well, so a module that spawns everything at once
+// can simply return true from OnEnter.
+
+USTRUCT()
+struct FStateTreeTask_CallLuaSpawnInstanceData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = Context)
+	TObjectPtr<AActor> Owner = nullptr;
+
+	/** Module path relative to Content/Script, dot separated. */
+	UPROPERTY(EditAnywhere, Category = Parameter)
+	FString LuaModule = TEXT("AI.Tasks.SpawnAround");
+
+	UPROPERTY(EditAnywhere, Category = Parameter)
+	TObjectPtr<UEnemyData> EnemyData = nullptr;
+
+	UPROPERTY(EditAnywhere, Category = Parameter, meta = (ClampMin = "0.0"))
+	float SpawnRadius = 1000.0f;
+
+	UPROPERTY(EditAnywhere, Category = Parameter, meta = (ClampMin = "1"))
+	int32 SpawnCount = 3;
+
+	// Set once OnTick is confirmed absent, so later ticks skip the require + field lookup.
+	bool bCheckedForTick = false;
+	bool bHasTick = false;
+};
+
+USTRUCT(meta = (DisplayName = "Call Lua Spawn", Category = "Yog|AI"))
+struct DEVKIT_API FStateTreeTask_CallLuaSpawn : public FStateTreeTaskCommonBase
+{
+	GENERATED_BODY()
+
+	using FInstanceDataType = FStateTreeTask_CallLuaSpawnInstanceData;
+
+	FStateTreeTask_CallLuaSpawn();
+
+	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
+	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
+	virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) const override;
+	virtual void ExitState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
 };
