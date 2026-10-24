@@ -1,5 +1,6 @@
 #include "UI/YogRunSummaryWidgetBase.h"
 #include "Components/Button.h"
+#include "Components/TextBlock.h"
 #include "Kismet/GameplayStatics.h"
 #include "System/YogGameInstanceBase.h"
 
