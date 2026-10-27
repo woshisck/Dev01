@@ -4,14 +4,19 @@
 
 #include "CoreMinimal.h"
 #include "Character/YogCharacterBase.h"
+#include "Character/YogInteractable.h"
 #include "AbilitySystem/Attribute/EnemyAttributeSet.h"
 
 #include "Data/EnemyData.h"
 #include "EnemyCharacterBase.generated.h"
 
+class ARewardPickup;
 class UBuffFlowComponent;
+class UCapsuleComponent;
 class UEnemyHealthDisplayComponent;
 class UEnemyWeaponDefinition;
+class UInteractPromptComponent;
+class UPrimitiveComponent;
 class UMontageVFXBindingComponent;
 class UYogAbilitySystemComponent;
 
@@ -19,7 +24,7 @@ class UYogAbilitySystemComponent;
  *
  */
 UCLASS()
-class DEVKIT_API AEnemyCharacterBase : public AYogCharacterBase
+class DEVKIT_API AEnemyCharacterBase : public AYogCharacterBase, public IYogInteractable
 {
 	GENERATED_BODY()
 public:
@@ -37,9 +42,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy|Level")
 	bool bCountsForLevelClear = true;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy|Death", meta = (ClampMin = "0.0", ForceUnits = "s"))
-	float DeathDisappearDelayAfterAnimation = 0.15f;
-
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
 
@@ -50,6 +52,21 @@ public:
 
 	virtual bool IsAlive() const override;
 	virtual float GetDeathDisappearDelayAfterAnimation(bool bHasDissolveCue) const override;
+	virtual bool IsLootableCorpse() const override { return bLootableCorpse; }
+
+	/** True while the corpse is in the world, can be hit and can be looted. */
+	bool IsCorpseInteractable() const { return bCorpseActive && !bCorpseConsumed; }
+
+	/**
+	 * Counts one player swing against this corpse. SwingId dedupes the several damage events a single
+	 * swing fires; an invalid id falls back to a short time window. Bursts the corpse on the last hit.
+	 */
+	bool RegisterCorpseHit(const FGuid& SwingId);
+
+	// ~ IYogInteractable
+	virtual void TryInteract(APlayerCharacterBase* Player) override;
+	virtual int32 GetInteractPriority() const override { return YogInteractPriority::Corpse; }
+	virtual bool CanInteract(const APlayerCharacterBase* Player) const override { return IsCorpseInteractable(); }
 
 	void PostInitializeComponents() override;
 
@@ -92,8 +109,23 @@ protected:
 
 	void DestroySpawnedEnemyWeaponActors();
 
-	/** Rolls UEnemyData::KillRewards and spawns the surviving loot as pickups at the corpse. */
-	void RollAndSpawnKillRewards();
+	/** Rolls UEnemyData::KillRewards into the pending loot arrays and decides whether the body stays as a lootable corpse. */
+	void RollKillRewards();
+
+	/**
+	 * Spawns the pending loot as pickups around the body and clears it.
+	 * ScatterRadius > 0 randomizes each pickup inside that radius instead of lining them up.
+	 */
+	void SpawnKillRewardPickups(bool bPlayFocusCue, float ScatterRadius, TArray<ARewardPickup*>* OutPickups = nullptr);
+
+	void EnterLootableCorpseState();
+	void ExplodeCorpse();
+
+	UFUNCTION()
+	void OnCorpseInteractBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepHitResult);
+
+	UFUNCTION()
+	void OnCorpseInteractEnd(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
 
 	UPROPERTY(BlueprintReadWrite)
 	TObjectPtr<UEnemyAttributeSet> EnemyAttributeSet;
@@ -109,6 +141,33 @@ protected:
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<AActor>> SpawnedEnemyWeaponActors;
+
+	// Bundled gold/material/rune loot shares one pickup; each weapon skill needs its own, see SpawnKillRewardPickups.
+	UPROPERTY(Transient)
+	TArray<FLootOption> PendingCorpseBundledLoot;
+
+	UPROPERTY(Transient)
+	TArray<FLootOption> PendingCorpseSkillLoot;
+
+	// Created when the corpse state starts so ordinary enemies carry no extra components or widgets.
+	UPROPERTY(Transient)
+	TObjectPtr<UCapsuleComponent> CorpseInteractVolume;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UCapsuleComponent> CorpseHitVolume;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UInteractPromptComponent> CorpsePromptComp;
+
+	TWeakObjectPtr<APlayerCharacterBase> CorpseNearbyPlayer;
+
+	FGuid LastCorpseHitSwingId;
+	float LastCorpseHitTime = -1.f;
+	int32 CorpseHitCount = 0;
+
+	bool bLootableCorpse = false;
+	bool bCorpseActive = false;
+	bool bCorpseConsumed = false;
 
 
 	friend UEnemyAttributeSet;

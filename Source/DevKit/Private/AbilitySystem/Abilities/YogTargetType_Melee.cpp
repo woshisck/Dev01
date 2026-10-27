@@ -441,3 +441,37 @@ void UYogTargetType_Player::GetTargets_Implementation(
 	}
 #endif
 }
+
+void UYogTargetType_Player::CollectLootableCorpses(
+	AYogCharacterBase* TargetingCharacter, const FGameplayEventData& EventData,
+	TArray<AEnemyCharacterBase*>& OutCorpses) const
+{
+	if (!TargetingCharacter) return;
+
+	const FActionData ActionData = GetActionData(TargetingCharacter, EventData);
+	const FVector  CharLoc     = TargetingCharacter->GetActorLocation();
+	const float    CharYaw     = TargetingCharacter->GetActorRotation().Yaw;
+	const float    SearchRadius = ActionData.ActRange > 0.f ? ActionData.ActRange : 400.f;
+
+	// The corpse's hit volume is WorldDynamic on purpose, see AEnemyCharacterBase::EnterLootableCorpseState.
+	TArray<AActor*> Overlapped;
+	TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes;
+	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_WorldDynamic));
+	TArray<AActor*> Ignore;
+	Ignore.Add(TargetingCharacter);
+
+	UKismetSystemLibrary::SphereOverlapActors(
+		TargetingCharacter->GetWorld(), CharLoc, SearchRadius,
+		ObjectTypes, AEnemyCharacterBase::StaticClass(), Ignore, Overlapped);
+
+	for (AActor* Actor : Overlapped)
+	{
+		AEnemyCharacterBase* Corpse = Cast<AEnemyCharacterBase>(Actor);
+		if (!Corpse || !Corpse->IsCorpseInteractable()) continue;
+
+		if (IsTargetHit(CharLoc, CharYaw, ActionData, Corpse->GetActorLocation()))
+		{
+			OutCorpses.Add(Corpse);
+		}
+	}
+}

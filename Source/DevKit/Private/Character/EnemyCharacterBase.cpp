@@ -22,9 +22,20 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Item/Weapon/WeaponInstance.h"
 #include "BrainComponent.h"
+#include "Character/PlayerCharacterBase.h"
+#include "Component/InteractPromptComponent.h"
+#include "Components/CapsuleComponent.h"
+#include "Map/RewardPickup.h"
+#include "NiagaraFunctionLibrary.h"
 
 // Keeps multiple kill-reward pickups from stacking inside each other's 80cm collision box.
 static constexpr float EnemyCharacter_KillRewardPickupSpacing = 120.0f;
+
+// Used only when the swing has no valid id; several damage events of one swing land well inside this.
+static constexpr float EnemyCharacter_CorpseHitFallbackWindow = 0.3f;
+
+// Pickups from a burst corpse fly out this far, so they do not line up like the drop-on-death layout.
+static constexpr float EnemyCharacter_CorpseBurstScatterRadius = 90.0f;
 
 static bool EnemyWeaponHasUsableMontageConfigList(const FAbilityMontageConfigList& ConfigList)
 {
@@ -219,12 +230,12 @@ bool AEnemyCharacterBase::IsAlive() const
 float AEnemyCharacterBase::GetDeathDisappearDelayAfterAnimation(bool /*bHasDissolveCue*/) const
 {
 	const UEnemyData* RuntimeEnemyData = CharacterDataComponent ? Cast<UEnemyData>(CharacterDataComponent->GetCharacterData()) : nullptr;
-	if (RuntimeEnemyData && RuntimeEnemyData->bOverrideDeathDisappearDelay)
+	if (!RuntimeEnemyData)
 	{
-		return FMath::Max(0.0f, RuntimeEnemyData->DeathDisappearDelayAfterAnimation);
+		RuntimeEnemyData = GetDefault<UEnemyData>();
 	}
 
-	return FMath::Max(0.0f, DeathDisappearDelayAfterAnimation);
+	return FMath::Max(0.0f, RuntimeEnemyData->DeathDisappearDelayAfterAnimation);
 }
 
 void AEnemyCharacterBase::SetAIAttackRuntimeContext(
@@ -473,6 +484,10 @@ void AEnemyCharacterBase::Die()
 	if (bIsDead) return;
 	bIsDead = true;
 
+	// Must precede Super::Die(): it starts GA_Dead, which asks IsLootableCorpse() to pick the death flow,
+	// and a montage-less enemy reaches that decision synchronously.
+	RollKillRewards();
+
 	Super::Die();
 
 	// 关闭 AI：停止 StateTree、停止移动、清除焦点、关掉自动朝向，防止尸体仍然朝玩家转向
@@ -513,34 +528,46 @@ void AEnemyCharacterBase::Die()
 	// 绝对兜底：正常死亡销毁由 GA_Dead 处理（有蒙太奇→动画结束销毁；无蒙太奇→2秒后销毁）
 	// 此处仅在 GA_Dead 完全未激活（配置遗漏）时作为最后保险，设置为足够长的时间
 	// Fallback only: the normal path is GA_Dead -> montage/dissolve -> FinishDying().
-	// Keep this short enough that a missing cooked death ability cannot leave dead enemies in the room.
-	SetLifeSpan(8.0f);
+	// Keep this short enough that a missing cooked death ability cannot leave dead enemies in the room,
+	// but offset by the EnemyData delay so it never cuts a configured long corpse time short.
+	SetLifeSpan(8.0f + GetDeathDisappearDelayAfterAnimation(false));
 }
 
 void AEnemyCharacterBase::FinishDying()
 {
+	if (bLootableCorpse)
+	{
+		// GA_Dead and BFNode_FinishLifecycle can both end up here.
+		if (bCorpseActive)
+		{
+			return;
+		}
+
+		// Die() armed a destroy fallback for a missing GA_Dead; the corpse outlives it on purpose.
+		SetLifeSpan(0.f);
+		DestroySpawnedEnemyWeaponActors();
+		EnterLootableCorpseState();
+		BroadcastCharacterDied();
+		return;
+	}
+
 	// Must run before Super, which broadcasts the death delegates and then destroys this actor.
-	RollAndSpawnKillRewards();
+	SpawnKillRewardPickups(true, 0.f);
 	DestroySpawnedEnemyWeaponActors();
 	Super::FinishDying();
 }
 
-void AEnemyCharacterBase::RollAndSpawnKillRewards()
+void AEnemyCharacterBase::RollKillRewards()
 {
+	PendingCorpseBundledLoot.Reset();
+	PendingCorpseSkillLoot.Reset();
+	bLootableCorpse = false;
+
 	const UEnemyData* RuntimeEnemyData = CharacterDataComponent ? Cast<UEnemyData>(CharacterDataComponent->GetCharacterData()) : nullptr;
 	if (!RuntimeEnemyData || !RuntimeEnemyData->bEnableKillRewards || RuntimeEnemyData->KillRewards.IsEmpty())
 	{
 		return;
 	}
-
-	AYogGameMode* GameMode = GetWorld() ? Cast<AYogGameMode>(GetWorld()->GetAuthGameMode()) : nullptr;
-	if (!GameMode)
-	{
-		return;
-	}
-
-	TArray<FLootOption> BundledLoot;
-	TArray<FLootOption> WeaponSkillLoot;
 
 	for (const FEnemyKillRewardEntry& Entry : RuntimeEnemyData->KillRewards)
 	{
@@ -555,36 +582,263 @@ void AEnemyCharacterBase::RollAndSpawnKillRewards()
 			// Quantity multipliers are meaningless for a skill; WeaponSkillCharges is authored directly.
 			if (Loot.WeaponSkillAsset)
 			{
-				WeaponSkillLoot.Add(Loot);
+				PendingCorpseSkillLoot.Add(Loot);
 			}
 			continue;
 		}
 
 		Loot.Amount *= FMath::RandRange(Entry.MinQuantityMultiplier, Entry.MaxQuantityMultiplier);
-		BundledLoot.Add(Loot);
+		PendingCorpseBundledLoot.Add(Loot);
+	}
+
+	bLootableCorpse = RuntimeEnemyData->bLootableCorpse
+		&& (!PendingCorpseBundledLoot.IsEmpty() || !PendingCorpseSkillLoot.IsEmpty());
+}
+
+void AEnemyCharacterBase::SpawnKillRewardPickups(bool bPlayFocusCue, float ScatterRadius, TArray<ARewardPickup*>* OutPickups)
+{
+	if (PendingCorpseBundledLoot.IsEmpty() && PendingCorpseSkillLoot.IsEmpty())
+	{
+		return;
+	}
+
+	AYogGameMode* GameMode = GetWorld() ? Cast<AYogGameMode>(GetWorld()->GetAuthGameMode()) : nullptr;
+	if (!GameMode)
+	{
+		return;
 	}
 
 	const FVector DeathLocation = GetActorLocation();
 	int32 PickupIndex = 0;
+	bool bSpawnedAny = false;
 
-	if (!BundledLoot.IsEmpty())
+	const auto SpawnOne = [&](const TArray<FLootOption>& Loot)
 	{
-		GameMode->SpawnEnemyKillRewardPickup(this, BundledLoot, DeathLocation);
+		FVector SpawnLocation = DeathLocation;
+		if (ScatterRadius > 0.f)
+		{
+			const FVector2D Offset = FMath::RandPointInCircle(ScatterRadius);
+			SpawnLocation += FVector(Offset.X, Offset.Y, 0.f);
+		}
+		else
+		{
+			SpawnLocation += FVector(PickupIndex * EnemyCharacter_KillRewardPickupSpacing, 0.f, 0.f);
+		}
+
 		++PickupIndex;
+		ARewardPickup* Pickup = GameMode->SpawnEnemyKillRewardPickup(this, Loot, SpawnLocation, bPlayFocusCue);
+		if (!Pickup)
+		{
+			return;
+		}
+
+		bSpawnedAny = true;
+		if (OutPickups)
+		{
+			OutPickups->Add(Pickup);
+		}
+	};
+
+	if (!PendingCorpseBundledLoot.IsEmpty())
+	{
+		SpawnOne(PendingCorpseBundledLoot);
 	}
 
 	// Each skill needs its own pickup: ShouldGrantLootImmediatelyForOptions rejects the whole
 	// option array if any entry is a Rune, which would route the skill into the Rune-only card UI.
-	for (const FLootOption& SkillLoot : WeaponSkillLoot)
+	for (const FLootOption& SkillLoot : PendingCorpseSkillLoot)
 	{
-		const FVector SpawnLocation = DeathLocation + FVector(PickupIndex * EnemyCharacter_KillRewardPickupSpacing, 0.f, 0.f);
-		GameMode->SpawnEnemyKillRewardPickup(this, { SkillLoot }, SpawnLocation);
-		++PickupIndex;
+		SpawnOne({ SkillLoot });
 	}
+
+	// Kept when nothing spawned (no RewardPickupClass) so a later interact can retry.
+	if (bSpawnedAny)
+	{
+		PendingCorpseBundledLoot.Reset();
+		PendingCorpseSkillLoot.Reset();
+	}
+}
+
+void AEnemyCharacterBase::EnterLootableCorpseState()
+{
+	bCorpseActive = true;
+
+	const UEnemyData* RuntimeEnemyData = GetEnemyData();
+	UCapsuleComponent* BodyCapsule = GetCapsuleComponent();
+	if (!RuntimeEnemyData || !BodyCapsule)
+	{
+		return;
+	}
+
+	const float BodyRadius = BodyCapsule->GetScaledCapsuleRadius();
+	const float BodyHalfHeight = BodyCapsule->GetScaledCapsuleHalfHeight();
+
+	// QueryOnly + WorldDynamic: a Pawn object type here would make every Pawn query (projectiles,
+	// radius GE nodes) hit the corpse, so melee finds it through its own WorldDynamic overlap instead.
+	const auto MakeVolume = [&](const TCHAR* Name, float Radius) -> UCapsuleComponent*
+	{
+		UCapsuleComponent* Volume = NewObject<UCapsuleComponent>(this, Name);
+		Volume->InitCapsuleSize(Radius, FMath::Max(Radius, BodyHalfHeight));
+		Volume->SetupAttachment(BodyCapsule);
+		Volume->SetCollisionObjectType(ECC_WorldDynamic);
+		Volume->SetCollisionResponseToAllChannels(ECR_Ignore);
+		Volume->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+		return Volume;
+	};
+
+	CorpseHitVolume = MakeVolume(TEXT("CorpseHitVolume"), BodyRadius);
+	CorpseHitVolume->SetGenerateOverlapEvents(false);
+	CorpseHitVolume->RegisterComponent();
+
+	CorpseInteractVolume = MakeVolume(TEXT("CorpseInteractVolume"), FMath::Max(RuntimeEnemyData->CorpseInteractRadius, BodyRadius));
+	CorpseInteractVolume->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+	CorpseInteractVolume->SetGenerateOverlapEvents(true);
+	CorpseInteractVolume->OnComponentBeginOverlap.AddDynamic(this, &AEnemyCharacterBase::OnCorpseInteractBegin);
+	CorpseInteractVolume->OnComponentEndOverlap.AddDynamic(this, &AEnemyCharacterBase::OnCorpseInteractEnd);
+	CorpseInteractVolume->RegisterComponent();
+
+	CorpsePromptComp = NewObject<UInteractPromptComponent>(this, TEXT("CorpseInteractPrompt"));
+	CorpsePromptComp->PromptHeight = BodyHalfHeight + 60.f;
+	CorpsePromptComp->RegisterComponent();
+
+	// A player already standing on the corpse never gets a begin-overlap event otherwise.
+	CorpseInteractVolume->UpdateOverlaps();
+}
+
+void AEnemyCharacterBase::OnCorpseInteractBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepHitResult)
+{
+	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(OtherActor);
+	if (!Player || !IsCorpseInteractable())
+	{
+		return;
+	}
+
+	Player->RegisterInteractable(this);
+	CorpseNearbyPlayer = Player;
+	ShowInteractPrompt(true);
+}
+
+void AEnemyCharacterBase::OnCorpseInteractEnd(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
+{
+	APlayerCharacterBase* Player = Cast<APlayerCharacterBase>(OtherActor);
+	if (!Player)
+	{
+		return;
+	}
+
+	Player->UnregisterInteractable(this);
+	if (CorpseNearbyPlayer.Get() == Player)
+	{
+		CorpseNearbyPlayer = nullptr;
+		ShowInteractPrompt(false);
+	}
+}
+
+void AEnemyCharacterBase::TryInteract(APlayerCharacterBase* Player)
+{
+	if (!Player || !IsCorpseInteractable())
+	{
+		return;
+	}
+
+	// Hand the loot to real pickups and let them grant it, so gold/material/skill grants, FX events
+	// and the rune selection popup stay in one place (ARewardPickup::TryPickup).
+	TArray<ARewardPickup*> Pickups;
+	SpawnKillRewardPickups(false, 0.f, &Pickups);
+	if (Pickups.IsEmpty())
+	{
+		return;
+	}
+
+	bCorpseConsumed = true;
+	Player->UnregisterInteractable(this);
+	ShowInteractPrompt(false);
+	CorpseNearbyPlayer = nullptr;
+
+	for (ARewardPickup* Pickup : Pickups)
+	{
+		if (IsValid(Pickup))
+		{
+			Pickup->TryPickup(Player);
+		}
+	}
+
+	Destroy();
+}
+
+bool AEnemyCharacterBase::RegisterCorpseHit(const FGuid& SwingId)
+{
+	const UWorld* World = GetWorld();
+	if (!World || !IsCorpseInteractable())
+	{
+		return false;
+	}
+
+	const float Now = World->GetTimeSeconds();
+	if (SwingId.IsValid())
+	{
+		if (SwingId == LastCorpseHitSwingId)
+		{
+			return false;
+		}
+		LastCorpseHitSwingId = SwingId;
+	}
+	else if (LastCorpseHitTime >= 0.f && Now - LastCorpseHitTime < EnemyCharacter_CorpseHitFallbackWindow)
+	{
+		return false;
+	}
+	LastCorpseHitTime = Now;
+
+	const UEnemyData* RuntimeEnemyData = GetEnemyData();
+	++CorpseHitCount;
+
+	if (RuntimeEnemyData && RuntimeEnemyData->CorpseHitFX)
+	{
+		UNiagaraFunctionLibrary::SpawnSystemAtLocation(World, RuntimeEnemyData->CorpseHitFX, GetActorLocation());
+	}
+
+	if (CorpseHitCount >= (RuntimeEnemyData ? FMath::Max(1, RuntimeEnemyData->CorpseHitsToExplode) : 1))
+	{
+		ExplodeCorpse();
+	}
+	return true;
+}
+
+void AEnemyCharacterBase::ExplodeCorpse()
+{
+	if (bCorpseConsumed)
+	{
+		return;
+	}
+
+	const UEnemyData* RuntimeEnemyData = GetEnemyData();
+	if (RuntimeEnemyData && RuntimeEnemyData->CorpseExplosionFX)
+	{
+		UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), RuntimeEnemyData->CorpseExplosionFX, GetActorLocation());
+	}
+
+	TArray<ARewardPickup*> Pickups;
+	SpawnKillRewardPickups(false, EnemyCharacter_CorpseBurstScatterRadius, &Pickups);
+	if (Pickups.IsEmpty())
+	{
+		return;
+	}
+
+	bCorpseConsumed = true;
+	if (APlayerCharacterBase* Player = CorpseNearbyPlayer.Get())
+	{
+		Player->UnregisterInteractable(this);
+	}
+	CorpseNearbyPlayer = nullptr;
+	Destroy();
 }
 
 void AEnemyCharacterBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	if (APlayerCharacterBase* Player = CorpseNearbyPlayer.Get())
+	{
+		Player->UnregisterInteractable(this);
+	}
 	DestroySpawnedEnemyWeaponActors();
 	Super::EndPlay(EndPlayReason);
 }

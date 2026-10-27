@@ -5,26 +5,27 @@
 | 适用范围 | 敌人死亡流程（`GA_Dead` → `FinishDying` → `Destroy`） |
 | 适用人群 | 策划（配置）、程序（代码） |
 | 配套文档 | 无 |
-| 最后更新 | 2026-09-20 |
+| 最后更新 | 2026-10-26 |
 
 ## 背景
 
 敌人尸体消失由 `AYogCharacterBase::FinishDying()` 里的 `Destroy()` 执行
-（`Source/DevKit/Private/Character/YogCharacterBase.cpp:582`）。触发时机由
+（`Source/DevKit/Private/Character/YogCharacterBase.cpp:568`）。触发时机由
 `GA_Dead` 的延迟计时器决定，延迟值来自
 `GetDeathDisappearDelayAfterAnimation()`。
 
-原先该延迟只能在敌人 Blueprint 上改（`AEnemyCharacterBase` 默认 0.15 秒），
-本次改为可在 `UEnemyData` 资产上按敌人定义覆盖。
+2026-10-26 起统一为唯一配置源：**只有** `UEnemyData::DeathDisappearDelayAfterAnimation`
+决定敌人尸体停留时间。尸体总停留时间 = 死亡蒙太奇时长 + 该延迟 + 1 帧。
 
 ## 已完成
 
-- [x] `UEnemyData` 新增 `Enemy|Death` 分组：`bOverrideDeathDisappearDelay` +
-      `DeathDisappearDelayAfterAnimation`（`Source/DevKit/Public/Data/EnemyData.h`）
-- [x] `AEnemyCharacterBase::GetDeathDisappearDelayAfterAnimation()` 优先读取
-      EnemyData，未勾选覆盖时回退到 Actor 自身值
-      （`Source/DevKit/Private/Character/EnemyCharacterBase.cpp:224`）
-- [x] UBT 重新编译，反射数据已进入 `UnrealEditor-DevKit.dll`
+- [x] `UEnemyData` 的 `Enemy|Death` 分组只保留 `DeathDisappearDelayAfterAnimation`
+      （默认 0.15 秒），删除 `bOverrideDeathDisappearDelay` 开关
+- [x] 删除 `AEnemyCharacterBase::DeathDisappearDelayAfterAnimation`（Blueprint 上不再能改）
+- [x] `AEnemyCharacterBase::GetDeathDisappearDelayAfterAnimation()` 只读 EnemyData；
+      无 EnemyData 时读 `UEnemyData` CDO 默认值
+- [x] `GA_Dead` 死亡蒙太奇被取消 / 打断时也走同一延迟，不再立即销毁
+- [x] `Die()` 兜底 `SetLifeSpan` 改为 `8 秒 + EnemyData 延迟`，不会提前截断长延迟
 
 ## 待办
 
@@ -32,10 +33,10 @@
 
 - [ ] 打开 `Content/Docs/Data/Enemy/<敌人名>/DA_<敌人名>.uasset`
 - [ ] 展开 **Enemy | Death** 分组
-- [ ] 勾选 **覆盖死亡消失延迟**，填写 **死亡消失延迟**（秒）
+- [ ] 填写 **死亡消失延迟**（秒）
 - [ ] 保存资产
 
-不勾选 = 沿用敌人 Blueprint 上的旧值，行为不变。
+不填 = 默认 0.15 秒。
 
 涉及资产（已核对存在）：
 
@@ -79,9 +80,7 @@ DA_<敌人名>            (UEnemyData)
 
 ### 3. 可选：补测试
 
-- [ ] 为"EnemyData 覆盖生效 / 未勾选时回退"补自动化测试。现有测试
-      `Source/DevKit/Private/Tests/TutorialMobSpawnerTests.cpp:68` 只覆盖了 CDO
-      默认值 0.15，未覆盖覆盖路径。
+- [ ] 为"EnemyData 延迟生效 / 无 EnemyData 时取 CDO 默认值"补自动化测试
 
 ## 风险与注意事项
 
@@ -90,5 +89,8 @@ DA_<敌人名>            (UEnemyData)
 - **生成器不会覆盖新字段**：`EnemyAITemplateGeneratorCommandlet` 的
   `ConfigureDefaultEnemyData()` 不涉及 `Enemy|Death` 分组，重跑生成器不会
   擦掉策划在 DA 上的配置。
-- **兜底销毁仍在**：`AEnemyCharacterBase::Die()` 里的 `SetLifeSpan(8.0f)`
-  （`EnemyCharacterBase.cpp:495`）是 `GA_Dead` 未激活时的保险，不受本次改动影响。
+- **兜底销毁仍在**：`AEnemyCharacterBase::Die()` 里的 `SetLifeSpan(8 + 延迟)` 是
+  `GA_Dead` 未激活时的保险。
+- **BuffFlow 死亡流程可提前结束**：敌人配置了 Death Lifecycle Flow 且
+  `BFNode_FinishLifecycle::bFinishDyingOnDeathLifecycle` 为 true 时，该节点会直接
+  调用 `FinishDying()`，不经过 EnemyData 延迟。这属于流程资产主动结束，不是计时配置。

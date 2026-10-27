@@ -2,7 +2,6 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "Map/PickupInteractable.h"
 #include "SacrificeGracePickup.generated.h"
 
 class UBoxComponent;
@@ -18,7 +17,7 @@ class APlayerCharacterBase;
  * nothing when interacted with.
  */
 UCLASS()
-class DEVKIT_API ASacrificeGracePickup : public AActor, public IPickupInteractable
+class DEVKIT_API ASacrificeGracePickup : public AActor
 {
 	GENERATED_BODY()
 
@@ -29,11 +28,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SacrificeGrace")
 	void SetSacrificeGraceDA(USacrificeGraceDA* DA);
 
-	// ~ IPickupInteractable
-	virtual void OnPlayerEnterRange(APlayerCharacterBase* Player) override;
-	virtual void OnPlayerLeaveRange(APlayerCharacterBase* Player) override;
-	virtual void TryPickup(APlayerCharacterBase* Player) override;
-	// ~ End IPickupInteractable
+	void OnPlayerEnterRange(APlayerCharacterBase* Player);
+	void OnPlayerLeaveRange(APlayerCharacterBase* Player);
+	void TryPickup(APlayerCharacterBase* Player);
 
 	/** Compatibility close path for old widget references. */
 	void ConsumeAndDestroy();

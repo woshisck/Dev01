@@ -395,6 +395,12 @@ public:
 	//UFUNCTION(BlueprintCallable, Category = "Feature")
 	virtual void FinishDying();
 
+	/** Fires OnCharacterDied / OnCharacterDiedNative. Split out so a corpse that stays in the world can still notify listeners. */
+	void BroadcastCharacterDied();
+
+	/** True while this character's body stays in the world as an interactable instead of dissolving. GA_Dead keeps the death pose and skips the dissolve cue. */
+	virtual bool IsLootableCorpse() const { return false; }
+
 	virtual float GetDeathDisappearDelayAfterAnimation(bool bHasDissolveCue) const;
 
 	//UFUNCTION(BlueprintCallable, Category = "Feature")

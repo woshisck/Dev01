@@ -563,9 +563,14 @@ void AYogCharacterBase::FinishDying()
 {
 	UE_LOG(LogTemp, Display, TEXT("Character FinishDying"));
 	// 死亡动画播完后广播，确保监听者（敌人 BP / GameMode 等）在动画结束后再执行销毁逻辑
+	BroadcastCharacterDied();
+	Destroy();
+}
+
+void AYogCharacterBase::BroadcastCharacterDied()
+{
 	OnCharacterDied.Broadcast(this);
 	OnCharacterDiedNative.Broadcast(this);
-	Destroy();
 }
 
 float AYogCharacterBase::GetDeathDisappearDelayAfterAnimation(bool bHasDissolveCue) const

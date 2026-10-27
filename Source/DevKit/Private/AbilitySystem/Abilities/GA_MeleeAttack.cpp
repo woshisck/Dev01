@@ -22,6 +22,7 @@
 #include "Controller/YogAIController.h"
 #include "Character/YogCharacterBase.h"
 #include "Character/PlayerCharacterBase.h"
+#include "AbilitySystem/Abilities/YogTargetType_Melee.h"
 #include "Component/CombatDeckComponent.h"
 #include "Component/MontageVFXBindingComponent.h"
 #include "Component/BufferComponent.h"
@@ -1894,6 +1895,19 @@ void UGA_MeleeAttack::OnEventReceived(FGameplayTag EventTag, FGameplayEventData 
 		{
 			TargetTypeCDO->GetTargets(OwnerCharacter, GetAvatarActorFromActorInfo(), EventData, WindowHitResults, WindowTargetActors);
 		}
+
+		// Corpses are counted before the no-target early return below so a swing that only
+		// hits a corpse still registers.
+		if (const UYogTargetType_Player* PlayerTargetType = Cast<UYogTargetType_Player>(TargetTypeCDO))
+		{
+			TArray<AEnemyCharacterBase*> HitCorpses;
+			PlayerTargetType->CollectLootableCorpses(OwnerCharacter, EventData, HitCorpses);
+			for (AEnemyCharacterBase* Corpse : HitCorpses)
+			{
+				Corpse->RegisterCorpseHit(ActiveAttackGuid);
+			}
+		}
+
 		if (WindowHitResults.IsEmpty() && WindowTargetActors.IsEmpty())
 		{
 			if (OwnerCharacter)

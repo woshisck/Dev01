@@ -348,13 +348,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Poise", meta = (ClampMin = "0.0"))
 	float RecentlyDamagedStateDuration = 3.f;
 
-	// Takes priority over AEnemyCharacterBase::DeathDisappearDelayAfterAnimation so the timing
-	// can be tuned per enemy definition instead of per Blueprint.
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Death", meta = (DisplayName = "覆盖死亡消失延迟"))
-	bool bOverrideDeathDisappearDelay = false;
-
-	// 死亡动画（或消解 GameplayCue）结束后，等待多久销毁敌人 Actor。
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Death", meta = (DisplayName = "死亡消失延迟", ClampMin = "0.0", ForceUnits = "s", EditCondition = "bOverrideDeathDisappearDelay"))
+	// Single source of truth for how long an enemy corpse stays after its death montage ends
+	// (or after the dissolve cue fires). Read by AEnemyCharacterBase::GetDeathDisappearDelayAfterAnimation.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Death", meta = (DisplayName = "死亡消失延迟", ClampMin = "0.0", ForceUnits = "s"))
 	float DeathDisappearDelayAfterAnimation = 0.15f;
 
 	// Enemy-owned kill rewards. Room/level rewards remain configured independently on RoomData.
@@ -363,4 +359,24 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Kill Rewards", meta = (EditCondition = "bEnableKillRewards"))
 	TArray<FEnemyKillRewardEntry> KillRewards;
+
+	// When the enemy rolls any kill reward, the corpse stays as an interactable instead of dropping a pickup on death.
+	// Off restores the drop-on-death behavior.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Corpse")
+	bool bLootableCorpse = true;
+
+	// Distinct player swings needed to burst the corpse into its pickups.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Corpse", meta = (ClampMin = "1", EditCondition = "bLootableCorpse"))
+	int32 CorpseHitsToExplode = 3;
+
+	// Radius of the hold-to-interact volume around the corpse.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Corpse", meta = (ClampMin = "0.0", ForceUnits = "cm", EditCondition = "bLootableCorpse"))
+	float CorpseInteractRadius = 140.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Corpse", meta = (EditCondition = "bLootableCorpse"))
+	TObjectPtr<UNiagaraSystem> CorpseExplosionFX;
+
+	// Optional feedback played on every swing that lands on the corpse.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Corpse", meta = (EditCondition = "bLootableCorpse"))
+	TObjectPtr<UNiagaraSystem> CorpseHitFX;
 };

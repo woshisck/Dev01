@@ -76,4 +76,11 @@ public:
 	virtual void GetTargets_Implementation(
 		AYogCharacterBase* TargetingCharacter, AActor* TargetingActor, FGameplayEventData EventData,
 		TArray<FHitResult>& OutHitResults, TArray<AActor*>& OutActors) const override;
+
+	/**
+	 * Lootable enemy corpses inside the swing's hitbox. Kept out of GetTargets so a corpse never takes
+	 * damage, hit stop or card resolution; the caller only counts the swing against it.
+	 */
+	void CollectLootableCorpses(AYogCharacterBase* TargetingCharacter, const FGameplayEventData& EventData,
+		TArray<AEnemyCharacterBase*>& OutCorpses) const;
 };

@@ -15,6 +15,7 @@ namespace YogInteractPriority
 {
 	constexpr int32 WeaponSpawner = 60;
 	constexpr int32 Pickup        = 50;
+	constexpr int32 Corpse        = 45;
 	constexpr int32 Altar         = 40;
 	constexpr int32 Shop          = 30;
 	constexpr int32 Portal        = 20;

@@ -5,6 +5,27 @@
 
 ---
 
+## 2026-10-27
+
+### [CORPSE-001] 敌人可交互尸体 / 鞭尸爆奖励
+
+**状态**：C++ 已写完，**未编译、未 PIE 验证**；资产配置待做
+
+| 项目 | 内容 |
+|------|------|
+| 涉及文件 | `Character/EnemyCharacterBase.{h,cpp}`、`Character/YogCharacterBase.{h,cpp}`、`Character/YogInteractable.h`<br>`Data/EnemyData.h`、`AbilitySystem/Abilities/GA_Dead.cpp`<br>`AbilitySystem/Abilities/YogTargetType_Melee.{h,cpp}`、`AbilitySystem/Abilities/GA_MeleeAttack.cpp`<br>`GameModes/YogGameMode.{h,cpp}`、`GameModes/LevelFlowTypes.h`（仅注释） |
+| 核心流程 | `Die()` 在 `Super::Die()` 前 `RollKillRewards()` → 有奖励且 `bLootableCorpse` 则 `GA_Dead` 冻结死亡姿势、跳过消解 Cue → `FinishDying()` 不 `Destroy`，进入 `EnterLootableCorpseState()` 并广播 `OnCharacterDied` |
+| 领取方式 | 长按 E：`TryInteract` 生成 `ARewardPickup` 并立即 `TryPickup`（复用现有发放与符文三选一 UI），再销毁尸体<br>鞭尸：玩家挥砍命中尸体 `CorpseHitsToExplode` 次（默认 3）→ `ExplodeCorpse()` 在 90 cm 内散布生成拾取物 |
+| 命中计数 | `UYogTargetType_Player::CollectLootableCorpses` 以 WorldDynamic 球形 Overlap 找尸体，只在 `OnEventReceived` 的伤害窗口分支、无目标 return 之前调用；尸体不进 `OutActors`（无伤害 / 顿帧 / 卡组）；按 `ActiveAttackGuid` 去重，一次挥砍计 1 次 |
+| 交互体积 | `CorpseInteractVolume`（QueryOnly，Overlap Pawn）+ `CorpseHitVolume`（QueryOnly，ObjectType=WorldDynamic，不能用 Pawn 否则投射物 / 范围 GE 都会命中）；均在进入尸体状态时运行时创建，创建后 `UpdateOverlaps()` |
+| 配置入口 | `UEnemyData` 分组 `Enemy|Corpse`：`bLootableCorpse`(true) / `CorpseHitsToExplode`(3) / `CorpseInteractRadius`(140) / `CorpseExplosionFX` / `CorpseHitFX` |
+| 交互优先级 | 新增 `YogInteractPriority::Corpse = 45`（Pickup 50 > Corpse 45 > Altar 40） |
+| 连带改动 | `AYogCharacterBase` 新增 `BroadcastCharacterDied()` 与虚函数 `IsLootableCorpse()`；`SpawnRewardPickupAtLocation` / `SpawnEnemyKillRewardPickup` 新增 `bPlayFocusCue`（默认 true，E 键与爆尸路径传 false）；`RollAndSpawnKillRewards` 已拆为 `RollKillRewards` + `SpawnKillRewardPickups` |
+| 已知限制 | 只有 `AN_MeleeDamage` 单点通知（非 `UYogAnimNotifyState_Damage` 窗口）的玩家蒙太奇不会计数<br>击杀仍在 `Die()` 计数，尸体还在时传送门就会打开<br>`TryInteract` 在 `TryPickup` 因缺 HUD / 控制器失败时仍会销毁尸体<br>`ATrainingDummyCharacter` 重写 `FinishDying` 且无 `KillRewards`，不受影响 |
+| 设计文档 | [EnemyLootableCorpse_TODO.md](EnemyLootableCorpse_TODO.md) |
+
+---
+
 ## 2026-09-21
 
 ### [INTERACT-001] 蓄力交互移入 IA_Interact 资产 + IYogInteractable 统一接口

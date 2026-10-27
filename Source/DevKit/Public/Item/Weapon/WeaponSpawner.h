@@ -6,7 +6,6 @@
 #include "GameFramework/Actor.h"
 #include "Character/YogInteractable.h"
 #include "Character/PlayerInteraction.h"
-#include "Map/PickupInteractable.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "Item/Weapon/WeaponDefinition.h"
 
@@ -34,7 +33,7 @@ struct FGameplayTag;
 struct FHitResult;
 
 UCLASS(Blueprintable, BlueprintType)
-class DEVKIT_API AWeaponSpawner : public AActor, public IPlayerInteraction, public IPickupInteractable, public IYogInteractable
+class DEVKIT_API AWeaponSpawner : public AActor, public IPlayerInteraction, public IYogInteractable
 {
 	GENERATED_BODY()
 
@@ -63,11 +62,9 @@ public:
 	virtual void OnPlayerBeginOverlap(APlayerCharacterBase* Player) override;
 	virtual void OnPlayerEndOverlap(APlayerCharacterBase* Player) override;
 
-	// ~ IPickupInteractable
-	virtual void OnPlayerEnterRange(APlayerCharacterBase* Player) override;
-	virtual void OnPlayerLeaveRange(APlayerCharacterBase* Player) override;
-	virtual void TryPickup(APlayerCharacterBase* Player) override;
-	// ~ End IPickupInteractable
+	void OnPlayerEnterRange(APlayerCharacterBase* Player);
+	void OnPlayerLeaveRange(APlayerCharacterBase* Player);
+	void TryPickup(APlayerCharacterBase* Player);
 
 	// ~ IYogInteractable
 	virtual void TryInteract(APlayerCharacterBase* Player) override { TryPickupWeapon(Player); }

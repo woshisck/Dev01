@@ -2755,7 +2755,7 @@ void AYogGameMode::MarkStorySpecialRewardEnemy(AEnemyCharacterBase* Enemy, const
 		RewardOptions.Num());
 }
 
-ARewardPickup* AYogGameMode::SpawnRewardPickupAtLocation(AYogCharacterBase* DeadCharacter, const TArray<FLootOption>& RewardOptions, const FVector& SpawnLocation)
+ARewardPickup* AYogGameMode::SpawnRewardPickupAtLocation(AYogCharacterBase* DeadCharacter, const TArray<FLootOption>& RewardOptions, const FVector& SpawnLocation, bool bPlayFocusCue)
 {
 	if (!DeadCharacter || !RewardPickupClass || RewardOptions.IsEmpty())
 	{
@@ -2771,7 +2771,10 @@ ARewardPickup* AYogGameMode::SpawnRewardPickupAtLocation(AYogCharacterBase* Dead
 	Pickup->bAllowPickupOutsideArrangement = true;
 	Pickup->AssignLoot(RewardOptions);
 	Pickup->RefreshPickupAvailability();
-	Pickup->PlaySpawnFocusCue();
+	if (bPlayFocusCue)
+	{
+		Pickup->PlaySpawnFocusCue();
+	}
 	return Pickup;
 }
 
@@ -2790,9 +2793,9 @@ void AYogGameMode::SpawnStorySpecialRewardPickup(AYogCharacterBase* DeadCharacte
 		RewardOptions.Num());
 }
 
-ARewardPickup* AYogGameMode::SpawnEnemyKillRewardPickup(AYogCharacterBase* DeadEnemy, const TArray<FLootOption>& RewardOptions, const FVector& SpawnLocation)
+ARewardPickup* AYogGameMode::SpawnEnemyKillRewardPickup(AYogCharacterBase* DeadEnemy, const TArray<FLootOption>& RewardOptions, const FVector& SpawnLocation, bool bPlayFocusCue)
 {
-	ARewardPickup* Pickup = SpawnRewardPickupAtLocation(DeadEnemy, RewardOptions, SpawnLocation);
+	ARewardPickup* Pickup = SpawnRewardPickupAtLocation(DeadEnemy, RewardOptions, SpawnLocation, bPlayFocusCue);
 	if (Pickup)
 	{
 		UE_LOG(LogTemp, Log, TEXT("[KillReward] Spawned RewardPickup=%s at %s LootCount=%d Enemy=%s"),

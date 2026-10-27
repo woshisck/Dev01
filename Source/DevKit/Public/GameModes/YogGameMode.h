@@ -418,7 +418,7 @@ protected:
 	void ApplyStoryNextRoomPlanForCurrentRoom(const FStoryNextRoomPlan& Plan);
 	void MarkStorySpecialRewardEnemy(AEnemyCharacterBase* Enemy, const FPlannedEnemy& Planned);
 	void SpawnStorySpecialRewardPickup(AYogCharacterBase* DeadCharacter, const TArray<FLootOption> RewardOptions);
-	ARewardPickup* SpawnRewardPickupAtLocation(AYogCharacterBase* DeadCharacter, const TArray<FLootOption>& RewardOptions, const FVector& SpawnLocation);
+	ARewardPickup* SpawnRewardPickupAtLocation(AYogCharacterBase* DeadCharacter, const TArray<FLootOption>& RewardOptions, const FVector& SpawnLocation, bool bPlayFocusCue = true);
 	void SpawnSacrificeEventAltar(const FVector& LootSpawnLoc);
 	bool IsSacrificeEventRoom() const;
 	void SpawnShopActorForRoom();
@@ -609,7 +609,7 @@ public:
 	bool RunStoryLevelFlow(ULevelFlowAsset* FlowAsset, bool bStopExistingFlow = true);
 
 	/** Spawns a kill-reward pickup. Called by AEnemyCharacterBase::FinishDying via GetAuthGameMode. */
-	ARewardPickup* SpawnEnemyKillRewardPickup(AYogCharacterBase* DeadEnemy, const TArray<FLootOption>& RewardOptions, const FVector& SpawnLocation);
+	ARewardPickup* SpawnEnemyKillRewardPickup(AYogCharacterBase* DeadEnemy, const TArray<FLootOption>& RewardOptions, const FVector& SpawnLocation, bool bPlayFocusCue = true);
 
 protected:
 	/** 一次性事件去重集合（Transient，跨 PIE 不持久；存档恢复用 TutorialState 兜底）*/

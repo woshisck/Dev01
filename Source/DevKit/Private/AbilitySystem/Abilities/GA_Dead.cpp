@@ -121,11 +121,12 @@ void UGA_Dead::OnDeathMontageBlendOut()
     StartDeathDelay();
 }
 
-// 蒙太奇被取消（异常路径）跳过延迟，立即销
+// Cancelled/interrupted montages still honor the configured disappear delay so the corpse time
+// stays defined by the character data alone.
 void UGA_Dead::OnDeathMontageCancelled()
 {
     UE_LOG(LogTemp, Warning, TEXT("[GA_Dead] OnDeathMontageCancelled"));
-    OnDeathDelayExpired();
+    StartDeathDelay();
 }
 
 void UGA_Dead::StartDeathDelay()
@@ -141,7 +142,17 @@ void UGA_Dead::StartDeathDelay()
         ? CurrentActorInfo->AvatarActor.Get()
         : nullptr;
     const AYogCharacterBase* Character = Cast<AYogCharacterBase>(Avatar);
-    const bool bHasDissolveCue = CachedDissolveTag.IsValid();
+    const bool bLootableCorpse = Character && Character->IsLootableCorpse();
+    // A lootable corpse keeps its body, so the dissolve cue is skipped and the death pose is frozen
+    // to stop the AnimBP from returning to idle once the montage blends out.
+    const bool bHasDissolveCue = CachedDissolveTag.IsValid() && !bLootableCorpse;
+    if (bLootableCorpse)
+    {
+        if (USkeletalMeshComponent* Mesh = Character->GetMesh())
+        {
+            Mesh->bPauseAnims = true;
+        }
+    }
     const float DefaultDisappearDelay = bHasDissolveCue ? 2.0f : 3.0f;
     const float DisappearDelay = FMath::Max(
         0.001f,
