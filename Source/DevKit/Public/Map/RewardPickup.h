@@ -14,14 +14,16 @@ class UPrimitiveComponent;
 class UTexture2D;
 class UWidgetComponent;
 class URuneRewardFloatWidget;
+class ULootTypeChoiceWidget;
+class URewardLootTableDataAsset;
 class APlayerCharacterBase;
 
 /**
- * ARewardPickup — 关卡结算奖励拾取物
+ * Self-contained reward pickup. It is visible and interactable as soon as it exists, and it never
+ * reads the GameMode. The owner (a map script, a story node, a dying enemy) decides when it spawns.
  *
- * 在最后一个敌人被击杀处生成，玩家走近触发战利品选择界面。
- * 关卡支持多个拾取物同时存在；每个拾取物在 Spawn 时由 GameMode 预分配
- * 独立的三选一选项（AssignedLoot），互不干扰、不重复。
+ * Loot comes from, in order: options handed over by AssignLoot, FixedLootOptions, or a rune roll from
+ * LootTable through UYogLootSubsystem.
  */
 UCLASS()
 class DEVKIT_API ARewardPickup : public AActor, public IYogInteractable
@@ -38,8 +40,13 @@ public:
 	// ~ IYogInteractable
 	virtual void TryInteract(APlayerCharacterBase* Player) override { TryPickup(Player); }
 	virtual int32 GetInteractPriority() const override { return YogInteractPriority::Pickup; }
-	// Re-checked every resolve: the phase can leave Arrangement while the player stands in the volume.
-	virtual bool CanInteract(const APlayerCharacterBase* Player) const override { return !bPickedUp && IsPickupAllowed(); }
+	virtual bool CanInteract(const APlayerCharacterBase* Player) const override { return !bPickedUp && bPickupEnabled; }
+
+	/**
+	 * Called by LootTypeChoiceWidget when the player picks one of LootTypeChoices.
+	 * Rune opens the rune card selection; other types are granted immediately.
+	 */
+	void ResolveLootTypeChoice(int32 Index, APlayerCharacterBase* Player);
 
 	/** 选符文确认后由 LootSelectionWidget 调用：销毁本拾取物 */
 	void ConsumeAndDestroy();
@@ -47,14 +54,25 @@ public:
 	/** 跳过选择后由 LootSelectionWidget 调用：复位状态使玩家可再次按 E 重开 */
 	void ResetForSkip(APlayerCharacterBase* Player);
 
-	/**
-	 * 由 GameMode 在 Spawn 后立即调用，预分配本拾取物的三选一战利品。
-	 * 如果没有调用过（AssignedLoot 为空），TryPickup 会退化为让 GameMode 即时生成。
-	 */
+	/** Hands this pickup its loot at spawn time. Without it the pickup rolls runes when interacted with. */
 	void AssignLoot(const TArray<FLootOption>& InLoot);
 
-	/** 重新应用当前拾取许可到可见性和 overlap；Story 节点运行时改 bAllowPickupOutsideArrangement 后需要调用。 */
+	/** Shows or hides the pickup and its overlap. A map script uses this to gate a pickup until a room is cleared. */
+	UFUNCTION(BlueprintCallable, Category = "Reward|Pickup")
+	void SetPickupEnabled(bool bEnabled);
+
+	UFUNCTION(BlueprintPure, Category = "Reward|Pickup")
+	bool IsPickupEnabled() const { return bPickupEnabled; }
+
+	/** Re-applies bPickupEnabled to visibility and overlap. */
 	void RefreshPickupAvailability();
+
+	/**
+	 * Spawns a pickup carrying Options. A null PickupClass falls back to UYogSettings::DefaultRewardPickupClass.
+	 * Returns null when no class resolves or Options is empty.
+	 */
+	static ARewardPickup* SpawnWithLoot(UObject* WorldContext, TSubclassOf<ARewardPickup> PickupClass,
+		const FVector& Location, const TArray<FLootOption>& Options, bool bPlayFocusCue = true);
 
 	UFUNCTION(BlueprintCallable, Category = "Reward|Pickup")
 	void PlaySpawnFocusCue();
@@ -67,17 +85,26 @@ public:
 	/** Returns true when a pickup can grant all loot directly without opening card selection. */
 	static bool ShouldGrantLootImmediatelyForOptions(const TArray<FLootOption>& Options);
 
-	/** Returns the configured material currency tag, falling back to the HUD's primary material currency. */
-	static FGameplayTag ResolveMaterialCurrencyTag(FGameplayTag ConfiguredTag);
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Reward|Fixed")
 	bool bUseFixedLootOptions = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Reward|Fixed", meta = (EditCondition = "bUseFixedLootOptions"))
 	TArray<FLootOption> FixedLootOptions;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Reward|Story")
-	bool bAllowPickupOutsideArrangement = false;
+	/** When on, interacting opens a popup to choose the loot type before anything is granted. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Reward|Type Choice")
+	bool bOfferLootTypeChoice = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Reward|Type Choice", meta = (EditCondition = "bOfferLootTypeChoice"))
+	TArray<FLootTypeChoice> LootTypeChoices;
+
+	// Untick to spawn the pickup hidden until SetPickupEnabled(true) is called.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Reward|Pickup")
+	bool bPickupEnabled = true;
+
+	// Rune pool and card count for the rune roll. Empty uses UYogSettings::DefaultRewardLootTable.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Reward|Pickup")
+	TObjectPtr<URewardLootTableDataAsset> LootTable;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Reward|Spawn Focus")
 	bool bEnableSpawnFocusCue = true;
@@ -159,12 +186,13 @@ private:
 		bool bRenderCustomDepth = false;
 		int32 CustomDepthStencilValue = 0;
 	};
-	// GameMode 预分配的战利品选项（Spawn 时写入，拾取时广播给 UI）
+	// Loot handed over at spawn (see AssignLoot); shown on the floating panel and offered on interact.
 	UPROPERTY(Transient)
 	TArray<FLootOption> AssignedLoot;
 
 	bool bPickedUp = false;
 	bool bPlayerInRange = false;
+	TWeakObjectPtr<ULootTypeChoiceWidget> OpenLootTypeChoiceWidget;
 	TWeakObjectPtr<APlayerCharacterBase> NearbyPlayer;
 	bool bSpawnFocusCueActive = false;
 	bool bSpawnFocusTimeDilationActive = false;
@@ -173,9 +201,9 @@ private:
 	FTSTicker::FDelegateHandle SpawnFocusDilationTickerHandle;
 	TArray<FPrimitiveHighlightState> SpawnFocusPrimitiveStates;
 
-	bool IsPickupAllowed() const;
 	bool ShouldGrantImmediately(const TArray<FLootOption>& Options) const;
 	bool GrantImmediateLoot(APlayerCharacterBase* Player, const TArray<FLootOption>& Options);
+	bool TryOpenLootTypeChoice(APlayerCharacterBase* Player, APlayerController* PC);
 	void ClearNearbyPlayer();
 	void SetSpawnFocusHighlightActive(bool bActive);
 	void TickSpawnFocusCue(float DeltaTime);

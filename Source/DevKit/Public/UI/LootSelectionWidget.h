@@ -75,11 +75,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Loot")
 	void RerollCard(int32 Index);
 
-	// ---- 已废弃的旧接口（保留以兼容关卡引用） ----
-
-	UFUNCTION(BlueprintCallable, Category = "Loot")
-	void ConfirmAndTransition();
-
 protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
@@ -111,10 +106,6 @@ protected:
 	/** 段切换：BP 可调整按钮区/卡片区的高亮 */
 	UFUNCTION(BlueprintImplementableEvent, Category = "Loot")
 	void OnSectionFocused(ELootFocusSection NewSection, int32 IndexInSection);
-
-	/** 关卡阶段变化：BP 控制整体显隐 */
-	UFUNCTION(BlueprintImplementableEvent, Category = "Loot")
-	void OnLevelPhaseChanged(ELevelPhase NewPhase);
 
 	// ── BindWidget ──────────────────────────────────────────────
 
@@ -201,8 +192,6 @@ private:
 
 	UFUNCTION() void OnBtnSkipClicked();
 	UFUNCTION() void OnBtnBackpackPreviewClicked();
-
-	UFUNCTION() void HandlePhaseChanged(ELevelPhase NewPhase);
 
 	// 状态
 	TWeakObjectPtr<ARewardPickup> SourcePickup;

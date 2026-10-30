@@ -7,14 +7,17 @@
 #include "Character/PlayerCharacterBase.h"
 #include "Containers/Ticker.h"
 #include "Component/BackpackGridComponent.h"
-#include "System/YogRunEconomySubsystem.h"
+#include "Data/RewardLootTableDataAsset.h"
 #include "Data/WeaponSkillDataAsset.h"
-#include "GameModes/YogGameMode.h"
 #include "Kismet/GameplayStatics.h"
-#include "MetaProgression/YogMetaProgressionSubsystem.h"
 #include "Misc/App.h"
+#include "System/YogLootSubsystem.h"
+#include "System/YogSettings.h"
+#include "UI/LootTypeChoiceWidget.h"
 #include "UI/RuneRewardFloatWidget.h"
 #include "UI/YogHUD.h"
+#include "UI/YogUIManagerSubsystem.h"
+#include "Engine/LocalPlayer.h"
 #include "Visual/TimeDilationVisualSubsystem.h"
 
 ARewardPickup::ARewardPickup()
@@ -108,7 +111,7 @@ void ARewardPickup::EndPlay(const EEndPlayReason::Type EndPlayReason)
 void ARewardPickup::OnPlayerEnterRange(APlayerCharacterBase* Player)
 {
 	if (bPickedUp || !Player) return;
-	if (!IsPickupAllowed()) return;
+	if (!bPickupEnabled) return;
 
 	Player->RegisterInteractable(this);
 	NearbyPlayer = Player;
@@ -121,6 +124,17 @@ void ARewardPickup::OnPlayerEnterRange(APlayerCharacterBase* Player)
 void ARewardPickup::OnPlayerLeaveRange(APlayerCharacterBase* Player)
 {
 	if (!Player) return;
+
+	// Cancel while the player is still registered as nearby so ResetForSkip restores state;
+	// the unregister below then removes the interactable again.
+	if (ULootTypeChoiceWidget* ChoiceWidget = OpenLootTypeChoiceWidget.Get())
+	{
+		if (ChoiceWidget->IsActivated())
+		{
+			ChoiceWidget->CancelChoice();
+		}
+	}
+	OpenLootTypeChoiceWidget.Reset();
 
 	Player->UnregisterInteractable(this);
 	UE_LOG(LogTemp, Log, TEXT("RewardPickup: 玩家离开拾取范围"));
@@ -168,9 +182,48 @@ void ARewardPickup::AssignLoot(const TArray<FLootOption>& InLoot)
 	}
 }
 
+void ARewardPickup::SetPickupEnabled(bool bEnabled)
+{
+	bPickupEnabled = bEnabled;
+	RefreshPickupAvailability();
+}
+
+ARewardPickup* ARewardPickup::SpawnWithLoot(UObject* WorldContext, TSubclassOf<ARewardPickup> PickupClass,
+	const FVector& Location, const TArray<FLootOption>& Options, bool bPlayFocusCue)
+{
+	UWorld* World = WorldContext ? WorldContext->GetWorld() : nullptr;
+	if (!World || Options.IsEmpty())
+	{
+		return nullptr;
+	}
+
+	if (!PickupClass)
+	{
+		PickupClass = UYogSettings::Get()->DefaultRewardPickupClass.LoadSynchronous();
+	}
+	if (!PickupClass)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[RewardPickup] SpawnWithLoot: no pickup class. Set DefaultRewardPickupClass in Project Settings > Yog."));
+		return nullptr;
+	}
+
+	ARewardPickup* Pickup = World->SpawnActor<ARewardPickup>(PickupClass, Location, FRotator::ZeroRotator);
+	if (!Pickup)
+	{
+		return nullptr;
+	}
+
+	Pickup->AssignLoot(Options);
+	if (bPlayFocusCue)
+	{
+		Pickup->PlaySpawnFocusCue();
+	}
+	return Pickup;
+}
+
 void ARewardPickup::RefreshPickupAvailability()
 {
-	const bool bAllowed = IsPickupAllowed();
+	const bool bAllowed = bPickupEnabled;
 	if (CollisionVolume)
 	{
 		CollisionVolume->SetGenerateOverlapEvents(bAllowed);
@@ -239,31 +292,30 @@ bool ARewardPickup::IsAvailableForCameraFocus() const
 	return !bPickedUp
 		&& !IsHidden()
 		&& !IsActorBeingDestroyed()
-		&& IsPickupAllowed();
+		&& bPickupEnabled;
 }
 
 void ARewardPickup::TryPickup(APlayerCharacterBase* Player)
 {
 	if (bPickedUp || !Player) return;
 
-	// 先验证依赖链完整性，再修改自身状态
-	AYogGameMode* GM = Cast<AYogGameMode>(UGameplayStatics::GetGameMode(this));
-	if (!IsPickupAllowed())
+	// Validate every dependency before touching state, so a failed pickup can be interacted with again.
+	if (!bPickupEnabled)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[RewardPickup] TryPickup ignored outside Arrangement phase."));
 		ClearNearbyPlayer();
 		return;
 	}
 	APlayerController* PC = Player->GetController<APlayerController>();
 	AYogHUD* HUD = PC ? Cast<AYogHUD>(PC->GetHUD()) : nullptr;
+	UYogLootSubsystem* Loot = GetWorld() ? GetWorld()->GetSubsystem<UYogLootSubsystem>() : nullptr;
 
-	if (!GM || !PC || !HUD)
+	if (!PC || !HUD || !Loot)
 	{
-		UE_LOG(LogTemp, Error, TEXT("[RewardPickup] TryPickup 失败:GM=%s PC=%s HUD=%s"),
-			GM ? TEXT("OK") : TEXT("NULL"),
+		UE_LOG(LogTemp, Error, TEXT("[RewardPickup] TryPickup failed: PC=%s HUD=%s Loot=%s"),
 			PC ? TEXT("OK") : TEXT("NULL"),
-			HUD ? TEXT("OK") : TEXT("NULL"));
-		return;  // 不修改任何状态，pickup 仍可被再次按 A（手柄）
+			HUD ? TEXT("OK") : TEXT("NULL"),
+			Loot ? TEXT("OK") : TEXT("NULL"));
+		return;
 	}
 
 	// 此时所有依赖都可用，安全修改自身状态
@@ -276,9 +328,14 @@ void ARewardPickup::TryPickup(APlayerCharacterBase* Player)
 		AssignLoot(FixedLootOptions);
 	}
 
+	if (bOfferLootTypeChoice && !LootTypeChoices.IsEmpty() && TryOpenLootTypeChoice(Player, PC))
+	{
+		return;
+	}
+
 	TArray<FLootOption> Options = (AssignedLoot.Num() > 0)
 		? AssignedLoot
-		: GM->GenerateIndependentLootOptions();
+		: Loot->GenerateRuneOptions(LootTable);
 
 	if (ShouldGrantImmediately(Options))
 	{
@@ -307,6 +364,91 @@ void ARewardPickup::TryPickup(APlayerCharacterBase* Player)
 	HUD->QueueLootSelection(Options, this);
 }
 
+bool ARewardPickup::TryOpenLootTypeChoice(APlayerCharacterBase* Player, APlayerController* PC)
+{
+	ULocalPlayer* LocalPlayer = PC ? PC->GetLocalPlayer() : nullptr;
+	UYogUIManagerSubsystem* UIManager = LocalPlayer ? LocalPlayer->GetSubsystem<UYogUIManagerSubsystem>() : nullptr;
+	ULootTypeChoiceWidget* ChoiceWidget = UIManager
+		? Cast<ULootTypeChoiceWidget>(UIManager->EnsureWidget(EYogUIScreenId::LootTypeChoice))
+		: nullptr;
+
+	if (!ChoiceWidget)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[RewardPickup] LootTypeChoice screen unavailable (missing UI Registry row or wrong widget class); falling back to the normal pickup flow."));
+		return false;
+	}
+
+	ChoiceWidget->Setup(this, Player);
+	OpenLootTypeChoiceWidget = ChoiceWidget;
+	UIManager->PushScreen(EYogUIScreenId::LootTypeChoice);
+	return true;
+}
+
+void ARewardPickup::ResolveLootTypeChoice(int32 Index, APlayerCharacterBase* Player)
+{
+	OpenLootTypeChoiceWidget.Reset();
+
+	if (!LootTypeChoices.IsValidIndex(Index))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[RewardPickup] ResolveLootTypeChoice: invalid index %d (count=%d)."), Index, LootTypeChoices.Num());
+		ResetForSkip(Player);
+		return;
+	}
+
+	const FLootTypeChoice& Choice = LootTypeChoices[Index];
+
+	if (Choice.LootType == ELootType::Rune)
+	{
+		UYogLootSubsystem* Loot = GetWorld() ? GetWorld()->GetSubsystem<UYogLootSubsystem>() : nullptr;
+		APlayerController* PC = Player ? Player->GetController<APlayerController>() : nullptr;
+		AYogHUD* HUD = PC ? Cast<AYogHUD>(PC->GetHUD()) : nullptr;
+		if (!Loot || !HUD)
+		{
+			UE_LOG(LogTemp, Error, TEXT("[RewardPickup] ResolveLootTypeChoice(Rune) failed: Loot=%s HUD=%s"),
+				Loot ? TEXT("OK") : TEXT("NULL"),
+				HUD ? TEXT("OK") : TEXT("NULL"));
+			ResetForSkip(Player);
+			return;
+		}
+
+		// Prefer the options assigned at spawn so the floating panel and the cards agree;
+		// only roll when none were assigned.
+		bool bAssignedHasRune = false;
+		for (const FLootOption& Option : AssignedLoot)
+		{
+			bAssignedHasRune |= Option.LootType == ELootType::Rune;
+		}
+
+		TArray<FLootOption> RuneOptions = bAssignedHasRune ? AssignedLoot : Loot->GenerateRuneOptions(LootTable);
+		if (RuneOptions.IsEmpty())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[RewardPickup] ResolveLootTypeChoice(Rune): no rune options available."));
+			ResetForSkip(Player);
+			return;
+		}
+
+		HUD->QueueLootSelection(RuneOptions, this);
+		return;
+	}
+
+	FLootOption Option;
+	Option.LootType = Choice.LootType;
+	Option.Amount = Choice.Amount;
+	Option.MetaCurrencyTag = Choice.MetaCurrencyTag;
+	Option.WeaponSkillAsset = Choice.WeaponSkillAsset;
+	Option.WeaponSkillCharges = Choice.WeaponSkillCharges;
+	Option.DisplayName = Choice.DisplayName;
+	Option.Icon = Choice.Icon;
+
+	if (GrantImmediateLoot(Player, { Option }))
+	{
+		ConsumeAndDestroy();
+		return;
+	}
+
+	ResetForSkip(Player);
+}
+
 void ARewardPickup::ConsumeAndDestroy()
 {
 	UE_LOG(LogTemp, Log, TEXT("[RewardPickup] ConsumeAndDestroy"));
@@ -323,26 +465,11 @@ void ARewardPickup::ResetForSkip(APlayerCharacterBase* Player)
 	// 仅当玩家仍在范围内才重新登记交互 + 显示浮窗
 	if (Player && bPlayerInRange && NearbyPlayer.Get() == Player)
 	{
-		if (!IsPickupAllowed()) return;
+		if (!bPickupEnabled) return;
 
 		Player->RegisterInteractable(this);
 		if (RuneInfoWidgetComp) RuneInfoWidgetComp->SetVisibility(true);
 	}
-}
-
-bool ARewardPickup::IsPickupAllowed() const
-{
-	if (bAllowPickupOutsideArrangement)
-	{
-		return true;
-	}
-
-	if (const AYogGameMode* GM = Cast<AYogGameMode>(UGameplayStatics::GetGameMode(this)))
-	{
-		return GM->CurrentPhase == ELevelPhase::Arrangement;
-	}
-
-	return false;
 }
 
 bool ARewardPickup::ShouldGrantImmediately(const TArray<FLootOption>& Options) const
@@ -368,19 +495,10 @@ bool ARewardPickup::ShouldGrantLootImmediatelyForOptions(const TArray<FLootOptio
 	return true;
 }
 
-FGameplayTag ARewardPickup::ResolveMaterialCurrencyTag(FGameplayTag ConfiguredTag)
-{
-	if (ConfiguredTag.IsValid())
-	{
-		return ConfiguredTag;
-	}
-
-	return FGameplayTag::RequestGameplayTag(TEXT("Currency.Meta.Common.A"), false);
-}
-
 bool ARewardPickup::GrantImmediateLoot(APlayerCharacterBase* Player, const TArray<FLootOption>& Options)
 {
-	if (!Player)
+	UYogLootSubsystem* Loot = GetWorld() ? GetWorld()->GetSubsystem<UYogLootSubsystem>() : nullptr;
+	if (!Player || !Loot)
 	{
 		return false;
 	}
@@ -388,72 +506,31 @@ bool ARewardPickup::GrantImmediateLoot(APlayerCharacterBase* Player, const TArra
 	bool bGrantedAny = false;
 	for (const FLootOption& Option : Options)
 	{
-		// Handled before the Amount guard below: a weapon skill carries its count in
-		// WeaponSkillCharges, and Option.Amount is legitimately 0 for it.
-		if (Option.LootType == ELootType::WeaponSkill)
+		if (!Loot->GrantLoot(Player, Option))
 		{
-			if (Option.WeaponSkillAsset && Player->EquipWeaponSkillFromPickup(Option.WeaponSkillAsset, Option.WeaponSkillCharges))
-			{
-				bGrantedAny = true;
-				K2_OnImmediateLootGranted(ELootType::WeaponSkill, Option.WeaponSkillCharges, FGameplayTag());
-				UE_LOG(LogTemp, Log, TEXT("[RewardPickup] Granted weapon skill: %s Charges=%d"),
-					*GetNameSafe(Option.WeaponSkillAsset),
-					Option.WeaponSkillCharges);
-			}
-			else
-			{
-				UE_LOG(LogTemp, Warning, TEXT("[RewardPickup] Weapon skill grant failed. Skill=%s"),
-					*GetNameSafe(Option.WeaponSkillAsset));
-			}
+			UE_LOG(LogTemp, Warning, TEXT("[RewardPickup] Grant failed. Type=%d Amount=%d Skill=%s"),
+				static_cast<int32>(Option.LootType), Option.Amount, *GetNameSafe(Option.WeaponSkillAsset));
 			continue;
 		}
 
-		const int32 Amount = FMath::Max(1, Option.Amount);
-		if (Amount <= 0)
-		{
-			continue;
-		}
-
+		bGrantedAny = true;
 		switch (Option.LootType)
 		{
 		case ELootType::Gold:
-			if (UGameInstance* GI = GetGameInstance())
-			{
-				if (UYogRunEconomySubsystem* Economy = GI->GetSubsystem<UYogRunEconomySubsystem>())
-				{
-					Economy->AddGold(Amount);
-					bGrantedAny = true;
-					K2_OnGoldLootGranted(Amount);
-					K2_OnImmediateLootGranted(ELootType::Gold, Amount, Option.MetaCurrencyTag);
-					UE_LOG(LogTemp, Log, TEXT("[RewardPickup] Granted gold: %d"), Amount);
-				}
-			}
+			K2_OnGoldLootGranted(FMath::Max(1, Option.Amount));
+			K2_OnImmediateLootGranted(ELootType::Gold, FMath::Max(1, Option.Amount), Option.MetaCurrencyTag);
 			break;
 
 		case ELootType::Material:
 			{
-				const FGameplayTag MaterialCurrencyTag = ResolveMaterialCurrencyTag(Option.MetaCurrencyTag);
-				if (!MaterialCurrencyTag.IsValid())
-				{
-					UE_LOG(LogTemp, Warning, TEXT("[RewardPickup] Material reward has no valid currency tag; amount=%d."), Amount);
-					break;
-				}
-
-				if (UYogMetaProgressionSubsystem* Meta = UGameInstance::GetSubsystem<UYogMetaProgressionSubsystem>(GetGameInstance()))
-				{
-					Meta->AddCurrency(MaterialCurrencyTag, Amount);
-					bGrantedAny = true;
-					K2_OnMaterialLootGranted(MaterialCurrencyTag, Amount);
-					K2_OnImmediateLootGranted(ELootType::Material, Amount, MaterialCurrencyTag);
-					UE_LOG(LogTemp, Log, TEXT("[RewardPickup] Granted material: %s x%d"), *MaterialCurrencyTag.ToString(), Amount);
-				}
-				else
-				{
-					UE_LOG(LogTemp, Warning, TEXT("[RewardPickup] Material reward failed: MetaProgression subsystem missing. Tag=%s Amount=%d"),
-						*MaterialCurrencyTag.ToString(),
-						Amount);
-				}
+				const FGameplayTag CurrencyTag = UYogLootSubsystem::ResolveMaterialCurrencyTag(Option.MetaCurrencyTag);
+				K2_OnMaterialLootGranted(CurrencyTag, FMath::Max(1, Option.Amount));
+				K2_OnImmediateLootGranted(ELootType::Material, FMath::Max(1, Option.Amount), CurrencyTag);
 			}
+			break;
+
+		case ELootType::WeaponSkill:
+			K2_OnImmediateLootGranted(ELootType::WeaponSkill, Option.WeaponSkillCharges, FGameplayTag());
 			break;
 
 		default:

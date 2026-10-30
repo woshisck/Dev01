@@ -5,175 +5,37 @@
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include "GameplayTagContainer.h"
-#include "GameModes/SpawnTypes.h"   // FEnemyEntry, FRoomDifficultyTier
-#include "GameModes/LevelFlowTypes.h"
-#include "Data/EnemyData.h"         // FBuffEntry
-#include "Data/RuneDataAsset.h"     // URuneDataAsset (LootPool)
-#include "MetaProgression/MetaTypes.h" // FMetaCurrencyCost
 #include "RoomDataAsset.generated.h"
 
-class AAltarActor;
-class AEnemyCharacterBase;
-class AShopActor;
-class UAltarDataAsset;
-class UNiagaraSystem;
-class USacrificeSelectionWidget;
-class UShopDataAsset;
-class UShopSelectionWidget;
 class UWorld;
 
 /**
- * URoomDataAsset — 单个关卡房间的完整配置
+ * URoomDataAsset - identity of one room map.
  *
- * 命名规范：DA_Room_<场景名>_<类型>
- * 例：DA_Room_Prison_Normal、DA_Room_Prison_Elite、DA_Room_Prison_Shop
+ * Naming: DA_Room_<scene>_<type>, for example DA_Room_Prison_Normal.
  *
- * 同一张美术地图可对应多个 RoomDataAsset（类型不同），
- * 通过 RoomTypeTag 区分，系统按需选取对应类型的配置。
+ * What a room spawns and when its doors open is decided by that map's AYogRoomDirector and Lua module,
+ * not by this asset. APortal hands it to AYogGameMode::TransitionToLevel so the next level knows where
+ * the player came from.
  */
 UCLASS(BlueprintType)
 class DEVKIT_API URoomDataAsset : public UPrimaryDataAsset
 {
-    GENERATED_BODY()
+	GENERATED_BODY()
 
 public:
-    /** Explicit editor association. Existing assets retain RoomName-based runtime loading. */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Room", meta = (DisplayName = "关卡资产"))
-    TSoftObjectPtr<UWorld> LevelAsset;
+	/** Explicit editor association. Existing assets retain RoomName-based runtime loading. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Room", meta = (DisplayName = "关卡资产"))
+	TSoftObjectPtr<UWorld> LevelAsset;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Room")
+	FName RoomName;
 
-    // =========================================================
-    // 房间标识
-    // =========================================================
+	// Player-facing room name (portal float panel, HUD). Empty falls back to RoomName.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Room")
+	FText DisplayName;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Room")
-    FName RoomName;
-
-    // 玩家可见的房间显示名（用于传送门浮窗 / HUD 方位指引）。
-    // 留空则回退显示 RoomName.ToString()。
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Room")
-    FText DisplayName;
-
-    // 房间标签集（同时包含类型 + 层级，两个维度）
-    // 类型示例：Room.Type.Normal / Room.Type.Elite / Room.Type.Shop / Room.Type.Event
-    // 层级示例：Room.Layer.L1 / Room.Layer.L2 / Room.Layer.L3
-    // SelectRoomByTag 同时匹配类型 Tag 和 Campaign 的 LayerTag
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Room")
-    FGameplayTagContainer RoomTags;
-
-    // =========================================================
-    // 敌人池
-    // =========================================================
-
-    // 本房间可刷出的所有敌人（含难度分和精英标记）
-    // 精英专属敌人（bEliteOnly）只在 RoomTypeTag == Room.Type.Elite 时出现
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemies")
-    TArray<FEnemyEntry> EnemyPool;
-
-    // Optional scripted reward enemy. Use this for tutorial/special-card rooms that need
-    // one visible elite or variant enemy in addition to the normal room pool.
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemies|Special Reward")
-    bool bSpawnSpecialRewardEnemy = false;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemies|Special Reward", meta = (EditCondition = "bSpawnSpecialRewardEnemy"))
-    TSubclassOf<AEnemyCharacterBase> SpecialRewardEnemyClass;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemies|Special Reward", meta = (EditCondition = "bSpawnSpecialRewardEnemy"))
-    TObjectPtr<UNiagaraSystem> SpecialRewardEnemyPreSpawnFX;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemies|Special Reward", meta = (EditCondition = "bSpawnSpecialRewardEnemy", ClampMin = "0.0"))
-    float SpecialRewardEnemyPreSpawnFXDuration = 0.0f;
-
-    // =========================================================
-    // 关卡符文池（给所有敌人的词条 Buff）
-    // =========================================================
-
-    // 进入关卡时从此池随机选取 N 个施加给所有刷出的敌人
-    // N 由当前难度档位的 FRoomDifficultyTier.BuffCount 决定
-    // 每个条目携带 DifficultyScore：该 Buff 施加期间，每只敌人的有效难度分额外增加此值
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "RoomBuffs")
-    TArray<FBuffEntry> BuffPool;
-
-    // =========================================================
-    // 玩家战利品池（符文三选一）
-    // =========================================================
-
-    // 关卡结算时从此池随机抽 3 个供玩家选择
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot")
-    TArray<TObjectPtr<URuneDataAsset>> LootPool;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Event|TimedClear")
-    bool bEnableTimedClearObjective = false;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Event|TimedClear", meta = (ClampMin = "1.0"))
-    float TimedClearSeconds = 90.0f;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Event|Sacrifice")
-    TObjectPtr<UAltarDataAsset> SacrificeEventAltarData;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Event|Sacrifice")
-    TSubclassOf<AAltarActor> SacrificeEventAltarClass;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Event|Sacrifice")
-    TSubclassOf<USacrificeSelectionWidget> SacrificeEventWidgetClass;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Event|Sacrifice")
-    FVector SacrificeEventAltarSpawnOffset = FVector(250.0f, 0.0f, 0.0f);
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shop")
-    TObjectPtr<UShopDataAsset> ShopData;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shop")
-    TSubclassOf<AShopActor> ShopActorClass;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shop")
-    TSubclassOf<UShopSelectionWidget> ShopWidgetClass;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shop")
-    FVector ShopSpawnOffset = FVector(250.0f, 0.0f, 0.0f);
-
-    // =========================================================
-    // 主城 / 枢纽房间
-    // =========================================================
-
-    // 勾选后，本房间视为主城/枢纽，不进行波次刷怪；
-    // 关卡开始时立即开启所有已配置的传送门，传送目标为 FloorTable[0]（第一个战斗关）。
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Room")
-    bool bIsHubRoom = false;
-
-    // =========================================================
-    // 难度档位配置（程序根据 DA_Campaign.TotalDifficultyScore 自动选档）
-    //
-    // 只需填写各档位的最大波次数；Wave/OneByOne 模式由程序自动决定。
-    // 选档阈值在 GameMode 的 LowDifficultyScoreMax / HighDifficultyScoreMin 中配置。
-    // =========================================================
-
-    // 低难度档（TotalDifficultyScore ≤ GameMode.LowDifficultyScoreMax）
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Difficulty")
-    FRoomDifficultyTier LowDifficulty;
-
-    // 中难度档（LowMax < Score < HighMin）
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Difficulty")
-    FRoomDifficultyTier MediumDifficulty;
-
-    // 高难度档（TotalDifficultyScore ≥ GameMode.HighDifficultyScoreMin）
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Difficulty")
-    FRoomDifficultyTier HighDifficulty;
-
-    // If enabled, the room reward pickup uses these options exactly. This is intended for first-run tutorial rooms.
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot|Tutorial")
-    bool bUseFixedRewardOptions = false;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot|Tutorial", meta = (EditCondition = "bUseFixedRewardOptions"))
-    TArray<FLootOption> FixedRewardOptions;
-
-    // =========================================================
-    // 局外成长货币奖励（战斗胜利时发放）
-    // =========================================================
-
-    // 清房后发放的局外成长货币（每条指定货币 Tag 与数量）
-    // Hub 房间通常留空；战斗房间按难度填写
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "MetaCurrency")
-    TArray<FMetaCurrencyCost> MetaCurrencyRewards;
-
+	// Type and layer tags, for example Room.Type.Normal / Room.Type.Elite / Room.Layer.L1.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Room")
+	FGameplayTagContainer RoomTags;
 };

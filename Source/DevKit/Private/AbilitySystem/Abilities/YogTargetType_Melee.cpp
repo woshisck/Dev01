@@ -10,6 +10,7 @@
 #include "Character/EnemyCharacterBase.h"
 #include "Character/PlayerCharacterBase.h"
 #include "Data/MontageAttackDataAsset.h"
+#include "Components/CapsuleComponent.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "DrawDebugHelpers.h"
 #include "GameFramework/Controller.h"
@@ -194,9 +195,9 @@ bool UYogTargetType_MeleeBase::ShouldDrawDebugHitbox(const FGameplayEventData& E
 	return false;
 }
 
-bool UYogTargetType_MeleeBase::IsTargetHit(const FVector& CharLoc, float CharYaw, const FActionData& ActionData, const FVector& TargetLoc) const
+bool UYogTargetType_MeleeBase::IsTargetHit(const FVector& CharLoc, float CharYaw, const FActionData& ActionData, const FVector& TargetLoc, float TargetRadius) const
 {
-	const float OuterRadius = ActionData.ActRange > 0.f ? ActionData.ActRange : 400.f;
+	const float OuterRadius = (ActionData.ActRange > 0.f ? ActionData.ActRange : 400.f) + FMath::Max(TargetRadius, 0.f);
 
 	if (ActionData.hitboxTypes.IsEmpty())
 	{
@@ -358,7 +359,9 @@ void UYogTargetType_Enemy::GetTargets_Implementation(
 			ClosestAlivePlayerName = Player->GetName();
 		}
 
-		const bool bHit = IsTargetHit(CharLoc, CharYaw, ActionData, Player->GetActorLocation());
+		const UCapsuleComponent* PlayerCapsule = Player->GetCapsuleComponent();
+		const float PlayerRadius = PlayerCapsule ? PlayerCapsule->GetScaledCapsuleRadius() : 0.f;
+		const bool bHit = IsTargetHit(CharLoc, CharYaw, ActionData, Player->GetActorLocation(), PlayerRadius);
 		UE_LOG(LogTemp, Warning,
 			TEXT("[EnemyAttackTrace] Candidate Enemy=%s Player=%s Dist=%.1f Range=%.1f ActorYaw=%.1f ControlYaw=%.1f Hit=%d HitboxTypes=%d"),
 			*GetNameSafe(TargetingCharacter), *GetNameSafe(Player), Dist2D, SearchRadius, ActorYaw, ControlYaw,
@@ -423,7 +426,9 @@ void UYogTargetType_Player::GetTargets_Implementation(
 		AEnemyCharacterBase* Enemy = Cast<AEnemyCharacterBase>(Actor);
 		if (!Enemy || !Enemy->IsAlive()) continue;
 
-		if (IsTargetHit(CharLoc, CharYaw, ActionData, Enemy->GetActorLocation()))
+		const UCapsuleComponent* EnemyCapsule = Enemy->GetCapsuleComponent();
+		const float EnemyRadius = EnemyCapsule ? EnemyCapsule->GetScaledCapsuleRadius() : 0.f;
+		if (IsTargetHit(CharLoc, CharYaw, ActionData, Enemy->GetActorLocation(), EnemyRadius))
 		{
 			OutActors.Add(Enemy);
 		}

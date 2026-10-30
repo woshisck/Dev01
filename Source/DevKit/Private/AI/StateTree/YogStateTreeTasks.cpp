@@ -140,6 +140,25 @@ EStateTreeRunStatus FStateTreeTask_ActivateAbilityByTag::EnterState(
 
 	AYogCharacterBase* YogCharacter = Cast<AYogCharacterBase>(Pawn);
 
+	// Hitboxes are narrow cones tested against actor yaw, and nothing else turns the pawn
+	// once it stops moving, so a stale facing from the chase makes every swing whiff.
+	const AActor* FaceTarget = InstanceData.AIController->GetFocusActor();
+	if (!FaceTarget)
+	{
+		FaceTarget = UGameplayStatics::GetPlayerPawn(Pawn->GetWorld(), 0);
+	}
+	if (FaceTarget)
+	{
+		FVector ToTarget = FaceTarget->GetActorLocation() - Pawn->GetActorLocation();
+		ToTarget.Z = 0.0f;
+		if (!ToTarget.IsNearlyZero())
+		{
+			const FRotator FaceTargetRotation(0.0f, ToTarget.Rotation().Yaw, 0.0f);
+			Pawn->SetActorRotation(FaceTargetRotation);
+			InstanceData.AIController->SetControlRotation(FaceTargetRotation);
+		}
+	}
+
 	if (InstanceData.bPreAttackFlash && YogCharacter)
 	{
 		YogCharacter->StartPreAttackFlash();
@@ -1081,6 +1100,143 @@ EStateTreeRunStatus FStateTreeTask_ChasePlayerUntilDistance::Tick(
 }
 
 void FStateTreeTask_ChasePlayerUntilDistance::ExitState(
+	FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& /*Transition*/) const
+{
+	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+	if (InstanceData.AIController)
+	{
+		InstanceData.AIController->StopMovement();
+	}
+}
+
+// ─── Escape From Player ─────────────────────────────────────────────────────
+
+// A direction that gains less than this fraction of a leg over the current distance counts as blocked.
+static constexpr float YogStateTree_EscapeMinGainFraction = 0.35f;
+
+// Picks the reachable point farthest from the player among a fan of directions around "straight away".
+// False when even the best one gains almost nothing, i.e. the pawn is cornered.
+static bool YogStateTree_FindEscapePoint(const APawn& Pawn, const AActor& Player, float StepDistance, FVector& OutPoint)
+{
+	static const float CandidateAngles[] = { 0.0f, 30.0f, -30.0f, 60.0f, -60.0f, 90.0f, -90.0f, 120.0f, -120.0f };
+
+	const FVector PawnLocation = Pawn.GetActorLocation();
+	const FVector PlayerLocation = Player.GetActorLocation();
+
+	FVector Away = (PawnLocation - PlayerLocation).GetSafeNormal2D();
+	if (Away.IsNearlyZero())
+	{
+		Away = Pawn.GetActorForwardVector().GetSafeNormal2D();
+	}
+
+	UWorld* World = Pawn.GetWorld();
+	UNavigationSystemV1* NavSys = World ? FNavigationSystem::GetCurrent<UNavigationSystemV1>(World) : nullptr;
+
+	float BestDistance = -1.0f;
+	for (const float Angle : CandidateAngles)
+	{
+		FVector Candidate = PawnLocation + Away.RotateAngleAxis(Angle, FVector::UpVector) * StepDistance;
+		if (NavSys)
+		{
+			FNavLocation Projected;
+			if (!NavSys->ProjectPointToNavigation(Candidate, Projected, FVector(150.0f, 150.0f, 300.0f)))
+			{
+				continue;
+			}
+			Candidate = Projected.Location;
+		}
+
+		const float CandidateDistance = FVector::Dist2D(Candidate, PlayerLocation);
+		if (CandidateDistance > BestDistance)
+		{
+			BestDistance = CandidateDistance;
+			OutPoint = Candidate;
+		}
+	}
+
+	const float CurrentDistance = FVector::Dist2D(PawnLocation, PlayerLocation);
+	return BestDistance >= CurrentDistance + StepDistance * YogStateTree_EscapeMinGainFraction;
+}
+
+FStateTreeTask_EscapeFromPlayer::FStateTreeTask_EscapeFromPlayer()
+{
+	bShouldCallTick = true;
+}
+
+EStateTreeRunStatus FStateTreeTask_EscapeFromPlayer::EnterState(
+	FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& /*Transition*/) const
+{
+	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+	InstanceData.LastRequestTime = -FLT_MAX;
+
+	const UWorld* World = InstanceData.AIController ? InstanceData.AIController->GetWorld() : nullptr;
+	InstanceData.StartTime = World ? World->GetTimeSeconds() : 0.0f;
+	return Tick(Context, 0.0f);
+}
+
+EStateTreeRunStatus FStateTreeTask_EscapeFromPlayer::Tick(
+	FStateTreeExecutionContext& Context, const float /*DeltaTime*/) const
+{
+	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+	AAIController* Controller = InstanceData.AIController;
+	APawn* Pawn = Controller ? Controller->GetPawn() : nullptr;
+	if (!Controller || !Pawn)
+	{
+		return EStateTreeRunStatus::Failed;
+	}
+
+	// Same as Chase: EnterState can run before the player pawn exists, and a Failed here would halt a
+	// tree that has no failure transition, so wait instead.
+	AActor* Player = UGameplayStatics::GetPlayerPawn(Pawn, 0);
+	if (!Player)
+	{
+		return EStateTreeRunStatus::Running;
+	}
+
+	const UWorld* World = Controller->GetWorld();
+	const float Now = World ? World->GetTimeSeconds() : 0.0f;
+
+	const float Distance = FVector::Dist2D(Pawn->GetActorLocation(), Player->GetActorLocation());
+	const bool bTimedOut = InstanceData.MaxDuration > 0.0f && Now - InstanceData.StartTime >= InstanceData.MaxDuration;
+	if (Distance >= InstanceData.DesiredDistance || bTimedOut)
+	{
+		Controller->StopMovement();
+		return EStateTreeRunStatus::Succeeded;
+	}
+
+	if (Now - InstanceData.LastRequestTime < InstanceData.RepathInterval)
+	{
+		return EStateTreeRunStatus::Running;
+	}
+	InstanceData.LastRequestTime = Now;
+
+	// A leg inside the nav reach test (acceptance radius plus agent radius) is answered with AlreadyAtGoal
+	// and never moves the pawn, so legs are never allowed below that. See the matching note in Chase.
+	const float MinStep = InstanceData.AcceptanceRadius
+		+ Pawn->GetSimpleCollisionRadius()
+		+ YogStateTree_SnakeLegMargin;
+	const float StepDistance = FMath::Max(InstanceData.FleeStepDistance, MinStep);
+
+	FVector Destination = FVector::ZeroVector;
+	if (!YogStateTree_FindEscapePoint(*Pawn, *Player, StepDistance, Destination))
+	{
+		Controller->StopMovement();
+		return EStateTreeRunStatus::Succeeded;
+	}
+
+	const EPathFollowingRequestResult::Type Result = Controller->MoveToLocation(
+		Destination, InstanceData.AcceptanceRadius, true, true, true, true, nullptr, true);
+	if (Result == EPathFollowingRequestResult::Failed)
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("[EscapePlayer] MoveToLocation REJECTED for %s at %s (distance %.0f) - retrying"),
+			*GetNameSafe(Pawn), *Pawn->GetActorLocation().ToCompactString(), Distance);
+	}
+
+	return EStateTreeRunStatus::Running;
+}
+
+void FStateTreeTask_EscapeFromPlayer::ExitState(
 	FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& /*Transition*/) const
 {
 	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);

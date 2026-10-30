@@ -3,7 +3,6 @@
 #include "Components/StaticMeshComponent.h"
 #include "Component/InteractPromptComponent.h"
 #include "Engine/LocalPlayer.h"
-#include "GameModes/YogGameMode.h"
 #include "NiagaraComponent.h"
 #include "UI/AltarMenuWidget.h"
 #include "UI/SacrificeSelectionWidget.h"
@@ -80,19 +79,8 @@ void AAltarActor::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (AYogGameMode* GM = Cast<AYogGameMode>(GetWorld()->GetAuthGameMode()))
-	{
-		GM->OnPhaseChanged.AddDynamic(this, &AAltarActor::OnPhaseChanged);
-		// Sync immediately in case OnPhaseChanged already fired before this actor's BeginPlay
-		OnPhaseChanged(GM->CurrentPhase);
-	}
-
+	SetAltarActive(true);
 	QueueRefreshCurrentPlayerOverlap();
-}
-
-void AAltarActor::OnPhaseChanged(ELevelPhase NewPhase)
-{
-	SetAltarActive(NewPhase == ELevelPhase::Arrangement);
 }
 
 void AAltarActor::SetAltarActive(bool bInActive)

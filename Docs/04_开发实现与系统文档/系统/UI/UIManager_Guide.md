@@ -3,7 +3,7 @@
 > 适用范围：`UYogUIManagerSubsystem` + `UYogUIRegistry` + `DA_YogUIRegistry`  
 > 适用人群：策划（配置 DA）/ 程序（调用 API）  
 > 配套文档：[LootSelection_Technical](LootSelection_Technical.md) · [Widget 规范](../../编码规范/Widget.md)  
-> 最后更新：2026-05-13（Step 3/4/5 完成）
+> 最后更新：2026-10-28（补充 ZOrder 遮挡警告）
 
 ---
 
@@ -80,6 +80,7 @@ Layer 字段含义：
 | PortalPreview | WBP_PortalPreview | 15 | Game | ❌ | 关卡传送门预览浮窗（显示下一关类型/难度）。ShowPortalGuidance 时挂出。 |
 | PortalDirection | WBP_PortalDirection | 14 | Game | ❌ | 屏幕边缘指向 Portal 的方位箭头。门在视口外时显示。 |
 | InfoPopup | （按需配） | 25 | Menu | ❌ | 通用信息弹窗。 |
+| LootTypeChoice | WBP_LootTypeChoice | 110 | Modal | ❌ | 奖励类型选择弹窗（Rune / Gold / Material）。由 `ARewardPickup` 在 `bOfferLootTypeChoice` 时打开；选 Rune 后接着弹 LootSelection，所以 ZOrder 必须**高于** LootSelection。 |
 
 ### 1.4 ZOrder 的实际作用范围
 
@@ -90,6 +91,16 @@ ZOrder 只对 **直接 AddToViewport 的 Widget** 生效（即 `EnsureWidget` / 
 | `EnsureWidget` / `PushScreen` 创建并 `AddToViewport` | ✅ 生效 |
 | 作为子控件挂在另一个 Widget 内（如 `CombatItemBar` 挂在 MainHUD 里） | ❌ 忽略，叠放由父控件 Slot 决定 |
 | 两个 Widget 配同样 ZOrder | 后 `AddToViewport` 的覆盖前者（非确定性，应避免） |
+
+> ⚠️ **警告：交互式屏幕的 ZOrder 必须高于 MainHUD（1），且高于它之后可能叠上来的其他交互屏幕。**
+>
+> - `ZOrder` 字段的默认值是 `0`。新增一行 Entry 时忘记改，Widget 会被挂到 `MainHUD` 下面。
+> - `WBP_HUDRoot` 的 `RootCanvas` 是 `Visible`，会对**整屏**做命中测试。被它盖住的按钮**收不到鼠标点击**。
+> - 症状很有迷惑性：Widget 看起来正常显示（HUD 大部分区域是空的，不遮挡画面），手柄 / 键盘也能操作（走 Slate 焦点，不走命中测试），**只有鼠标点不动**。
+> - 日志里 `InputMode`、`bShowMouseCursor`、`Focused desired target` 都正常，别往输入模式上查，先看 ZOrder。
+> - 实例：`LootTypeChoice` 一开始 ZOrder 为 0，弹窗出现但鼠标点不了选项；改成 110（高于 LootSelection 的 100）后修复。
+>
+> 推荐取值：Menu / Modal 级交互屏幕 ≥ 100；会接力打开另一个屏幕的，后打开的 ZOrder 不能低于前一个。
 
 ### 1.5 没在 DA 里配的屏幕
 
@@ -225,6 +236,7 @@ if (UBackpackScreenWidget* BP = UI->GetTypedWidget<UBackpackScreenWidget>(EYogUI
 | `EnsureWidget` 成功但 `PushScreen` 返回 null | 注册的类不是 `UCommonActivatableWidget` | 改用 `EnsureWidget`，或把 WBP 父类换成 `UCommonActivatableWidget` |
 | 屏幕出现了但手柄焦点丢失 | 顶层 Activatable 没实现 `GetDesiredFocusTarget()`，或 Layer 配成了 `Game` | 在 WBP override `GetDesiredFocusTarget` 返回希望初始聚焦的子控件；确认 Entry.Layer 是 `Menu` 或 `Modal` |
 | 死亡复活后 D-pad 卡死在 UI | 复活时没把上层菜单 PopScreen | 走 Subsystem 的 PushScreen / PopScreen，OnTopLayerChanged 会自动切回 GameOnly |
+| 屏幕显示正常、手柄能操作，但**鼠标点不了** | Entry 的 ZOrder 太低（默认 0），被 `MainHUD` 的 `RootCanvas` 盖住命中测试 | 打开 DA 把该 Entry 的 ZOrder 调到 ≥ 100，且不低于同时可能在场的其他交互屏幕；见 §1.4 警告 |
 | 关卡切换后旧 Widget 残留 | Subsystem 跟 LocalPlayer 同生命周期，关卡切换不销毁实例 | 关卡跳关前 `PopScreen` 或自己 RemoveFromParent |
 
 ---

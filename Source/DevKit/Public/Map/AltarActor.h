@@ -71,7 +71,7 @@ public:
 	void ConsumeSacrificeReward();
 
 protected:
-	// 只在整理阶段（ELevelPhase::Arrangement）为 true
+	// True until the sacrifice reward is consumed
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Altar")
 	bool bIsActive = false;
 
@@ -96,9 +96,6 @@ protected:
 	TObjectPtr<USacrificeSelectionWidget> SacrificeWidget;
 
 	TWeakObjectPtr<APlayerCharacterBase> NearbyPlayer;
-
-	UFUNCTION()
-	void OnPhaseChanged(ELevelPhase NewPhase);
 
 	UFUNCTION()
 	void OnInteractBoxBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,

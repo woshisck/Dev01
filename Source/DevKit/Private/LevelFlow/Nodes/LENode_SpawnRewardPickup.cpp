@@ -1,7 +1,5 @@
 #include "LevelFlow/Nodes/LENode_SpawnRewardPickup.h"
 
-#include "GameModes/YogGameMode.h"
-#include "Kismet/GameplayStatics.h"
 #include "Map/RewardPickup.h"
 #include "Story/Encounter/StoryFlowProxy.h"
 
@@ -66,20 +64,6 @@ bool ULENode_SpawnRewardPickup::SpawnRewardPickupAtContext(UWorld* World, const 
 		return false;
 	}
 
-	TSubclassOf<ARewardPickup> PickupClass = RewardPickupClass;
-	if (!PickupClass)
-	{
-		if (const AYogGameMode* GM = Cast<AYogGameMode>(UGameplayStatics::GetGameMode(World)))
-		{
-			PickupClass = GM->RewardPickupClass;
-		}
-	}
-
-	if (!PickupClass)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[LENode_SpawnRewardPickup] skipped: RewardPickupClass is not set."));
-		return false;
-	}
 
 	bool bSpawnedAny = false;
 	const int32 Count = FMath::Max(1, RewardPickupCount);
@@ -87,21 +71,15 @@ bool ULENode_SpawnRewardPickup::SpawnRewardPickupAtContext(UWorld* World, const 
 	{
 		const FVector SpreadOffset(0.f, Index * 120.f, 0.f);
 		const FVector SpawnLocation = ContextTransform.GetLocation() + RewardSpawnOffset + SpreadOffset;
-		ARewardPickup* Pickup = World->SpawnActor<ARewardPickup>(PickupClass, SpawnLocation, FRotator::ZeroRotator);
+		ARewardPickup* Pickup = ARewardPickup::SpawnWithLoot(
+			World, RewardPickupClass, SpawnLocation, RewardLootOptions, bPlaySpawnFocusCue && Index == 0);
 		if (!Pickup)
 		{
 			continue;
 		}
 
-		Pickup->bAllowPickupOutsideArrangement = bAllowPickupOutsideArrangement;
 		Pickup->bUseFixedLootOptions = true;
 		Pickup->FixedLootOptions = RewardLootOptions;
-		Pickup->AssignLoot(RewardLootOptions);
-		Pickup->RefreshPickupAvailability();
-		if (bPlaySpawnFocusCue && Index == 0)
-		{
-			Pickup->PlaySpawnFocusCue();
-		}
 		bSpawnedAny = true;
 	}
 

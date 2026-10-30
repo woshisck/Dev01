@@ -34,7 +34,9 @@ protected:
 	bool ShouldDrawDebugHitbox(const FGameplayEventData& EventData) const;
 
 	/** 根据 ActionData 的 hitboxTypes 判断目标是否在命中框内 */
-	bool IsTargetHit(const FVector& CharLoc, float CharYaw, const FActionData& ActionData, const FVector& TargetLoc) const;
+	// TargetRadius widens the outer reach so a target whose body is in the swing still counts
+	// even when its center sits just past ActRange.
+	bool IsTargetHit(const FVector& CharLoc, float CharYaw, const FActionData& ActionData, const FVector& TargetLoc, float TargetRadius = 0.f) const;
 
 	/** 环形扇区命中检测 */
 	bool IsInAnnulus(const FVector& CharLoc, float CharYaw, const FHitboxAnnulus& Annulus, float OuterRadius, const FVector& TargetLoc) const;

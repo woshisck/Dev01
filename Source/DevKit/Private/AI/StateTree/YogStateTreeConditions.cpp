@@ -178,3 +178,12 @@ bool FStateTreeCondition_TargetBeyond2DDistance::TestCondition(FStateTreeExecuti
 	const float Threshold = YogStateTree::ResolveDistanceThreshold(InstanceData.DistanceSource, InstanceData.Distance, Self);
 	return FVector::Dist2D(Self->GetActorLocation(), InstanceData.Target->GetActorLocation()) > Threshold;
 }
+
+bool FStateTreeCondition_SelfHasGameplayTag::TestCondition(FStateTreeExecutionContext& Context) const
+{
+	const FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+	const AAIController* AIC = InstanceData.AIController;
+	const UAbilitySystemComponent* ASC = AIC ? YogStateTree::ResolveASC(AIC->GetPawn()) : nullptr;
+	const bool bHasTag = ASC && InstanceData.Tag.IsValid() && ASC->HasMatchingGameplayTag(InstanceData.Tag);
+	return bHasTag != InstanceData.bInvert;
+}

@@ -197,8 +197,8 @@ void AYogCameraPawn::DetermineState(const FVector& PlayerPos, bool bIsMoving)
 
 	AYogGameMode* GM = GetGameMode();
 
-	// Priority 2 & 3 — 战斗阶段
-	if (GM && GM->CurrentPhase == ELevelPhase::Combat)
+	// Priority 2 & 3 - combat: any living registered enemy
+	if (GM)
 	{
 		if (GM->HasAliveEnemies())
 		{

@@ -114,7 +114,7 @@ public:
 	TSubclassOf<ULevelEndRevealWidget> LevelEndRevealWidgetClass;
 
 	/**
-	 * 触发关卡结束特效（由 YogGameMode::EnterArrangementPhase 调用）。
+	 * Plays the level-end slow-mo, blackout and circular reveal.
 	 * @param LootWorldPos  loot 拾取物的世界坐标，用于圆形揭幕中心
 	 */
 	UFUNCTION(BlueprintCallable, Category = "LevelEndEffect")
@@ -418,7 +418,6 @@ private:
 	void OnBackpackPreviewClosed();
 
 	void EnsureCurrentRoomBuffWidget();
-	void RefreshCurrentRoomBuffsFromGameMode();
 	void ApplyWidgetReflectorDebugVisibility();
 
 	// === Portal 进入过场 Blackout（独立 PP Volume，不与 Pause/LevelEnd 互扰） ===

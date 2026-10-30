@@ -97,6 +97,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "AI|State")
 	void BroadcastAlert(AActor* TargetActor, FVector AlertLocation) const;
 
+	// Forwards a gameplay-tag event to the running StateTree. No-op while the tree is not running,
+	// since the engine drops events sent before StartLogic.
+	void SendStateTreeEvent(FGameplayTag EventTag);
+
 	// Conversation hold: pause/resume the StateTree brain so no new
 	// attack or move decisions fire, and stop in-flight pathing. Animations and VFX
 	// keep playing because the mesh ticks independently of the AI brain. Driven by

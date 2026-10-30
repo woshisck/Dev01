@@ -8,8 +8,6 @@
 #include "EngineUtils.h"
 #include "FlowAsset.h"
 #include "Story/Flow/StoryFlowAsset.h"
-#include "Story/Flow/Nodes/SNode_ActivateTutorialSpawner.h"
-#include "Story/Flow/Nodes/SNode_ShowHint.h"
 #include "Story/Flow/Nodes/SNode_SpawnRewardPickup.h"
 #include "Interfaces/FlowDataPinValueSupplierInterface.h"
 #include "LevelFlow/LevelFlowAsset.h"
@@ -174,19 +172,19 @@ bool FStoryEncounterPreservesDottedProgressKeyTest::RunTest(const FString& Param
 {
 	FStoryEncounterAction EncounterAction;
 	EncounterAction.Kind = EStoryEncounterActionKind::RecordProgress;
-	EncounterAction.ProgressKey = TEXT("first_run.weapon_picked");
+	EncounterAction.ProgressKey = TEXT("memory.sample_key");
 
 	FStoryAction StoryAction;
 	const bool bConverted = UStoryEncounterRuntimeSubsystem::ConvertEncounterActionForTest(
-		TEXT("EM_FirstRun_Tutorial"),
+		TEXT("EM_Test"),
 		EncounterAction,
 		StoryAction);
 
 	TestTrue(TEXT("Dotted progress key converts"), bConverted);
 	TestTrue(TEXT("Generated dotted flag is valid"), StoryAction.FlagTag.IsValid());
 	TestEqual(TEXT("Generated dotted tag name is stable"),
-		UStoryEncounterRuntimeSubsystem::MakeProgressTagName(TEXT("EM_FirstRun_Tutorial"), TEXT("first_run.weapon_picked")),
-		FString(TEXT("Story.Encounter.Progress.EM_FirstRun_Tutorial.first_run.weapon_picked")));
+		UStoryEncounterRuntimeSubsystem::MakeProgressTagName(TEXT("EM_Test"), TEXT("memory.sample_key")),
+		FString(TEXT("Story.Encounter.Progress.EM_Test.memory.sample_key")));
 	return true;
 }
 
@@ -376,7 +374,6 @@ bool FLENodeSpawnRewardPickupUsesStoryContextTransformTest::RunTest(const FStrin
 	Node->RewardLootOptions.Add(Option);
 	Node->RewardSpawnOffset = FVector(120.f, 0.f, 20.f);
 	Node->RewardPickupCount = 1;
-	Node->bAllowPickupOutsideArrangement = true;
 	Node->bPlaySpawnFocusCue = false;
 
 	const FTransform ContextTransform(FRotator::ZeroRotator, FVector(10.f, 20.f, 30.f), FVector::OneVector);
@@ -395,8 +392,7 @@ bool FLENodeSpawnRewardPickupUsesStoryContextTransformTest::RunTest(const FStrin
 	{
 		TestTrue(TEXT("Pickup uses context transform plus configured offset"),
 			FoundPickup->GetActorLocation().Equals(FVector(130.f, 20.f, 50.f), KINDA_SMALL_NUMBER));
-		TestTrue(TEXT("Pickup allows tutorial collection outside arrangement"),
-			FoundPickup->bAllowPickupOutsideArrangement);
+		TestTrue(TEXT("Pickup is enabled as soon as it spawns"), FoundPickup->IsPickupEnabled());
 		TestTrue(TEXT("Pickup receives fixed loot options"), FoundPickup->bUseFixedLootOptions);
 		TestEqual(TEXT("Fixed loot option count"), FoundPickup->FixedLootOptions.Num(), 1);
 		FoundPickup->Destroy();
@@ -406,7 +402,7 @@ bool FLENodeSpawnRewardPickupUsesStoryContextTransformTest::RunTest(const FStrin
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRewardPickupOutsideArrangementCameraFocusTest,
-	"DevKit.StoryEncounter.RewardPickupOutsideArrangementCanCameraFocus",
+	"DevKit.StoryEncounter.RewardPickupEnableFlagDrivesCameraFocus",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
 bool FRewardPickupOutsideArrangementCameraFocusTest::RunTest(const FString& Parameters)
@@ -425,14 +421,12 @@ bool FRewardPickupOutsideArrangementCameraFocusTest::RunTest(const FString& Para
 		return false;
 	}
 
-	Pickup->bAllowPickupOutsideArrangement = true;
-	Pickup->RefreshPickupAvailability();
-	TestTrue(TEXT("Story reward pickup can be camera-focused outside arrangement"),
+	Pickup->SetPickupEnabled(true);
+	TestTrue(TEXT("Enabled pickup can be camera-focused"),
 		Pickup->IsAvailableForCameraFocus());
 
-	Pickup->bAllowPickupOutsideArrangement = false;
-	Pickup->RefreshPickupAvailability();
-	TestFalse(TEXT("Unavailable pickup is not camera-focused"),
+	Pickup->SetPickupEnabled(false);
+	TestFalse(TEXT("Disabled pickup is not camera-focused"),
 		Pickup->IsAvailableForCameraFocus());
 
 	Pickup->Destroy();
@@ -571,131 +565,6 @@ bool FStoryEncounterDeathListenerRunsNodeEventFlowTest::RunTest(const FString& P
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStoryEncounterPlayLevelFlowNonTriggerRunsViaProxyTest,
 	"DevKit.StoryEncounter.PlayLevelFlowNonTriggerRunsViaProxy",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStoryEncounterDummyDeathFlowDropsWeaponSkillFinisherAndHintsPickupTest,
-	"DevKit.StoryEncounter.DummyDeathFlowDropsWeaponSkillFinisherAndHintsPickup",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStoryEncounterTutorialDummySpawnBindsKillPointTest,
-	"DevKit.StoryEncounter.TutorialDummySpawnBindsKillPoint",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FStoryEncounterDummyDeathFlowDropsWeaponSkillFinisherAndHintsPickupTest::RunTest(const FString& Parameters)
-{
-	const UStoryFlowAsset* Flow = LoadObject<UStoryFlowAsset>(
-		nullptr,
-		TEXT("/Game/Story/Flows/Tutorial/FA_DummyDeath_DropWeaponSkillFinisherCard.FA_DummyDeath_DropWeaponSkillFinisherCard"));
-	if (!Flow)
-	{
-		Flow = LoadObject<UStoryFlowAsset>(
-			nullptr,
-			TEXT("/Game/Story/Flows/Tutorial/FA_DummyDeath_DropHeavyCard.FA_DummyDeath_DropHeavyCard"));
-	}
-
-	TestNotNull(TEXT("Dummy death Story FA loads"), Flow);
-	if (!Flow)
-	{
-		return false;
-	}
-
-	bool bDropsWeaponSkillFinisher = false;
-	bool bDropsKnockback = false;
-	bool bHasBackpackDeckHint = false;
-	bool bPlaysSpawnFocusCue = false;
-	for (const TPair<FGuid, UFlowNode*>& Pair : Flow->GetNodes())
-	{
-		if (const USNode_SpawnRewardPickup* SpawnNode = Cast<USNode_SpawnRewardPickup>(Pair.Value))
-		{
-			bPlaysSpawnFocusCue |= SpawnNode->bPlaySpawnFocusCue;
-			for (const FLootOption& Option : SpawnNode->RewardLootOptions)
-			{
-				const FString RunePath = GetPathNameSafe(Option.RuneAsset);
-				bDropsWeaponSkillFinisher |= RunePath.Contains(TEXT("DA_Rune512_WeaponSkillFinisher"))
-					|| RunePath.Contains(TEXT("DA_Rune512_Heavy"));
-				bDropsKnockback |= RunePath.Contains(TEXT("DA_Rune512_Knockback"));
-			}
-		}
-
-		if (const USNode_ShowHint* HintNode = Cast<USNode_ShowHint>(Pair.Value))
-		{
-			const FString HintBody = HintNode->HintText.ToString();
-			bHasBackpackDeckHint |= HintBody.Contains(TEXT("背包"))
-				&& HintBody.Contains(TEXT("战斗卡组"))
-				&& HintBody.Contains(TEXT("OpenBackpack"));
-		}
-	}
-
-	TestTrue(TEXT("Dummy death flow drops WeaponSkill finisher card"), bDropsWeaponSkillFinisher);
-	TestFalse(TEXT("Dummy death flow must not drop Knockback card"), bDropsKnockback);
-	TestTrue(TEXT("Dummy death flow plays the spawn focus cue"), bPlaysSpawnFocusCue);
-	TestTrue(TEXT("Dummy death flow shows backpack/deck weak hint after the drop"), bHasBackpackDeckHint);
-	return true;
-}
-
-bool FStoryEncounterTutorialDummySpawnBindsKillPointTest::RunTest(const FString& Parameters)
-{
-	const UStoryFlowAsset* ActivateFlow = LoadObject<UStoryFlowAsset>(
-		nullptr,
-		TEXT("/Game/Story/Flows/Tutorial/FA_ActivateTutorialDummySpawner.FA_ActivateTutorialDummySpawner"));
-	const UStoryEncounterPointDA* KillPoint = LoadObject<UStoryEncounterPointDA>(
-		nullptr,
-		TEXT("/Game/Story/EncounterPoints/Main_Tutorial_Demo/EG_FirstRun_Tutorial/EP_FirstRun_TrainingDummyCombo.EP_FirstRun_TrainingDummyCombo"));
-
-	TestNotNull(TEXT("Tutorial dummy activation Story FA loads"), ActivateFlow);
-	TestNotNull(TEXT("Training dummy kill point loads"), KillPoint);
-	if (!ActivateFlow || !KillPoint)
-	{
-		return false;
-	}
-
-	const USNode_ActivateTutorialSpawner* ActivateNode = nullptr;
-	for (const TPair<FGuid, UFlowNode*>& Pair : ActivateFlow->GetNodes())
-	{
-		if (const USNode_ActivateTutorialSpawner* Candidate = Cast<USNode_ActivateTutorialSpawner>(Pair.Value))
-		{
-			ActivateNode = Candidate;
-			break;
-		}
-	}
-
-	TestNotNull(TEXT("Tutorial dummy activation flow has ActivateTutorialSpawner node"), ActivateNode);
-	if (!ActivateNode)
-	{
-		return false;
-	}
-
-	TestTrue(TEXT("ActivateTutorialSpawner binds the dummy kill point"),
-		ActivateNode->OnKillEncounterPoint.Get() == KillPoint);
-	TestTrue(TEXT("ActivateTutorialSpawner uses BP_Enemy_DummyTraining"),
-		GetPathNameSafe(ActivateNode->EnemyClassOverride.Get()).Contains(TEXT("BP_Enemy_DummyTraining")));
-	TestEqual(TEXT("Tutorial dummy respawns after two seconds"),
-		ActivateNode->RespawnDelay,
-		2.0f);
-
-	TestEqual(TEXT("Training dummy kill point runs on death"),
-		KillPoint->Kind,
-		EStoryEncounterNodeKind::Death);
-	TestEqual(TEXT("Training dummy kill point has no progress gate"),
-		KillPoint->Condition.Kind,
-		EStoryEncounterConditionKind::None);
-	TestNotNull(TEXT("Training dummy kill point runs the dummy death Story FA"), KillPoint->NodeEventFlow.Get());
-	if (KillPoint->NodeEventFlow)
-	{
-		const FString FlowPath = GetPathNameSafe(KillPoint->NodeEventFlow.Get());
-		TestTrue(TEXT("Training dummy kill point uses WeaponSkill finisher card drop flow"),
-			FlowPath.Contains(TEXT("FA_DummyDeath_DropWeaponSkillFinisherCard"))
-			|| FlowPath.Contains(TEXT("FA_DummyDeath_DropHeavyCard")));
-	}
-
-	const bool bHasInlineDelayedRewardDrop = KillPoint->Actions.ContainsByPredicate(
-		[](const FStoryEncounterAction& Action)
-		{
-			return Action.Kind == EStoryEncounterActionKind::SpawnRewardPickup;
-		});
-	TestFalse(TEXT("Training dummy kill point does not keep the old inline delayed reward drop"),
-		bHasInlineDelayedRewardDrop);
-	return true;
-}
 
 bool FStoryEncounterPlayLevelFlowNonTriggerRunsViaProxyTest::RunTest(const FString& Parameters)
 {

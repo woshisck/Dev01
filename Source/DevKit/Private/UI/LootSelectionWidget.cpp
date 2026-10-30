@@ -3,7 +3,7 @@
 #include "UI/LootSelectionWidget.h"
 #include "UI/RuneInfoCardWidget.h"
 #include "UI/YogHUD.h"
-#include "GameModes/YogGameMode.h"
+#include "System/YogLootSubsystem.h"
 #include "Map/RewardPickup.h"
 #include "Data/RuneDataAsset.h"
 #include "Character/YogPlayerControllerBase.h"
@@ -30,13 +30,7 @@ void ULootSelectionWidget::NativeConstruct()
 	SetVisibility(ESlateVisibility::Collapsed);
 	SetIsFocusable(true);
 
-	// Phase 变化保留监听（控制整体显隐 BP 事件）；OnLootGenerated 已废弃
-	// 改由 RewardPickup 通过 HUD::QueueLootSelection 直接触发，确保 SourcePickup 不丢失
-	if (AYogGameMode* GM = Cast<AYogGameMode>(UGameplayStatics::GetGameMode(GetWorld())))
-	{
-		GM->OnPhaseChanged.AddDynamic(this, &ULootSelectionWidget::HandlePhaseChanged);
-	}
-
+	// Opened by AYogHUD::QueueLootSelection from a reward pickup, so SourcePickup is never lost.
 	if (BtnSkip)
 	{
 		BtnSkip->IsFocusable = false;
@@ -51,11 +45,6 @@ void ULootSelectionWidget::NativeConstruct()
 
 void ULootSelectionWidget::NativeDestruct()
 {
-	if (AYogGameMode* GM = Cast<AYogGameMode>(UGameplayStatics::GetGameMode(GetWorld())))
-	{
-		GM->OnPhaseChanged.RemoveDynamic(this, &ULootSelectionWidget::HandlePhaseChanged);
-	}
-
 	Super::NativeDestruct();
 }
 
@@ -91,11 +80,6 @@ void ULootSelectionWidget::SyncCardIndexFromSlateFocus()
 	}
 }
 
-void ULootSelectionWidget::HandlePhaseChanged(ELevelPhase NewPhase)
-{
-	OnLevelPhaseChanged(NewPhase);
-}
-
 // ============================================================
 //  显示
 // ============================================================
@@ -104,14 +88,6 @@ void ULootSelectionWidget::ShowLootUI(const TArray<FLootOption>& Options, ARewar
 {
 	CurrentLootOptions = Options;
 	SourcePickup       = InSourcePickup;
-
-	// 同步到 GameMode：SelectLoot(Index) 会读 GM->CurrentLootOptions[Index] 来发放符文。
-	// RewardPickup 的 AssignedLoot 直接走 HUD 队列绕开了 GM->ShowLootOptions，
-	// 不在这里同步会导致选符文时取到空/陈旧的 GM 数据。
-	if (AYogGameMode* GM = Cast<AYogGameMode>(UGameplayStatics::GetGameMode(GetWorld())))
-	{
-		GM->CurrentLootOptions = Options;
-	}
 
 	if (!RuneCardClass)
 	{
@@ -397,8 +373,11 @@ void ULootSelectionWidget::SelectRuneLoot(int32 Index)
 		static_cast<int32>(CurrentSection),
 		*GetNameSafe(SelectedOption.RuneAsset));
 
-	if (AYogGameMode* GM = Cast<AYogGameMode>(UGameplayStatics::GetGameMode(GetWorld())))
-		GM->SelectLoot(Index);
+	APlayerController* OwnerPC = GetOwningPlayer();
+	if (UYogLootSubsystem* Loot = GetWorld() ? GetWorld()->GetSubsystem<UYogLootSubsystem>() : nullptr)
+	{
+		Loot->GrantLoot(OwnerPC ? Cast<APlayerCharacterBase>(OwnerPC->GetPawn()) : nullptr, SelectedOption);
+	}
 
 	// 销毁源拾取物
 	if (ARewardPickup* Pickup = SourcePickup.Get())
@@ -485,12 +464,6 @@ void ULootSelectionWidget::ReactivateAfterPreview()
 void ULootSelectionWidget::RerollCard(int32 Index)
 {
 	UE_LOG(LogTemp, Warning, TEXT("[LootSelection] RerollCard(%d) — 接口未实现，留作后续 UI 动画扩展"), Index);
-}
-
-void ULootSelectionWidget::ConfirmAndTransition()
-{
-	if (AYogGameMode* GM = Cast<AYogGameMode>(UGameplayStatics::GetGameMode(GetWorld())))
-		GM->ConfirmArrangementAndTransition();
 }
 
 void ULootSelectionWidget::FinishAndNotifyHUD()

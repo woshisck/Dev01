@@ -2,11 +2,14 @@
 -- Room flow for one map. Bound to AYogRoomDirector through its LuaModule property.
 --
 -- Owns the whole loop: run every AMobSpawner placed in the map, follow the mobs they produce, and
--- open the map's portals once nothing is left alive. AYogGameMode is not consulted at any point.
+-- once nothing is left alive open the map's portals and reveal the reward pickups placed with
+-- bPickupEnabled off. AYogGameMode is not consulted at any point.
 --
 -- Copy this file per map when a room needs different behaviour and point that map's director at
 -- the copy (e.g. "Maps.Room_Forest01").
 --
+
+local Progress = require("Mob.SpawnProgress")
 
 local M = UnLua.Class()
 
@@ -29,7 +32,14 @@ function M:ReceiveBeginPlay()
     self.Mobs = {}        -- [actor name] = { Actor = mob, bAlive = bool }
     self.AliveCount = 0
     self.Portals = {}
+    self.Pickups = {}
     self.bPortalsOpen = false
+
+    -- A previous PIE session can leave spawners marked busy if the Lua env outlives the world.
+    Progress.Reset()
+    Progress.Listener = function()
+        self:OnSpawnProgress()
+    end
 
     local FoundPortals = CollectActors(self, UE.APortal)
     for i = 1, FoundPortals:Length() do
@@ -37,12 +47,21 @@ function M:ReceiveBeginPlay()
         self.Portals[#self.Portals + 1] = Portal
         Portal:DisablePortal()
     end
+
+    -- Only pickups that were placed disabled belong to the room-clear reward; enabled ones are left alone.
+    local FoundPickups = CollectActors(self, UE.ARewardPickup)
+    for i = 1, FoundPickups:Length() do
+        local Pickup = FoundPickups:Get(i)
+        if not Pickup:IsPickupEnabled() then
+            self.Pickups[#self.Pickups + 1] = Pickup
+        end
+    end
 end
 
 -- Raised by AYogRoomDirector one tick after BeginPlay, so every spawner has already picked its rule.
 function M:OnRoomStart()
-    -- Rules spawn synchronously inside RunLuaSpawnRule, so every mob the room starts with exists
-    -- by the time this loop ends and the scan below cannot race it.
+    -- A rule spawns at least its first mob inside RunLuaSpawnRule; one that keeps going afterwards
+    -- registers with Mob.SpawnProgress, which holds the room open and reports each later spawn.
     local Spawners = CollectActors(self, UE.AMobSpawner)
     for i = 1, Spawners:Length() do
         Spawners:Get(i):RunLuaSpawnRule()
@@ -53,7 +72,17 @@ function M:OnRoomStart()
         Spawners:Length(), self.AliveCount, #self.Portals))
 
     -- A room with no combat in it should not trap the player.
-    if self.AliveCount == 0 then
+    if self.AliveCount == 0 and not Progress.IsBusy() then
+        self:OpenPortals()
+    end
+end
+
+--- Raised by Mob.SpawnProgress after a timed rule spawns a mob or finishes.
+function M:OnSpawnProgress()
+    self:TrackMobs()
+
+    -- Every mob out so far may already be dead, so the last spawn is also a possible clear.
+    if self.AliveCount == 0 and not Progress.IsBusy() then
         self:OpenPortals()
     end
 end
@@ -89,7 +118,7 @@ function M:HandleMobDied(Mob)
 
     Log(self, string.format("%s died, %d left", Mob:GetName(), self.AliveCount))
 
-    if self.AliveCount == 0 then
+    if self.AliveCount == 0 and not Progress.IsBusy() then
         self:OpenPortals()
     end
 end
@@ -104,10 +133,16 @@ function M:OpenPortals()
         self:OpenPortal(Portal)
     end
 
-    Log(self, "room clear, portals opened")
+    for _, Pickup in ipairs(self.Pickups) do
+        Pickup:SetPickupEnabled(true)
+        Pickup:PlaySpawnFocusCue()
+    end
+
+    Log(self, string.format("room clear, %d portal(s) opened, %d pickup(s) revealed", #self.Portals, #self.Pickups))
 end
 
 function M:ReceiveEndPlay()
+    Progress.Listener = nil
     for _, Entry in pairs(self.Mobs) do
         if Entry.bAlive then
             Entry.Actor.OnCharacterDied:Remove(self, self.HandleMobDied)

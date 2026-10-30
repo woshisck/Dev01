@@ -9,7 +9,6 @@
 #include "Data/SacrificeGraceDA.h"
 #include "Data/AltarDataAsset.h"
 #include "GameModes/LevelFlowTypes.h"
-#include "Story/StoryNextRoomPlanTypes.h"
 
 #include "YogGameInstanceBase.generated.h"
 
@@ -214,18 +213,6 @@ public:
 	UPROPERTY()
 	TArray<FBuffEntry> PendingRoomBuffs;
 
-	UPROPERTY()
-	bool bHasPendingRoomRewardOptionsOverride = false;
-
-	UPROPERTY()
-	TArray<FLootOption> PendingRoomRewardOptionsOverride;
-
-	UPROPERTY()
-	bool bHasPendingStoryNextRoomPlan = false;
-
-	UPROPERTY()
-	FStoryNextRoomPlan PendingStoryNextRoomPlan;
-
 	// 由 APortal::TryEnter 写入；下一关 AYogHUD::BeginPlay 检测后触发线性反向 PostProcess 淡入
 	UPROPERTY()
 	bool bPlayLevelIntroFadeIn = false;
@@ -255,36 +242,6 @@ public:
 	// 保留 PendingRunState，供 ReturnToMainMenu 在 QuickSave 前清脏数据、
 	// 以及 ContinueRunFromFrontend 在 TryRestoreRunCheckpoint 前清残留状态使用。
 	void ClearPendingTransitionFields();
-
-	UFUNCTION(BlueprintCallable, Category = "LevelFlow|Story Override")
-	void SetPendingRoomRewardOptionsOverride(const TArray<FLootOption>& InOptions);
-
-	UFUNCTION(BlueprintCallable, Category = "LevelFlow|Story Override")
-	void ClearPendingRoomRewardOptionsOverride();
-
-	UFUNCTION(BlueprintCallable, Category = "LevelFlow|Story Override")
-	bool ConsumePendingRoomRewardOptionsOverride(TArray<FLootOption>& OutOptions);
-
-	UFUNCTION(BlueprintCallable, Category = "LevelFlow|Story Override")
-	bool GetPendingRoomRewardOptionsOverride(TArray<FLootOption>& OutOptions) const;
-
-	UFUNCTION(BlueprintPure, Category = "LevelFlow|Story Override")
-	bool HasPendingRoomRewardOptionsOverride() const { return bHasPendingRoomRewardOptionsOverride; }
-
-	UFUNCTION(BlueprintCallable, Category = "LevelFlow|Story Next Room")
-	void SetPendingStoryNextRoomPlan(const FStoryNextRoomPlan& InPlan);
-
-	UFUNCTION(BlueprintCallable, Category = "LevelFlow|Story Next Room")
-	void ClearPendingStoryNextRoomPlan();
-
-	UFUNCTION(BlueprintCallable, Category = "LevelFlow|Story Next Room")
-	bool ConsumePendingStoryNextRoomPlan(FStoryNextRoomPlan& OutPlan);
-
-	UFUNCTION(BlueprintCallable, Category = "LevelFlow|Story Next Room")
-	bool GetPendingStoryNextRoomPlan(FStoryNextRoomPlan& OutPlan) const;
-
-	UFUNCTION(BlueprintPure, Category = "LevelFlow|Story Next Room")
-	bool HasPendingStoryNextRoomPlan() const { return bHasPendingStoryNextRoomPlan; }
 
 	// =========================================================
 	// Frontend / packaged startup flow

@@ -4,7 +4,6 @@
 #include "GameplayTagContainer.h"
 #include "GameModes/LevelFlowTypes.h"
 #include "Story/StoryRuleTypes.h"
-#include "Story/StoryRewardOverrideTypes.h"
 #include "Story/Flow/StoryFlowAsset.h"
 #include "StoryEncounterTypes.generated.h"
 
@@ -57,7 +56,9 @@ enum class EStoryEncounterActionKind : uint8
 	Deprecated_TutorialPopup UMETA(Hidden),
 	Deprecated_TutorialAreaHint UMETA(Hidden),
 	SpawnRewardPickup UMETA(DisplayName = "Spawn Reward Pickup"),
-	SetRoomRewardOverride UMETA(DisplayName = "Set Room Reward Override"),
+	// Feature removed. Kept as a hidden slot (a CoreRedirect maps the old name onto it) so existing
+	// encounter assets still load; the runtime ignores it.
+	Deprecated_SetRoomRewardOverride UMETA(Hidden),
 };
 
 USTRUCT(BlueprintType)
@@ -159,16 +160,7 @@ struct DEVKIT_API FStoryEncounterAction
 	bool bSpawnRewardOnTargetDeath = true;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Action|Reward Pickup")
-	bool bRewardPickupAllowedOutsideArrangement = true;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Action|Reward Pickup")
 	bool bPlayRewardPickupFocusCue = true;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Action|Reward Override")
-	bool bClearRoomRewardOverride = false;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Story Action|Reward Override")
-	EStoryRewardOverrideTarget RewardOverrideTarget = EStoryRewardOverrideTarget::CurrentRoom;
 };
 
 USTRUCT(BlueprintType)

@@ -8,6 +8,8 @@ class UGlobalHitShakeData;
 class UDataTable;
 class UEnemyHitImpactData;
 class UWhiffVFXData;
+class ARewardPickup;
+class URewardLootTableDataAsset;
 
 /**
  * Project Settings → Game → Yog
@@ -43,4 +45,12 @@ public:
 	// Resolved by UMontageVFXBindingComponent when a slot activates, so it fires on hit and on miss alike.
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Combat")
 	TSoftObjectPtr<UWhiffVFXData> WhiffVFXData;
+
+	// Pickup class spawned by kill drops and by story / level-flow nodes that do not name one.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Reward")
+	TSoftClassPtr<ARewardPickup> DefaultRewardPickupClass;
+
+	// Rune pool and card count used by any reward pickup that has no LootTable of its own.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Reward")
+	TSoftObjectPtr<URewardLootTableDataAsset> DefaultRewardLootTable;
 };

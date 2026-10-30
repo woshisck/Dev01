@@ -25,33 +25,6 @@ static APlayerCharacterBase* FindCheatPlayer(UWorld* World)
 	return PC ? Cast<APlayerCharacterBase>(PC->GetPawn()) : nullptr;
 }
 
-static void SetLevelEndedForWorld(UWorld* World)
-{
-	AYogGameMode* GameMode = World ? World->GetAuthGameMode<AYogGameMode>() : nullptr;
-	if (!GameMode)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[GM] Yog_SetLevelEnded: GameMode not found."));
-		if (GEngine)
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("[GM] Level end failed: no GameMode."));
-		}
-		return;
-	}
-
-	if (GameMode->CurrentPhase != ELevelPhase::Arrangement)
-	{
-		GameMode->CurrentPhase = ELevelPhase::Combat;
-		GameMode->EnterArrangementPhase();
-	}
-
-	const FString Message = TEXT("[GM] Level set to ended / Arrangement phase.");
-	UE_LOG(LogTemp, Log, TEXT("%s"), *Message);
-	if (GEngine)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 6.f, FColor::Green, Message);
-	}
-}
-
 static APlayerController* FindRuntimeGMPlayerControllerInWorld(UWorld* World)
 {
 	if (!World)
@@ -124,16 +97,6 @@ static void ToggleRuntimeGMPanelForWorld(UWorld* World)
 	RuntimeGM->ToggleGMPanel(PC);
 #endif
 }
-
-static FAutoConsoleCommandWithWorld GSetLevelEndedCommand(
-	TEXT("Yog_SetLevelEnded"),
-	TEXT("Forces the current level into ended / Arrangement phase for card and backpack testing."),
-	FConsoleCommandWithWorldDelegate::CreateStatic(&SetLevelEndedForWorld));
-
-static FAutoConsoleCommandWithWorld GSetLevelEndedAliasCommand(
-	TEXT("Yog.SetLevelEnded"),
-	TEXT("Forces the current level into ended / Arrangement phase for card and backpack testing."),
-	FConsoleCommandWithWorldDelegate::CreateStatic(&SetLevelEndedForWorld));
 
 #if !UE_BUILD_SHIPPING
 static FAutoConsoleCommandWithWorld GToggleRuntimeGMPanelCommand(
@@ -229,11 +192,6 @@ void UYogCheatManager::Yog_GiveRune(int32 RuneID)
 	}
 
 	UE_LOG(LogTemp, Warning, TEXT("[GM] Yog_GiveRune: 未找RuneID=%d DataAsset（确认已加载"), RuneID);
-}
-
-void UYogCheatManager::Yog_SetLevelEnded()
-{
-	SetLevelEndedForWorld(GetWorld());
 }
 
 void UYogCheatManager::Yog_SetGold(int32 Amount)

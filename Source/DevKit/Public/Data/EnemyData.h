@@ -14,6 +14,7 @@
 class AEnemyCharacterBase;
 class AActor;
 class UEnemyWeaponDefinition;
+class UEnemyTrait;
 class URuneDataAsset;
 class USpawnLifecycleFlowAsset;
 class UBlackboardData;
@@ -68,8 +69,7 @@ struct DEVKIT_API FEnemyKillRewardEntry
 // Buff 条目（携带难度扣分）
 //
 // 用于两个场景：
-//   1. URoomDataAsset.BuffPool —— 关卡 Buff，刷怪时对每只怪额外扣分
-//   2. UEnemyData.EnemyBuffPool —— 敌人专属 Buff，BuildWavePlan 选取时扣分
+//   UEnemyData.EnemyBuffPool —— 敌人专属 Buff
 // =========================================================
 
 USTRUCT(BlueprintType)
@@ -310,6 +310,10 @@ public:
 	// 若为空，则不选取敌人专属 Buff
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Buff")
 	TArray<FBuffEntry> EnemyBuffPool;
+
+	// Reusable behaviors this enemy carries; several can be active at once. Trait assets are shared and stateless.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Traits")
+	TArray<TObjectPtr<UEnemyTrait>> Traits;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Weapon")
 	TObjectPtr<UEnemyWeaponDefinition> DefaultWeaponDefinition;

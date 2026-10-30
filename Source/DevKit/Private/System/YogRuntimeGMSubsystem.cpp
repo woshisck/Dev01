@@ -15,6 +15,7 @@
 #include "GameModes/YogGameMode.h"
 #include "Item/Weapon/WeaponDefinition.h"
 #include "Kismet/GameplayStatics.h"
+#include "NavigationSystem.h"
 #include "System/YogRuntimeGMSettings.h"
 #include "UI/YogRuntimeGMWidget.h"
 #include "UI/YogUIManagerSubsystem.h"
@@ -219,31 +220,23 @@ int32 UYogRuntimeGMSubsystem::SpawnConfiguredEnemies(APlayerController* PlayerCo
 		return 0;
 	}
 
-	AYogGameMode* GameMode = PC->GetWorld() ? PC->GetWorld()->GetAuthGameMode<AYogGameMode>() : nullptr;
-	if (!GameMode)
-	{
-		SetStatus(LOCTEXT("SpawnNoGameMode", "刷敌失败：当前 World 不是 YogGameMode。"));
-		return 0;
-	}
-
 	const UYogRuntimeGMSettings* Settings = GetDefault<UYogRuntimeGMSettings>();
 	const int32 Count = FMath::Max(1, OverrideCount > 0 ? OverrideCount : RuntimeSpawnCount);
 	const float MinDistance = Settings ? Settings->SpawnMinDistance : 300.f;
 	const float ZOffset = Settings ? Settings->SpawnZOffset : 96.f;
 	const bool bCountForLevelClear = Settings && Settings->bSpawnedEnemiesCountForLevelClear;
-	const bool bApplyRoomBuffs = Settings && Settings->bApplyRoomBuffsToSpawnedEnemies;
 
 	int32 SpawnedCount = 0;
 	for (int32 Index = 0; Index < Count; ++Index)
 	{
-		AEnemyCharacterBase* Enemy = GameMode->SpawnGMEnemyNearPlayer(
+		AEnemyCharacterBase* Enemy = SpawnEnemyNearPlayer(
+			PC->GetWorld(),
 			EnemyData,
 			Player->GetActorLocation(),
 			RuntimeSpawnRadius,
 			MinDistance,
 			ZOffset,
-			bCountForLevelClear,
-			bApplyRoomBuffs);
+			bCountForLevelClear);
 		SpawnedCount += Enemy ? 1 : 0;
 	}
 
@@ -253,6 +246,71 @@ int32 UYogRuntimeGMSubsystem::SpawnConfiguredEnemies(APlayerController* PlayerCo
 		FText::AsNumber(Count),
 		FText::FromString(GetNameSafe(EnemyData))));
 	return SpawnedCount;
+}
+
+AEnemyCharacterBase* UYogRuntimeGMSubsystem::SpawnEnemyNearPlayer(UWorld* World, UEnemyData* EnemyData,
+	const FVector& Origin, float Radius, float MinDistance, float ZOffset, bool bCountForLevelClear) const
+{
+	if (!World || !EnemyData || !EnemyData->EnemyClass)
+	{
+		return nullptr;
+	}
+
+	const float EffectiveRadius = FMath::Max(Radius, MinDistance + 100.f);
+	FVector SpawnLocation = Origin + FVector(EffectiveRadius, 0.f, ZOffset);
+	bool bFoundLocation = false;
+
+	if (UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World))
+	{
+		for (int32 Attempt = 0; Attempt < 24; ++Attempt)
+		{
+			FNavLocation NavLocation;
+			if (NavSys->GetRandomReachablePointInRadius(Origin, EffectiveRadius, NavLocation)
+				&& FVector::Dist2D(Origin, NavLocation.Location) >= MinDistance)
+			{
+				SpawnLocation = NavLocation.Location + FVector(0.f, 0.f, ZOffset);
+				bFoundLocation = true;
+				break;
+			}
+		}
+	}
+
+	if (!bFoundLocation)
+	{
+		const float AngleRadians = FMath::FRandRange(0.f, UE_TWO_PI);
+		const float Distance = FMath::FRandRange(MinDistance, EffectiveRadius);
+		SpawnLocation = Origin + FVector(FMath::Cos(AngleRadians) * Distance, FMath::Sin(AngleRadians) * Distance, ZOffset);
+	}
+
+	AEnemyCharacterBase* SpawnedEnemy = World->SpawnActorDeferred<AEnemyCharacterBase>(
+		EnemyData->EnemyClass,
+		FTransform(FRotator::ZeroRotator, SpawnLocation),
+		nullptr,
+		nullptr,
+		ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn);
+	if (!SpawnedEnemy)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[RuntimeGM] Failed to spawn enemy. EnemyData=%s Location=%s"),
+			*GetNameSafe(EnemyData), *SpawnLocation.ToCompactString());
+		return nullptr;
+	}
+
+	SpawnedEnemy->bCountsForLevelClear = bCountForLevelClear;
+	SpawnedEnemy->SetPendingEnemyWeaponDefinition(
+		EnemyData->DefaultWeaponDefinition ? EnemyData->DefaultWeaponDefinition.Get()
+			: (EnemyData->AllowedWeaponDefinitions.IsEmpty() ? nullptr : EnemyData->AllowedWeaponDefinitions[0].Get()));
+	SpawnedEnemy->FinishSpawning(FTransform(FRotator::ZeroRotator, SpawnLocation));
+
+	if (!SpawnedEnemy->GetController())
+	{
+		SpawnedEnemy->SpawnDefaultController();
+	}
+
+	if (AYogGameMode* GameMode = World->GetAuthGameMode<AYogGameMode>())
+	{
+		GameMode->RegisterEnemy(SpawnedEnemy);
+	}
+	return SpawnedEnemy;
 }
 
 int32 UYogRuntimeGMSubsystem::ResetPlayerAndEnemies(APlayerController* PlayerController)

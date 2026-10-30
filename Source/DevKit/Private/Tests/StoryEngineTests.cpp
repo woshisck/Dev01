@@ -30,21 +30,12 @@ bool FStoryEngineGameplayTagsConfiguredTest::RunTest(const FString& Parameters)
 		TEXT("Story.Event.MemoryTutorial.Started"),
 		TEXT("Story.Event.MemoryTutorial.PlayerFailed"),
 		TEXT("Story.Event.MemoryTutorial.Completed"),
-		TEXT("Story.Event.FirstRun.Started"),
-		TEXT("Story.Event.FirstRun.FirstRuneObtained"),
-		TEXT("Story.Event.FirstRun.FirstRewardCardEntered"),
-		TEXT("Story.Event.FirstRun.FirstBackpackOpened"),
 		TEXT("Story.Event.Hub.FirstEntered"),
 		TEXT("Story.Event.Player.Died"),
 		TEXT("Story.Event.Item.Obtained"),
 		TEXT("Story.Event.Area.Entered"),
 		TEXT("Story.Flag.MemoryTutorial.Completed"),
-		TEXT("Story.Flag.FirstRun.Started"),
-		TEXT("Story.Flag.FirstRune.Obtained"),
-		TEXT("Story.Flag.FirstBackpack.Opened"),
 		TEXT("Story.Flag.Hub.FirstEntered"),
-		TEXT("Story.Encounter.Progress.EM_FirstRun_Tutorial.first_run.heavy_card_obtained"),
-		TEXT("Story.Encounter.Progress.EM_FirstRun_Tutorial.first_run.weapon_skill_finisher_obtained"),
 		TEXT("Story.Quest.Main"),
 		TEXT("Story.Quest.MemoryTutorial"),
 		TEXT("Story.Source.Codex"),
@@ -73,15 +64,14 @@ bool FStoryEngineConfiguredRuleSetsLoadTest::RunTest(const FString& Parameters)
 		return false;
 	}
 
-	TestEqual(TEXT("Three onboarding rule sets are configured"), Settings->RuleSets.Num(), 3);
-	if (Settings->RuleSets.Num() != 3)
+	TestEqual(TEXT("Two onboarding rule sets are configured"), Settings->RuleSets.Num(), 2);
+	if (Settings->RuleSets.Num() != 2)
 	{
 		return false;
 	}
 
 	const FString ExpectedPaths[] = {
 		TEXT("/Game/Story/Rules/SR_MemoryTutorial.SR_MemoryTutorial"),
-		TEXT("/Game/Story/Rules/SR_FirstRun.SR_FirstRun"),
 		TEXT("/Game/Story/Rules/SR_HubOnboarding.SR_HubOnboarding"),
 	};
 
@@ -102,103 +92,6 @@ bool FStoryEngineConfiguredRuleSetsLoadTest::RunTest(const FString& Parameters)
 	}
 
 	return bAllLoaded;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStoryEventRegistryRewardToDeckBroadcastOnlyTest,
-	"DevKit.StoryEngine.RegistryRewardToDeckBroadcastOnly",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FStoryEventRegistryRewardToDeckBroadcastOnlyTest::RunTest(const FString& Parameters)
-{
-	const UStoryEventRegistryDA* Registry = LoadObject<UStoryEventRegistryDA>(
-		nullptr,
-		TEXT("/Game/Data/Story/DA_StoryEventRegistry_Tutorial.DA_StoryEventRegistry_Tutorial"));
-	TestNotNull(TEXT("Tutorial story event registry loads"), Registry);
-	if (!Registry)
-	{
-		return false;
-	}
-
-	const FGameplayTag RewardToDeckEvent = StoryEngineTests::RequireTag(TEXT("Tutorial.RewardToDeck"));
-	if (!TestTrue(TEXT("RewardToDeck event tag is configured"), RewardToDeckEvent.IsValid()))
-	{
-		return false;
-	}
-
-	const FStoryEventEntry* Entry = Registry->FindEntry(RewardToDeckEvent);
-	TestNotNull(TEXT("RewardToDeck registry entry exists"), Entry);
-	if (!Entry)
-	{
-		return false;
-	}
-
-	TestEqual(TEXT("RewardToDeck registry entry is broadcast-only"), Entry->ActionType, EStoryEventActionType::BroadcastOnly);
-
-	const UStoryRuleSetDA* RuleSet = LoadObject<UStoryRuleSetDA>(
-		nullptr,
-		TEXT("/Game/Story/Rules/SR_FirstRun.SR_FirstRun"));
-	TestNotNull(TEXT("First-run rule set loads"), RuleSet);
-	if (!RuleSet)
-	{
-		return false;
-	}
-
-	const bool bHasRewardToDeckRule = RuleSet->Rules.ContainsByPredicate(
-		[RewardToDeckEvent](const FStoryRule& Rule)
-		{
-			return Rule.TriggerEventTag == RewardToDeckEvent;
-		});
-	TestFalse(TEXT("RewardToDeck broadcast is not consumed by first-run story rules"), bHasRewardToDeckRule);
-	return true;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStoryEngineFirstRuneRuleMarksWeaponSkillFinisherProgressTest,
-	"DevKit.StoryEngine.FirstRuneRuleMarksWeaponSkillFinisherProgress",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FStoryEngineFirstRuneRuleMarksWeaponSkillFinisherProgressTest::RunTest(const FString& Parameters)
-{
-	const UStoryRuleSetDA* RuleSet = LoadObject<UStoryRuleSetDA>(
-		nullptr,
-		TEXT("/Game/Story/Rules/SR_FirstRun.SR_FirstRun"));
-	TestNotNull(TEXT("First-run rule set loads"), RuleSet);
-	if (!RuleSet)
-	{
-		return false;
-	}
-
-	const FGameplayTag FirstRuneEvent = StoryEngineTests::RequireTag(TEXT("Story.Event.FirstRun.FirstRuneObtained"));
-	const FGameplayTag LegacyHeavyCardProgress = StoryEngineTests::RequireTag(
-		TEXT("Story.Encounter.Progress.EM_FirstRun_Tutorial.first_run.heavy_card_obtained"));
-	const FGameplayTag WeaponSkillFinisherProgress = StoryEngineTests::RequireTag(
-		TEXT("Story.Encounter.Progress.EM_FirstRun_Tutorial.first_run.weapon_skill_finisher_obtained"));
-	if (!TestTrue(TEXT("First rune event tag is configured"), FirstRuneEvent.IsValid()) ||
-		!TestTrue(TEXT("legacy heavy card progress tag is configured"), LegacyHeavyCardProgress.IsValid()) ||
-		!TestTrue(TEXT("WeaponSkill finisher progress tag is configured"), WeaponSkillFinisherProgress.IsValid()))
-	{
-		return false;
-	}
-
-	bool bMarksWeaponSkillFinisherProgress = false;
-	for (const FStoryRule& Rule : RuleSet->Rules)
-	{
-		if (Rule.TriggerEventTag != FirstRuneEvent)
-		{
-			continue;
-		}
-
-		bMarksWeaponSkillFinisherProgress |= Rule.Actions.ContainsByPredicate(
-			[LegacyHeavyCardProgress, WeaponSkillFinisherProgress](const FStoryAction& Action)
-			{
-				return Action.Type == EStoryActionType::SetFlag
-					&& Action.FlagScope == EStoryFlagScope::Save
-					&& Action.FlagTag == WeaponSkillFinisherProgress
-					&& Action.FlagTag != LegacyHeavyCardProgress;
-			});
-	}
-
-	TestTrue(TEXT("First rune rule marks first-run WeaponSkill finisher progress"), bMarksWeaponSkillFinisherProgress);
-	return true;
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStoryRuleSetFiltersAndSortsRulesTest,

@@ -120,7 +120,7 @@ public:
 	// 用法：用 FGameplayTag 标识一次性弹窗（教程提示、首拾道具说明、首次解锁机制…），
 	// 用 EPopupScope 控制去重周期。
 	//
-	//   if (UI->PushScreenOnce(EYogUIScreenId::TutorialPopup, Tag_Popup_FirstRune, EPopupScope::Save))
+	//   if (UI->PushScreenOnce(EYogUIScreenId::TutorialPopup, Tag_Popup_Example, EPopupScope::Save))
 	//   { /* 真正弹了；可以做附加埋点 */ }
 	//
 	// 已经展示过的同一 PopupKey 会直接跳过（返回 nullptr），不再触发 Push / 异步加载 / InputMode 切换。

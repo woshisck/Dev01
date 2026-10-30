@@ -13,7 +13,6 @@
 #include "UObject/StrongObjectPtr.h"
 #include "GameFramework/PlayerState.h"
 #include "GameFramework/GameStateBase.h"
-#include "GameModes/YogGameMode.h"
 #include "DevAssetManager.h"
 #include "YogBlueprintFunctionLibrary.h"
 #include "Item/Weapon/WeaponDefinition.h"
@@ -55,14 +54,6 @@ void UYogSaveSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	}
 
 	FCoreUObjectDelegates::PostLoadMapWithWorld.AddUObject(this, &UYogSaveSubsystem::OnLevelLoaded);
-
-	if (UWorld* World = GetWorld())
-	{
-		if (AYogGameMode* GameMode = Cast<AYogGameMode>(World->GetAuthGameMode()))
-		{
-			GameMode->OnFinishLevelEvent().AddUObject(this, &UYogSaveSubsystem::WriteSaveGame);
-		}
-	}
 }
 
 void UYogSaveSubsystem::HandleEnginePreExit()

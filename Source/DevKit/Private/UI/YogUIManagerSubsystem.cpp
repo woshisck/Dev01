@@ -31,6 +31,7 @@ static bool IsInteractiveManagedScreen(EYogUIScreenId ScreenId)
 	{
 	case EYogUIScreenId::Backpack:
 	case EYogUIScreenId::LootSelection:
+	case EYogUIScreenId::LootTypeChoice:
 	case EYogUIScreenId::PauseMenu:
 	case EYogUIScreenId::ShopSelection:
 	case EYogUIScreenId::AltarMenu:
@@ -247,7 +248,7 @@ FYogUIScreenInputPolicy UYogUIManagerSubsystem::GetInputPolicyForScreen(EYogUISc
 		Policy.bAffectsMajorUI = ScreenId != EYogUIScreenId::PauseMenu
 			&& ScreenId != EYogUIScreenId::GameOver;
 	}
-	if (ScreenId == EYogUIScreenId::LootSelection)
+	if (ScreenId == EYogUIScreenId::LootSelection || ScreenId == EYogUIScreenId::LootTypeChoice)
 	{
 		Policy.bDisablePawnInput = true;
 	}

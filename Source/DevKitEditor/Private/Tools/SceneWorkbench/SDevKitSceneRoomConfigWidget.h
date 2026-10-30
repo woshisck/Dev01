@@ -55,7 +55,6 @@ private:
 	TSharedRef<SWidget> MakeValue(TSharedPtr<IPropertyHandle> Handle);
 	TSharedRef<SWidget> MakeArray(TSharedPtr<IPropertyHandle> Handle, const FText& EntryLabel,
 		const TArray<FFieldColumn>& Columns = {});
-	TSharedRef<SWidget> MakeDifficulty();
 	TSharedRef<SWidget> MakePortals();
 	TSharedRef<SWidget> MakeEmptyState() const;
 	FReply AddArrayItem(TSharedPtr<IPropertyHandle> Handle);

@@ -139,7 +139,7 @@ void AYogPlayerCameraManager::DetermineState(const FVector& PlayerPos, bool bIsM
 
 	AYogGameMode* GM = GetYogGameMode();
 
-	const bool bCombatHasAliveEnemies = GM && GM->CurrentPhase == ELevelPhase::Combat && GM->HasAliveEnemies();
+	const bool bCombatHasAliveEnemies = GM && GM->HasAliveEnemies();
 	if (!bCombatHasAliveEnemies && IsValid(FindNearestPickup(PlayerPos)))
 	{
 		SetCameraStates(EYogCameraStates::PickupFocus);

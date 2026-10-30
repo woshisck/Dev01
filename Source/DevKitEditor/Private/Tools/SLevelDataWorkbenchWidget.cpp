@@ -65,21 +65,17 @@ namespace
 		{
 			return TEXT("-");
 		}
-		if (Room->bIsHubRoom)
-		{
-			return TEXT("Hub");
-		}
-		if (Room->ShopData || Room->ShopActorClass.Get())
-		{
-			return TEXT("Shop");
-		}
-		if (Room->SacrificeEventAltarData || Room->SacrificeEventAltarClass.Get() || Room->bEnableTimedClearObjective)
-		{
-			return TEXT("Event");
-		}
 		if (Room->RoomTags.HasTagExact(FGameplayTag::RequestGameplayTag(TEXT("Room.Type.Elite"), false)))
 		{
 			return TEXT("Elite");
+		}
+		if (Room->RoomTags.HasTagExact(FGameplayTag::RequestGameplayTag(TEXT("Room.Type.Shop"), false)))
+		{
+			return TEXT("Shop");
+		}
+		if (Room->RoomTags.HasTagExact(FGameplayTag::RequestGameplayTag(TEXT("Room.Type.Event"), false)))
+		{
+			return TEXT("Event");
 		}
 		return TEXT("Normal");
 	}
@@ -113,8 +109,6 @@ public:
 		if (ColumnName == TEXT("Room")) return MakeTextCell(Room->GetName(), Room->GetPathName());
 		if (ColumnName == TEXT("Display")) return MakeTextCell(Room->DisplayName.ToString());
 		if (ColumnName == TEXT("Type")) return MakeTextCell(RoomTypeText(Room));
-		if (ColumnName == TEXT("Enemies")) return MakeTextCell(FString::FromInt(Room->EnemyPool.Num()));
-		if (ColumnName == TEXT("Loot")) return MakeTextCell(FString::FromInt(Room->LootPool.Num()));
 		if (ColumnName == TEXT("Actions"))
 		{
 			return SNew(SButton)
@@ -163,7 +157,6 @@ public:
 		}
 
 		if (ColumnName == TEXT("Campaign")) return MakeTextCell(Campaign->GetName(), Campaign->GetPathName());
-		if (ColumnName == TEXT("Floors")) return MakeTextCell(FString::FromInt(Campaign->FloorTable.Num()));
 		if (ColumnName == TEXT("Rooms")) return MakeTextCell(FString::FromInt(Campaign->RoomPool.Num()));
 		if (ColumnName == TEXT("Layer")) return MakeTextCell(Campaign->LayerTag.IsValid() ? Campaign->LayerTag.ToString() : TEXT("-"));
 		if (ColumnName == TEXT("Actions"))
@@ -215,18 +208,6 @@ void SLevelDataWorkbenchWidget::Construct(const FArguments& InArgs)
 				.Text(LOCTEXT("Refresh", "Refresh"))
 				.OnClicked(this, &SLevelDataWorkbenchWidget::OnRefreshClicked)
 			]
-			+ SHorizontalBox::Slot().AutoWidth().Padding(0.f, 0.f, 6.f, 0.f)
-			[
-				SNew(SButton)
-				.Text(LOCTEXT("ExportRoomEconomy", "导出 Room Economy CSV"))
-				.OnClicked(this, &SLevelDataWorkbenchWidget::OnExportRoomEconomyClicked)
-			]
-			+ SHorizontalBox::Slot().AutoWidth().Padding(0.f, 0.f, 6.f, 0.f)
-			[
-				SNew(SButton)
-				.Text(LOCTEXT("ExportFloorConfigs", "导出 Floor Configs CSV"))
-				.OnClicked(this, &SLevelDataWorkbenchWidget::OnExportFloorConfigsClicked)
-			]
 			+ SHorizontalBox::Slot()
 			.FillWidth(1.f)
 			[
@@ -265,8 +246,6 @@ void SLevelDataWorkbenchWidget::Construct(const FArguments& InArgs)
 							+ SHeaderRow::Column(TEXT("Room")).DefaultLabel(LOCTEXT("RoomColumn", "Room")).FillWidth(0.30f)
 							+ SHeaderRow::Column(TEXT("Display")).DefaultLabel(LOCTEXT("DisplayColumn", "Display")).FillWidth(0.22f)
 							+ SHeaderRow::Column(TEXT("Type")).DefaultLabel(LOCTEXT("TypeColumn", "Type")).FillWidth(0.13f)
-							+ SHeaderRow::Column(TEXT("Enemies")).DefaultLabel(LOCTEXT("EnemiesColumn", "E")).FixedWidth(34.f)
-							+ SHeaderRow::Column(TEXT("Loot")).DefaultLabel(LOCTEXT("LootColumn", "L")).FixedWidth(34.f)
 								+ SHeaderRow::Column(TEXT("Actions")).DefaultLabel(LOCTEXT("ActionsColumn", "")).FixedWidth(58.f)
 						)
 					]
@@ -314,7 +293,6 @@ void SLevelDataWorkbenchWidget::Construct(const FArguments& InArgs)
 						.HeaderRow(
 							SNew(SHeaderRow)
 							+ SHeaderRow::Column(TEXT("Campaign")).DefaultLabel(LOCTEXT("CampaignColumn", "Campaign")).FillWidth(0.45f)
-							+ SHeaderRow::Column(TEXT("Floors")).DefaultLabel(LOCTEXT("FloorsColumn", "F")).FixedWidth(32.f)
 							+ SHeaderRow::Column(TEXT("Rooms")).DefaultLabel(LOCTEXT("RoomsColumn", "R")).FixedWidth(32.f)
 							+ SHeaderRow::Column(TEXT("Layer")).DefaultLabel(LOCTEXT("LayerColumn", "Layer")).FillWidth(0.28f)
 							+ SHeaderRow::Column(TEXT("Actions")).DefaultLabel(LOCTEXT("CampaignActionsColumn", "")).FixedWidth(58.f)
@@ -419,74 +397,6 @@ FText SLevelDataWorkbenchWidget::GetRoomSummaryText() const
 FText SLevelDataWorkbenchWidget::GetCampaignSummaryText() const
 {
 	return FText::Format(LOCTEXT("CampaignSummary", "{0} Campaign assets"), FText::AsNumber(CampaignRows.Num()));
-}
-
-FReply SLevelDataWorkbenchWidget::OnExportRoomEconomyClicked()
-{
-	FString CSV = TEXT("RoomName,DisplayName,RoomType,EnemyCount,LootCount,BuffCount\n");
-	for (const FRoomRowPtr& Row : RoomRows)
-	{
-		const URoomDataAsset* Room = Row.IsValid() ? Row->Room.Get() : nullptr;
-		if (!Room) continue;
-		CSV += FString::Printf(TEXT("%s,%s,%s,%d,%d,%d\n"),
-			*Room->GetName(),
-			*Room->DisplayName.ToString().Replace(TEXT(","), TEXT("|")),
-			*RoomTypeText(Room),
-			Room->EnemyPool.Num(),
-			Room->LootPool.Num(),
-			Room->BuffPool.Num());
-	}
-
-	const FString TimeStamp = FDateTime::Now().ToString(TEXT("%Y%m%d_%H%M%S"));
-	const FString OutPath = FPaths::ProjectSavedDir() / TEXT("Balance") / FString::Printf(TEXT("RoomEconomy_%s.csv"), *TimeStamp);
-	IFileManager::Get().MakeDirectory(*FPaths::GetPath(OutPath), true);
-
-	if (FFileHelper::SaveStringToFile(CSV, *OutPath))
-	{
-		RefreshData(FText::Format(LOCTEXT("ExportRoomOK", "Room Economy CSV 已导出: {0}"), FText::FromString(OutPath)));
-	}
-	else
-	{
-		RefreshData(LOCTEXT("ExportRoomFail", "导出失败，检查路径权限"));
-	}
-	return FReply::Handled();
-}
-
-FReply SLevelDataWorkbenchWidget::OnExportFloorConfigsClicked()
-{
-	FString CSV = TEXT("CampaignName,FloorIndex,TotalDifficultyScore,bForceElite,EliteChance,ShopChance,EventChance\n");
-	for (const FCampaignRowPtr& Row : CampaignRows)
-	{
-		const UCampaignDataAsset* Campaign = Row.IsValid() ? Row->Campaign.Get() : nullptr;
-		if (!Campaign) continue;
-
-		for (int32 i = 0; i < Campaign->FloorTable.Num(); ++i)
-		{
-			const FFloorConfig& FC = Campaign->FloorTable[i];
-			CSV += FString::Printf(TEXT("%s,%d,%d,%s,%.2f,%.2f,%.2f\n"),
-				*Campaign->GetName(),
-				i,
-				FC.TotalDifficultyScore,
-				FC.bForceElite ? TEXT("true") : TEXT("false"),
-				FC.EliteChance,
-				FC.ShopChance,
-				FC.EventChance);
-		}
-	}
-
-	const FString TimeStamp = FDateTime::Now().ToString(TEXT("%Y%m%d_%H%M%S"));
-	const FString OutPath = FPaths::ProjectSavedDir() / TEXT("Balance") / FString::Printf(TEXT("FloorConfigs_%s.csv"), *TimeStamp);
-	IFileManager::Get().MakeDirectory(*FPaths::GetPath(OutPath), true);
-
-	if (FFileHelper::SaveStringToFile(CSV, *OutPath))
-	{
-		RefreshData(FText::Format(LOCTEXT("ExportFloorOK", "Floor Configs CSV 已导出: {0}"), FText::FromString(OutPath)));
-	}
-	else
-	{
-		RefreshData(LOCTEXT("ExportFloorFail", "导出失败，检查路径权限"));
-	}
-	return FReply::Handled();
 }
 
 #undef LOCTEXT_NAMESPACE

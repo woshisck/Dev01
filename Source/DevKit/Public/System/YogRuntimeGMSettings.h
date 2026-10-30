@@ -44,7 +44,4 @@ public:
 
 	UPROPERTY(config, EditAnywhere, BlueprintReadOnly, Category = "Runtime GM")
 	bool bSpawnedEnemiesCountForLevelClear = false;
-
-	UPROPERTY(config, EditAnywhere, BlueprintReadOnly, Category = "Runtime GM")
-	bool bApplyRoomBuffsToSpawnedEnemies = false;
 };

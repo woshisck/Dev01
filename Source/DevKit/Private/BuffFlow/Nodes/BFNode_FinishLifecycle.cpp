@@ -24,16 +24,9 @@ void UBFNode_FinishLifecycle::ExecuteBuffFlowInput(const FName& PinName)
 		BFC->RequestLifecycleFinish();
 		if (Context.Type == EBuffFlowLifecycleType::Spawn && !Context.bSpawnFinalized)
 		{
-			if (Context.bStorySpawn && Context.Spawner.IsValid())
+			if (Context.Spawner.IsValid())
 			{
 				Context.Spawner->HandleLifecycleStoryEnemySpawnFailed(Context);
-			}
-			else if (UWorld* World = GetWorld())
-			{
-				if (AYogGameMode* GameMode = World->GetAuthGameMode<AYogGameMode>())
-				{
-					GameMode->HandleLifecycleEnemySpawnFailed(Context);
-				}
 			}
 		}
 

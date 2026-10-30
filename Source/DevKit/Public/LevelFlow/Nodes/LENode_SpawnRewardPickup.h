@@ -28,9 +28,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Reward")
 	FVector RewardSpawnOffset = FVector(120.f, 0.f, 20.f);
 
-	UPROPERTY(EditAnywhere, Category = "Reward")
-	bool bAllowPickupOutsideArrangement = true;
-
 	UPROPERTY(EditAnywhere, Category = "Reward|Focus Cue")
 	bool bPlaySpawnFocusCue = true;
 

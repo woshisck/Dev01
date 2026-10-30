@@ -41,7 +41,10 @@ enum class EYogUIScreenId : uint8
 
 	// Ambient speech bubble / corner toast. Never takes focus or pauses.
 	// Append new ids only — the enum is serialized as uint8 inside the UYogUIRegistry asset.
-	BubbleMessage
+	BubbleMessage,
+
+	// Reward pickup "choose Rune / Gold / Material" popup. Append only, same reason as above.
+	LootTypeChoice
 };
 
 /**

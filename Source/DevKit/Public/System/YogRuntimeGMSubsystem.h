@@ -64,6 +64,8 @@ private:
 	APlayerCharacterBase* ResolvePlayerCharacter(APlayerController* PlayerController) const;
 	void SetStatus(const FText& Status);
 	void ResetCharacterForGM(AYogCharacterBase* Character) const;
+	AEnemyCharacterBase* SpawnEnemyNearPlayer(UWorld* World, UEnemyData* EnemyData, const FVector& Origin,
+		float Radius, float MinDistance, float ZOffset, bool bCountForLevelClear) const;
 
 	UPROPERTY()
 	TObjectPtr<UYogRuntimeGMWidget> ActiveWidget;

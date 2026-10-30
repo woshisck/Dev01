@@ -1389,6 +1389,7 @@ bool SEnemyManagerWidget::IsPropertyVisible(const FPropertyAndParent& PropertyAn
 			GET_MEMBER_NAME_CHECKED(UEnemyData, DefaultWeaponDefinition),
 			GET_MEMBER_NAME_CHECKED(UEnemyData, AllowedWeaponDefinitions),
 			GET_MEMBER_NAME_CHECKED(UEnemyData, EnemyBuffPool),
+			GET_MEMBER_NAME_CHECKED(UEnemyData, Traits),
 			GET_MEMBER_NAME_CHECKED(UEnemyData, MovementTuning),
 			GET_MEMBER_NAME_CHECKED(UEnemyData, AwarenessTuning),
 			GET_MEMBER_NAME_CHECKED(UEnemyData, RecentlyDamagedStateDuration),

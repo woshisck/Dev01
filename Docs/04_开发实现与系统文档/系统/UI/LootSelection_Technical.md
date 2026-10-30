@@ -6,16 +6,15 @@
 
 ## 架构概述
 
-每个 `ARewardPickup` 被拾取时**独立驱动**一次三选一界面，不依赖 GameMode 广播或 CommonUI 堆栈。
+每个 `ARewardPickup` 被拾取时**独立驱动**一次三选一界面。拾取物不读取 GameMode：选项由 `UYogLootSubsystem` 生成，发放也由它完成。
 
 ```
 ARewardPickup::TryPickup()
-  └─ YogGameMode::GenerateIndependentLootOptions()   ← 生成选项，设 CurrentLootOptions，不广播
-       └─ AYogHUD::ShowLootSelectionUI(Options)       ← 若 Widget 不在 Viewport 则重建
-            └─ ULootSelectionWidget::ShowLootUI()     ← 设置可见性 + 暂停 + 输入模式（调用 1 次）
+  └─ UYogLootSubsystem::GenerateRuneOptions(LootTable)   ← 本世界去重，null 表退回 Project Settings 的 DefaultRewardLootTable
+       └─ AYogHUD::QueueLootSelection(Options, Pickup)    ← 若 Widget 不在 Viewport 则重建
+            └─ ULootSelectionWidget::ShowLootUI()         ← 设置可见性 + 暂停 + 输入模式（调用 1 次）
+                 └─ SelectRuneLoot → UYogLootSubsystem::GrantLoot → Pickup::ConsumeAndDestroy
 ```
-
-LevelFlow（非手动放置路径）仍使用 `GameMode::ShowLootOptions()` + `OnLootGenerated` 广播，Widget 持久存在可直接接收。
 
 ---
 
@@ -75,22 +74,49 @@ HUD->OpenBackpack();   // BackpackWidget 自己设置 UIOnly 输入模式
 | `LootSelectionWidget` | `UPROPERTY() TObjectPtr<>` | 持久实例，BeginPlay 创建 |
 | `ShowLootSelectionUI(Options)` | `void` | 检查 IsInViewport，必要时重建，调用 ShowLootUI |
 
-### AYogGameMode
+### UYogLootSubsystem（`UWorldSubsystem`）
 
 | 成员 | 类型 | 说明 |
 |---|---|---|
-| `GenerateIndependentLootOptions()` | `TArray<FLootOption>` | 独立生成（本地 TSet，不广播），供 RewardPickup 使用 |
-| `ShowLootOptions(Options)` | `void` | 只广播 `OnLootGenerated`，供 LevelFlow 路径使用 |
-| `CurrentLootOptions` | `TArray<FLootOption>` | 两条路径都写入，`SelectLoot()` 从此读取 |
-| `bLootOptionsPending` | `bool` | 标记是否有待处理选项（LevelFlow 重建 Widget 时复用） |
+| `GenerateRuneOptions(Table, bAvoidRepeats)` | `TArray<FLootOption>` | 从 `URewardLootTableDataAsset` 抽符文；同世界内已出过的符文会被跳过，所以同房间多个拾取物互不重复 |
+| `GrantLoot(Player, Option)` | `bool` | Rune / Gold / Material / WeaponSkill 的唯一发放入口，成功后广播 `OnLootSelected` |
+| `OnLootSelected` | `FOnLootSelected` | 供 `LENode_WaitForLootSelected` 等待 |
+| `ResolveMaterialCurrencyTag(Tag)` | `static` | 空 Tag 时退回 `Currency.Meta.Common.A` |
+
+配置在 Project Settings > Yog：`DefaultRewardPickupClass`（击杀掉落和 Story 节点用）与 `DefaultRewardLootTable`（符文池 + 张数）。拾取物也可以在自身 `LootTable` 上指定独立的表。
 
 ### ULootSelectionWidget
 
 | 方法 | 说明 |
 |---|---|
 | `ShowLootUI(Options)` | 主要入口：设数据、设可见性、暂停、SetInputMode(UIOnly)、SetUserFocus |
-| `SelectRuneLoot(Index)` | 选择符文：告知 GM → 隐藏 Widget → 恢复输入 → 开背包 |
-| `ConfirmAndTransition()` | 整理完成按钮：调 GM::ConfirmArrangementAndTransition |
+| `SelectRuneLoot(Index)` | 选择符文：`UYogLootSubsystem::GrantLoot` → 销毁拾取物 → 隐藏 Widget → 恢复输入 |
+
+---
+
+## Type Choice Step (optional)
+
+A reward pickup can ask the player which **type** of loot they want before any loot is granted.
+It is off by default, so existing room rewards and kill drops are unchanged.
+
+```
+Hold E -> ARewardPickup::TryPickup()
+   |- bOfferLootTypeChoice off, or LootTypeChoices empty -> normal flow above
+   `- on -> PushScreen(LootTypeChoice)  (ULootTypeChoiceWidget)
+        |- Rune          -> ResolveLootTypeChoice -> HUD->QueueLootSelection (3 cards)
+        |- Gold/Material/WeaponSkill -> GrantImmediateLoot -> ConsumeAndDestroy
+        `- Back / Esc / leave range  -> ResetForSkip (pickup stays, can re-interact)
+```
+
+| Item | Notes |
+|---|---|
+| Config on pickup | `bOfferLootTypeChoice` + `LootTypeChoices` (`FLootTypeChoice`: type, amount, currency tag, weapon skill, label, icon) |
+| Screen ID | `EYogUIScreenId::LootTypeChoice` (appended last, enum is serialized as uint8) |
+| Widget | `ULootTypeChoiceWidget`, optional `ChoiceContainer` panel; builds a fallback layout without one |
+| Rune branch | Reuses `AssignedLoot` when it contains runes, otherwise `UYogLootSubsystem::GenerateRuneOptions(LootTable)` |
+| Input policy | Treated as an interactive menu screen: pauses the game, shows the cursor, disables pawn input |
+| Missing registry row | `TryPickup` logs a warning and falls back to the normal flow instead of blocking the pickup |
+| Lootable corpses | A corpse pickup whose class has the flag on will show this popup too |
 
 ---
 
@@ -111,7 +137,6 @@ HUD->OpenBackpack();   // BackpackWidget 自己设置 UIOnly 输入模式
 - **不要**在 `Event On Focus Lost` 里调 `Remove From Parent`——C++ 已覆盖 `NativeOnFocusLost` 使其无效，但 BP 节点保留会造成混淆，建议删除
 - **不要**把此 Widget 放进 CommonUI Overlay/Stack 容器——直接 AddToViewport 即可
 - `OnLootOptionsReady(LootOptions)` BP 事件：收到选项时填充 3 张符文卡片数据
-- `OnLevelPhaseChanged(NewPhase)` BP 事件：阶段切换时控制整个面板 Show/Hide
 - `OnCardFocused(FocusedIndex)` BP 事件：手柄高亮对应卡片
 
 ---
@@ -121,6 +146,5 @@ HUD->OpenBackpack();   // BackpackWidget 自己设置 UIOnly 输入模式
 | 症状 | 根因 | 检查点 |
 |---|---|---|
 | 第二个拾取物只暂停不显示 UI | Widget 被移出 Viewport，但指针非 null | HUD 里用 `IsInViewport()` 检查（已修复） |
-| ShowLootUI 被调用多次 | OnLootGenerated delegate + HUD 直调 + NativeConstruct pending 三路并发 | 确保 RewardPickup 路径只走 `GenerateIndependentLootOptions` + `HUD->ShowLootSelectionUI`，不广播 |
 | Widget 选完后被销毁 | WBP Event On Focus Lost → RemoveFromParent（CommonUI 传播） | `NativeOnFocusLost` 不调 Super（已修复） |
 | 背包无法开启 | OpenBackpack 在 SetInputMode(GameOnly) 之前调用 | 确保恢复顺序：SetPause→SetInputMode→OpenBackpack |

@@ -9,6 +9,7 @@
 #include "Character/YogCharacterMovementComponent.h"
 #include "Data/AbilityData.h"
 #include "Data/EnemyData.h"
+#include "Data/EnemyTrait.h"
 #include "Data/EnemyWeaponDefinition.h"
 #include "Component/AttributeStatComponent.h"
 #include "Component/CharacterDataComponent.h"
@@ -214,6 +215,74 @@ void AEnemyCharacterBase::BeginPlay()
 	{
 		GM->RegisterEnemy(this);
 	}
+
+	ActivateTraits();
+}
+
+void AEnemyCharacterBase::ActivateTraits()
+{
+	const UEnemyData* RuntimeEnemyData = GetEnemyData();
+	if (!RuntimeEnemyData)
+	{
+		return;
+	}
+
+	for (const TObjectPtr<UEnemyTrait>& Trait : RuntimeEnemyData->Traits)
+	{
+		if (Trait)
+		{
+			Trait->ActivateTrait(this);
+		}
+	}
+}
+
+void AEnemyCharacterBase::DeactivateTraits()
+{
+	const UEnemyData* RuntimeEnemyData = GetEnemyData();
+	if (!RuntimeEnemyData)
+	{
+		return;
+	}
+
+	for (const TObjectPtr<UEnemyTrait>& Trait : RuntimeEnemyData->Traits)
+	{
+		if (Trait)
+		{
+			Trait->DeactivateTrait(this);
+		}
+	}
+}
+
+void AEnemyCharacterBase::NotifyTraitsEnteredCombat()
+{
+	const UEnemyData* RuntimeEnemyData = GetEnemyData();
+	if (!RuntimeEnemyData)
+	{
+		return;
+	}
+
+	for (const TObjectPtr<UEnemyTrait>& Trait : RuntimeEnemyData->Traits)
+	{
+		if (Trait)
+		{
+			Trait->OnOwnerEnteredCombat(this);
+		}
+	}
+}
+
+FEnemyTraitRuntime& AEnemyCharacterBase::FindOrAddTraitRuntime(const UEnemyTrait* Trait)
+{
+	return TraitRuntimes.FindOrAdd(TObjectKey<UEnemyTrait>(Trait));
+}
+
+FEnemyTraitRuntime* AEnemyCharacterBase::FindTraitRuntime(const UEnemyTrait* Trait)
+{
+	return TraitRuntimes.Find(TObjectKey<UEnemyTrait>(Trait));
+}
+
+void AEnemyCharacterBase::RemoveTraitRuntime(const UEnemyTrait* Trait)
+{
+	TraitRuntimes.Remove(TObjectKey<UEnemyTrait>(Trait));
 }
 
 void AEnemyCharacterBase::Tick(float DeltaSeconds)
@@ -513,12 +582,14 @@ void AEnemyCharacterBase::Die()
 	}
 	bUseControllerRotationYaw = false;
 
-	// 通知 GameMode 击杀计数，触发波次/关卡完成检查
+	// Before UnregisterEnemy so the dying enemy does not react to its own removal broadcast.
+	DeactivateTraits();
+
+	// Count the kill on the GameMode
 	if (AYogGameMode* GM = Cast<AYogGameMode>(GetWorld()->GetAuthGameMode()))
 	{
 		if (bCountsForLevelClear)
 		{
-			GM->LastEnemyKillLocation = GetActorLocation();
 			GM->UpdateFinishLevel(1);
 		}
 		// 从相机战斗感知列表中移除
@@ -602,8 +673,7 @@ void AEnemyCharacterBase::SpawnKillRewardPickups(bool bPlayFocusCue, float Scatt
 		return;
 	}
 
-	AYogGameMode* GameMode = GetWorld() ? Cast<AYogGameMode>(GetWorld()->GetAuthGameMode()) : nullptr;
-	if (!GameMode)
+	if (!GetWorld())
 	{
 		return;
 	}
@@ -626,7 +696,7 @@ void AEnemyCharacterBase::SpawnKillRewardPickups(bool bPlayFocusCue, float Scatt
 		}
 
 		++PickupIndex;
-		ARewardPickup* Pickup = GameMode->SpawnEnemyKillRewardPickup(this, Loot, SpawnLocation, bPlayFocusCue);
+		ARewardPickup* Pickup = ARewardPickup::SpawnWithLoot(this, nullptr, SpawnLocation, Loot, bPlayFocusCue);
 		if (!Pickup)
 		{
 			return;
@@ -839,6 +909,7 @@ void AEnemyCharacterBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	{
 		Player->UnregisterInteractable(this);
 	}
+	DeactivateTraits();
 	DestroySpawnedEnemyWeaponActors();
 	Super::EndPlay(EndPlayReason);
 }

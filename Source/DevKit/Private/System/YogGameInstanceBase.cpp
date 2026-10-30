@@ -43,37 +43,6 @@
 #include "Widgets/SOverlay.h"
 #include "Widgets/Text/STextBlock.h"
 
-static FString DescribeGameInstanceEnumValueForRewardDebug(const UEnum* Enum, int64 Value)
-{
-	return Enum ? Enum->GetNameStringByValue(Value) : FString::Printf(TEXT("%lld"), Value);
-}
-
-static FString DescribeGameInstanceLootOptionsForRewardDebug(const TArray<FLootOption>& Options)
-{
-	if (Options.IsEmpty())
-	{
-		return TEXT("Count=0 []");
-	}
-
-	TArray<FString> Parts;
-	Parts.Reserve(Options.Num());
-	for (int32 Index = 0; Index < Options.Num(); ++Index)
-	{
-		const FLootOption& Option = Options[Index];
-		Parts.Add(FString::Printf(
-			TEXT("#%d{Type=%s,Amount=%d,Display=%s,Rune=%s,Icon=%s,Meta=%s}"),
-			Index,
-			*DescribeGameInstanceEnumValueForRewardDebug(StaticEnum<ELootType>(), static_cast<int64>(Option.LootType)),
-			Option.Amount,
-			*Option.DisplayName.ToString(),
-			*GetNameSafe(Option.RuneAsset.Get()),
-			*GetNameSafe(Option.Icon.Get()),
-			*Option.MetaCurrencyTag.ToString()));
-	}
-
-	return FString::Printf(TEXT("Count=%d [%s]"), Options.Num(), *FString::Join(Parts, TEXT("; ")));
-}
-
 UYogGameInstanceBase::UYogGameInstanceBase()
 	: SaveSlot(TEXT("SaveGame"))
 	, SaveUserIndex(0)
@@ -1387,8 +1356,6 @@ void UYogGameInstanceBase::ClearPendingTransitionFields()
 	// v3：传送门跨关字段同点清，避免下一局误读上一局的预骰数据
 	PendingRoomData = nullptr;
 	PendingRoomBuffs.Reset();
-	ClearPendingRoomRewardOptionsOverride();
-	ClearPendingStoryNextRoomPlan();
 	PendingNextFloor = 1;
 	bPlayLevelIntroFadeIn = false;
 	ClearCampaignOverride();
@@ -1396,115 +1363,6 @@ void UYogGameInstanceBase::ClearPendingTransitionFields()
 
 
 
-
-
-void UYogGameInstanceBase::SetPendingRoomRewardOptionsOverride(const TArray<FLootOption>& InOptions)
-{
-	PendingRoomRewardOptionsOverride = InOptions;
-	bHasPendingRoomRewardOptionsOverride = true;
-
-	UE_LOG(LogTemp, Log, TEXT("[StoryRewardDebug] GI SetPendingRoomRewardOptionsOverride Options=%s"),
-		*DescribeGameInstanceLootOptionsForRewardDebug(PendingRoomRewardOptionsOverride));
-}
-
-void UYogGameInstanceBase::ClearPendingRoomRewardOptionsOverride()
-{
-	if (bHasPendingRoomRewardOptionsOverride || !PendingRoomRewardOptionsOverride.IsEmpty())
-	{
-		UE_LOG(LogTemp, Log, TEXT("[StoryRewardDebug] GI ClearPendingRoomRewardOptionsOverride OldOptions=%s"),
-			*DescribeGameInstanceLootOptionsForRewardDebug(PendingRoomRewardOptionsOverride));
-	}
-
-	bHasPendingRoomRewardOptionsOverride = false;
-	PendingRoomRewardOptionsOverride.Reset();
-}
-
-bool UYogGameInstanceBase::ConsumePendingRoomRewardOptionsOverride(TArray<FLootOption>& OutOptions)
-{
-	if (!bHasPendingRoomRewardOptionsOverride)
-	{
-		OutOptions.Reset();
-		UE_LOG(LogTemp, Log, TEXT("[StoryRewardDebug] GI ConsumePendingRoomRewardOptionsOverride no pending override."));
-		return false;
-	}
-
-	OutOptions = PendingRoomRewardOptionsOverride;
-	UE_LOG(LogTemp, Log, TEXT("[StoryRewardDebug] GI ConsumePendingRoomRewardOptionsOverride consuming Options=%s"),
-		*DescribeGameInstanceLootOptionsForRewardDebug(OutOptions));
-	ClearPendingRoomRewardOptionsOverride();
-	return true;
-}
-
-bool UYogGameInstanceBase::GetPendingRoomRewardOptionsOverride(TArray<FLootOption>& OutOptions) const
-{
-	if (!bHasPendingRoomRewardOptionsOverride)
-	{
-		OutOptions.Reset();
-		return false;
-	}
-
-	OutOptions = PendingRoomRewardOptionsOverride;
-	return true;
-}
-
-void UYogGameInstanceBase::SetPendingStoryNextRoomPlan(const FStoryNextRoomPlan& InPlan)
-{
-	PendingStoryNextRoomPlan = InPlan;
-	bHasPendingStoryNextRoomPlan = InPlan.HasAnyOverride();
-
-	if (InPlan.bOverrideRewardOptions)
-	{
-		SetPendingRoomRewardOptionsOverride(InPlan.RewardOptionsOverride);
-	}
-
-	UE_LOG(LogTemp, Log,
-		TEXT("[StoryNextRoomPlan] Set Pending=%d Room=%s RewardOverride=%d RewardCount=%d BuffOverride=%d BuffCount=%d"),
-		bHasPendingStoryNextRoomPlan ? 1 : 0,
-		*GetNameSafe(InPlan.RoomDataOverride.Get()),
-		InPlan.bOverrideRewardOptions ? 1 : 0,
-		InPlan.RewardOptionsOverride.Num(),
-		InPlan.bOverrideBuffs ? 1 : 0,
-		InPlan.BuffsOverride.Num());
-
-}
-
-void UYogGameInstanceBase::ClearPendingStoryNextRoomPlan()
-{
-	if (bHasPendingStoryNextRoomPlan)
-	{
-		UE_LOG(LogTemp, Log,
-			TEXT("[StoryNextRoomPlan] Cleared Room=%s"),
-			*GetNameSafe(PendingStoryNextRoomPlan.RoomDataOverride.Get()));
-	}
-
-	bHasPendingStoryNextRoomPlan = false;
-	PendingStoryNextRoomPlan = FStoryNextRoomPlan();
-}
-
-bool UYogGameInstanceBase::ConsumePendingStoryNextRoomPlan(FStoryNextRoomPlan& OutPlan)
-{
-	if (!bHasPendingStoryNextRoomPlan)
-	{
-		OutPlan = FStoryNextRoomPlan();
-		return false;
-	}
-
-	OutPlan = PendingStoryNextRoomPlan;
-	ClearPendingStoryNextRoomPlan();
-	return true;
-}
-
-bool UYogGameInstanceBase::GetPendingStoryNextRoomPlan(FStoryNextRoomPlan& OutPlan) const
-{
-	if (!bHasPendingStoryNextRoomPlan)
-	{
-		OutPlan = FStoryNextRoomPlan();
-		return false;
-	}
-
-	OutPlan = PendingStoryNextRoomPlan;
-	return true;
-}
 
 
 void UYogGameInstanceBase::SetCampaignOverride(UCampaignDataAsset* InCampaignData)

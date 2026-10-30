@@ -5,6 +5,7 @@
 
 #include "BehaviorTree/BlackboardData.h"
 #include "BehaviorTree/BlackboardComponent.h"
+#include "AbilitySystemComponent.h"
 #include "BrainComponent.h"
 #include "DrawDebugHelpers.h"
 #include "Character/EnemyCharacterBase.h"
@@ -367,6 +368,16 @@ void AYogAIController::EnterCombat(AActor* TargetActor, bool bBroadcastAlert)
 			*TargetLocation.ToCompactString(),
 			bBroadcastAlert ? 1 : 0);
 	}
+
+	// Runs last so the new state is already readable. Edge only, so a trait that pulls its swarm-mates into
+	// Combat from here cannot loop back on enemies that are already fighting.
+	if (PreviousState != EEnemyAIState::Combat)
+	{
+		if (AEnemyCharacterBase* Enemy = Cast<AEnemyCharacterBase>(GetPawn()))
+		{
+			Enemy->NotifyTraitsEnteredCombat();
+		}
+	}
 }
 
 void AYogAIController::EnterAlert(AActor* TargetActor, FVector AlertLocation, bool bBroadcastAlert)
@@ -413,6 +424,14 @@ void AYogAIController::EnterAlert(AActor* TargetActor, FVector AlertLocation, bo
 			*AlertLocation.ToCompactString(),
 			CurrentTime + Tuning.AlertDuration,
 			bBroadcastAlert ? 1 : 0);
+	}
+}
+
+void AYogAIController::SendStateTreeEvent(FGameplayTag EventTag)
+{
+	if (StateTreeComponent && StateTreeComponent->IsRunning())
+	{
+		StateTreeComponent->SendStateTreeEvent(EventTag);
 	}
 }
 
@@ -1029,6 +1048,23 @@ bool AYogAIController::UpdateAwarenessBlackboard(
 		YogAIController_DrawAwarenessShape(GetWorld(), *ControlledPawn, Tuning);
 	}
 #endif
+
+	// A frenzied enemy that is already in Combat never de-aggros: the vision / cone / exit-radius rules below
+	// would otherwise drop a swarm-mate pulled in from far away back to Alert and out of the Combat subtree.
+	// An enemy that is not in Combat is left to normal awareness; the trait pulls it in when a mate engages.
+	static const FGameplayTag TAG_Frenzy = FGameplayTag::RequestGameplayTag(TEXT("Enemy.State.Frenzy"));
+	const AEnemyCharacterBase* EnemyPawn = Cast<AEnemyCharacterBase>(ControlledPawn);
+	const UAbilitySystemComponent* PawnASC = EnemyPawn ? EnemyPawn->GetAbilitySystemComponent() : nullptr;
+	const bool bFrenzied = PawnASC && PawnASC->HasMatchingGameplayTag(TAG_Frenzy);
+	if (bFrenzied && CurrentState == EEnemyAIState::Combat)
+	{
+		if (APawn* FrenzyTarget = UGameplayStatics::GetPlayerPawn(this, 0))
+		{
+			EnterCombat(FrenzyTarget, false);
+			return true;
+		}
+	}
+
 	const float CombatExitRadius = Tuning.CombatExitRadius > 0.0f
 		? Tuning.CombatExitRadius
 		: Tuning.DetectionRadius + 300.0f;
@@ -1076,7 +1112,12 @@ bool AYogAIController::UpdateAwarenessBlackboard(
 			InBlackboard->SetValueAsVector(LastKnownTargetLocationKeyName, PlayerPawn->GetActorLocation());
 			InBlackboard->SetValueAsFloat(LastSeenTargetTimeKeyName, CurrentTime);
 
-			if (CurrentState == EEnemyAIState::Combat)
+			// A frenzied swarm does not hesitate: no notice delay and no CombatEnterRadius gate.
+			if (CurrentState != EEnemyAIState::Combat && bFrenzied)
+			{
+				EnterCombat(PlayerPawn, true);
+			}
+			else if (CurrentState == EEnemyAIState::Combat)
 			{
 				if (DistanceToPlayer <= CombatExitRadius || bCombatAttackInProgress)
 				{

@@ -204,7 +204,6 @@ void AYogHUD::BeginPlay()
 	}
 
 	EnsureCurrentRoomBuffWidget();
-	RefreshCurrentRoomBuffsFromGameMode();
 
 	// Attribute 绑定：若 Pawn 已就绪则立即绑；否则等 OnPossessedPawnChanged
 	if (APawn* Pawn = GetOwningPawn())
@@ -922,17 +921,6 @@ void AYogHUD::EnsureCurrentRoomBuffWidget()
 		CurrentRoomBuffWidget->SetAlignmentInViewport(FVector2D(0.f, 0.f));
 		CurrentRoomBuffWidget->SetPositionInViewport(CurrentRoomBuffFallbackPosition, false);
 	}
-}
-
-void AYogHUD::RefreshCurrentRoomBuffsFromGameMode()
-{
-	AYogGameMode* GM = GetWorld() ? Cast<AYogGameMode>(GetWorld()->GetAuthGameMode()) : nullptr;
-	if (!GM)
-	{
-		return;
-	}
-
-	ShowCurrentRoomBuffs(GM->GetActiveRoomData(), GM->GetActiveRoomBuffs());
 }
 
 void AYogHUD::TriggerWeaponPickup(const UWeaponDefinition* Def, FVector2D StartScreenPos)

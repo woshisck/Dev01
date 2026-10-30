@@ -15,7 +15,7 @@ class DEVKIT_API USNode_SetQuestObjective : public USNode_Base
 	GENERATED_UCLASS_BODY()
 
 public:
-	/** 任务 Tag（唯一标识，例如 Quest.FirstRun.FindWeapon）。 */
+	/** 任务 Tag（唯一标识，例如 Quest.MemoryTutorial.Move）。 */
 	UPROPERTY(EditAnywhere, Category = "Quest", meta = (Categories = "Quest"))
 	FGameplayTag QuestTaskId;
 

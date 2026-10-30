@@ -153,26 +153,6 @@ bool SDevKitSceneRoomConfigWidget::IsHandleEditable(TSharedPtr<IPropertyHandle> 
 	{
 		return false;
 	}
-	// Standalone value widgets do not provide a DA category's edit-condition wrapper.
-	// Retain the existing RoomData conditions for child fields and array controls.
-	for (TSharedPtr<IPropertyHandle> Current = Handle; Current.IsValid(); Current = Current->GetParentHandle())
-	{
-		const FProperty* Property = Current->GetProperty();
-		if (!Property)
-		{
-			continue;
-		}
-		const FName Name = Property->GetFName();
-		if (Name == TEXT("SpecialRewardEnemyClass") || Name == TEXT("SpecialRewardEnemyPreSpawnFX")
-			|| Name == TEXT("SpecialRewardEnemyPreSpawnFXDuration"))
-		{
-			return Room->bSpawnSpecialRewardEnemy;
-		}
-		if (Name == TEXT("FixedRewardOptions"))
-		{
-			return Room->bUseFixedRewardOptions;
-		}
-	}
 	return true;
 }
 
@@ -371,46 +351,8 @@ TSharedRef<SWidget> SDevKitSceneRoomConfigWidget::BuildDefaults()
 					LOCTEXT("RoomNameHint", "程序按此名称加载地图；修改前请确认对应地图名称。"))]
 				+ SVerticalBox::Slot().AutoHeight()[MakeField(TEXT("DisplayName"), LOCTEXT("DisplayName", "玩家可见名称"))]
 				+ SVerticalBox::Slot().AutoHeight()[MakeField(TEXT("RoomTags"), LOCTEXT("RoomTags", "房间类型 / 层级标签"),
-					LOCTEXT("RoomTagsHint", "类型与层级共同参与 Campaign 的房间筛选。"))]
-				+ SVerticalBox::Slot().AutoHeight()[MakeField(TEXT("bIsHubRoom"), LOCTEXT("HubRoom", "主城 / 枢纽"),
-					LOCTEXT("HubRoomHint", "枢纽不执行波次刷怪，直接开启已配置传送门。"))],
+					LOCTEXT("RoomTagsHint", "类型与层级共同参与 Campaign 的房间筛选。"))],
 			DevKitSceneRoomConfig::DefaultsAccent)];
-}
-
-TSharedRef<SWidget> SDevKitSceneRoomConfigWidget::MakeDifficulty()
-{
-	const TSharedRef<SUniformGridPanel> Grid = SNew(SUniformGridPanel).SlotPadding(FMargin(6, 5));
-	const FName Tiers[] = {TEXT("LowDifficulty"), TEXT("MediumDifficulty"), TEXT("HighDifficulty")};
-	const FText TierLabels[] = {LOCTEXT("Low", "低难度"), LOCTEXT("Medium", "中难度"), LOCTEXT("High", "高难度")};
-	const TArray<FFieldColumn> Fields = {
-		{TEXT("MaxWaveCount"), LOCTEXT("MaxWaves", "最大波次数")},
-		{TEXT("MaxEnemiesPerWave"), LOCTEXT("MaxWaveEnemies", "单波最大敌人数 · 0 无限制")},
-		{TEXT("MaxEnemiesPerLevel"), LOCTEXT("MaxLevelEnemies", "本关最大敌人数 · 0 无限制")},
-		{TEXT("GoldMin"), LOCTEXT("GoldMin", "结算金币最小值")},
-		{TEXT("GoldMax"), LOCTEXT("GoldMax", "结算金币最大值")},
-		{TEXT("BuffCount"), LOCTEXT("BuffCount", "从 Buff 池选取数量")},
-		{TEXT("CommonWeight"), LOCTEXT("CommonWeight", "普通奖励权重")},
-		{TEXT("RareWeight"), LOCTEXT("RareWeight", "稀有奖励权重")},
-		{TEXT("EpicWeight"), LOCTEXT("EpicWeight", "史诗奖励权重")},
-	};
-	for (int32 TierIndex = 0; TierIndex < 3; ++TierIndex)
-	{
-		Grid->AddSlot(TierIndex + 1, 0)[SNew(STextBlock).Text(TierLabels[TierIndex])
-			.Font(FAppStyle::GetFontStyle("NormalFontBold"))
-			.ColorAndOpacity(DevKitSceneRoomConfig::GameplayAccent)];
-	}
-	for (int32 RowIndex = 0; RowIndex < Fields.Num(); ++RowIndex)
-	{
-		Grid->AddSlot(0, RowIndex + 1).VAlign(VAlign_Center)
-			[SNew(STextBlock).Text(Fields[RowIndex].Label).AutoWrapText(true)];
-		for (int32 TierIndex = 0; TierIndex < 3; ++TierIndex)
-		{
-			const TSharedPtr<IPropertyHandle> Tier = FindHandle(Tiers[TierIndex]);
-			Grid->AddSlot(TierIndex + 1, RowIndex + 1).VAlign(VAlign_Center)
-				[MakeValue(Tier.IsValid() ? Tier->GetChildHandle(Fields[RowIndex].Name) : nullptr)];
-		}
-	}
-	return Grid;
 }
 
 TSharedRef<SWidget> SDevKitSceneRoomConfigWidget::MakePortals()
@@ -424,85 +366,18 @@ TSharedRef<SWidget> SDevKitSceneRoomConfigWidget::MakePortals()
 
 TSharedRef<SWidget> SDevKitSceneRoomConfigWidget::BuildGameplay()
 {
+	// Mobs and doors are owned by the map's AYogRoomDirector and its Lua module, not by RoomData.
 	const TSharedRef<SVerticalBox> Cards = SNew(SVerticalBox);
 	Cards->AddSlot().AutoHeight().Padding(0, 0, 0, 10)
-		[MakeCard(LOCTEXT("EnemiesTitle", "敌人刷新"),
-			LOCTEXT("EnemiesDescription", "选择敌人数据和本关出现上限。波次方式由现有运行时逻辑决定，-1 表示不限制。"),
-			MakeArray(FindHandle(TEXT("EnemyPool")), LOCTEXT("EnemyEntries", "敌人池"), {
-				{TEXT("EnemyData"), LOCTEXT("EnemyData", "敌人数据"), 3.0f},
-				{TEXT("MaxCountPerLevel"), LOCTEXT("EnemyMaxCount", "本关最大数量"), 1.0f}}),
+		[MakeCard(LOCTEXT("RoomFlowTitle", "房间流程"),
+			LOCTEXT("RoomFlowDescription", "敌人刷新与开门由地图中的 AYogRoomDirector 及其 Lua 模块负责。"),
+			DevKitSceneRoomConfig::Note(LOCTEXT("RoomFlowNote",
+				"在场景中放置 MobSpawner 和 RoomDirector，并在 Details 里指定 Lua Module；RoomData 不再保存刷怪、奖励或商店配置。")),
 			DevKitSceneRoomConfig::GameplayAccent)];
-	Cards->AddSlot().AutoHeight().Padding(0, 0, 0, 10)
-		[MakeCard(LOCTEXT("DifficultyTitle", "难度与关卡奖励"),
-			LOCTEXT("DifficultyDescription", "三个档位并列比较；选档仍由 Campaign 难度预算与 GameMode 阈值决定。"),
-			MakeDifficulty(), DevKitSceneRoomConfig::GameplayAccent)];
-	Cards->AddSlot().AutoHeight().Padding(0, 0, 0, 10)
-		[MakeCard(LOCTEXT("BuffsTitle", "房间 Buff"),
-			LOCTEXT("BuffsDescription", "进入关卡后从此池选取 Buff 施加给敌人；数量来自上方难度档位。概率为 0–1。"),
-			MakeArray(FindHandle(TEXT("BuffPool")), LOCTEXT("BuffEntries", "Buff 池"), {
-				{TEXT("RuneDA"), LOCTEXT("BuffData", "符文 / Buff 数据"), 3.0f},
-				{TEXT("DifficultyScore"), LOCTEXT("BuffDifficulty", "难度分"), 1.0f},
-				{TEXT("ApplyChance"), LOCTEXT("BuffProbability", "施加概率"), 1.0f}}),
-			DevKitSceneRoomConfig::GameplayAccent)];
-	Cards->AddSlot().AutoHeight().Padding(0, 0, 0, 10)
-		[MakeCard(LOCTEXT("LootTitle", "结算掉落物"),
-			LOCTEXT("LootDescription", "此处配置关卡奖励池；不替代每种敌人自己定义的击杀掉落。"),
-			MakeArray(FindHandle(TEXT("LootPool")), LOCTEXT("LootEntries", "玩家战利品池")),
-			DevKitSceneRoomConfig::RewardsAccent)];
 	Cards->AddSlot().AutoHeight().Padding(0, 0, 0, 10)
 		[MakeCard(LOCTEXT("PortalsTitle", "传送门与关卡去向"),
 			LOCTEXT("PortalsDescription", "使用当前场景传送门流程；关卡去向不再保存在 RoomData 中。"),
 			MakePortals(), DevKitSceneRoomConfig::DefaultsAccent)];
-	Cards->AddSlot().AutoHeight().Padding(0, 0, 0, 10)
-		[MakeCard(LOCTEXT("SpecialEnemyTitle", "特殊奖励敌人"),
-			LOCTEXT("SpecialEnemyDescription", "教程 / 特殊房间的额外敌人，不改变普通敌人池。"),
-			SNew(SVerticalBox)
-				+ SVerticalBox::Slot().AutoHeight()[MakeField(TEXT("bSpawnSpecialRewardEnemy"), LOCTEXT("EnableSpecialEnemy", "启用额外敌人"))]
-				+ SVerticalBox::Slot().AutoHeight()[MakeField(TEXT("SpecialRewardEnemyClass"), LOCTEXT("SpecialEnemyClass", "敌人 Actor 类"))]
-				+ SVerticalBox::Slot().AutoHeight()[MakeField(TEXT("SpecialRewardEnemyPreSpawnFX"), LOCTEXT("SpecialEnemyFX", "刷新前特效"))]
-				+ SVerticalBox::Slot().AutoHeight()[MakeField(TEXT("SpecialRewardEnemyPreSpawnFXDuration"), LOCTEXT("SpecialEnemyFXDuration", "特效时长 · 秒"))],
-			DevKitSceneRoomConfig::GameplayAccent, true)];
-	Cards->AddSlot().AutoHeight().Padding(0, 0, 0, 10)
-		[MakeCard(LOCTEXT("EventTitle", "事件与祭坛"),
-			LOCTEXT("EventDescription", "限时清房任务和献祭事件资源配置。"),
-			SNew(SVerticalBox)
-				+ SVerticalBox::Slot().AutoHeight()[MakeField(TEXT("bEnableTimedClearObjective"), LOCTEXT("EnableTimedClear", "启用限时清房"))]
-				+ SVerticalBox::Slot().AutoHeight()[MakeField(TEXT("TimedClearSeconds"), LOCTEXT("TimedClearSeconds", "清房时间 · 秒"))]
-				+ SVerticalBox::Slot().AutoHeight()[MakeField(TEXT("SacrificeEventAltarData"), LOCTEXT("SacrificeData", "献祭事件数据"))]
-				+ SVerticalBox::Slot().AutoHeight()[MakeField(TEXT("SacrificeEventAltarClass"), LOCTEXT("SacrificeActor", "祭坛 Actor 类"))]
-				+ SVerticalBox::Slot().AutoHeight()[MakeField(TEXT("SacrificeEventWidgetClass"), LOCTEXT("SacrificeWidget", "献祭界面类"))]
-				+ SVerticalBox::Slot().AutoHeight()[MakeField(TEXT("SacrificeEventAltarSpawnOffset"), LOCTEXT("SacrificeOffset", "祭坛生成偏移"))],
-			DevKitSceneRoomConfig::GameplayAccent, true)];
-	Cards->AddSlot().AutoHeight().Padding(0, 0, 0, 10)
-		[MakeCard(LOCTEXT("ShopTitle", "商店配置"),
-			LOCTEXT("ShopDescription", "商店物品、场景 Actor 与展示界面。"),
-			SNew(SVerticalBox)
-				+ SVerticalBox::Slot().AutoHeight()[MakeField(TEXT("ShopData"), LOCTEXT("ShopData", "商店库存数据"))]
-				+ SVerticalBox::Slot().AutoHeight()[MakeField(TEXT("ShopActorClass"), LOCTEXT("ShopActorClass", "商店 Actor 类"))]
-				+ SVerticalBox::Slot().AutoHeight()[MakeField(TEXT("ShopWidgetClass"), LOCTEXT("ShopWidgetClass", "商店界面类"))]
-				+ SVerticalBox::Slot().AutoHeight()[MakeField(TEXT("ShopSpawnOffset"), LOCTEXT("ShopSpawnOffset", "商店生成偏移"))],
-			DevKitSceneRoomConfig::DefaultsAccent, true)];
-	Cards->AddSlot().AutoHeight().Padding(0, 0, 0, 10)
-		[MakeCard(LOCTEXT("FixedRewardsTitle", "固定奖励 / 教程覆盖"),
-			LOCTEXT("FixedRewardsDescription", "启用后按指定条目提供奖励选项；不启用时保留正常奖励流程。"),
-			SNew(SVerticalBox)
-				+ SVerticalBox::Slot().AutoHeight()[MakeField(TEXT("bUseFixedRewardOptions"), LOCTEXT("EnableFixedRewards", "使用固定奖励选项"))]
-				+ SVerticalBox::Slot().AutoHeight().Padding(0, 6)
-				[MakeArray(FindHandle(TEXT("FixedRewardOptions")), LOCTEXT("FixedRewardEntries", "固定奖励"), {
-					{TEXT("LootType"), LOCTEXT("RewardType", "类型"), 1.0f},
-					{TEXT("RuneAsset"), LOCTEXT("RewardRune", "符文资产"), 2.0f},
-					{TEXT("Amount"), LOCTEXT("RewardAmount", "数量"), 0.8f},
-					{TEXT("MetaCurrencyTag"), LOCTEXT("RewardCurrency", "货币 Tag"), 1.5f},
-					{TEXT("DisplayName"), LOCTEXT("RewardName", "显示名称"), 1.2f},
-					{TEXT("Icon"), LOCTEXT("RewardIcon", "图标"), 1.5f}})],
-			DevKitSceneRoomConfig::RewardsAccent, true)];
-	Cards->AddSlot().AutoHeight().Padding(0, 0, 0, 10)
-		[MakeCard(LOCTEXT("MetaRewardsTitle", "局外成长货币奖励"),
-			LOCTEXT("MetaRewardsDescription", "清房后发放。按货币 Tag 与数量配置；枢纽房间通常留空。"),
-			MakeArray(FindHandle(TEXT("MetaCurrencyRewards")), LOCTEXT("MetaRewardEntries", "货币奖励"), {
-				{TEXT("CurrencyTag"), LOCTEXT("CurrencyTag", "货币 Tag"), 3.0f},
-				{TEXT("Amount"), LOCTEXT("CurrencyAmount", "数量"), 1.0f}}),
-			DevKitSceneRoomConfig::RewardsAccent, true)];
 	return SNew(SScrollBox) + SScrollBox::Slot()[Cards];
 }
 

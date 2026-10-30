@@ -5,6 +5,7 @@
 #include "AI/StateTree/YogStateTreeShared.h"
 #include "Conditions/StateTreeAIConditionBase.h"
 #include "Data/EnemyData.h"
+#include "GameplayTagContainer.h"
 #include "YogStateTreeConditions.generated.h"
 
 class AAIController;
@@ -299,6 +300,36 @@ struct DEVKIT_API FStateTreeCondition_TargetBeyond2DDistance : public FStateTree
 	GENERATED_BODY()
 
 	using FInstanceDataType = FStateTreeCondition_TargetBeyond2DDistanceInstanceData;
+
+	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
+	virtual bool TestCondition(FStateTreeExecutionContext& Context) const override;
+};
+
+// ─── Self Has Gameplay Tag ──────────────────────────────────────────────────
+// Passes when the controlled pawn's ASC carries Tag (loose tags count, e.g. Enemy.State.Frenzy set by an
+// enemy trait). bInvert passes when the tag is absent instead, which StateTree has no other way to express.
+
+USTRUCT()
+struct FStateTreeCondition_SelfHasGameplayTagInstanceData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = Context)
+	TObjectPtr<AAIController> AIController = nullptr;
+
+	UPROPERTY(EditAnywhere, Category = Parameter)
+	FGameplayTag Tag;
+
+	UPROPERTY(EditAnywhere, Category = Parameter)
+	bool bInvert = false;
+};
+
+USTRUCT(meta = (DisplayName = "Self Has Gameplay Tag", Category = "Yog|AI"))
+struct DEVKIT_API FStateTreeCondition_SelfHasGameplayTag : public FStateTreeAIConditionBase
+{
+	GENERATED_BODY()
+
+	using FInstanceDataType = FStateTreeCondition_SelfHasGameplayTagInstanceData;
 
 	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
 	virtual bool TestCondition(FStateTreeExecutionContext& Context) const override;

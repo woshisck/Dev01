@@ -166,15 +166,8 @@ public:
 			return MakeTextCell(TEXT("-"));
 		}
 
-		int32 EventTagCount = 0;
-		for (const FFloorConfig& FloorConfig : Campaign->FloorTable)
-		{
-			EventTagCount += FloorConfig.StoryEventTags.Num();
-		}
-
 		if (ColumnName == TEXT("Campaign")) return MakeTextCell(Campaign->GetName(), Campaign->GetPathName());
-		if (ColumnName == TEXT("Floors")) return MakeTextCell(FString::FromInt(Campaign->FloorTable.Num()));
-		if (ColumnName == TEXT("Events")) return MakeTextCell(FString::FromInt(EventTagCount));
+		if (ColumnName == TEXT("Rooms")) return MakeTextCell(FString::FromInt(Campaign->RoomPool.Num()));
 		if (ColumnName == TEXT("Actions"))
 		{
 			return SNew(SButton)
@@ -345,8 +338,7 @@ void SStoryEventWorkbenchWidget::Construct(const FArguments& InArgs)
 						.HeaderRow(
 							SNew(SHeaderRow)
 							+ SHeaderRow::Column(TEXT("Campaign")).DefaultLabel(LOCTEXT("CampaignColumn", "Campaign")).FillWidth(0.55f)
-							+ SHeaderRow::Column(TEXT("Floors")).DefaultLabel(LOCTEXT("FloorsColumn", "F")).FixedWidth(30.f)
-							+ SHeaderRow::Column(TEXT("Events")).DefaultLabel(LOCTEXT("EventsColumn", "E")).FixedWidth(30.f)
+							+ SHeaderRow::Column(TEXT("Rooms")).DefaultLabel(LOCTEXT("RoomsColumn", "R")).FixedWidth(30.f)
 							+ SHeaderRow::Column(TEXT("Actions")).DefaultLabel(LOCTEXT("CampaignActionsColumn", "")).FixedWidth(58.f)
 						)
 					]
@@ -417,28 +409,7 @@ void SStoryEventWorkbenchWidget::RebuildStageEventRows()
 {
 	StageEventRows.Reset();
 
-	UCampaignDataAsset* Campaign = SelectedCampaignRow.IsValid() ? SelectedCampaignRow->Campaign.Get() : nullptr;
-	UStoryEventRegistryDA* Registry = SelectedRegistryRow.IsValid() ? SelectedRegistryRow->Registry.Get() : nullptr;
-	if (Campaign)
-	{
-		for (int32 FloorIndex = 0; FloorIndex < Campaign->FloorTable.Num(); ++FloorIndex)
-		{
-			const FFloorConfig& FloorConfig = Campaign->FloorTable[FloorIndex];
-			TArray<FGameplayTag> EventTags;
-			FloorConfig.StoryEventTags.GetGameplayTagArray(EventTags);
-			for (const FGameplayTag& EventTag : EventTags)
-			{
-				FStageEventRowPtr Row = MakeShared<FStoryStageEventRow>();
-				Row->Campaign = Campaign;
-				Row->FloorIndex = FloorIndex;
-				Row->StageTag = FloorConfig.GlobalStageTag;
-				Row->EventTag = EventTag;
-				Row->bConfigured = IsEventConfigured(Registry, EventTag);
-				StageEventRows.Add(Row);
-			}
-		}
-	}
-
+	// Campaign floors no longer carry story event tags, so there are no stage rows to list.
 	if (StageEventListView)
 	{
 		StageEventListView->RequestListRefresh();

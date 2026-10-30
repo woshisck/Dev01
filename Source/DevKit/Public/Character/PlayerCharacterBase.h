@@ -284,7 +284,7 @@ public:
 	UPROPERTY()
 	TObjectPtr<AWeaponSpawner> EquippedFromSpawner;
 
-	// 将符文加入待放置列表（由 GameMode 的 SelectLoot 调用）
+	// 将符文加入待放置列表（由 UYogLootSubsystem::GrantLoot 调用）
 	UFUNCTION(BlueprintCallable, Category = "Backpack")
 	void AddRuneToInventory(const FRuneInstance& Rune);
 

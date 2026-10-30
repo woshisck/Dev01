@@ -8,6 +8,7 @@
 #include "AbilitySystem/Attribute/EnemyAttributeSet.h"
 
 #include "Data/EnemyData.h"
+#include "Data/EnemyTrait.h"
 #include "EnemyCharacterBase.generated.h"
 
 class ARewardPickup;
@@ -92,6 +93,14 @@ public:
 	virtual const UWeaponDefinitionBase* GetEffectiveWeaponDefinition() const override;
 	virtual AWeaponInstance* GetEquippedWeaponActor() const override;
 
+	/** Per-enemy state for a trait; trait assets are shared between enemies and cannot hold it themselves. */
+	FEnemyTraitRuntime& FindOrAddTraitRuntime(const UEnemyTrait* Trait);
+	FEnemyTraitRuntime* FindTraitRuntime(const UEnemyTrait* Trait);
+	void RemoveTraitRuntime(const UEnemyTrait* Trait);
+
+	/** Lets every trait react to this enemy entering Combat; called by AYogAIController on the edge into Combat. */
+	void NotifyTraitsEnteredCombat();
+
 	void SetAIAttackRuntimeContext(
 		bool bIsReposition,
 		bool bRequestRepositionOnResolve,
@@ -108,6 +117,11 @@ protected:
 	void OnReceivedDamageForAI(UYogAbilitySystemComponent* SourceASC, float Damage);
 
 	void DestroySpawnedEnemyWeaponActors();
+
+	void ActivateTraits();
+	void DeactivateTraits();
+
+	TMap<TObjectKey<UEnemyTrait>, FEnemyTraitRuntime> TraitRuntimes;
 
 	/** Rolls UEnemyData::KillRewards into the pending loot arrays and decides whether the body stays as a lootable corpse. */
 	void RollKillRewards();

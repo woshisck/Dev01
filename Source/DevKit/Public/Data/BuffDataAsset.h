@@ -10,7 +10,7 @@
  *
  * 命名规范：DA_Buff_<效果名>，例：DA_Buff_ArmorBreak、DA_Buff_Frenzy
  *
- * 关卡结算时从 RoomDataAsset.BuffPool 随机选取若干条目，
+ * 关卡 Buff 条目，
  * 施加给本关刷出的所有敌人。
  */
 UCLASS(BlueprintType)

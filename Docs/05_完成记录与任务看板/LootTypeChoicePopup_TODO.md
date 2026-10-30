@@ -6,7 +6,7 @@
 | Audience | Programmers (implementation), designers (configuration), UI (WBP) |
 | Related docs | [LootSelection_Technical.md](../04_开发实现与系统文档/系统/UI/LootSelection_Technical.md), [EnemyLootableCorpse_TODO.md](EnemyLootableCorpse_TODO.md) |
 | Last updated | 2026-10-27 |
-| Status | **Not started** — plan only, not yet executed |
+| Status | **C++ done, not compile-verified** — editor asset setup (section 5) still pending |
 
 ## Requirement
 
@@ -53,7 +53,7 @@ Hold E → ARewardPickup::TryPickup()
 
 ### 1. Choice struct (`Public/GameModes/LevelFlowTypes.h`)
 
-- [ ] Add `USTRUCT(BlueprintType) FLootTypeChoice`
+- [x] Add `USTRUCT(BlueprintType) FLootTypeChoice`
 
 | Field | Type | Notes |
 | --- | --- | --- |
@@ -65,34 +65,34 @@ Hold E → ARewardPickup::TryPickup()
 
 ### 2. Screen ID (`Public/UI/YogUIRegistry.h`)
 
-- [ ] Append `LootTypeChoice` to the end of `EYogUIScreenId` (after `BubbleMessage`)
+- [x] Append `LootTypeChoice` to the end of `EYogUIScreenId` (after `BubbleMessage`)
       — the enum is serialized as uint8 inside the registry asset, **never insert in the middle**
 
 ### 3. Pickup (`Public/Map/RewardPickup.h` / `Private/Map/RewardPickup.cpp`)
 
-- [ ] New config (same pattern as `bUseFixedLootOptions` / `FixedLootOptions`):
+- [x] New config (same pattern as `bUseFixedLootOptions` / `FixedLootOptions`):
   - `UPROPERTY(EditAnywhere) bool bOfferLootTypeChoice = false;`
   - `UPROPERTY(EditAnywhere, meta = (EditCondition = "bOfferLootTypeChoice")) TArray<FLootTypeChoice> LootTypeChoices;`
-- [ ] At the top of `TryPickup()`: when the flag is on and `LootTypeChoices` is not empty,
+- [x] At the top of `TryPickup()`: when the flag is on and `LootTypeChoices` is not empty,
       `EnsureWidget` → `Setup` → `PushScreen(LootTypeChoice)`, then return
-- [ ] Add `ResolveLootTypeChoice(int32 Index, APlayerCharacterBase* Player)`:
+- [x] Add `ResolveLootTypeChoice(int32 Index, APlayerCharacterBase* Player)`:
 
 | Choice | Handling |
 | --- | --- |
 | `Rune` | `GM->GenerateIndependentLootOptions()` → `HUD->QueueLootSelection(Options, this)` |
 | `Gold` / `Material` / `WeaponSkill` | Build a single `FLootOption` → `GrantImmediateLoot()` → `ConsumeAndDestroy()` on success |
 
-- [ ] `OnPlayerLeaveRange()`: `PopScreen(LootTypeChoice)` if the popup is open (same as `AShopActor::OnPlayerEndOverlap`)
+- [x] `OnPlayerLeaveRange()`: `PopScreen(LootTypeChoice)` if the popup is open (same as `AShopActor::OnPlayerEndOverlap`)
 
 ### 4. Popup widget (new `Public/UI/LootTypeChoiceWidget.h` / `Private/UI/LootTypeChoiceWidget.cpp`)
 
-- [ ] Derive from `UCommonActivatableWidget`
-- [ ] `Setup(ARewardPickup* Pickup, APlayerCharacterBase* Player)`; hold the pickup as `TWeakObjectPtr`
-- [ ] `BindWidgetOptional` container; build one button per entry in `LootTypeChoices`
-- [ ] `GetDesiredFocusTarget()` returns the first button (gamepad focus)
-- [ ] Button click → `Pickup->ResolveLootTypeChoice(Index, Player)` → close
-- [ ] Back / Esc → `Pickup->ResetForSkip(Player)` → close
-- [ ] Close via `UYogUIManagerSubsystem::PopManagedScreen(this, EYogUIScreenId::LootTypeChoice)`,
+- [x] Derive from `UCommonActivatableWidget`
+- [x] `Setup(ARewardPickup* Pickup, APlayerCharacterBase* Player)`; hold the pickup as `TWeakObjectPtr`
+- [x] `BindWidgetOptional` container; build one button per entry in `LootTypeChoices`
+- [x] `GetDesiredFocusTarget()` returns the first button (gamepad focus)
+- [x] Button click → `Pickup->ResolveLootTypeChoice(Index, Player)` → close
+- [x] Back / Esc → `Pickup->ResetForSkip(Player)` → close
+- [x] Close via `UYogUIManagerSubsystem::PopManagedScreen(this, EYogUIScreenId::LootTypeChoice)`,
       falling back to `DeactivateWidget()` (same as `ULootSelectionWidget::SkipSelection`)
 
 ### 5. Content setup (editor)
@@ -113,7 +113,7 @@ Hold E → ARewardPickup::TryPickup()
 
 ### 6. Docs
 
-- [ ] Add the type-choice step to `LootSelection_Technical.md`
+- [x] Add the type-choice step to `LootSelection_Technical.md`
 
 ## Caveats
 

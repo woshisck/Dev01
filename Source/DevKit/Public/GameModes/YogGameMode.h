@@ -11,7 +11,6 @@
 #include "Data/CampaignDataAsset.h"
 #include "Data/RoomDataAsset.h"
 #include "Data/SacrificeGraceDA.h"
-#include "Story/StoryNextRoomPlanTypes.h"
 #include "Containers/Ticker.h"
 #include "YogGameMode.generated.h"
 
@@ -21,34 +20,25 @@ class UYogGameInstanceBase;
 class UYogSaveGame;
 class AEnemyCharacterBase;
 class APortal;
-class ARewardPickup;
-class AAltarActor;
-class AShopActor;
 class AYogCharacterBase;
-class ULootSelectionWidget;
 class ULevelFlowAsset;
 class UFlowComponent;
-class AMobSpawner;
-class UNiagaraSystem;
 class URuneDataAsset;
-class UEnemyData;
-class UEnemyWeaponDefinition;
-class USpawnLifecycleFlowAsset;
-class UStoryEventRegistryDA;
-struct FBuffFlowLifecycleContext;
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnFinishLevel);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPhaseChanged, ELevelPhase, NewPhase);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLootGenerated, const TArray<FLootOption>&, LootOptions);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnCampaignStageEntered, int32, FloorIndex, FGameplayTag, StageTag, FGameplayTagContainer, EventTags, URoomDataAsset*, RoomData);
-DECLARE_MULTICAST_DELEGATE(FOnLootSelected);
+
 DECLARE_MULTICAST_DELEGATE_OneParam(FBossRegisteredNativeDelegate, AEnemyCharacterBase*);
+DECLARE_MULTICAST_DELEGATE_OneParam(FEnemyRegistryChangedNativeDelegate, AEnemyCharacterBase*);
 
-
+/**
+ * Per-map game rules: player spawn, death / revive, kill counting, the enemy registry that the camera
+ * and HUD read, cross-room transition and the lifecycle event bus.
+ *
+ * Room flow (mobs, doors) lives on AYogRoomDirector + Content/Script/Maps. Reward pickups are
+ * self-contained actors (ARewardPickup). Neither is this class's job.
+ */
 UCLASS()
 class DEVKIT_API AYogGameMode : public AModularGameModeBase
 {
 	GENERATED_BODY()
-	
 
 public:
 	AYogGameMode(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
@@ -58,38 +48,11 @@ public:
 	virtual void StartPlay() override;
 	virtual void PostLogin(APlayerController* NewPlayer) override;
 
-	static bool ShouldSkipCombatForRoom(const URoomDataAsset* RoomData);
-	static bool ShouldPreserveCurrentMapForEditorPlay(bool bIsPlayInEditorWorld, bool bHasPendingRoomData);
-	static URoomDataAsset* FindRoomDataForLoadedMap(const UCampaignDataAsset* Campaign, const FString& CurrentMapShortName);
-	static bool ShouldAllowExtraRewardPickupForRoom(
-		const URoomDataAsset* RoomData,
-		bool bIsSacrificeEventRoom,
-		bool bHasRewardPickupClass,
-		bool bEnableExtraRewardPickups);
-
-
-
-	//UFUNCTION(BlueprintNativeEvent, Category = Game)
-	//virtual void HandleStartingNewPlayer(APlayerController* NewPlayer) override;
-
 	UFUNCTION(BlueprintCallable, Category = "Player")
 	void SpawnPlayerAtPlayerStart(APlayerCharacterBase* player, const FString& IncomingName);
 
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player")
 	bool bAutoSpawnPlayer = false;
-
-	UPROPERTY(BlueprintAssignable)
-	FOnFinishLevel OnFinishLevel;
-
-	DECLARE_EVENT(AYogGameMode, FFinishLevelEvent)
-
-	FFinishLevelEvent FinishLevelEvent;
-
-	FFinishLevelEvent& OnFinishLevelEvent()
-	{
-		return FinishLevelEvent;
-	}
 
 	UFUNCTION(BlueprintCallable, Category = "KillCount")
 	void UpdateFinishLevel(int count);
@@ -98,96 +61,51 @@ public:
 	int MonsterKillCount;
 
 	// =========================================================
-	// 敌人注册表（供相机感知使用）
+	// Enemy registry (read by camera, AI, HUD)
 	// =========================================================
 
-	/** 敌人出生时注册，提供给 CameraPawn 做战斗感知偏移 */
+	/** Registers a spawned enemy so the camera can sense combat. */
 	void RegisterEnemy(AEnemyCharacterBase* Enemy);
 
-	/** 敌人死亡时注销 */
+	/** Drops a dead enemy from the registry. */
 	void UnregisterEnemy(AEnemyCharacterBase* Enemy);
 
 	/** Fires from RegisterEnemy for Boss-tier enemies only. Drives the HUD boss health bar. */
 	FBossRegisteredNativeDelegate OnBossRegisteredNative;
 
-	/** Runtime GM 面板使用：在玩家附近 NavMesh 上刷出测试敌人。默认不推进清房计数。 */
-	UFUNCTION(BlueprintCallable, Category = "Runtime GM|Spawn")
-	AEnemyCharacterBase* SpawnGMEnemyNearPlayer(
-		UEnemyData* EnemyData,
-		FVector Origin,
-		float Radius = 1200.f,
-		float MinDistance = 300.f,
-		float ZOffset = 96.f,
-		bool bCountForLevelClear = false,
-		bool bApplyRoomBuffs = false);
+	/** Fires once per enemy actually added to the registry. */
+	FEnemyRegistryChangedNativeDelegate OnEnemyRegisteredNative;
 
-	/** 当前是否有存活的敌人（包含已注册但尚未死亡的） */
+	/** Fires once per enemy actually removed from the registry; never for an enemy that was not registered. */
+	FEnemyRegistryChangedNativeDelegate OnEnemyUnregisteredNative;
+
+	/** True while any registered enemy is alive. */
 	UFUNCTION(BlueprintPure, Category = "Camera|Combat")
 	bool HasAliveEnemies() const;
 
 	/**
-	 * 获取 Origin 半径 WithinRadius 内所有存活敌人的位置质心。
-	 * 若范围内无敌人，返回 Origin 本身（偏移量为零）。
+	 * Centroid of the living enemies within WithinRadius of Origin.
+	 * Returns Origin itself when none are in range (zero offset).
 	 */
 	UFUNCTION(BlueprintPure, Category = "Camera|Combat")
 	FVector GetEnemyCentroid(FVector Origin, float WithinRadius) const;
 
 	/**
-	 * 获取距 Origin 最近的存活敌人方向（单位向量）。
-	 * 若无存活敌人，返回 FVector::ZeroVector。
+	 * Unit direction towards the nearest living enemy.
+	 * Returns FVector::ZeroVector when none are alive.
 	 */
 	UFUNCTION(BlueprintPure, Category = "Camera|Combat")
 	FVector GetNearestEnemyDirection(FVector Origin) const;
 
-	/**
-	 * 获取 Origin 半径 WithinRadius 内的所有存活敌人指针列表。
-	 * 不包含已死亡或已销毁的对象。
-	 */
+	/** Living enemies within WithinRadius of Origin. Never contains dead or destroyed actors. */
 	TArray<AEnemyCharacterBase*> GetNearbyEnemies(FVector Origin, float WithinRadius) const;
 
-	/** 返回当前所有存活敌人（无距离过滤，供 EnemyArrowWidget 使用） */
+	/** Every living registered enemy, no distance filter (EnemyArrowWidget). */
 	TArray<AEnemyCharacterBase*> GetAllAliveEnemies() const;
 
 	// =========================================================
-	// 关卡流程
+	// Run state
 	// =========================================================
-
-	// 当前阶段（战斗 / 整理 / 切换中）
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "LevelFlow")
-	ELevelPhase CurrentPhase = ELevelPhase::Combat;
-
-	// 当前生成的战利品选项（供 UI 读取）
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "LevelFlow")
-	TArray<FLootOption> CurrentLootOptions;
-
-	// 最后一个被击杀敌人的位置（用于生成奖励拾取物）
-	FVector LastEnemyKillLocation = FVector::ZeroVector;
-
-	// 关卡结算奖励拾取物的 Actor 类（在 GameMode BP 中指定 ARewardPickup）
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LevelFlow")
-	TSubclassOf<ARewardPickup> RewardPickupClass;
-
-	UFUNCTION(BlueprintCallable, Category = "LevelFlow|Story Override")
-	void SetRoomRewardOptionsOverride(const TArray<FLootOption>& InOptions);
-
-	UFUNCTION(BlueprintCallable, Category = "LevelFlow|Story Override")
-	void ClearRoomRewardOptionsOverride();
-
-	UFUNCTION(BlueprintPure, Category = "LevelFlow|Story Override")
-	bool HasRoomRewardOptionsOverride() const { return bHasRoomRewardOptionsOverride; }
-
-	UFUNCTION(BlueprintCallable, Category = "LevelFlow|Story Override")
-	bool ApplyPendingRoomRewardOptionsOverride(UYogGameInstanceBase* GameInstance);
-
-	bool ApplyPendingRoomRewardOptionsOverrideForRoom(
-		UYogGameInstanceBase* GameInstance,
-		const URoomDataAsset* RoomData);
-
-	const TArray<FLootOption>& GetRoomRewardOptionsOverride() const { return RoomRewardOptionsOverride; }
-
-	// 进关后延迟多少秒再开始刷怪（给特效/动画和 AI 初始化预留时间）
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LevelFlow", meta = (ClampMin = "0.0"))
-	float InitialSpawnDelay = 1.5f;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "LevelFlow|Deprecated")
 	int32 CompletedCombatBattleCount = 0;
@@ -195,41 +113,18 @@ public:
 	UFUNCTION(BlueprintPure, Category = "LevelFlow|Deprecated")
 	int32 GetCompletedCombatBattleCount() const { return CompletedCombatBattleCount; }
 
-	// 阶段变化事件
-	UPROPERTY(BlueprintAssignable, Category = "LevelFlow|Events")
-	FOnPhaseChanged OnPhaseChanged;
+	// Current floor, 1-based. TransitionToLevel writes CurrentFloor + 1 to the GameInstance.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Campaign")
+	int32 CurrentFloor = 1;
 
-	// 战利品生成事件（传入 3 个选项）
-	UPROPERTY(BlueprintAssignable, Category = "LevelFlow|Events")
-	FOnLootGenerated OnLootGenerated;
-
-	// 玩家选定符文后广播（供 LevelFlow LENode_WaitForLootSelected 等待）
-	FOnLootSelected OnLootSelected;
-
-	// Broadcast when a FloorTable entry becomes active. Tutorial/story systems can listen here
-	// without depending on the concrete RoomDataAsset selected for this floor.
-	UPROPERTY(BlueprintAssignable, Category = "Campaign|StoryEvent")
-	FOnCampaignStageEntered OnCampaignStageEntered;
-
-	// LootSelectionWidget 被 CommonUI 销毁后重建时，NativeConstruct 检查此标志自动激活
-	UPROPERTY(BlueprintReadOnly, Category = "LevelFlow")
-	bool bLootOptionsPending = false;
-
-	// 关卡清空后调用，进入整理阶段
-	UFUNCTION(BlueprintCallable, Category = "LevelFlow")
-	void EnterArrangementPhase();
-
-	// 玩家选择一个战利品（0-2）
-	UFUNCTION(BlueprintCallable, Category = "LevelFlow")
-	void SelectLoot(int32 LootIndex);
-
-	// 整理完成，锁背包并加载下一关（旧系统保留，新系统由 Portal 触发 TransitionToLevel）
-	UFUNCTION(BlueprintCallable, Category = "LevelFlow")
-	void ConfirmArrangementAndTransition();
-
-	// Portal 触发切关：保存跑局状态（含选定房间）后 OpenLevel（由 APortal::EnterPortal 调用）
+	// Portal-triggered room change: snapshots the run state (including the chosen room), then OpenLevel.
+	// Called by APortal.
 	UFUNCTION(BlueprintCallable, Category = "LevelFlow")
 	void TransitionToLevel(FName NextLevel, URoomDataAsset* NextRoom = nullptr);
+
+	// =========================================================
+	// Death / revive
+	// =========================================================
 
 	UFUNCTION(BlueprintCallable, Category = "GameOver")
 	void HandlePlayerDeath(APlayerCharacterBase* Player);
@@ -247,239 +142,32 @@ public:
 	static bool ShouldBroadcastRunSummaryForPlayerDeathGameOver(bool bCanRevive);
 	static float CalculatePlayerReviveHealth(float MaxHealth, float ReviveHealthPercent);
 
-	// 从 LootPool 中随机生成战利品选项并广播（由 ARewardPickup 兜底路径触发）
-	UFUNCTION(BlueprintCallable, Category = "LevelFlow")
-	void GenerateLootOptions();
-
-	// 独立生成战利品（不广播、不调 HUD），供 ARewardPickup 手动放置路径使用
-	// 设置 CurrentLootOptions/bLootOptionsPending 后返回结果，由调用方决定何时显示 UI
-	TArray<FLootOption> GenerateIndependentLootOptions();
-
-	/**
-	 * 将已生成的选项广播给 UI（由 ARewardPickup::TryPickup 使用预分配路径调用）。
-	 * 不重新生成选项，直接用传入的 Options。
-	 */
-	UFUNCTION(BlueprintCallable, Category = "LevelFlow")
-	void ShowLootOptions(const TArray<FLootOption>& Options);
-
-	/**
-	 * 兜底符文池：当 ActiveRoomData 为空时（如初始关卡/独立测试关卡）使用
-	 * 在 GameMode BP 的 Details 面板中填入 DA_Rune_* 资产即可
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LevelFlow")
-	TArray<TObjectPtr<URuneDataAsset>> FallbackLootPool;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LevelFlow|Loot", meta = (ClampMin = "1", ClampMax = "3"))
-	int32 DefaultLootOptionCount = 3;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LevelFlow|Loot")
-	FGameplayTag SingleChoiceLootGameplayTag;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LevelFlow|Loot", meta = (ClampMin = "1", ClampMax = "3"))
-	int32 SingleChoiceLootOptionCount = 1;
-
-	// Legacy SacrificeGrace fields kept for Blueprint/config compatibility.
-	// Runtime extra drops now use RewardPickup/LootSelection instead.
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SacrificeGrace")
-	TArray<TObjectPtr<USacrificeGraceDA>> SacrificeGracePool;
-
-	/** Chance to spawn an extra RewardPickup beside the normal reward. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SacrificeGrace",
-	          meta = (ClampMin = "0.0", ClampMax = "1.0"))
-	float SacrificeDropChance = 0.15f;
-
-	/** Enables the legacy roll for a second RewardPickup beside the normal room reward. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SacrificeGrace")
-	bool bEnableExtraRewardPickups = false;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SacrificeGrace")
-	TSubclassOf<AActor> SacrificePickupClass;
-
 	// =========================================================
-	// 新刷怪系统（难度分预算波次）
+	// Lifecycle event bus
 	// =========================================================
 
-	// 本次局内的关卡序列配置（在 GameMode BP 或 World Settings 中指定）
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Campaign")
-	TObjectPtr<UCampaignDataAsset> CampaignData;
+	/**
+	 * Editor-configurable map: event -> LevelFlowAsset to run.
+	 * Events without a mapping do nothing.
+	 */
+	UPROPERTY(Transient)
+	TMap<EGameLifecycleEvent, TObjectPtr<ULevelFlowAsset>> LifecycleEventFlows;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Campaign|StoryEvent")
-	TObjectPtr<UStoryEventRegistryDA> StoryEventRegistry;
+	/**
+	 * Runs the flow mapped to Event in LifecycleEventFlows.
+	 * One-shot events (HeatPhase* / GameStart / PlayerDeath) de-duplicate themselves.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Lifecycle Events")
+	void TriggerLifecycleEvent(EGameLifecycleEvent Event);
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Campaign|StoryEvent")
-	bool bDispatchStoryEventsFromCampaign = true;
-
-	// 当前是第几关（从 1 开始，对应 FloorTable 下标 0）
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Campaign")
-	int32 CurrentFloor = 1;
-
-	// 开始关卡刷怪（在 StartPlay 中自动调用，也可在 BP 中手动调用）
-	UFUNCTION(BlueprintCallable, Category = "Spawning")
-	void StartLevelSpawning();
-
-	UFUNCTION(BlueprintPure, Category = "LevelFlow|RoomBuff")
-	TArray<FBuffEntry> GetActiveRoomBuffs() const { return ActiveRoomBuffs; }
-
-	UFUNCTION(BlueprintPure, Category = "LevelFlow|RoomBuff")
-	URoomDataAsset* GetActiveRoomData() const { return ActiveRoomData; }
-
-	UFUNCTION(BlueprintPure, Category = "Campaign")
-	UCampaignDataAsset* GetActiveCampaignData() const;
-
-	UFUNCTION(BlueprintPure, Category = "Campaign|StoryEvent")
-	FGameplayTag GetActiveGlobalStageTag() const { return ActiveGlobalStageTag; }
-
-	UFUNCTION(BlueprintPure, Category = "Campaign|StoryEvent")
-	FGameplayTagContainer GetActiveStoryEventTags() const { return ActiveStoryEventTags; }
-
-	UFUNCTION(BlueprintPure, Category = "Campaign|StoryEvent")
-	bool HasActiveStoryEventTag(FGameplayTag EventTag) const;
-
-	void HandleLifecycleEnemySpawned(AEnemyCharacterBase* SpawnedEnemy, FBuffFlowLifecycleContext& Context);
-	void HandleLifecycleEnemySpawnFailed(FBuffFlowLifecycleContext& Context);
+	UFUNCTION(BlueprintCallable, Category = "StoryEvent")
+	bool RunStoryLevelFlow(ULevelFlowAsset* FlowAsset, bool bStopExistingFlow = true);
 
 protected:
 	virtual void HandleStartingNewPlayer_Implementation(APlayerController* NewPlayer) override;
 
-	void EnsureHubActiveSkillTerminal();
-
-	// 根据 FFloorConfig 的概率权重骰出此关的房间类型 Tag（Room.Type.Normal/Elite/Shop/Event）
-	FGameplayTag RollRoomTypeForFloor(const FFloorConfig& Config);
-
-	// 按类型 Tag 从 Campaign 全局 RoomPool 选取 DA_Room，找不到时退化为 Normal
-	URoomDataAsset* SelectRoomByTag(FGameplayTag RequiredTag);
-
-	// ---- 刷怪算法 ----
-
-	// 单只待刷敌人的完整计划（类型 + 本次选中的敌人专属 Buff）
-	void ResolveActiveCampaignData();
-
-	struct FPlannedEnemy
-	{
-		TSubclassOf<AEnemyCharacterBase> EnemyClass;
-		TObjectPtr<UEnemyData> EnemyData;
-		TObjectPtr<UEnemyWeaponDefinition> EnemyWeaponDefinition;
-		// Rolled from EnemyData.EnemyBuffPool. Only entries that pass ApplyChance are granted.
-		TArray<TObjectPtr<URuneDataAsset>> EnemyBuffs;
-		// 从 EnemyData 复制，运行时只读
-		TObjectPtr<UNiagaraSystem> PreSpawnFX;
-		float PreSpawnFXDuration = 0.f;
-		TObjectPtr<USpawnLifecycleFlowAsset> SpawnLifecycleFlow;
-		bool bAllowAnySpawner = false;
-		bool bSpecialRewardEnemy = false;
-		TArray<FLootOption> SpecialRewardOptions;
-		TObjectPtr<UNiagaraSystem> SpecialRewardAuraFX;
-	};
-
-	// 波次计划（运行时数据，不需要 UE 反射）
-	struct FWavePlan
-	{
-		ESpawnTriggerType TriggerType = ESpawnTriggerType::AllEnemiesDead;
-		ESpawnMode        SpawnMode   = ESpawnMode::Wave;
-		float             OneByOneInterval = 3.0f;
-		TArray<FPlannedEnemy> EnemiesToSpawn;
-		int32 TotalSpawnedInWave = 0;
-		int32 TotalKilledInWave  = 0;
-
-		// 按需补刷队列（预算剩余且整关上限仍有空间时，每死一只补刷一只）
-		TArray<FPlannedEnemy> DemandEnemyPool;
-		// 剩余可按需补刷的次数（0 = 无补刷）
-		int32 DemandCount = 0;
-
-		// TimeInterval 触发时使用的间隔（秒），由 BuildWavePlan 从所选触发条件中读取
-		float WaveTriggerInterval = 3.0f;
-	};
-
-	// 根据总难度分和档位最大波次数生成所有波次计划
-	void GenerateWavePlans(int32 TotalScore, int32 MaxWaveCount, URoomDataAsset* Room);
-
-	// 生成单波计划（程序自动决定触发条件和刷怪方式）
-	FWavePlan BuildWavePlan(int32 Budget, URoomDataAsset* Room, int32 MaxEnemiesPerWave, int32 MaxEnemiesPerLevel);
-
-	// 触发并执行下一波（下标推进）
-	void TriggerNextWave();
-
-	// OneByOne 模式下，定时器回调，逐只刷怪
-	void SpawnNextOneByOne();
-
-	// 设置当前波次的触发条件监听
-	void SetupWaveTrigger(const FWavePlan& Wave);
-
-	// 时间间隔触发条件的定时器回调
-	void OnWaveTriggerFired();
-
-	// 每次有敌人死亡时检查是否满足下一波触发条件
-	void CheckWaveTrigger();
-
-	// 检查关卡是否完成（所有波次结束 + 场内清空）
-	void CheckLevelComplete();
-	void HandleTimedClearObjectiveExpired();
-	void ApplyStoryNextRoomPlanForCurrentRoom(const FStoryNextRoomPlan& Plan);
-	void MarkStorySpecialRewardEnemy(AEnemyCharacterBase* Enemy, const FPlannedEnemy& Planned);
-	void SpawnStorySpecialRewardPickup(AYogCharacterBase* DeadCharacter, const TArray<FLootOption> RewardOptions);
-	ARewardPickup* SpawnRewardPickupAtLocation(AYogCharacterBase* DeadCharacter, const TArray<FLootOption>& RewardOptions, const FVector& SpawnLocation, bool bPlayFocusCue = true);
-	void SpawnSacrificeEventAltar(const FVector& LootSpawnLoc);
-	bool IsSacrificeEventRoom() const;
-	void SpawnShopActorForRoom();
-	bool IsShopRoom() const;
-
-	// 波次系统未能初始化时，降级统计场景内预放置敌人数量
-	void FallbackToPreplacedEnemies();
-
-	// 从随机 MobSpawner 刷出指定敌人（含专属 Buff 激活）【旧路径，DemandSpawn 仍使用】
-	bool SpawnEnemyFromPool(const FPlannedEnemy& Planned);
-
-	// 新路径：播放预生成 FX，FX 结束后才真正 SpawnActor
-	// 返回 false 表示找不到兼容 Spawner（调用方可立即跳过，不等 Timer）
-	bool BeginSpawnEnemyFromPool(const FPlannedEnemy& Planned);
-	void FinishSpawnFromPool(FPlannedEnemy Planned,
-		TWeakObjectPtr<AMobSpawner> WeakSpawner, FVector Location, int32 WaveIdx);
-
-	// 从 BuffPool 随机选取 BuffCount 个关卡 Buff 条目
-	TArray<FBuffEntry> SelectRoomBuffs(const URoomDataAsset& Room, int32 BuffCount);
-
-	// ---- 刷怪运行时状态 ----
-	TArray<FWavePlan> WavePlans;
-	int32             CurrentWaveIndex    = -1;
-	int32             TotalAliveEnemies   = 0;
-	bool              bAllWavesSpawned    = false;
-	// FX 播放中、尚未真正 SpawnActor 的敌人数（防止 CheckLevelComplete 提前结算）
-	int32             PendingSpawnCount   = 0;
-
-	FTimerHandle WaveTriggerTimer;
-	FTimerHandle OneByOneTimer;
-	FTimerHandle InitialSpawnDelayTimer;
-	FTimerHandle DemandSpawnTimer;
-	FTimerHandle TimedClearObjectiveTimer;
-	bool bTimedClearObjectiveActive = false;
-	bool bTimedClearObjectiveExpired = false;
-	FTimerHandle PlayerDeathGameOverTimer;
-	TArray<FPlannedEnemy> OneByOneSpawnQueue;
-	int32 OneByOneSpawnIndex = 0;
-
-	// Wave 模式下使用随机错开间隔（而非 OneByOne 的固定间隔）
-	bool bWaveStaggerMode = false;
-
-	// 关卡内各类型已计划刷出数量（BuildWavePlan 时累计，跨波次）
-	TMap<TSubclassOf<AEnemyCharacterBase>, int32> LevelTypeSpawnCounts;
-	int32 TotalLevelPlannedEnemies = 0;
-
-	// 按需补刷：每当有敌人死亡且当前波次 DemandCount > 0 时，延迟补刷一只
-	void CheckDemandSpawn();
-
-	// ---- 敌人注册表（相机战斗感知）----
-	// 使用原始指针 + 手动生命期管理（RegisterEnemy/UnregisterEnemy 保持同步）
+	// Enemy registry. Weak pointers; RegisterEnemy / UnregisterEnemy keep it in sync.
 	TArray<TWeakObjectPtr<AEnemyCharacterBase>> AliveEnemies;
-
-	// 本关激活的关卡 Buff（进关时骰子选好，新怪刷出时在其 BuffFlowComponent 上激活）
-	TArray<FBuffEntry> ActiveRoomBuffs;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Campaign|StoryEvent", meta = (AllowPrivateAccess = "true"))
-	FGameplayTag ActiveGlobalStageTag;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Campaign|StoryEvent", meta = (AllowPrivateAccess = "true"))
-	FGameplayTagContainer ActiveStoryEventTags;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GameOver", meta = (AllowPrivateAccess = "true"))
 	float PlayerDeathGameOverDelay = 1.5f;
@@ -510,129 +198,20 @@ protected:
 
 	FTSTicker::FDelegateHandle PlayerDeathGameOverTickerHandle;
 
-	// 当前关卡的房间配置（StartLevelSpawning 时缓存，整理阶段使用）
-	UPROPERTY()
-	TObjectPtr<URoomDataAsset> ActiveRoomData;
-
-	UPROPERTY(Transient)
-	bool bSuppressRoomClearRewardPickup = false;
-
-	UPROPERTY(Transient)
-	bool bStorySpecialRewardEnemyEnabled = false;
-
-	UPROPERTY(Transient)
-	TArray<FLootOption> StorySpecialRewardEnemyLootOptions;
-
-	UPROPERTY(Transient)
-	TObjectPtr<UNiagaraSystem> StorySpecialRewardEnemyAuraFX;
-
-	// 当前关卡的奖励配置（从 FloorConfig 缓存，整理阶段使用）
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Transient, Category = "LevelFlow|Story Override", meta = (AllowPrivateAccess = "true"))
-	bool bHasRoomRewardOptionsOverride = false;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Transient, Category = "LevelFlow|Story Override", meta = (AllowPrivateAccess = "true"))
-	TArray<FLootOption> RoomRewardOptionsOverride;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Transient, Category = "Campaign", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UCampaignDataAsset> ActiveCampaignData;
-
-	int32 ActiveGoldMin  = 10;
-	int32 ActiveGoldMax  = 20;
-	int32 ActiveBuffCount = 1;
-
-	// ---- 刷怪参数（在 GameMode BP 中可调）----
-
-	// 选档阈值：TotalDifficultyScore ≤ 此值 → Low 档
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Difficulty")
-	int32 LowDifficultyScoreMax = 25;
-
-	// 选档阈值：TotalDifficultyScore ≥ 此值 → High 档（中间为 Medium）
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Difficulty")
-	int32 HighDifficultyScoreMin = 50;
-
-	// Wave 模式每只怪之间的随机错开延迟范围（秒）
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawning", meta = (ClampMin = "0.0"))
-	float SpawnStaggerMin = 0.1f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawning", meta = (ClampMin = "0.0"))
-	float SpawnStaggerMax = 0.5f;
-
-	// OneByOne 模式每只怪之间的固定间隔（秒）
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawning", meta = (ClampMin = "0.1"))
-	float OneByOneDefaultInterval = 3.0f;
-
-	// ---- 战利品生成 ----
-
-	/**
-	 * 从符文池中生成一批（最多 3 个）不与 AlreadyOffered 重复的选项。
-	 * 生成的符文 DA 指针会被写入 AlreadyOffered，供同关下一次调用去重。
-	 */
-	TArray<FLootOption> GenerateLootBatch(TSet<URuneDataAsset*>& AlreadyOffered);
-	int32 GetCurrentLootOptionCount() const;
-	TArray<FLootOption> ApplyLootOptionLimit(const TArray<FLootOption>& Options) const;
-
-	// 本关已分配给各拾取物的符文集合（防止同关多个拾取物提供重复选项）
-	TSet<URuneDataAsset*> LootAssignedThisLevel;
-
-	/**
-	 * 寻找 Loot 最佳落点（玩家前方优先）：
-	 * 从 8 个方向候选中选取同时满足以下条件的第一个：
-	 *   1. 玩家→候选点之间无碰撞（不在角落/墙后）
-	 *   2. 相机→候选点之间无遮挡（相机可见）
-	 *   3. 候选点在屏幕范围内（含 5% 边缘余量）
-	 * 全部失败时退回玩家原位。
-	 */
-	FVector FindLootSpawnLocation(APawn* PlayerPawn, APlayerController* PC) const;
-
-public:
-	// =========================================================
-	// 关卡生命周期事件总线
-	// =========================================================
-
-	/**
-	 * 编辑器内可配：事件 -> 跑哪个 LevelFlowAsset。
-	 * 在 BP_GameMode_Default Class Defaults 里配 EGameLifecycleEvent::LevelClearRevealed -> LFA_FirstRuneTutorial
-	 * 等映射，节点图里用 LENode_ShowTutorial / LENode_Delay 编排具体行为。
-	 * 没配映射的事件触发时不做任何事（沉默）。
-	 */
-	UPROPERTY(Transient)
-	TMap<EGameLifecycleEvent, TObjectPtr<ULevelFlowAsset>> LifecycleEventFlows;
-
-	/**
-	 * 触发一个生命周期事件 — 查 LifecycleEventFlows 拿 Flow Asset，跑节点图。
-	 * 一次性事件（FirstRune* / HeatPhase* / GameStart / PlayerDeath）内部自动去重。
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Lifecycle Events")
-	void TriggerLifecycleEvent(EGameLifecycleEvent Event);
-
-	UFUNCTION(BlueprintCallable, Category = "StoryEvent")
-	bool RunStoryLevelFlow(ULevelFlowAsset* FlowAsset, bool bStopExistingFlow = true);
-
-	/** Spawns a kill-reward pickup. Called by AEnemyCharacterBase::FinishDying via GetAuthGameMode. */
-	ARewardPickup* SpawnEnemyKillRewardPickup(AYogCharacterBase* DeadEnemy, const TArray<FLootOption>& RewardOptions, const FVector& SpawnLocation, bool bPlayFocusCue = true);
-
-protected:
-	/** 一次性事件去重集合（Transient，跨 PIE 不持久；存档恢复用 TutorialState 兜底）*/
+	/** De-dup set for one-shot lifecycle events. Transient, so it resets per PIE session. */
 	UPROPERTY(Transient)
 	TSet<EGameLifecycleEvent> FiredOnceEvents;
 
-	/** 事件总线统一使用的 FlowComponent（同一时间只跑一个 Flow，新触发会停旧的）*/
+	/** Runs the lifecycle / story flows. Only one flow at a time; a new trigger stops the old one. */
 	UPROPERTY()
 	TObjectPtr<UFlowComponent> LifecycleFlowComponent;
 
 private:
-	/** HUD 揭幕动画完成的回调（GameMode::BeginPlay 里订阅 HUD->OnLevelEndEffectFinished）*/
-	void HandleLevelEndEffectFinished();
-
-	/** 尝试绑定 HUD 委托：HUD 由 PC->ClientRestart 异步创建，BeginPlay 时通常还没准备好 */
-	void TryBindHUDDelegates();
-	int32 HUDBindRetryCount = 0;
-
 	void FinishPlayerDeathGameOver();
 	void ClearPlayerDeathGameOverTicker();
 	void BeginPlayerDeathVisuals(APlayerCharacterBase* Player);
 	void EndPlayerDeathVisuals(APlayerCharacterBase* Player);
 
-	/** 是否为一次性事件（FirstRune* / HeatPhase* / GameStart / PlayerDeath）*/
+	/** One-shot events: HeatPhase* / GameStart / PlayerDeath. */
 	static bool IsOneShotEvent(EGameLifecycleEvent Event);
 };

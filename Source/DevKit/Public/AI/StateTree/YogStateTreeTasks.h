@@ -151,6 +151,61 @@ struct DEVKIT_API FStateTreeTask_ChasePlayerUntilDistance : public FStateTreeAIA
 	virtual void ExitState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
 };
 
+// ─── Escape From Player ─────────────────────────────────────────────────────
+// Mirror of Chase Player Until Distance: runs directly away from the player until it is at least
+// DesiredDistance away, then succeeds. Each leg heads for the reachable point farthest from the
+// player among a fan of directions around "straight away", so the pawn slides along walls instead of
+// running into them.
+//
+// Succeeded means either "far enough" or "cornered" (no direction gains meaningful distance), so a
+// transition on state success is where a cornered enemy turns and fights. MaxDuration also ends the
+// task with Succeeded. Failed is reserved for a missing pawn.
+
+USTRUCT()
+struct FStateTreeTask_EscapeFromPlayerInstanceData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = Context)
+	TObjectPtr<AAIController> AIController = nullptr;
+
+	/** Ground distance from the player at which the escape succeeds. */
+	UPROPERTY(EditAnywhere, Category = Parameter, meta = (ClampMin = "0.0"))
+	float DesiredDistance = 800.0f;
+
+	/** Length of each flee leg. Raised to the shortest leg the nav reach test accepts as a real move. */
+	UPROPERTY(EditAnywhere, Category = Parameter, meta = (ClampMin = "50.0"))
+	float FleeStepDistance = 400.0f;
+
+	UPROPERTY(EditAnywhere, Category = Parameter, meta = (ClampMin = "0.0"))
+	float AcceptanceRadius = 35.0f;
+
+	/** The flee direction is recomputed this often, since the player keeps moving. */
+	UPROPERTY(EditAnywhere, Category = Parameter, meta = (ClampMin = "0.05"))
+	float RepathInterval = 0.3f;
+
+	/** Seconds after which the task succeeds even if DesiredDistance was never reached. Zero means no limit. */
+	UPROPERTY(EditAnywhere, Category = Parameter, meta = (ClampMin = "0.0"))
+	float MaxDuration = 0.0f;
+
+	float LastRequestTime = -FLT_MAX;
+	float StartTime = 0.0f;
+};
+
+USTRUCT(meta = (DisplayName = "Escape From Player", Category = "Yog|AI"))
+struct DEVKIT_API FStateTreeTask_EscapeFromPlayer : public FStateTreeAIActionTaskBase
+{
+	GENERATED_BODY()
+
+	using FInstanceDataType = FStateTreeTask_EscapeFromPlayerInstanceData;
+
+	FStateTreeTask_EscapeFromPlayer();
+	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
+	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
+	virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) const override;
+	virtual void ExitState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
+};
+
 // ─── Activate Ability By Tag ────────────────────────────────────────────────
 // Uses the StateTree-authored AbilityTags to select an ability, validates those
 // tags against the equipped enemy weapon's AbilityData, and stays Running
