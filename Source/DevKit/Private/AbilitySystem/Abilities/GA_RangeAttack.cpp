@@ -10,6 +10,8 @@
 
 UGA_RangeAttack::UGA_RangeAttack()
 {
+	bBlockedWhileStunned = true;
+
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 	bRetriggerInstancedAbility = true;
 	HitEventTag = FGameplayTag::RequestGameplayTag(FName("GameplayEvent.RangeAttack.Hit"));

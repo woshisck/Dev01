@@ -727,7 +727,7 @@ bool AYogPlayerControllerBase::IsGameplayInputBlocked() const
 	}
 
 	const APlayerCharacterBase* PlayerPawn = Cast<APlayerCharacterBase>(GetPawn());
-	if (PlayerPawn && (PlayerPawn->bIsDead || PlayerPawn->IsWaitingForDeathReviveChoice()))
+	if (PlayerPawn && (PlayerPawn->bIsDead || PlayerPawn->IsWaitingForDeathReviveChoice() || PlayerPawn->IsStunned()))
 	{
 		return true;
 	}

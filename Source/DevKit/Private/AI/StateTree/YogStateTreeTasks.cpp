@@ -133,9 +133,31 @@ EStateTreeRunStatus FStateTreeTask_ActivateAbilityByTag::EnterState(
 		}
 	}
 
+	// Scripted skills carry their montage on the skill asset, so they have no AbilityData row to validate against.
+	if (const AEnemyCharacterBase* Enemy = Cast<AEnemyCharacterBase>(Pawn))
+	{
+		for (const FGameplayTag& Tag : InstanceData.AbilityTags)
+		{
+			if (Tag.IsValid() && Enemy->HasScriptedSkill(Tag))
+			{
+				ValidTags.AddUnique(Tag);
+			}
+		}
+	}
+
 	if (ValidTags.IsEmpty())
 	{
 		return EStateTreeRunStatus::Failed;
+	}
+
+	// A running scripted skill (e.g. a charge) would reject this activation anyway, and the face-target snap
+	// below would run first: re-entered every tick, it turns a straight-line charge into auto-aim.
+	if (const AEnemyCharacterBase* Enemy = Cast<AEnemyCharacterBase>(Pawn))
+	{
+		if (Enemy->IsScriptedSkillActive())
+		{
+			return EStateTreeRunStatus::Failed;
+		}
 	}
 
 	AYogCharacterBase* YogCharacter = Cast<AYogCharacterBase>(Pawn);

@@ -94,7 +94,8 @@ EStateTreeRunStatus FStateTreeTask_EnemyAttackByProfile::EnterState(
 	const UCharacterDataComponent* DataComponent = Character ? Character->GetCharacterDataComponent() : nullptr;
 	const UEnemyData* EnemyData = DataComponent ? Cast<UEnemyData>(DataComponent->GetCharacterData()) : nullptr;
 	const UAbilityData* AbilityData = EnemyData ? EnemyData->AbilityData : nullptr;
-	if (!EnemyData || !AbilityData || InstanceData.AbilityTags.IsEmpty())
+	const AEnemyCharacterBase* EnemyPawn = Cast<AEnemyCharacterBase>(Pawn);
+	if (!EnemyData || (!AbilityData && EnemyData->Skills.IsEmpty()) || InstanceData.AbilityTags.IsEmpty())
 	{
 		return EStateTreeRunStatus::Failed;
 	}
@@ -132,7 +133,10 @@ EStateTreeRunStatus FStateTreeTask_EnemyAttackByProfile::EnterState(
 	TArray<FGameplayTag> ReadyTags;
 	for (const FGameplayTag& Tag : InstanceData.AbilityTags)
 	{
-		if (!AbilityData->HasAbility(Tag))
+		// Scripted skills carry their montage on the skill asset, so they have no AbilityData row.
+		const bool bConfigured = (AbilityData && AbilityData->HasAbility(Tag))
+			|| (EnemyPawn && EnemyPawn->HasScriptedSkill(Tag));
+		if (!bConfigured)
 		{
 			continue;
 		}
@@ -154,6 +158,12 @@ EStateTreeRunStatus FStateTreeTask_EnemyAttackByProfile::EnterState(
 	// actually fired.
 	const FGameplayTag ChosenTag = ReadyTags[FMath::RandHelper(ReadyTags.Num())];
 	const FGameplayTagContainer ChosenTags(ChosenTag);
+
+	// A running scripted skill owns the pawn: the StopMovement and face snap below would cancel and re-aim a charge.
+	if (EnemyPawn && EnemyPawn->IsScriptedSkillActive())
+	{
+		return EStateTreeRunStatus::Failed;
+	}
 
 	if (YogAI)
 	{

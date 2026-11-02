@@ -16,6 +16,30 @@ UYogGameplayAbility::UYogGameplayAbility(const FObjectInitializer& ObjectInitial
 {
 }
 
+bool UYogGameplayAbility::CanActivateAbility(
+	const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo,
+	const FGameplayTagContainer* SourceTags,
+	const FGameplayTagContainer* TargetTags,
+	FGameplayTagContainer* OptionalRelevantTags) const
+{
+	if (bBlockedWhileStunned && ActorInfo)
+	{
+		static const FGameplayTag TAG_Stunned = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Stunned"), false);
+		const UAbilitySystemComponent* ASC = ActorInfo->AbilitySystemComponent.Get();
+		if (ASC && TAG_Stunned.IsValid() && ASC->HasMatchingGameplayTag(TAG_Stunned))
+		{
+			if (OptionalRelevantTags)
+			{
+				OptionalRelevantTags->AddTag(TAG_Stunned);
+			}
+			return false;
+		}
+	}
+
+	return Super::CanActivateAbility(Handle, ActorInfo, SourceTags, TargetTags, OptionalRelevantTags);
+}
+
 void UYogGameplayAbility::OnGiveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec)
 {
 	Super::OnGiveAbility(ActorInfo, Spec);

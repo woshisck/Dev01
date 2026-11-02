@@ -110,6 +110,8 @@ static bool RayAabbDistanceRange(const FBox& Box, const FVector& RayStart, const
 
 UGA_PlayerDash::UGA_PlayerDash()
 {
+	bBlockedWhileStunned = true;
+
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 
 	// Keep the interrupt contract in C++ so Blueprint defaults cannot silently

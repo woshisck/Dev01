@@ -15,6 +15,7 @@ class AEnemyCharacterBase;
 class AActor;
 class UEnemyWeaponDefinition;
 class UEnemyTrait;
+class UEnemySkill;
 class URuneDataAsset;
 class USpawnLifecycleFlowAsset;
 class UBlackboardData;
@@ -314,6 +315,11 @@ public:
 	// Reusable behaviors this enemy carries; several can be active at once. Trait assets are shared and stateless.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Traits")
 	TArray<TObjectPtr<UEnemyTrait>> Traits;
+
+	// Scripted skills keyed by slot (Enemy.Skill.Skill1~4). Each entry grants that slot's UGA_EnemyScriptedSkill,
+	// so the StateTree activates it by the slot tag. Do not also grant GA_Enemy_SkillN for the same slot.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Skills", meta = (Categories = "Enemy.Skill"))
+	TMap<FGameplayTag, TObjectPtr<UEnemySkill>> Skills;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Weapon")
 	TObjectPtr<UEnemyWeaponDefinition> DefaultWeaponDefinition;

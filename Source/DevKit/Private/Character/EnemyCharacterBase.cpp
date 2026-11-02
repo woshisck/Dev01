@@ -6,9 +6,11 @@
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "AbilitySystem/Attribute/EnemyAttributeSet.h"
 #include "AbilitySystem/Abilities/YogTargetType_Melee.h"
+#include "AbilitySystem/Abilities/GA_EnemyScriptedSkill.h"
 #include "Character/YogCharacterMovementComponent.h"
 #include "Data/AbilityData.h"
 #include "Data/EnemyData.h"
+#include "Data/EnemySkill.h"
 #include "Data/EnemyTrait.h"
 #include "Data/EnemyWeaponDefinition.h"
 #include "Component/AttributeStatComponent.h"
@@ -216,7 +218,72 @@ void AEnemyCharacterBase::BeginPlay()
 		GM->RegisterEnemy(this);
 	}
 
+	GrantScriptedSkills();
 	ActivateTraits();
+}
+
+void AEnemyCharacterBase::GrantScriptedSkills()
+{
+	const UEnemyData* RuntimeEnemyData = GetEnemyData();
+	if (!RuntimeEnemyData || !AbilitySystemComponent)
+	{
+		return;
+	}
+
+	for (const TPair<FGameplayTag, TObjectPtr<UEnemySkill>>& Entry : RuntimeEnemyData->Skills)
+	{
+		const TSubclassOf<UGA_EnemyScriptedSkill> SlotClass = UGA_EnemyScriptedSkill::GetClassForSlot(Entry.Key);
+		if (!SlotClass || !Entry.Value)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[EnemySkill] %s: skill slot '%s' is not Enemy.Skill.Skill1~4 or has no asset."),
+				*GetName(), *Entry.Key.ToString());
+			continue;
+		}
+
+		// GASTemplate grants (e.g. GA_Enemy_SkillN) land earlier and share the slot tag, and exact-tag
+		// activation takes the first match, so the montage-row GA would always win. The Skills map owns the slot.
+		TArray<FGameplayAbilitySpecHandle> Conflicting;
+		for (const FGameplayAbilitySpec& Spec : AbilitySystemComponent->GetActivatableAbilities())
+		{
+			if (Spec.Ability && !Spec.Ability->IsA<UGA_EnemyScriptedSkill>() && Spec.Ability->AbilityTags.HasTagExact(Entry.Key))
+			{
+				Conflicting.Add(Spec.Handle);
+			}
+		}
+		for (const FGameplayAbilitySpecHandle& Handle : Conflicting)
+		{
+			UE_LOG(LogTemp, Log, TEXT("[EnemySkill] %s: slot '%s' is a scripted skill; removing the conflicting grant."),
+				*GetName(), *Entry.Key.ToString());
+			AbilitySystemComponent->ClearAbility(Handle);
+		}
+
+		// The asset rides on the spec so one GA class serves every skill asset.
+		AbilitySystemComponent->GiveAbility(FGameplayAbilitySpec(SlotClass, 1, INDEX_NONE, Entry.Value.Get()));
+	}
+}
+
+bool AEnemyCharacterBase::HasScriptedSkill(const FGameplayTag& Tag) const
+{
+	const UEnemyData* RuntimeEnemyData = GetEnemyData();
+	const TObjectPtr<UEnemySkill>* Found = RuntimeEnemyData ? RuntimeEnemyData->Skills.Find(Tag) : nullptr;
+	return Found && *Found;
+}
+
+bool AEnemyCharacterBase::IsScriptedSkillActive() const
+{
+	if (!AbilitySystemComponent)
+	{
+		return false;
+	}
+
+	for (const FGameplayAbilitySpec& Spec : AbilitySystemComponent->GetActivatableAbilities())
+	{
+		if (Spec.IsActive() && Spec.Ability && Spec.Ability->IsA<UGA_EnemyScriptedSkill>())
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 void AEnemyCharacterBase::ActivateTraits()

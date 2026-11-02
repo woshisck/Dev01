@@ -80,6 +80,8 @@ static bool TryActivatePlayMontageAbilityByTagName(UAbilitySystemComponent* ASC,
 
 UGA_PlayMontage::UGA_PlayMontage(const FObjectInitializer& ObjectInitializer)
 {
+	bBlockedWhileStunned = true;
+
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 	bRetriggerInstancedAbility = true;
 	HoldReleaseEventTag = FGameplayTag::RequestGameplayTag(TEXT("GameplayEvent.WeaponSkill.Release"), false);

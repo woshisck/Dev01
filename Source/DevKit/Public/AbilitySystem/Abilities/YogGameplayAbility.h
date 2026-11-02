@@ -45,6 +45,22 @@ public:
 	virtual void OnRemoveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec) override;
 	virtual void OnAvatarSet(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec) override;
 
+	virtual bool CanActivateAbility(
+		const FGameplayAbilitySpecHandle Handle,
+		const FGameplayAbilityActorInfo* ActorInfo,
+		const FGameplayTagContainer* SourceTags = nullptr,
+		const FGameplayTagContainer* TargetTags = nullptr,
+		FGameplayTagContainer* OptionalRelevantTags = nullptr) const override;
+
+	/**
+	 * Refuse activation while the owner has Buff.Status.Stunned. On for player actions (attacks, weapon skills,
+	 * dash, active skills); off for reactions and passives (death, hit react, knockback) that must still run.
+	 * A flag rather than an ActivationBlockedTags entry because Blueprint children that saved their own
+	 * ActivationBlockedTags would replace the C++ default and silently drop the stun block.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Tags")
+	bool bBlockedWhileStunned = false;
+
 
 	/** Called when this ability is granted to the ability system component. */
 	UFUNCTION(BlueprintImplementableEvent, Category = Ability, DisplayName = "OnAbilityAdded")

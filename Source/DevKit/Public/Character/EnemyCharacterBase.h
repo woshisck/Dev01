@@ -101,6 +101,12 @@ public:
 	/** Lets every trait react to this enemy entering Combat; called by AYogAIController on the edge into Combat. */
 	void NotifyTraitsEnteredCombat();
 
+	/** True when Tag is a slot in UEnemyData::Skills, i.e. the skill asset supplies its own montage, not AbilityData. */
+	bool HasScriptedSkill(const FGameplayTag& Tag) const;
+
+	/** True while any UGA_EnemyScriptedSkill is running; it owns the pawn's facing and movement until it ends. */
+	bool IsScriptedSkillActive() const;
+
 	void SetAIAttackRuntimeContext(
 		bool bIsReposition,
 		bool bRequestRepositionOnResolve,
@@ -120,6 +126,7 @@ protected:
 
 	void ActivateTraits();
 	void DeactivateTraits();
+	void GrantScriptedSkills();
 
 	TMap<TObjectKey<UEnemyTrait>, FEnemyTraitRuntime> TraitRuntimes;
 

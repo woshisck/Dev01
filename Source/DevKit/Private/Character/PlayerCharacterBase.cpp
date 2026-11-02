@@ -1275,6 +1275,13 @@ void APlayerCharacterBase::BeginPlay()
 	if (UYogAbilitySystemComponent* YogASC = Cast<UYogAbilitySystemComponent>(GetAbilitySystemComponent()))
 	{
 		YogASC->ReceivedDamage.AddUniqueDynamic(this, &APlayerCharacterBase::HandleDamageReceivedFeedback);
+
+		static const FGameplayTag TAG_Stunned = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Stunned"), false);
+		if (TAG_Stunned.IsValid())
+		{
+			StunnedTagHandle = YogASC->RegisterGameplayTagEvent(TAG_Stunned, EGameplayTagEventType::NewOrRemoved)
+				.AddUObject(this, &APlayerCharacterBase::HandleStunnedTagChanged);
+		}
 	}
 
 	if (SkillChargeComponent && GetAbilitySystemComponent() && PlayerAttributeSet)
@@ -1407,10 +1414,64 @@ void APlayerCharacterBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	if (UYogAbilitySystemComponent* YogASC = Cast<UYogAbilitySystemComponent>(GetAbilitySystemComponent()))
 	{
 		YogASC->ReceivedDamage.RemoveDynamic(this, &APlayerCharacterBase::HandleDamageReceivedFeedback);
+
+		static const FGameplayTag TAG_Stunned = FGameplayTag::RequestGameplayTag(TEXT("Buff.Status.Stunned"), false);
+		if (TAG_Stunned.IsValid() && StunnedTagHandle.IsValid())
+		{
+			YogASC->RegisterGameplayTagEvent(TAG_Stunned, EGameplayTagEventType::NewOrRemoved).Remove(StunnedTagHandle);
+		}
 	}
+	StunnedTagHandle.Reset();
 
 	RestoreDamageTimeDilation();
 	Super::EndPlay(EndPlayReason);
+}
+
+void APlayerCharacterBase::HandleStunnedTagChanged(const FGameplayTag /*Tag*/, int32 NewCount)
+{
+	const bool bNowStunned = NewCount > 0;
+	if (bNowStunned == bStunned)
+	{
+		return;
+	}
+	bStunned = bNowStunned;
+
+	UCharacterMovementComponent* Movement = GetCharacterMovement();
+	if (!Movement)
+	{
+		return;
+	}
+
+	if (bStunned)
+	{
+		// MOVE_None also skips root motion sources, so an in-flight dash stops dead instead of carrying on.
+		Movement->StopMovementImmediately();
+		Movement->DisableMovement();
+
+		// Actions already in flight would otherwise play out under the stun; reactions and passives keep running.
+		if (UAbilitySystemComponent* ASC = GetAbilitySystemComponent())
+		{
+			TArray<FGameplayAbilitySpecHandle> ToCancel;
+			for (const FGameplayAbilitySpec& Spec : ASC->GetActivatableAbilities())
+			{
+				const UYogGameplayAbility* Ability = Cast<UYogGameplayAbility>(Spec.Ability);
+				if (Spec.IsActive() && Ability && Ability->bBlockedWhileStunned)
+				{
+					ToCancel.Add(Spec.Handle);
+				}
+			}
+			for (const FGameplayAbilitySpecHandle& Handle : ToCancel)
+			{
+				ASC->CancelAbilityHandle(Handle);
+			}
+		}
+		return;
+	}
+
+	if (!bIsDead)
+	{
+		Movement->SetDefaultMovementMode();
+	}
 }
 
 void APlayerCharacterBase::Tick(float DeltaSeconds)

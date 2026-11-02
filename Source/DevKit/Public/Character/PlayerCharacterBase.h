@@ -437,9 +437,19 @@ protected:
 	UPROPERTY(BlueprintReadOnly)
 	TObjectPtr<AYogCameraPawn> CameraPawnActor;
 
+public:
+	/** True while Buff.Status.Stunned is on this player: movement is locked and gameplay input is blocked. */
+	UFUNCTION(BlueprintPure, Category = "Player|Status")
+	bool IsStunned() const { return bStunned; }
+
 private:
 	UFUNCTION()
 	void HandleDamageReceivedFeedback(UYogAbilitySystemComponent* SourceASC, float Damage);
+
+	void HandleStunnedTagChanged(const FGameplayTag Tag, int32 NewCount);
+
+	FDelegateHandle StunnedTagHandle;
+	bool bStunned = false;
 
 	void PlayDamageScreenFlash();
 	void StartDamagePlayerGlow();

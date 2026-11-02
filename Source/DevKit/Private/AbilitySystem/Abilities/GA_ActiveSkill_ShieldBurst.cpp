@@ -50,6 +50,8 @@ static bool TryAppendProjectileDirectionFromContext(
 UGA_ActiveSkill_ShieldBurst::UGA_ActiveSkill_ShieldBurst(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	bBlockedWhileStunned = true;
+
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerExecution;
 	const FGameplayTag ActiveSkillTag = FGameplayTag::RequestGameplayTag(TEXT("Character.State.Skill.Active"), false);
 	if (ActiveSkillTag.IsValid())

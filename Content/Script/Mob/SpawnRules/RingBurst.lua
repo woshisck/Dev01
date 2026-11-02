@@ -10,7 +10,7 @@
 local Progress = require("Mob.SpawnProgress")
 
 local RING_RADIUS = 400.0
-local SPAWN_COUNT = 5
+local SPAWN_COUNT = 1
 local SPAWN_INTERVAL = 1.5
 local POOL_INDEX = 1 -- 1-based
 

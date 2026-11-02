@@ -3,6 +3,8 @@
 UGA_PlayerSpecialAttack::UGA_PlayerSpecialAttack(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	bBlockedWhileStunned = true;
+
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 	bRetriggerInstancedAbility = false;
 

@@ -402,6 +402,8 @@ static FGameplayTag ResolveBroadAttackAbilityDataTag(
 
 UGA_MeleeAttack::UGA_MeleeAttack()
 {
+	bBlockedWhileStunned = true;
+
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 	bRetriggerInstancedAbility = false;
 

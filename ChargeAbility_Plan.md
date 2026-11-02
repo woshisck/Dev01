@@ -29,12 +29,22 @@ Use 3–5 clips in **one montage**, split into sections:
 
 Do **not** use baked animation root motion (fixed distance, hard to interrupt, can't tune speed).
 
-Use **`UAbilityTask_ApplyRootMotionConstantForce`**:
-- **Direction:** locked once at the end of Windup → `(PlayerLoc - SelfLoc).GetSafeNormal2D()`. Locked direction = dodgeable.
-- **Strength:** charge speed (expose as a tunable property).
-- **Duration:** max charge time (safety cap).
-- `bIsAdditive = false` so AI movement input doesn't fight it.
+**Decision:** use **`UAbilityTask_ApplyRootMotionMoveToForce`** (same task `GA_Knockback` already uses). Not animation root motion, and not hand-driving `MaxWalkSpeed` / `Velocity` / `LaunchCharacter`.
+
+- **Direction:** locked once at the end of Windup → `ChargeDir = (PlayerLoc - SelfLoc).GetSafeNormal2D()`. Locked direction = dodgeable.
+- **TargetLocation:** `SelfLoc + ChargeDir * MaxChargeDistance` — a point *past* the player, so the charge overshoots instead of stopping on the player's old position.
+- **Duration:** `MaxChargeDistance / ChargeSpeed` (guard `ChargeSpeed > KINDA_SMALL_NUMBER`). Distance is tuned in cm, speed in cm/s.
+- `bSetNewMovementMode = false` (stay in Walking, keeps floor handling).
+- `bRestrictSpeedToExpected = true` — stops the task from catching up after being blocked, so speed stays constant.
+- `PathOffsetCurve = nullptr` (straight line).
+- `VelocityOnFinishMode = SetVelocity`, `SetVelocityOnFinish = ZeroVector` — otherwise the mob keeps sliding at charge speed after the task ends.
+- Bind **`OnTimedOutAndDestinationReached`** and **`OnTimedOut`** both → Outcome C (open space, no hit).
+- Hit outcomes (A / B) call `EndTask()` on it early; EndAbility / cancel removes it automatically.
 - Goes through CharacterMovement → collision sweeps, floor handling, and network replication come for free.
+- Works on the rat (no root bone) because it never reads skeleton root motion.
+
+### Cost
+Negligible. Every moving mob already pays the CharacterMovement sweep each tick; the root motion source only adds a tiny per-tick velocity calculation, and it does not touch animation evaluation (the montage is visual only). Only the mobs currently charging run it.
 
 Also during the charge:
 - Stop AI movement (`AIController->StopMovement()`).
@@ -53,7 +63,7 @@ ActivateAbility
  ├─ Windup end (AnimNotify / WaitGameplayEvent "Event.Charge.Start")
  │    ├─ Lock direction = (Player - Self).GetSafeNormal2D()
  │    ├─ Jump to "ChargeLoop"
- │    ├─ Start ApplyRootMotionConstantForce
+ │    ├─ Start ApplyRootMotionMoveToForce (TargetLocation = Self + ChargeDir * MaxChargeDistance)
  │    └─ Arm hit detection (see section 4)
  │
  ├─ OUTCOME A: hit player
@@ -66,7 +76,7 @@ ActivateAbility
  │    ├─ Apply GE_Stun to SELF
  │    └─ EndAbility (stun system takes over)
  │
- └─ OUTCOME C: timeout / max distance (no hit)
+ └─ OUTCOME C: MoveToForce OnTimedOut / OnTimedOutAndDestinationReached (no hit)
       └─ Jump to "Recover" → EndAbility
 
 EndAbility (always, including cancel):
@@ -126,8 +136,8 @@ EndAbility (always, including cancel):
 - [ ] BT Decorator: LOS + distance check
 
 ## 8. Tunable Properties (on GA_Enemy_Charge)
-- `ChargeSpeed`
-- `MaxChargeDuration`
+- `ChargeSpeed` (cm/s)
+- `MaxChargeDistance` (cm) — task duration is derived as `MaxChargeDistance / ChargeSpeed`
 - `WindupTurnRate`
 - `WallHitDotThreshold` (default -0.7)
 - `StunEffectClass` (player), `SelfStunEffectClass` (wall)

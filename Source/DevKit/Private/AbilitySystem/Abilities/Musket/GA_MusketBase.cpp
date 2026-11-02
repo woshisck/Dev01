@@ -21,6 +21,8 @@ static FGameplayTag MusketCueTag(const TCHAR* TagName)
 
 UGA_MusketBase::UGA_MusketBase()
 {
+    bBlockedWhileStunned = true;
+
     InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 
     // C++ 默认值：无需 Blueprint 子类即可直接使用
