@@ -32,6 +32,7 @@ class UPlayerActiveSkillComponent;
 class UBuffFlowComponent;
 class USacrificeRuneComponent;
 class USkillChargeComponent;
+class UPlayerLocomotionComponent;
 class UMontageVFXBindingComponent;
 class UMotionWarpingComponent;
 class UWeaponDefinition;
@@ -182,6 +183,10 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Motion Warping")
 	TObjectPtr<UMotionWarpingComponent> MotionWarpingComponent;
+
+	/** Aim target, locomotion facing and reverse pause. Disabled until bEnableLocomotion is set on it. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Locomotion")
+	TObjectPtr<UPlayerLocomotionComponent> LocomotionComponent;
 
 
 

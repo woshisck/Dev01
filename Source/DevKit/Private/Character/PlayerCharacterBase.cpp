@@ -35,6 +35,7 @@
 #include "Combat/FinisherDeprecation.h"
 #include "BuffFlow/BuffFlowComponent.h"
 #include "Component/SkillChargeComponent.h"
+#include "Component/PlayerLocomotionComponent.h"
 #include "Component/MontageVFXBindingComponent.h"
 #include "Component/YogCameraOcclusionFadeComponent.h"
 #include "Data/AbilityData.h"
@@ -234,6 +235,7 @@ APlayerCharacterBase::APlayerCharacterBase(const FObjectInitializer& ObjectIniti
 	SacrificeRuneComponent = CreateDefaultSubobject<USacrificeRuneComponent>(TEXT("SacrificeRuneComponent"));
 	SkillChargeComponent = CreateDefaultSubobject<USkillChargeComponent>(TEXT("SkillChargeComponent"));
 	MotionWarpingComponent = CreateDefaultSubobject<UMotionWarpingComponent>(TEXT("MotionWarpingComponent"));
+	LocomotionComponent = CreateDefaultSubobject<UPlayerLocomotionComponent>(TEXT("LocomotionComponent"));
 
 	// 近战默认命中框：C++ 实现，无需在每个角色蓝Class Defaults 中单独配
 	DefaultMeleeTargetType = UYogTargetType_Player::StaticClass();

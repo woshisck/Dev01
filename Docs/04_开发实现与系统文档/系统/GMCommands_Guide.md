@@ -99,6 +99,28 @@ bAllowCheatsInShipping=True
 
 ---
 
+### 2.6 移动可视化（UE 内置）
+
+| 命令 | 参数 | 说明 | 示例 |
+|------|------|------|------|
+| `p.VisualizeMovement` | `int (0/1)` | 在胶囊体上方绘制移动调试信息，作用于所有带 `CharacterMovementComponent` 的角色（玩家 + 敌人） | `p.VisualizeMovement 1` |
+
+**绘制内容：**
+
+| 元素 | 颜色 | 含义 |
+|------|------|------|
+| 速度箭头 | 绿色 | `Velocity`，箭头长度 = 速度（cm/s 直接换算为 cm），旁边显示 Speed 与 Max Speed |
+| 加速度箭头 | 黄色 | `Acceleration`，即输入移动方向；长度 = 当前加速度 / MaxAcceleration × 200 cm |
+| 文本 | 白 / 蓝 / 青 | Position、MovementMode、Jump 状态；有 Root Motion 时额外显示 Root Motion 信息 |
+
+**说明：**
+- UE 引擎自带的 CVar（`CharacterMovementComponent.cpp`），不需要 `UYogCheatManager`，PIE 和非 Shipping 包可用。
+- 黄色箭头是经过 `UPlayerLocomotionComponent::FilterMoveInput` 过滤后的输入，Pivot 期间可能被清零或修改，反映的是 CMC 实际收到的值，不是摇杆原始方向。
+- 两个箭头的夹角可用来判断 Start / Pivot / Stop 的触发条件是否符合预期。
+- 输入 `p.VisualizeMovement 0` 关闭。
+
+---
+
 ## 三、常用测试场景
 
 ### 场景 A：测试符文激活区（不同热度阶段）

@@ -6,6 +6,8 @@
 #include "Animation/AnimNotifies/AnimNotifyState.h"
 #include "ANS_AutoTarget.generated.h"
 
+class ACharacter;
+
 /**
  * AnimNotifyState：在攻击窗口内自动索敌并旋转面向最近目标
  *
@@ -54,6 +56,12 @@ public:
 		const FAnimNotifyEventReference& EventReference) override;
 
 	virtual FString GetNotifyName_Implementation() const override;
+
+	/**
+	 * Living hostile characters of the opposing faction within Radius (cm), no cone filter.
+	 * Shared with UPlayerLocomotionComponent so there is a single candidate filter.
+	 */
+	static void GatherHostileCandidates(const ACharacter* Character, float Radius, TArray<AActor*>& OutCandidates);
 
 private:
 	/** 在搜索范围+锥角内找最优目标（最近的存活敌对角色） */

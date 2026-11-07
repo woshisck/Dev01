@@ -40,3 +40,8 @@ Notes:
 |---|---|
 | `LogEnemyAIState` | `StateLog` output |
 | `LogEnemyMoveSmooth` | `MoveSmoothLog` output |
+
+
+## Debu Movement
+
+p.VisualizeMovement 1

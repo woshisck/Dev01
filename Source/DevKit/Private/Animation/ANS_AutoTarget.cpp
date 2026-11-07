@@ -67,6 +67,44 @@ FString UANS_AutoTarget::GetNotifyName_Implementation() const
 
 // ─── 私有实现 ────────────────────────────────────────────────────────────────
 
+void UANS_AutoTarget::GatherHostileCandidates(const ACharacter* Character, float Radius, TArray<AActor*>& OutCandidates)
+{
+	OutCandidates.Reset();
+	if (!Character || !Character->GetWorld())
+	{
+		return;
+	}
+
+	const FVector Origin = Character->GetActorLocation();
+	const float RadiusSq = Radius * Radius;
+
+	TArray<AActor*> FoundActors;
+	UGameplayStatics::GetAllActorsOfClass(Character->GetWorld(), AutoTarget_ResolveTargetClass(Character), FoundActors);
+
+	for (AActor* Actor : FoundActors)
+	{
+		if (!IsValid(Actor) || Actor == Character)
+		{
+			continue;
+		}
+
+		if (const AYogCharacterBase* Char = Cast<AYogCharacterBase>(Actor))
+		{
+			if (!Char->IsAlive())
+			{
+				continue;
+			}
+		}
+
+		if (FVector::DistSquared(Origin, Actor->GetActorLocation()) > RadiusSq)
+		{
+			continue;
+		}
+
+		OutCandidates.Add(Actor);
+	}
+}
+
 AActor* UANS_AutoTarget::FindBestTarget(ACharacter* Character) const
 {
 	if (!Character || !Character->GetWorld())
@@ -85,30 +123,17 @@ AActor* UANS_AutoTarget::FindBestTarget(ACharacter* Character) const
 
 	const float CosHalfAngle = FMath::Cos(FMath::DegreesToRadians(SearchHalfAngleDeg));
 
-	// 球形范围内的所有 Pawn（敌人索敌玩家，玩家索敌敌人）
+	// 球形范围内的存活敌对角色（敌人索敌玩家，玩家索敌敌人）
 	TArray<AActor*> FoundActors;
-	UGameplayStatics::GetAllActorsOfClass(Character->GetWorld(), AutoTarget_ResolveTargetClass(Character), FoundActors);
+	GatherHostileCandidates(Character, SearchRadius, FoundActors);
 
 	AActor* BestTarget = nullptr;
 	float BestDistSq = FLT_MAX;
 
 	for (AActor* Actor : FoundActors)
 	{
-		if (!IsValid(Actor) || Actor == Character)
-			continue;
-
-		// 跳过已死亡敌人
-		if (AYogCharacterBase* Char = Cast<AYogCharacterBase>(Actor))
-		{
-			if (!Char->IsAlive())
-				continue;
-		}
-
-		// 距离过滤
 		const FVector ToTarget = Actor->GetActorLocation() - Origin;
 		const float DistSq = ToTarget.SizeSquared();
-		if (DistSq > SearchRadius * SearchRadius)
-			continue;
 
 		// 锥角过滤（以摇杆意图方向为基准，而非角色朝向）
 		if (SearchHalfAngleDeg < 180.f)

@@ -234,10 +234,12 @@ public:
 
 	bool TryGetAttackMotionWarpRedirectMoveDirection(FVector& OutDirection, float MaxAge = -1.f) const;
 
+	/** True while UI, conversation mode, stun or death blocks gameplay input. */
+	bool IsGameplayInputBlocked() const;
+
 private:
 	/** UI 打开期间为 true，屏蔽移动/攻击/冲刺输入 */
 	bool HandleMenuBackInput(const FKey& Key);
-	bool IsGameplayInputBlocked() const;
 	bool CanUseAttackMotionWarpRedirect(const FVector& AttackDirection) const;
 	bool SetupAttackMotionWarpTarget(APlayerCharacterBase* PlayerCharacter);
 	void HandleCommonInputMethodChanged(ECommonInputType NewInputType);
