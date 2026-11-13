@@ -104,6 +104,18 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "Locomotion")
 	bool bLocoInLock = false;
 
+	/** Signed yaw from the body's forward vector to the acceleration direction, -180..180. Zero when no input is held. */
+	UPROPERTY(BlueprintReadOnly, Category = "Locomotion|ShuttleRun")
+	float InputAngle = 0.f;
+
+	/** Input is held roughly opposite the body's facing while running: enter the shuttle-run turn. */
+	UPROPERTY(BlueprintReadOnly, Category = "Locomotion|ShuttleRun")
+	bool bWantsShuttleRun = false;
+
+	/** InputAngle < 0. Latch it on entering the ShuttleRun state, the capsule rotates during the turn. */
+	UPROPERTY(BlueprintReadOnly, Category = "Locomotion|ShuttleRun")
+	bool bShuttleTurnLeft = false;
+
 	/** Hysteresis band added to each cardinal edge (degrees). */
 	UPROPERTY(EditDefaultsOnly, Category = "Locomotion", meta = (ClampMin = "0.0", ClampMax = "44.0"))
 	float LocoCardinalDeadZone = 15.f;
@@ -124,6 +136,14 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Locomotion", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float LocoStartToLoopSpeedRatio = 0.9f;
 
+	/** abs(InputAngle) above this (degrees) counts as a 180 turn. */
+	UPROPERTY(EditDefaultsOnly, Category = "Locomotion|ShuttleRun", meta = (ClampMin = "90.0", ClampMax = "179.0"))
+	float ShuttleRunMinAngle = 150.f;
+
+	/** The shuttle-run turn only starts above this fraction of max speed. */
+	UPROPERTY(EditDefaultsOnly, Category = "Locomotion|ShuttleRun", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float ShuttleRunMinSpeedRatio = 0.5f;
+
 private:
 	// Plain-data copy of everything the locomotion math reads from actors and components.
 	// Filled on the game thread, consumed on the worker thread.
@@ -141,6 +161,8 @@ private:
 		FVector Acceleration = FVector::ZeroVector;
 		// Yaw-only frame the directional values are measured in (view in Free mode, body in Locked mode).
 		FRotator FrameRotation = FRotator::ZeroRotator;
+		// Body facing regardless of mode, for the turn-direction choice.
+		FRotator ActorRotation = FRotator::ZeroRotator;
 	};
 
 	void GatherLocomotionInputs(const class APlayerCharacterBase& Player);

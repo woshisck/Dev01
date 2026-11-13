@@ -89,6 +89,7 @@ void UYogAnimInstance::GatherLocomotionInputs(const APlayerCharacterBase& Player
 	LocoInput.FrameRotation = bLocomotionOn
 		? FRotator(0.f, Locomotion->GetLocoFrameYaw(), 0.f)
 		: Player.GetActorRotation();
+	LocoInput.ActorRotation = Player.GetActorRotation();
 }
 
 void UYogAnimInstance::UpdateLocomotionState_ThreadSafe()
@@ -155,6 +156,15 @@ void UYogAnimInstance::UpdateLocomotionState_ThreadSafe()
 		|| LocoMotionState == ELocoMotionState::Pivoting;
 	bLocoIsStopping = LocoMotionState == ELocoMotionState::Stopping;
 	bLocoIsPivoting = LocoMotionState == ELocoMotionState::Pivoting;
+
+	// Acceleration, not velocity: at the moment of a reversal velocity still points the old way.
+	InputAngle = YogLocomotion::CalculateMoveAngle(LocoInput.Acceleration, LocoInput.ActorRotation);
+	bShuttleTurnLeft = InputAngle < 0.f;
+
+	const float ShuttleMinSpeed = FMath::Max(LocoMinMoveSpeed, LocoInput.MaxSpeed * ShuttleRunMinSpeedRatio);
+	bWantsShuttleRun = bAllowPivot
+		&& Speed2D >= ShuttleMinSpeed
+		&& FMath::Abs(InputAngle) > ShuttleRunMinAngle;
 }
 
 void UYogAnimInstance::DebugAnimationLayers()

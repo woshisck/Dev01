@@ -21,20 +21,20 @@ struct FWeaponSpawnData
 	FWeaponSpawnData()
 	{}
 
-	UPROPERTY(EditAnywhere, Category = "装备生成", meta = (DisplayName = "武器 Actor 类"))
+	UPROPERTY(EditAnywhere, Category = "Equipment Spawn", meta = (DisplayName = "武器 Actor 类"))
 	TSubclassOf<AWeaponInstance> ActorToSpawn;
 
-	UPROPERTY(EditAnywhere, Category = "装备生成", meta = (DisplayName = "挂接插槽"))
+	UPROPERTY(EditAnywhere, Category = "Equipment Spawn", meta = (DisplayName = "挂接插槽"))
 	FName AttachSocket;
 
-	UPROPERTY(EditAnywhere, Category = "装备生成", meta = (DisplayName = "挂接变换"))
+	UPROPERTY(EditAnywhere, Category = "Equipment Spawn", meta = (DisplayName = "挂接变换"))
 	FTransform AttachTransform;
 
-	UPROPERTY(EditAnywhere, Category = "装备生成", meta = (DisplayName = "武器动画层"))
+	UPROPERTY(EditAnywhere, Category = "Equipment Spawn", meta = (DisplayName = "武器动画层"))
 	TSubclassOf<UYogAnimInstance> WeaponLayer;
 
 	// Optional: Save game data for persistence
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "装备生成", meta = (DisplayName = "写入存档"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Equipment Spawn", meta = (DisplayName = "写入存档"))
 	bool bShouldSaveToGame = false;
 };
 
@@ -60,7 +60,7 @@ class DEVKIT_API UWeaponDefinitionBase : public UPrimaryDataAsset
 
 public:
 	// Actors to spawn on the pawn when this is equipped
-	UPROPERTY(EditDefaultsOnly, Category = "装备", meta = (DisplayName = "装备后生成的武器 Actor"))
+	UPROPERTY(EditDefaultsOnly, Category = "Equipment", meta = (DisplayName = "装备后生成的武器 Actor"))
 	TArray<FWeaponSpawnData> ActorsToSpawn;
 
 	// Hit-impact intensity level (1+) this weapon produces on victims. Selects which Levels entry
