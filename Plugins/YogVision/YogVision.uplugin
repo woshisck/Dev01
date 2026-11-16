@@ -1,0 +1,17 @@
+{
+  "FileVersion": 3,
+  "Version": 1,
+  "VersionName": "0.1",
+  "FriendlyName": "YOG 视野与灵视",
+  "Description": "Opt-in fog of vision, light reveal and spirit motion perception.",
+  "Category": "Rendering",
+  "CanContainContent": true,
+  "EnabledByDefault": false,
+  "Plugins": [
+    { "Name": "Niagara", "Enabled": true }
+  ],
+  "Modules": [
+    { "Name": "YogVisionRuntime", "Type": "Runtime", "LoadingPhase": "PostConfigInit" },
+    { "Name": "YogVisionEditor", "Type": "Editor", "LoadingPhase": "Default" }
+  ]
+}

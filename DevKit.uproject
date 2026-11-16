@@ -41,6 +41,14 @@
 	],
 	"Plugins": [
 		{
+			"Name": "NiagaraFluids",
+			"Enabled": true
+		},
+		{
+			"Name": "YogVision",
+			"Enabled": true
+		},
+		{
 			"Name": "YogLookDev",
 			"Enabled": true,
 			"TargetAllowList": [ "Editor" ]
