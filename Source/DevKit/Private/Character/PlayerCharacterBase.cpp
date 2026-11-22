@@ -29,6 +29,7 @@
 #include "Engine/StreamableManager.h"
 #include "MetaProgression/YogMetaProgressionSubsystem.h"
 #include "Component/CombatItemComponent.h"
+#include "Component/DevourComponent.h"
 #include "Component/CharacterDataComponent.h"
 #include "Component/PlayerActiveSkillComponent.h"
 #include "Component/SacrificeRuneComponent.h"
@@ -229,6 +230,7 @@ APlayerCharacterBase::APlayerCharacterBase(const FObjectInitializer& ObjectIniti
 	CameraOcclusionFadeComponent = CreateDefaultSubobject<UYogCameraOcclusionFadeComponent>(TEXT("CameraOcclusionFadeComponent"));
 
 	CombatItemComponent = CreateDefaultSubobject<UCombatItemComponent>(TEXT("CombatItemComponent"));
+	DevourComponent = CreateDefaultSubobject<UDevourComponent>(TEXT("DevourComponent"));
 	ActiveSkillComponent = CreateDefaultSubobject<UPlayerActiveSkillComponent>(TEXT("ActiveSkillComponent"));
 	PlayerAttributeSet = CreateDefaultSubobject<UPlayerAttributeSet>(TEXT("PlayerAttributeSet"));
 	BuffFlowComponent = CreateDefaultSubobject<UBuffFlowComponent>(TEXT("BuffFlowComponent"));
@@ -954,6 +956,11 @@ void APlayerCharacterBase::ClearRunCarriedStateForHub()
 	ActiveSacrificeGrace = nullptr;
 	ActiveSacrificeOfferingCosts.Reset();
 
+	if (DevourComponent)
+	{
+		DevourComponent->ResetForNewRun();
+	}
+
 	if (BuffFlowComponent)
 	{
 		BuffFlowComponent->StopAllBuffFlows();
@@ -1094,6 +1101,11 @@ void APlayerCharacterBase::RestoreRunState(const FRunState& State)
 	}
 
 	RestoreSacrificeOfferingCosts(State.SacrificeOfferingCosts);
+
+	if (DevourComponent)
+	{
+		DevourComponent->RestoreFromRunState(State.Devours);
+	}
 
 	if (ActiveSkillComponent && !State.SelectedSkillLoadout.IsEmpty())
 	{

@@ -4,6 +4,8 @@
 #include "Character/PlayerCharacterBase.h"
 #include "Character/EnemyCharacterBase.h"
 #include "Combat/FinisherDeprecation.h"
+#include "Component/DevourComponent.h"
+#include "Data/DevourOfferDataAsset.h"
 #include "AbilitySystem/Attribute/BaseAttributeSet.h"
 #include "AbilitySystem/YogAbilitySystemComponent.h"
 #include "Data/RuneDataAsset.h"
@@ -289,6 +291,33 @@ void UYogCheatManager::Yog_KillAll()
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("[GM] 已击杀 %d 个敌"), Count);
+}
+
+void UYogCheatManager::Yog_DevourNextRoom()
+{
+	APlayerCharacterBase* Char = GetPlayerChar();
+	if (!Char || !Char->DevourComponent) return;
+
+	Char->DevourComponent->OnRoomEntered();
+	UE_LOG(LogTemp, Log, TEXT("[GM] Devour: entered a room, %d temp / %d total"),
+		Char->DevourComponent->GetActiveStackCount(), Char->DevourComponent->GetDevours().Num());
+}
+
+void UYogCheatManager::Yog_PrintDevours()
+{
+	APlayerCharacterBase* Char = GetPlayerChar();
+	if (!Char || !Char->DevourComponent) return;
+
+	const UDevourComponent* Devour = Char->DevourComponent;
+	UE_LOG(LogTemp, Log, TEXT("[GM] Devour: this room %d/%d, stacks %d/%d"),
+		Devour->GetDevoursThisRoom(), Devour->GetMaxDevoursPerRoom(),
+		Devour->GetActiveStackCount(), Devour->GetMaxDevourStacks());
+	for (const FActiveDevour& Entry : Devour->GetDevours())
+	{
+		UE_LOG(LogTemp, Log, TEXT("[GM]   #%d %s %s rooms entered %d/%d"), Entry.Id, *GetNameSafe(Entry.Offer),
+			Entry.bMatured ? TEXT("PERMANENT") : TEXT("temp"),
+			Entry.RoomsEntered, Entry.Offer ? Entry.Offer->DurationRooms : 0);
+	}
 }
 
 void UYogCheatManager::Yog_FreezeEnemies(bool bFreeze)

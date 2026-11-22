@@ -83,6 +83,7 @@ void UYogSaveSlotEditProxy::LoadFromSave(UYogSaveGame* Save, int32 InSlotIndex)
 		PlacedRunes.Reset();
 		PendingRunes.Reset();
 		HiddenPassiveRuneInstances.Reset();
+		Devours.Reset();
 		SacrificeOfferingCosts.Reset();
 		PlayerStateData = FPlayerGASData{};
 		WeaponInstanceItems.Reset();
@@ -120,6 +121,7 @@ void UYogSaveSlotEditProxy::LoadFromSave(UYogSaveGame* Save, int32 InSlotIndex)
 	PlacedRunes = Save->RunCheckpoint.PlacedRunes;
 	PendingRunes = Save->RunCheckpoint.PendingRunes;
 	HiddenPassiveRuneInstances = Save->RunCheckpoint.HiddenPassiveRuneInstances;
+	Devours = Save->RunCheckpoint.Devours;
 	SacrificeOfferingCosts = Save->RunCheckpoint.SacrificeOfferingCosts;
 
 	PlayerStateData = Save->PlayerStateData;
@@ -163,6 +165,7 @@ void UYogSaveSlotEditProxy::ApplyToSave(UYogSaveGame* Save) const
 	Save->RunCheckpoint.PlacedRunes = PlacedRunes;
 	Save->RunCheckpoint.PendingRunes = PendingRunes;
 	Save->RunCheckpoint.HiddenPassiveRuneInstances = HiddenPassiveRuneInstances;
+	Save->RunCheckpoint.Devours = Devours;
 	Save->RunCheckpoint.SacrificeOfferingCosts = SacrificeOfferingCosts;
 
 	Save->PlayerStateData = PlayerStateData;
@@ -227,6 +230,7 @@ FString UYogSaveSlotEditProxy::BuildExportText() const
 	Lines.Add(FString::Printf(TEXT("PlacedRunes,%d"), PlacedRunes.Num()));
 	Lines.Add(FString::Printf(TEXT("PendingRunes,%d"), PendingRunes.Num()));
 	Lines.Add(FString::Printf(TEXT("HiddenPassiveRuneInstances,%d"), HiddenPassiveRuneInstances.Num()));
+	Lines.Add(FString::Printf(TEXT("Devours,%d"), Devours.Num()));
 	Lines.Add(FString::Printf(TEXT("SacrificeOfferingCosts,%d"), SacrificeOfferingCosts.Num()));
 	Lines.Add(FString::Printf(TEXT("WeaponInstanceItems,%d"), WeaponInstanceItems.Num()));
 	Lines.Add(FString::Printf(TEXT("SavedCharacter,%d"), SavedCharacter.Num()));

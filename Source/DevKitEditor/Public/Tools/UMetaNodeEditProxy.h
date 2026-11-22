@@ -110,6 +110,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Run Checkpoint|Runes")
 	TArray<FRuneInstance> HiddenPassiveRuneInstances;
 
+	UPROPERTY(EditAnywhere, Category = "Run Checkpoint|Devour")
+	TArray<FDevourCheckpointEntry> Devours;
+
 	UPROPERTY(EditAnywhere, Category = "Run Checkpoint|Sacrifice")
 	TArray<FSacrificeOfferingCostState> SacrificeOfferingCosts;
 

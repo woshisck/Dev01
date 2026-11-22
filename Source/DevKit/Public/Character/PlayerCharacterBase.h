@@ -28,6 +28,7 @@ class AWeaponInstance;
 class AHubFacilityActor;
 class UYogSaveGame;
 class UCombatItemComponent;
+class UDevourComponent;
 class UPlayerActiveSkillComponent;
 class UBuffFlowComponent;
 class USacrificeRuneComponent;
@@ -146,6 +147,9 @@ public:
 public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat Item")
 	TObjectPtr<UCombatItemComponent> CombatItemComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Devour")
+	TObjectPtr<UDevourComponent> DevourComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Active Skill")
 	TObjectPtr<UPlayerActiveSkillComponent> ActiveSkillComponent;

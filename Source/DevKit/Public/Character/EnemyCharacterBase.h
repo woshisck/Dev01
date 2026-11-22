@@ -17,6 +17,7 @@ class UCapsuleComponent;
 class UEnemyHealthDisplayComponent;
 class UEnemyWeaponDefinition;
 class UInteractPromptComponent;
+class UDevourOfferDataAsset;
 class UPrimitiveComponent;
 class UMontageVFXBindingComponent;
 class UYogAbilitySystemComponent;
@@ -60,14 +61,14 @@ public:
 
 	/**
 	 * Counts one player swing against this corpse. SwingId dedupes the several damage events a single
-	 * swing fires; an invalid id falls back to a short time window. Bursts the corpse on the last hit.
+	 * swing fires; an invalid id falls back to a short time window. Dismembers the corpse on the last hit.
 	 */
 	bool RegisterCorpseHit(const FGuid& SwingId);
 
 	// ~ IYogInteractable
 	virtual void TryInteract(APlayerCharacterBase* Player) override;
 	virtual int32 GetInteractPriority() const override { return YogInteractPriority::Corpse; }
-	virtual bool CanInteract(const APlayerCharacterBase* Player) const override { return IsCorpseInteractable(); }
+	virtual bool CanInteract(const APlayerCharacterBase* Player) const override;
 
 	void PostInitializeComponents() override;
 
@@ -140,7 +141,8 @@ protected:
 	void SpawnKillRewardPickups(bool bPlayFocusCue, float ScatterRadius, TArray<ARewardPickup*>* OutPickups = nullptr);
 
 	void EnterLootableCorpseState();
-	void ExplodeCorpse();
+	void DismemberCorpse();
+	UDevourOfferDataAsset* ResolveDevourOffer() const;
 
 	UFUNCTION()
 	void OnCorpseInteractBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepHitResult);

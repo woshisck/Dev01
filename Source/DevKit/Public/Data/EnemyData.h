@@ -20,6 +20,7 @@ class URuneDataAsset;
 class USpawnLifecycleFlowAsset;
 class UBlackboardData;
 class UStateTree;
+class UDevourOfferDataAsset;
 
 UENUM(BlueprintType)
 enum class EEnemyCombatTier : uint8
@@ -370,14 +371,21 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Kill Rewards", meta = (EditCondition = "bEnableKillRewards"))
 	TArray<FEnemyKillRewardEntry> KillRewards;
 
-	// When the enemy rolls any kill reward, the corpse stays as an interactable instead of dropping a pickup on death.
-	// Off restores the drop-on-death behavior.
+	// The body stays on the ground until the player devours or dismembers it. Off makes the enemy
+	// dissolve on death with no drop (bosses, dummies). Kill rewards are only rolled on dismember.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Corpse")
 	bool bLootableCorpse = true;
 
-	// Distinct player swings needed to burst the corpse into its pickups.
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Corpse", meta = (ClampMin = "1", EditCondition = "bLootableCorpse"))
+	// Distinct player swings needed to dismember the corpse. Property name kept so saved assets keep their value.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Corpse", meta = (DisplayName = "Corpse Hits To Dismember", ClampMin = "1", EditCondition = "bLootableCorpse"))
 	int32 CorpseHitsToExplode = 3;
+
+	// What devouring this corpse grants. Empty falls back to Project Settings > Yog > Default Devour Offer.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Corpse", meta = (EditCondition = "bLootableCorpse"))
+	TObjectPtr<UDevourOfferDataAsset> DevourOffer;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Corpse", meta = (EditCondition = "bLootableCorpse"))
+	TObjectPtr<UNiagaraSystem> CorpseDevourFX;
 
 	// Radius of the hold-to-interact volume around the corpse.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Corpse", meta = (ClampMin = "0.0", ForceUnits = "cm", EditCondition = "bLootableCorpse"))

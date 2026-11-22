@@ -17,6 +17,8 @@ UPlayerAttributeSet::UPlayerAttributeSet()
     DashCooldownDuration = 1.0f;
     CurrentAmmo          = 6.0f;
     MaxAmmo              = 6.0f;
+    MaxDevoursPerRoom    = 2.0f;
+    MaxDevourStacks      = 2.0f;
 }
 
 void UPlayerAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue)
@@ -30,5 +32,9 @@ void UPlayerAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribute
     else if (Attribute == GetMaxAmmoAttribute())
     {
         NewValue = FMath::Max(NewValue, 1.f);
+    }
+    else if (Attribute == GetMaxDevoursPerRoomAttribute() || Attribute == GetMaxDevourStacksAttribute())
+    {
+        NewValue = FMath::Max(NewValue, 0.f);
     }
 }

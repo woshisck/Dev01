@@ -46,7 +46,7 @@
 		},
 		{
 			"Name": "YogVision",
-			"Enabled": true
+			"Enabled": false
 		},
 		{
 			"Name": "YogLookDev",

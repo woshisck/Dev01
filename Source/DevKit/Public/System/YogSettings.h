@@ -10,6 +10,7 @@ class UEnemyHitImpactData;
 class UWhiffVFXData;
 class ARewardPickup;
 class URewardLootTableDataAsset;
+class UDevourOfferDataAsset;
 
 /**
  * Project Settings → Game → Yog
@@ -49,6 +50,10 @@ public:
 	// Pickup class spawned by kill drops and by story / level-flow nodes that do not name one.
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Reward")
 	TSoftClassPtr<ARewardPickup> DefaultRewardPickupClass;
+
+	// Devour result used by any corpse whose EnemyData has no DevourOffer of its own.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Corpse")
+	TSoftObjectPtr<UDevourOfferDataAsset> DefaultDevourOffer;
 
 	// Rune pool and card count used by any reward pickup that has no LootTable of its own.
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Reward")

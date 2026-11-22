@@ -10,6 +10,9 @@
 #include "Character/YogCharacterMovementComponent.h"
 #include "Data/AbilityData.h"
 #include "Data/EnemyData.h"
+#include "Component/DevourComponent.h"
+#include "Data/DevourOfferDataAsset.h"
+#include "System/YogSettings.h"
 #include "Data/EnemySkill.h"
 #include "Data/EnemyTrait.h"
 #include "Data/EnemyWeaponDefinition.h"
@@ -621,8 +624,9 @@ void AEnemyCharacterBase::Die()
 	bIsDead = true;
 
 	// Must precede Super::Die(): it starts GA_Dead, which asks IsLootableCorpse() to pick the death flow,
-	// and a montage-less enemy reaches that decision synchronously.
-	RollKillRewards();
+	// and a montage-less enemy reaches that decision synchronously. Loot is rolled later, on dismember.
+	const UEnemyData* DeathEnemyData = GetEnemyData();
+	bLootableCorpse = DeathEnemyData && DeathEnemyData->bLootableCorpse;
 
 	Super::Die();
 
@@ -689,8 +693,6 @@ void AEnemyCharacterBase::FinishDying()
 		return;
 	}
 
-	// Must run before Super, which broadcasts the death delegates and then destroys this actor.
-	SpawnKillRewardPickups(true, 0.f);
 	DestroySpawnedEnemyWeaponActors();
 	Super::FinishDying();
 }
@@ -699,7 +701,6 @@ void AEnemyCharacterBase::RollKillRewards()
 {
 	PendingCorpseBundledLoot.Reset();
 	PendingCorpseSkillLoot.Reset();
-	bLootableCorpse = false;
 
 	const UEnemyData* RuntimeEnemyData = CharacterDataComponent ? Cast<UEnemyData>(CharacterDataComponent->GetCharacterData()) : nullptr;
 	if (!RuntimeEnemyData || !RuntimeEnemyData->bEnableKillRewards || RuntimeEnemyData->KillRewards.IsEmpty())
@@ -728,9 +729,6 @@ void AEnemyCharacterBase::RollKillRewards()
 		Loot.Amount *= FMath::RandRange(Entry.MinQuantityMultiplier, Entry.MaxQuantityMultiplier);
 		PendingCorpseBundledLoot.Add(Loot);
 	}
-
-	bLootableCorpse = RuntimeEnemyData->bLootableCorpse
-		&& (!PendingCorpseBundledLoot.IsEmpty() || !PendingCorpseSkillLoot.IsEmpty());
 }
 
 void AEnemyCharacterBase::SpawnKillRewardPickups(bool bPlayFocusCue, float ScatterRadius, TArray<ARewardPickup*>* OutPickups)
@@ -852,7 +850,7 @@ void AEnemyCharacterBase::OnCorpseInteractBegin(UPrimitiveComponent* OverlappedC
 
 	Player->RegisterInteractable(this);
 	CorpseNearbyPlayer = Player;
-	ShowInteractPrompt(true);
+	ShowInteractPrompt(CanInteract(Player));
 }
 
 void AEnemyCharacterBase::OnCorpseInteractEnd(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
@@ -871,18 +869,43 @@ void AEnemyCharacterBase::OnCorpseInteractEnd(UPrimitiveComponent* OverlappedCom
 	}
 }
 
+bool AEnemyCharacterBase::CanInteract(const APlayerCharacterBase* Player) const
+{
+	if (!IsCorpseInteractable())
+	{
+		return false;
+	}
+
+	const UDevourComponent* Devour = Player ? Player->DevourComponent.Get() : nullptr;
+	return Devour && Devour->CanDevour();
+}
+
+UDevourOfferDataAsset* AEnemyCharacterBase::ResolveDevourOffer() const
+{
+	const UEnemyData* RuntimeEnemyData = GetEnemyData();
+	if (RuntimeEnemyData && RuntimeEnemyData->DevourOffer)
+	{
+		return RuntimeEnemyData->DevourOffer;
+	}
+
+	return UYogSettings::Get()->DefaultDevourOffer.LoadSynchronous();
+}
+
 void AEnemyCharacterBase::TryInteract(APlayerCharacterBase* Player)
 {
-	if (!Player || !IsCorpseInteractable())
+	if (!Player || !CanInteract(Player))
 	{
 		return;
 	}
 
-	// Hand the loot to real pickups and let them grant it, so gold/material/skill grants, FX events
-	// and the rune selection popup stay in one place (ARewardPickup::TryPickup).
-	TArray<ARewardPickup*> Pickups;
-	SpawnKillRewardPickups(false, 0.f, &Pickups);
-	if (Pickups.IsEmpty())
+	UDevourOfferDataAsset* Offer = ResolveDevourOffer();
+	if (!Offer)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Corpse] Devour failed: no DevourOffer on EnemyData and no DefaultDevourOffer in Project Settings > Yog."));
+		return;
+	}
+
+	if (!Player->DevourComponent->TryDevour(Offer))
 	{
 		return;
 	}
@@ -892,12 +915,9 @@ void AEnemyCharacterBase::TryInteract(APlayerCharacterBase* Player)
 	ShowInteractPrompt(false);
 	CorpseNearbyPlayer = nullptr;
 
-	for (ARewardPickup* Pickup : Pickups)
+	if (const UEnemyData* RuntimeEnemyData = GetEnemyData(); RuntimeEnemyData && RuntimeEnemyData->CorpseDevourFX)
 	{
-		if (IsValid(Pickup))
-		{
-			Pickup->TryPickup(Player);
-		}
+		UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), RuntimeEnemyData->CorpseDevourFX, GetActorLocation());
 	}
 
 	Destroy();
@@ -936,12 +956,12 @@ bool AEnemyCharacterBase::RegisterCorpseHit(const FGuid& SwingId)
 
 	if (CorpseHitCount >= (RuntimeEnemyData ? FMath::Max(1, RuntimeEnemyData->CorpseHitsToExplode) : 1))
 	{
-		ExplodeCorpse();
+		DismemberCorpse();
 	}
 	return true;
 }
 
-void AEnemyCharacterBase::ExplodeCorpse()
+void AEnemyCharacterBase::DismemberCorpse()
 {
 	if (bCorpseConsumed)
 	{
@@ -954,12 +974,9 @@ void AEnemyCharacterBase::ExplodeCorpse()
 		UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), RuntimeEnemyData->CorpseExplosionFX, GetActorLocation());
 	}
 
-	TArray<ARewardPickup*> Pickups;
-	SpawnKillRewardPickups(false, EnemyCharacter_CorpseBurstScatterRadius, &Pickups);
-	if (Pickups.IsEmpty())
-	{
-		return;
-	}
+	// The body is consumed even when the roll is empty, otherwise it would stay hittable forever.
+	RollKillRewards();
+	SpawnKillRewardPickups(false, EnemyCharacter_CorpseBurstScatterRadius);
 
 	bCorpseConsumed = true;
 	if (APlayerCharacterBase* Player = CorpseNearbyPlayer.Get())

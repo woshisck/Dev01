@@ -48,6 +48,11 @@ public:
 
 	UFUNCTION(Exec) void Yog_UnlockFinisher();
 
+	/** Simulates entering a room: resets the per-room devour count and ages active devours by one room. */
+	UFUNCTION(Exec) void Yog_DevourNextRoom();
+	/** Prints active devours, rooms entered, and the current caps. */
+	UFUNCTION(Exec) void Yog_PrintDevours();
+
 	// ── Debug 打印 ────────────────────────────────────────────────────────────
 	/** 打印当前热度值、MaxHeat、热度阶*/
 	UFUNCTION(Exec) void Yog_PrintHeat();

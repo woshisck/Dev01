@@ -9,6 +9,7 @@
 #include "Character/YogCharacterBase.h"
 #include "Character/YogPlayerControllerBase.h"
 #include "Component/PlayerActiveSkillComponent.h"
+#include "Component/DevourComponent.h"
 #include "Data/ActiveSkillDataAsset.h"
 #include "Data/RoomDataAsset.h"
 #include "FlowAsset.h"
@@ -496,6 +497,10 @@ void AYogGameMode::TransitionToLevel(FName NextLevel, URoomDataAsset* NextRoom)
 			NewState.PendingRunes = Player->PendingRunes;
 
 			Player->CaptureCombatLoadoutForRunState(NewState);
+			if (Player->DevourComponent)
+			{
+				Player->DevourComponent->CaptureRunState(NewState.Devours);
+			}
 			NewState.CompletedCombatBattleCount = CompletedCombatBattleCount;
 
 			// 保存献祭恩赐

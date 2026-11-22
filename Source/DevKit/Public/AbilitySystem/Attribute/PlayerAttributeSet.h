@@ -74,6 +74,16 @@ public:
     FGameplayAttributeData MaxAmmo;
     ATTRIBUTE_ACCESSORS(UPlayerAttributeSet, MaxAmmo);
 
+    /** Corpses the player may devour per room (integer value). Buffs can raise it. */
+    UPROPERTY(BlueprintReadWrite, Category = "Attributes|Devour")
+    FGameplayAttributeData MaxDevoursPerRoom;
+    ATTRIBUTE_ACCESSORS(UPlayerAttributeSet, MaxDevoursPerRoom);
+
+    /** Devours that may be active at once (integer value). Buffs can raise it. */
+    UPROPERTY(BlueprintReadWrite, Category = "Attributes|Devour")
+    FGameplayAttributeData MaxDevourStacks;
+    ATTRIBUTE_ACCESSORS(UPlayerAttributeSet, MaxDevourStacks);
+
     virtual void PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue) override;
 
     //UPROPERTY(BlueprintReadWrite, Category = "Attributes|Player")

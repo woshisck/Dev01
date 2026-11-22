@@ -358,6 +358,7 @@ struct DEVKIT_API FRunCheckpointData
 	UPROPERTY() TArray<FPlacedRune>   PlacedRunes;
 	UPROPERTY() TArray<FRuneInstance> PendingRunes;
 	UPROPERTY() TArray<FRuneInstance> HiddenPassiveRuneInstances;
+	UPROPERTY() TArray<FDevourCheckpointEntry> Devours;
 	UPROPERTY() TArray<FSacrificeOfferingCostState> SacrificeOfferingCosts;
 
 	// ── 软引用（明确控制加载时机）──────────────────────────────

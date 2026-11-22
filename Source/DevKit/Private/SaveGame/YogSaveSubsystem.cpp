@@ -378,6 +378,15 @@ void UYogSaveSubsystem::PopulateCheckpointFromRunState(FRunCheckpointData& Out, 
 	Out.PlacedRunes                       = RS.PlacedRunes;
 	Out.PendingRunes                      = RS.PendingRunes;
 	Out.HiddenPassiveRuneInstances        = RS.HiddenPassiveRuneInstances;
+	Out.Devours.Reset(RS.Devours.Num());
+	for (const FDevourRunEntry& Devour : RS.Devours)
+	{
+		FDevourCheckpointEntry& Saved = Out.Devours.AddDefaulted_GetRef();
+		Saved.Offer = Devour.Offer.Get();
+		Saved.Id = Devour.Id;
+		Saved.RoomsEntered = Devour.RoomsEntered;
+		Saved.bMatured = Devour.bMatured;
+	}
 	Out.SacrificeOfferingCosts            = RS.SacrificeOfferingCosts;
 	Out.CombatDeckCardOrientations        = RS.CombatDeckCardOrientations;
 	Out.InactiveCombatDeckCardOrientations = RS.InactiveCombatDeckCardOrientations;
@@ -449,6 +458,15 @@ void UYogSaveSubsystem::RestoreRunStateFromCheckpoint(const FRunCheckpointData& 
 	RS.PlacedRunes                       = In.PlacedRunes;
 	RS.PendingRunes                      = In.PendingRunes;
 	RS.HiddenPassiveRuneInstances        = In.HiddenPassiveRuneInstances;
+	RS.Devours.Reset(In.Devours.Num());
+	for (const FDevourCheckpointEntry& Saved : In.Devours)
+	{
+		FDevourRunEntry& Devour = RS.Devours.AddDefaulted_GetRef();
+		Devour.Offer = Saved.Offer.LoadSynchronous();
+		Devour.Id = Saved.Id;
+		Devour.RoomsEntered = Saved.RoomsEntered;
+		Devour.bMatured = Saved.bMatured;
+	}
 	RS.SacrificeOfferingCosts            = In.SacrificeOfferingCosts;
 	RS.CombatDeckCardOrientations        = In.CombatDeckCardOrientations;
 	RS.InactiveCombatDeckCardOrientations = In.InactiveCombatDeckCardOrientations;

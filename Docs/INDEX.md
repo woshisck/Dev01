@@ -41,6 +41,9 @@
 | 查符文系统完整指南 | [RuneLogic_Complete_Guide](04_开发实现与系统文档/系统/Rune/RuneLogic_Complete_Guide.md) |
 | 查 AI 代码规范 | [AI代码编写规范](06_AI协作与VibeCoding/AI代码编写规范.md) |
 | 查普通贴图 NoVT / Texture Collection / 地面 RVT 工具使用 | [NoVT / Texture Collection / RVT 指南](04_开发实现与系统文档/性能/UE58_VirtualTexture_And_VTC_Guide.md) |
+| 配置每局楼层地图生成（房间格子、必出房间、调试） | [FloorGen_Guide](03_策划配置与制作手册/核心配置说明/关卡/FloorGen_Guide.md) |
+| 尸体吞噬 / 肢解（Devour / Dismember）开发方案 | [CorpseDevourDismember_Plan](01_策划需求与版本方案/核心方案/01_开发方案/关卡/CorpseDevourDismember_Plan.md) |
+| 尸体吞噬 / 肢解进度记录（Lua 吞噬 Buff、改动文件、测试清单） | [CorpseDevour_WorkReport](05_完成记录与任务看板/验收与报告/CorpseDevour_WorkReport.md) |
 | 换鼠标光标图片 | [硬件鼠标光标配置说明](03_策划配置与制作手册/核心配置说明/UI/硬件鼠标光标配置说明.md) |
 
 ## 维护规则

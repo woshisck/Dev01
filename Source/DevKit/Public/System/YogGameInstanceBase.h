@@ -9,6 +9,7 @@
 #include "Data/SacrificeGraceDA.h"
 #include "Data/AltarDataAsset.h"
 #include "GameModes/LevelFlowTypes.h"
+#include "Data/DevourOfferDataAsset.h"
 
 #include "YogGameInstanceBase.generated.h"
 
@@ -115,6 +116,14 @@ struct FRunState
 	// 运行时拾取的无形状符文（隐藏被动）：跨关恢复后由 BGC::RestoreRuntimeHiddenPassiveRunes 重新激活
 	UPROPERTY()
 	TArray<FRuneInstance> HiddenPassiveRuneInstances;
+
+	// Devoured corpses, temp and matured; UDevourComponent::RestoreFromRunState re-runs their Lua phases.
+	UPROPERTY()
+	TArray<FDevourRunEntry> Devours;
+
+	// Devoured corpses, temp and matured; UDevourComponent::RestoreFromRunState re-runs their Lua phases.
+	UPROPERTY()
+	TArray<FDevourRunEntry> Devours;
 
 	UPROPERTY()
 	TArray<FSacrificeOfferingCostState> SacrificeOfferingCosts;
