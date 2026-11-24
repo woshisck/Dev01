@@ -62,8 +62,9 @@ public:
 	/**
 	 * Counts one player swing against this corpse. SwingId dedupes the several damage events a single
 	 * swing fires; an invalid id falls back to a short time window. Dismembers the corpse on the last hit.
+	 * HitImpactLevel is the attacker weapon's level, used to pick the hit sound from EnemyHitImpactData.
 	 */
-	bool RegisterCorpseHit(const FGuid& SwingId);
+	bool RegisterCorpseHit(const FGuid& SwingId, int32 HitImpactLevel = 1);
 
 	// ~ IYogInteractable
 	virtual void TryInteract(APlayerCharacterBase* Player) override;
@@ -165,12 +166,9 @@ protected:
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<AActor>> SpawnedEnemyWeaponActors;
 
-	// Bundled gold/material/rune loot shares one pickup; each weapon skill needs its own, see SpawnKillRewardPickups.
+	// Combat items rolled on dismember, one pickup each, see SpawnKillRewardPickups.
 	UPROPERTY(Transient)
-	TArray<FLootOption> PendingCorpseBundledLoot;
-
-	UPROPERTY(Transient)
-	TArray<FLootOption> PendingCorpseSkillLoot;
+	TArray<FLootOption> PendingCorpseItemLoot;
 
 	// Created when the corpse state starts so ordinary enemies carry no extra components or widgets.
 	UPROPERTY(Transient)

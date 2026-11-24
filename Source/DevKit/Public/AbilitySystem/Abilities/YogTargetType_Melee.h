@@ -85,4 +85,11 @@ public:
 	 */
 	void CollectLootableCorpses(AYogCharacterBase* TargetingCharacter, const FGameplayEventData& EventData,
 		TArray<AEnemyCharacterBase*>& OutCorpses) const;
+
+	/**
+	 * Nearest WorldStatic surface inside the swing's hitbox whose physical material is a
+	 * UYogPhysicalMaterial with a valid HitReactMaterial. Used only for hit-impact feedback.
+	 */
+	bool FindEnvironmentHit(AYogCharacterBase* TargetingCharacter, const FGameplayEventData& EventData,
+		FVector& OutLocation, FGameplayTag& OutSurfaceTag) const;
 };

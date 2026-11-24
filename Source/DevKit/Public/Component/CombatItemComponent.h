@@ -35,6 +35,10 @@ struct DEVKIT_API FRuntimeSlot
 
 	UPROPERTY()
 	FCombatItemConfig Config;
+
+	// Kept so the slot can be carried across levels in FRunState. Null for test-injected slots.
+	UPROPERTY()
+	TObjectPtr<UCombatItemDataAsset> SourceAsset = nullptr;
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCombatItemSlotsChangedDelegate, const TArray<FCombatItemSlotView>&, Slots);
@@ -53,6 +57,10 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat Item|Loadout")
 	TArray<TObjectPtr<UCombatItemDataAsset>> DefaultItemAssets;
+
+	// Most items the player can hold at once. Pickups are refused while the slots are full.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat Item|Loadout", meta = (ClampMin = "1"))
+	int32 MaxSlots = 1;
 
 	UPROPERTY(BlueprintAssignable, Category = "Combat Item")
 	FCombatItemSlotsChangedDelegate OnItemSlotsChanged;
@@ -81,6 +89,16 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Combat Item")
 	TArray<FCombatItemSlotView> GetSlotViews() const;
+
+	UFUNCTION(BlueprintPure, Category = "Combat Item")
+	bool HasFreeSlot() const { return Slots.Num() < MaxSlots; }
+
+	/** Returns false, and changes nothing, when the asset is null or every slot is taken. */
+	UFUNCTION(BlueprintCallable, Category = "Combat Item")
+	bool AddItem(UCombatItemDataAsset* Asset);
+
+	void CaptureRunState(TArray<TObjectPtr<UCombatItemDataAsset>>& OutItems) const;
+	void RestoreFromRunState(const TArray<TObjectPtr<UCombatItemDataAsset>>& Items);
 
 	static bool IsNoHitReactItemDamage(const FGameplayEffectSpec& Spec);
 	static void ApplyItemPureDamage(AActor* SourceActor, AActor* TargetActor, float Damage, FName DamageType, bool bSuppressHitReact = true);

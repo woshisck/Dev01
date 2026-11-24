@@ -125,6 +125,7 @@ private:
 	FCombatCardResolveResult ActiveCombatCardResult;
 
 	FGuid ActiveAttackGuid;
+	FGuid LastEnvironmentHitSwingId;
 	int32 ActiveComboIndex = 0;
 	FGameplayTagContainer ActiveComboTags;
 

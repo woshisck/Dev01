@@ -712,6 +712,12 @@ void APlayerCharacterBase::CaptureCombatLoadoutForRunState(FRunState& OutState)
 		InitializeInactiveWeaponDeckStateFromDefinition();
 	}
 
+	if (CombatItemComponent)
+	{
+		CombatItemComponent->CaptureRunState(OutState.CombatItems);
+		OutState.bCombatItemsCaptured = true;
+	}
+
 	OutState.EquippedWeaponDef = EquippedWeaponDef;
 	OutState.InactiveWeaponDef = InactiveWeaponDef;
 	OutState.EquippedWeaponSkill = EquippedWeaponSkill;
@@ -1105,6 +1111,11 @@ void APlayerCharacterBase::RestoreRunState(const FRunState& State)
 	if (DevourComponent)
 	{
 		DevourComponent->RestoreFromRunState(State.Devours);
+	}
+
+	if (CombatItemComponent && State.bCombatItemsCaptured)
+	{
+		CombatItemComponent->RestoreFromRunState(State.CombatItems);
 	}
 
 	if (ActiveSkillComponent && !State.SelectedSkillLoadout.IsEmpty())

@@ -28,6 +28,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Combat|Hit Impact Visual")
 	int32 PlayHitFeedback(const FVector& HitLocation, int32 Level);
 
+	// Component-free core of PlayHitFeedback: resolves UEnemyHitImpactData for the given tags and
+	// plays sound + VFX at Location. Used directly for environment surfaces that have no component.
+	// Returns the resolved camera-shake level (0 = none).
+	static int32 PlayImpactAtLocation(UWorld* World, const FGameplayTagContainer& SurfaceTags,
+		const FVector& Location, int32 Level);
+
 	UFUNCTION(BlueprintCallable, Category = "Combat|Hit Impact Visual")
 	void PlayHitPush(AActor* SourceActor, float Strength = 1.0f);
 

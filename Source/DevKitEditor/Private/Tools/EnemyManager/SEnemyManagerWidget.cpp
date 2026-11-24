@@ -2038,9 +2038,19 @@ void SEnemyManagerWidget::CountValidationIssues(
 			{
 				++OutErrors;
 			}
+			if (Entry.Loot.LootType == ELootType::CombatItem && !Entry.Loot.CombatItemAsset)
+			{
+				++OutErrors;
+			}
+			// Corpses only drop combat items; every other type is skipped at roll time.
+			if (Entry.Loot.LootType != ELootType::CombatItem)
+			{
+				++OutWarnings;
+			}
 			// WeaponSkill counts uses in WeaponSkillCharges, where 0 legitimately means permanent.
 			if (Entry.Loot.LootType != ELootType::Rune
 				&& Entry.Loot.LootType != ELootType::WeaponSkill
+				&& Entry.Loot.LootType != ELootType::CombatItem
 				&& Entry.Loot.Amount <= 0)
 			{
 				++OutErrors;

@@ -104,7 +104,12 @@ FGameplayTagContainer UHitImpactVisualComponent::GatherVictimTags() const
 
 int32 UHitImpactVisualComponent::PlayHitFeedback(const FVector& HitLocation, int32 Level)
 {
-	UWorld* World = GetWorld();
+	return PlayImpactAtLocation(GetWorld(), GatherVictimTags(), HitLocation, Level);
+}
+
+int32 UHitImpactVisualComponent::PlayImpactAtLocation(UWorld* World, const FGameplayTagContainer& SurfaceTags,
+	const FVector& HitLocation, int32 Level)
+{
 	if (!World)
 	{
 		return 0;
@@ -117,7 +122,7 @@ int32 UHitImpactVisualComponent::PlayHitFeedback(const FVector& HitLocation, int
 		return 0;
 	}
 
-	const FHitImpactResolved FX = Data->Resolve(GatherVictimTags(), Level);
+	const FHitImpactResolved FX = Data->Resolve(SurfaceTags, Level);
 
 	if (FX.VFX)
 	{

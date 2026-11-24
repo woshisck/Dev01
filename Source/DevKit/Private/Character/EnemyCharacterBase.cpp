@@ -24,6 +24,7 @@
 #include "GameModes/YogGameMode.h"
 #include "BuffFlow/BuffFlowComponent.h"
 #include "Component/EnemyHealthDisplayComponent.h"
+#include "Component/HitImpactVisualComponent.h"
 #include "Component/MontageVFXBindingComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Item/Weapon/WeaponInstance.h"
@@ -32,6 +33,8 @@
 #include "Component/InteractPromptComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Map/RewardPickup.h"
+#include "System/YogBubbleSubsystem.h"
+#include "UI/BubbleMessageTypes.h"
 #include "NiagaraFunctionLibrary.h"
 
 // Keeps multiple kill-reward pickups from stacking inside each other's 80cm collision box.
@@ -699,8 +702,7 @@ void AEnemyCharacterBase::FinishDying()
 
 void AEnemyCharacterBase::RollKillRewards()
 {
-	PendingCorpseBundledLoot.Reset();
-	PendingCorpseSkillLoot.Reset();
+	PendingCorpseItemLoot.Reset();
 
 	const UEnemyData* RuntimeEnemyData = CharacterDataComponent ? Cast<UEnemyData>(CharacterDataComponent->GetCharacterData()) : nullptr;
 	if (!RuntimeEnemyData || !RuntimeEnemyData->bEnableKillRewards || RuntimeEnemyData->KillRewards.IsEmpty())
@@ -708,37 +710,35 @@ void AEnemyCharacterBase::RollKillRewards()
 		return;
 	}
 
+	// A corpse only ever drops the combat items authored in its EnemyData. Gold, material, rune and
+	// weapon skill entries are ignored here on purpose.
 	for (const FEnemyKillRewardEntry& Entry : RuntimeEnemyData->KillRewards)
 	{
+		if (Entry.Loot.LootType != ELootType::CombatItem)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[Corpse] %s: KillRewards entry of type %d ignored, only CombatItem entries drop."),
+				*GetName(), static_cast<int32>(Entry.Loot.LootType));
+			continue;
+		}
+
+		if (!Entry.Loot.CombatItemAsset)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[Corpse] %s: CombatItem entry has no CombatItemAsset."), *GetName());
+			continue;
+		}
+
 		if (FMath::FRand() > Entry.DropChance)
 		{
 			continue;
 		}
 
-		FLootOption Loot = Entry.Loot;
-		if (Loot.LootType == ELootType::WeaponSkill)
-		{
-			// Quantity multipliers are meaningless for a skill; WeaponSkillCharges is authored directly.
-			if (Loot.WeaponSkillAsset)
-			{
-				PendingCorpseSkillLoot.Add(Loot);
-			}
-			continue;
-		}
-
-		Loot.Amount *= FMath::RandRange(Entry.MinQuantityMultiplier, Entry.MaxQuantityMultiplier);
-		PendingCorpseBundledLoot.Add(Loot);
+		PendingCorpseItemLoot.Add(Entry.Loot);
 	}
 }
 
 void AEnemyCharacterBase::SpawnKillRewardPickups(bool bPlayFocusCue, float ScatterRadius, TArray<ARewardPickup*>* OutPickups)
 {
-	if (PendingCorpseBundledLoot.IsEmpty() && PendingCorpseSkillLoot.IsEmpty())
-	{
-		return;
-	}
-
-	if (!GetWorld())
+	if (PendingCorpseItemLoot.IsEmpty() || !GetWorld())
 	{
 		return;
 	}
@@ -747,7 +747,8 @@ void AEnemyCharacterBase::SpawnKillRewardPickups(bool bPlayFocusCue, float Scatt
 	int32 PickupIndex = 0;
 	bool bSpawnedAny = false;
 
-	const auto SpawnOne = [&](const TArray<FLootOption>& Loot)
+	// One pickup per item: the player holds a limited number, so a bundle could never be taken whole.
+	for (const FLootOption& ItemLoot : PendingCorpseItemLoot)
 	{
 		FVector SpawnLocation = DeathLocation;
 		if (ScatterRadius > 0.f)
@@ -761,10 +762,10 @@ void AEnemyCharacterBase::SpawnKillRewardPickups(bool bPlayFocusCue, float Scatt
 		}
 
 		++PickupIndex;
-		ARewardPickup* Pickup = ARewardPickup::SpawnWithLoot(this, nullptr, SpawnLocation, Loot, bPlayFocusCue);
+		ARewardPickup* Pickup = ARewardPickup::SpawnWithLoot(this, nullptr, SpawnLocation, { ItemLoot }, bPlayFocusCue, true);
 		if (!Pickup)
 		{
-			return;
+			continue;
 		}
 
 		bSpawnedAny = true;
@@ -772,25 +773,12 @@ void AEnemyCharacterBase::SpawnKillRewardPickups(bool bPlayFocusCue, float Scatt
 		{
 			OutPickups->Add(Pickup);
 		}
-	};
-
-	if (!PendingCorpseBundledLoot.IsEmpty())
-	{
-		SpawnOne(PendingCorpseBundledLoot);
 	}
 
-	// Each skill needs its own pickup: ShouldGrantLootImmediatelyForOptions rejects the whole
-	// option array if any entry is a Rune, which would route the skill into the Rune-only card UI.
-	for (const FLootOption& SkillLoot : PendingCorpseSkillLoot)
-	{
-		SpawnOne({ SkillLoot });
-	}
-
-	// Kept when nothing spawned (no RewardPickupClass) so a later interact can retry.
+	// Kept when nothing spawned (no RewardPickupClass) so a later call can retry.
 	if (bSpawnedAny)
 	{
-		PendingCorpseBundledLoot.Reset();
-		PendingCorpseSkillLoot.Reset();
+		PendingCorpseItemLoot.Reset();
 	}
 }
 
@@ -915,15 +903,32 @@ void AEnemyCharacterBase::TryInteract(APlayerCharacterBase* Player)
 	ShowInteractPrompt(false);
 	CorpseNearbyPlayer = nullptr;
 
-	if (const UEnemyData* RuntimeEnemyData = GetEnemyData(); RuntimeEnemyData && RuntimeEnemyData->CorpseDevourFX)
+	const UEnemyData* RuntimeEnemyData = GetEnemyData();
+	if (RuntimeEnemyData && RuntimeEnemyData->CorpseDevourFX)
 	{
 		UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), RuntimeEnemyData->CorpseDevourFX, GetActorLocation());
+	}
+
+	if (UYogBubbleSubsystem* Bubbles = GetWorld() ? GetWorld()->GetSubsystem<UYogBubbleSubsystem>() : nullptr)
+	{
+		const FText EnemyName = (RuntimeEnemyData && !RuntimeEnemyData->DisplayName.IsEmpty())
+			? RuntimeEnemyData->DisplayName
+			: FText::FromString(GetName());
+
+		Bubbles->RequestBubbleText(
+			Player,
+			FText::GetEmpty(),
+			FText::Format(NSLOCTEXT("EnemyCorpse", "DevouredEnemy", "Devour enemy {0}"), EnemyName),
+			2.f,
+			EBubbleAnchorMode::Auto,
+			YogBubblePriority::Hint,
+			FGameplayTag());
 	}
 
 	Destroy();
 }
 
-bool AEnemyCharacterBase::RegisterCorpseHit(const FGuid& SwingId)
+bool AEnemyCharacterBase::RegisterCorpseHit(const FGuid& SwingId, int32 HitImpactLevel)
 {
 	const UWorld* World = GetWorld();
 	if (!World || !IsCorpseInteractable())
@@ -948,6 +953,14 @@ bool AEnemyCharacterBase::RegisterCorpseHit(const FGuid& SwingId)
 
 	const UEnemyData* RuntimeEnemyData = GetEnemyData();
 	++CorpseHitCount;
+	UE_LOG(LogTemp, Log, TEXT("[Corpse] %s hit %d/%d"), *GetName(), CorpseHitCount,
+		RuntimeEnemyData ? FMath::Max(1, RuntimeEnemyData->CorpseHitsToExplode) : 1);
+
+	// Corpse swings deal no damage, so the damage path never plays the victim hit sound for them.
+	if (HitImpactVisualComponent)
+	{
+		HitImpactVisualComponent->PlayHitFeedback(GetActorLocation(), HitImpactLevel);
+	}
 
 	if (RuntimeEnemyData && RuntimeEnemyData->CorpseHitFX)
 	{

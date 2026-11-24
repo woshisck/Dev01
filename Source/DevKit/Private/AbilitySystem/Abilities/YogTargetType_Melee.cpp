@@ -11,6 +11,9 @@
 #include "Character/PlayerCharacterBase.h"
 #include "Data/MontageAttackDataAsset.h"
 #include "Components/CapsuleComponent.h"
+#include "Components/PrimitiveComponent.h"
+#include "Data/YogPhysicalMaterial.h"
+#include "Engine/World.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "DrawDebugHelpers.h"
 #include "GameFramework/Controller.h"
@@ -479,4 +482,69 @@ void UYogTargetType_Player::CollectLootableCorpses(
 			OutCorpses.Add(Corpse);
 		}
 	}
+}
+
+bool UYogTargetType_Player::FindEnvironmentHit(
+	AYogCharacterBase* TargetingCharacter, const FGameplayEventData& EventData,
+	FVector& OutLocation, FGameplayTag& OutSurfaceTag) const
+{
+	UWorld* World = TargetingCharacter ? TargetingCharacter->GetWorld() : nullptr;
+	if (!World)
+	{
+		return false;
+	}
+
+	const FActionData ActionData = GetActionData(TargetingCharacter, EventData);
+	const FVector CharLoc = TargetingCharacter->GetActorLocation();
+	const float CharYaw = TargetingCharacter->GetActorRotation().Yaw;
+	const float Range = ActionData.ActRange > 0.f ? ActionData.ActRange : 400.f;
+
+	// The melee hitbox is purely geometric (no collision shape), so sample it with a fan of rays
+	// and keep the nearest surface that also lies inside the authored hitbox.
+	static constexpr int32 RayCount = 7;
+	static constexpr float FanHalfAngle = 60.f;
+
+	FCollisionObjectQueryParams ObjectParams;
+	ObjectParams.AddObjectTypesToQuery(ECC_WorldStatic);
+
+	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(MeleeEnvironmentHit), false, TargetingCharacter);
+	QueryParams.bReturnPhysicalMaterial = true;
+
+	float BestDistSq = TNumericLimits<float>::Max();
+	bool bFound = false;
+
+	for (int32 Index = 0; Index < RayCount; ++Index)
+	{
+		const float Alpha = RayCount > 1 ? static_cast<float>(Index) / (RayCount - 1) : 0.5f;
+		const float RayYaw = CharYaw + FMath::Lerp(-FanHalfAngle, FanHalfAngle, Alpha);
+		const FVector End = CharLoc + FRotator(0.f, RayYaw, 0.f).Vector() * Range;
+
+		FHitResult Hit;
+		if (!World->LineTraceSingleByObjectType(Hit, CharLoc, End, ObjectParams, QueryParams))
+		{
+			continue;
+		}
+
+		const UYogPhysicalMaterial* SurfaceMaterial = Cast<UYogPhysicalMaterial>(Hit.PhysMaterial.Get());
+		if (!SurfaceMaterial || !SurfaceMaterial->HitReactMaterial.IsValid())
+		{
+			continue;
+		}
+
+		if (!IsTargetHit(CharLoc, CharYaw, ActionData, Hit.ImpactPoint))
+		{
+			continue;
+		}
+
+		const float DistSq = FVector::DistSquared(CharLoc, Hit.ImpactPoint);
+		if (DistSq < BestDistSq)
+		{
+			BestDistSq = DistSq;
+			OutLocation = Hit.ImpactPoint;
+			OutSurfaceTag = SurfaceMaterial->HitReactMaterial;
+			bFound = true;
+		}
+	}
+
+	return bFound;
 }

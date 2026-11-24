@@ -9,6 +9,7 @@
 
 class UTexture2D;
 class UWeaponSkillDataAsset;
+class UCombatItemDataAsset;
 
 /** 战利品类型（预留扩展） */
 UENUM(BlueprintType)
@@ -22,6 +23,10 @@ enum class ELootType : uint8
 	// (AEnemyCharacterBase::SpawnKillRewardPickups -> ARewardPickup::GrantImmediateLoot).
 	// The rune card widget cannot show it.
 	WeaponSkill		UMETA(DisplayName = "WeaponSkill"),
+
+	// A usable combat item (UCombatItemDataAsset). Immediate-grant path only; refused when the
+	// player has no free combat item slot. Appended last so saved enum values stay valid.
+	CombatItem		UMETA(DisplayName = "CombatItem"),
 };
 
 /** 单个战利品选项，由 GameMode 生成后广播给 UI */
@@ -44,6 +49,10 @@ struct DEVKIT_API FLootOption
 	// LootType == WeaponSkill 时有效：可用次数，<=0 表示永久
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot")
 	int32 WeaponSkillCharges = INDEX_NONE;
+
+	// Only used when LootType == CombatItem.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot")
+	TObjectPtr<UCombatItemDataAsset> CombatItemAsset = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot")
 	int32 Amount = 0;

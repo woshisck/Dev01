@@ -72,7 +72,8 @@ public:
 	 * Returns null when no class resolves or Options is empty.
 	 */
 	static ARewardPickup* SpawnWithLoot(UObject* WorldContext, TSubclassOf<ARewardPickup> PickupClass,
-		const FVector& Location, const TArray<FLootOption>& Options, bool bPlayFocusCue = true);
+		const FVector& Location, const TArray<FLootOption>& Options, bool bPlayFocusCue = true,
+		bool bInAutoPickup = false);
 
 	UFUNCTION(BlueprintCallable, Category = "Reward|Pickup")
 	void PlaySpawnFocusCue();
@@ -84,6 +85,11 @@ public:
 
 	/** Returns true when a pickup can grant all loot directly without opening card selection. */
 	static bool ShouldGrantLootImmediatelyForOptions(const TArray<FLootOption>& Options);
+
+	// Picked up the moment the player enters range, with no interact press. When the pickup cannot be
+	// taken (for example the item slot is full) it stays on the ground and falls back to interact.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Reward|Pickup")
+	bool bAutoPickup = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Reward|Fixed")
 	bool bUseFixedLootOptions = false;
@@ -155,6 +161,10 @@ protected:
 	// 在 BP_RewardPickup 里指定浮窗 WBP 类
 	UPROPERTY(EditDefaultsOnly, Category = "Floating Panel")
 	TSubclassOf<URuneRewardFloatWidget> RuneFloatWidgetClass;
+
+	// Temporarily off: the floating loot list is not created, so nothing shows above the pickup.
+	UPROPERTY(EditDefaultsOnly, Category = "Floating Panel")
+	bool bShowFloatingPanel = false;
 
 	// 浮窗侧向偏移（摄像机 Right 方向，cm）
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Floating Panel")

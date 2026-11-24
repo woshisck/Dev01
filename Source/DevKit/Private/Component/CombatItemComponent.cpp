@@ -55,6 +55,53 @@ void UCombatItemComponent::InitializeDefaultSlots()
 
 		FRuntimeSlot& Slot = Slots.AddDefaulted_GetRef();
 		Slot.Config = Asset->Config;
+		Slot.SourceAsset = Asset;
+	}
+
+	ActiveSlotIndex = Slots.IsValidIndex(ActiveSlotIndex) ? ActiveSlotIndex : 0;
+	BroadcastSlotsChanged();
+}
+
+bool UCombatItemComponent::AddItem(UCombatItemDataAsset* Asset)
+{
+	if (!Asset || !HasFreeSlot())
+	{
+		return false;
+	}
+
+	FRuntimeSlot& Slot = Slots.AddDefaulted_GetRef();
+	Slot.Config = Asset->Config;
+	Slot.SourceAsset = Asset;
+
+	BroadcastSlotsChanged();
+	return true;
+}
+
+void UCombatItemComponent::CaptureRunState(TArray<TObjectPtr<UCombatItemDataAsset>>& OutItems) const
+{
+	OutItems.Reset(Slots.Num());
+	for (const FRuntimeSlot& Slot : Slots)
+	{
+		if (Slot.SourceAsset)
+		{
+			OutItems.Add(Slot.SourceAsset);
+		}
+	}
+}
+
+void UCombatItemComponent::RestoreFromRunState(const TArray<TObjectPtr<UCombatItemDataAsset>>& Items)
+{
+	Slots.Reset();
+	for (UCombatItemDataAsset* Asset : Items)
+	{
+		if (!Asset)
+		{
+			continue;
+		}
+
+		FRuntimeSlot& Slot = Slots.AddDefaulted_GetRef();
+		Slot.Config = Asset->Config;
+		Slot.SourceAsset = Asset;
 	}
 
 	ActiveSlotIndex = Slots.IsValidIndex(ActiveSlotIndex) ? ActiveSlotIndex : 0;

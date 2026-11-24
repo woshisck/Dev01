@@ -7,6 +7,10 @@
 #include "Character/PlayerCharacterBase.h"
 #include "Containers/Ticker.h"
 #include "Component/BackpackGridComponent.h"
+#include "Component/CombatItemComponent.h"
+#include "Data/CombatItemDataAsset.h"
+#include "System/YogBubbleSubsystem.h"
+#include "UI/BubbleMessageTypes.h"
 #include "Data/RewardLootTableDataAsset.h"
 #include "Data/WeaponSkillDataAsset.h"
 #include "Kismet/GameplayStatics.h"
@@ -19,6 +23,37 @@
 #include "UI/YogUIManagerSubsystem.h"
 #include "Engine/LocalPlayer.h"
 #include "Visual/TimeDilationVisualSubsystem.h"
+
+static bool RewardPickup_RequiresFreeItemSlot(const TArray<FLootOption>& Options)
+{
+	for (const FLootOption& Option : Options)
+	{
+		if (Option.LootType == ELootType::CombatItem)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+static void RewardPickup_ShowInventoryFull(APlayerCharacterBase* Player)
+{
+	UWorld* World = Player ? Player->GetWorld() : nullptr;
+	UYogBubbleSubsystem* Bubbles = World ? World->GetSubsystem<UYogBubbleSubsystem>() : nullptr;
+	if (!Bubbles)
+	{
+		return;
+	}
+
+	Bubbles->RequestBubbleText(
+		Player,
+		FText::GetEmpty(),
+		NSLOCTEXT("RewardPickup", "InventoryFull", "Inventory is full"),
+		2.f,
+		EBubbleAnchorMode::Auto,
+		YogBubblePriority::Hint,
+		FGameplayTag());
+}
 
 ARewardPickup::ARewardPickup()
 {
@@ -116,6 +151,18 @@ void ARewardPickup::OnPlayerEnterRange(APlayerCharacterBase* Player)
 	Player->RegisterInteractable(this);
 	NearbyPlayer = Player;
 	bPlayerInRange = true;
+
+	// A taken pickup is destroyed, so bail out before touching the prompt. A refused one falls through
+	// and shows the normal interact prompt.
+	if (bAutoPickup)
+	{
+		TryPickup(Player);
+		if (bPickedUp || !IsValid(this))
+		{
+			return;
+		}
+	}
+
 	if (RuneInfoWidgetComp) RuneInfoWidgetComp->SetVisibility(true);
 	ShowInteractPrompt(true);
 	UE_LOG(LogTemp, Log, TEXT("RewardPickup: 玩家进入拾取范围，按 A 键（手柄）拾取"));
@@ -171,7 +218,7 @@ void ARewardPickup::AssignLoot(const TArray<FLootOption>& InLoot)
 	AssignedLoot = InLoot;
 
 	// 初始化符文浮窗内容
-	if (RuneFloatWidgetClass && RuneInfoWidgetComp)
+	if (bShowFloatingPanel && RuneFloatWidgetClass && RuneInfoWidgetComp)
 	{
 		RuneInfoWidgetComp->SetWidgetClass(RuneFloatWidgetClass);
 		RuneInfoWidgetComp->InitWidget();
@@ -189,7 +236,7 @@ void ARewardPickup::SetPickupEnabled(bool bEnabled)
 }
 
 ARewardPickup* ARewardPickup::SpawnWithLoot(UObject* WorldContext, TSubclassOf<ARewardPickup> PickupClass,
-	const FVector& Location, const TArray<FLootOption>& Options, bool bPlayFocusCue)
+	const FVector& Location, const TArray<FLootOption>& Options, bool bPlayFocusCue, bool bInAutoPickup)
 {
 	UWorld* World = WorldContext ? WorldContext->GetWorld() : nullptr;
 	if (!World || Options.IsEmpty())
@@ -207,13 +254,25 @@ ARewardPickup* ARewardPickup::SpawnWithLoot(UObject* WorldContext, TSubclassOf<A
 		return nullptr;
 	}
 
-	ARewardPickup* Pickup = World->SpawnActor<ARewardPickup>(PickupClass, Location, FRotator::ZeroRotator);
+	// Deferred so loot and the auto-pickup flag are set before BeginPlay: a player standing in the
+	// spawn volume gets the overlap during FinishSpawning, which must already see them.
+	const FTransform SpawnTransform(FRotator::ZeroRotator, Location);
+	ARewardPickup* Pickup = World->SpawnActorDeferred<ARewardPickup>(PickupClass, SpawnTransform);
 	if (!Pickup)
 	{
 		return nullptr;
 	}
 
+	Pickup->bAutoPickup = bInAutoPickup;
 	Pickup->AssignLoot(Options);
+	Pickup->FinishSpawning(SpawnTransform);
+
+	// An auto pickup under the player is consumed during FinishSpawning.
+	if (!IsValid(Pickup))
+	{
+		return nullptr;
+	}
+
 	if (bPlayFocusCue)
 	{
 		Pickup->PlaySpawnFocusCue();
@@ -305,6 +364,15 @@ void ARewardPickup::TryPickup(APlayerCharacterBase* Player)
 		ClearNearbyPlayer();
 		return;
 	}
+	// Checked before any state changes so a refused pickup stays interactable and registered.
+	const TArray<FLootOption>& LootToTake = (AssignedLoot.IsEmpty() && bUseFixedLootOptions) ? FixedLootOptions : AssignedLoot;
+	if (RewardPickup_RequiresFreeItemSlot(LootToTake)
+		&& !(Player->CombatItemComponent && Player->CombatItemComponent->HasFreeSlot()))
+	{
+		RewardPickup_ShowInventoryFull(Player);
+		return;
+	}
+
 	APlayerController* PC = Player->GetController<APlayerController>();
 	AYogHUD* HUD = PC ? Cast<AYogHUD>(PC->GetHUD()) : nullptr;
 	UYogLootSubsystem* Loot = GetWorld() ? GetWorld()->GetSubsystem<UYogLootSubsystem>() : nullptr;
@@ -328,7 +396,9 @@ void ARewardPickup::TryPickup(APlayerCharacterBase* Player)
 		AssignLoot(FixedLootOptions);
 	}
 
-	if (bOfferLootTypeChoice && !LootTypeChoices.IsEmpty() && TryOpenLootTypeChoice(Player, PC))
+	// Assigned combat items (corpse drops) are granted as-is; the type popup would discard them.
+	const bool bHasAssignedItemLoot = RewardPickup_RequiresFreeItemSlot(AssignedLoot);
+	if (bOfferLootTypeChoice && !bHasAssignedItemLoot && !LootTypeChoices.IsEmpty() && TryOpenLootTypeChoice(Player, PC))
 	{
 		return;
 	}
@@ -531,6 +601,10 @@ bool ARewardPickup::GrantImmediateLoot(APlayerCharacterBase* Player, const TArra
 
 		case ELootType::WeaponSkill:
 			K2_OnImmediateLootGranted(ELootType::WeaponSkill, Option.WeaponSkillCharges, FGameplayTag());
+			break;
+
+		case ELootType::CombatItem:
+			K2_OnImmediateLootGranted(ELootType::CombatItem, 1, FGameplayTag());
 			break;
 
 		default:

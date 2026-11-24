@@ -2,6 +2,8 @@
 
 #include "AbilitySystemComponent.h"
 #include "Character/PlayerCharacterBase.h"
+#include "Component/CombatItemComponent.h"
+#include "Data/CombatItemDataAsset.h"
 #include "Data/RewardLootTableDataAsset.h"
 #include "Data/RuneDataAsset.h"
 #include "Data/WeaponSkillDataAsset.h"
@@ -10,6 +12,31 @@
 #include "Story/StoryEngineSubsystem.h"
 #include "System/YogRunEconomySubsystem.h"
 #include "System/YogSettings.h"
+#include "System/YogBubbleSubsystem.h"
+#include "UI/BubbleMessageTypes.h"
+
+static void LootSubsystem_ShowCombatItemPickedUp(APlayerCharacterBase* Player, const UCombatItemDataAsset& Item)
+{
+	UWorld* World = Player->GetWorld();
+	UYogBubbleSubsystem* Bubbles = World ? World->GetSubsystem<UYogBubbleSubsystem>() : nullptr;
+	if (!Bubbles)
+	{
+		return;
+	}
+
+	const FText ItemName = Item.Config.DisplayName.IsEmpty()
+		? FText::FromName(Item.Config.ItemId)
+		: Item.Config.DisplayName;
+
+	Bubbles->RequestBubbleText(
+		Player,
+		FText::GetEmpty(),
+		FText::Format(NSLOCTEXT("Loot", "CombatItemPickedUp", "Pick up {0}"), ItemName),
+		2.f,
+		EBubbleAnchorMode::Auto,
+		YogBubblePriority::Hint,
+		FGameplayTag());
+}
 
 FGameplayTag UYogLootSubsystem::ResolveMaterialCurrencyTag(FGameplayTag ConfiguredTag)
 {
@@ -137,6 +164,16 @@ bool UYogLootSubsystem::GrantLoot(APlayerCharacterBase* Player, const FLootOptio
 	case ELootType::WeaponSkill:
 		bGranted = Option.WeaponSkillAsset
 			&& Player->EquipWeaponSkillFromPickup(Option.WeaponSkillAsset, Option.WeaponSkillCharges);
+		break;
+
+	case ELootType::CombatItem:
+		bGranted = Option.CombatItemAsset
+			&& Player->CombatItemComponent
+			&& Player->CombatItemComponent->AddItem(Option.CombatItemAsset);
+		if (bGranted)
+		{
+			LootSubsystem_ShowCombatItemPickedUp(Player, *Option.CombatItemAsset);
+		}
 		break;
 
 	default:

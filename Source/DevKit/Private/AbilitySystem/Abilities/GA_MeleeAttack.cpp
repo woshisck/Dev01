@@ -1876,6 +1876,48 @@ void UGA_MeleeAttack::OnEventReceived(FGameplayTag EventTag, FGameplayEventData 
 	UE_LOG(LogTemp, Warning, TEXT("[GA_MeleeAttack] OnEventReceived: %s on %s"), *EventTag.ToString(), *GetName());
 	++CombatDeckHitResolveCounter;
 
+	// Runs for both AN_MeleeDamage and damage-window events, and before the damage window's
+	// no-target early return, so a swing that only hits a corpse still counts.
+	if (Cast<const UAN_MeleeDamage>(EventData.OptionalObject) || Cast<const UYogAnimNotifyState_Damage>(EventData.OptionalObject))
+	{
+		AYogCharacterBase* CorpseHitter = Cast<AYogCharacterBase>(GetOwningActorFromActorInfo());
+		const UYogTargetType_Player* PlayerTargetType = CorpseHitter && CorpseHitter->DefaultMeleeTargetType
+			? Cast<UYogTargetType_Player>(CorpseHitter->DefaultMeleeTargetType.GetDefaultObject())
+			: nullptr;
+		if (PlayerTargetType)
+		{
+			TArray<AEnemyCharacterBase*> HitCorpses;
+			PlayerTargetType->CollectLootableCorpses(CorpseHitter, EventData, HitCorpses);
+			const UWeaponDefinitionBase* CorpseHitterWeapon = CorpseHitter->GetEffectiveWeaponDefinition();
+			const int32 CorpseHitLevel = CorpseHitterWeapon ? CorpseHitterWeapon->HitImpactLevel : 1;
+			for (AEnemyCharacterBase* Corpse : HitCorpses)
+			{
+				Corpse->RegisterCorpseHit(ActiveAttackGuid, CorpseHitLevel);
+			}
+
+			// Environment surfaces only sound when the swing touched nothing alive or dead, and at
+			// most once per swing: the several damage events of one swing share ActiveAttackGuid.
+			const bool bNewSwing = !ActiveAttackGuid.IsValid() || ActiveAttackGuid != LastEnvironmentHitSwingId;
+			if (HitCorpses.IsEmpty() && bNewSwing)
+			{
+				TArray<FHitResult> LivingHits;
+				TArray<AActor*> LivingTargets;
+				PlayerTargetType->GetTargets(CorpseHitter, GetAvatarActorFromActorInfo(), EventData, LivingHits, LivingTargets);
+
+				FVector SurfaceLocation;
+				FGameplayTag SurfaceTag;
+				if (LivingHits.IsEmpty() && LivingTargets.IsEmpty()
+					&& PlayerTargetType->FindEnvironmentHit(CorpseHitter, EventData, SurfaceLocation, SurfaceTag))
+				{
+					LastEnvironmentHitSwingId = ActiveAttackGuid;
+					FGameplayTagContainer SurfaceTags;
+					SurfaceTags.AddTag(SurfaceTag);
+					UHitImpactVisualComponent::PlayImpactAtLocation(GetWorld(), SurfaceTags, SurfaceLocation, CorpseHitLevel);
+				}
+			}
+		}
+	}
+
 	if (const UAN_MeleeDamage* FiredNotify = Cast<const UAN_MeleeDamage>(EventData.OptionalObject))
 	{
 		LastFiredDamageNotify = FiredNotify;
@@ -1896,18 +1938,6 @@ void UGA_MeleeAttack::OnEventReceived(FGameplayTag EventTag, FGameplayEventData 
 		if (TargetTypeCDO)
 		{
 			TargetTypeCDO->GetTargets(OwnerCharacter, GetAvatarActorFromActorInfo(), EventData, WindowHitResults, WindowTargetActors);
-		}
-
-		// Corpses are counted before the no-target early return below so a swing that only
-		// hits a corpse still registers.
-		if (const UYogTargetType_Player* PlayerTargetType = Cast<UYogTargetType_Player>(TargetTypeCDO))
-		{
-			TArray<AEnemyCharacterBase*> HitCorpses;
-			PlayerTargetType->CollectLootableCorpses(OwnerCharacter, EventData, HitCorpses);
-			for (AEnemyCharacterBase* Corpse : HitCorpses)
-			{
-				Corpse->RegisterCorpseHit(ActiveAttackGuid);
-			}
 		}
 
 		if (WindowHitResults.IsEmpty() && WindowTargetActors.IsEmpty())

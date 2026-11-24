@@ -26,6 +26,7 @@ class UYogSaveGame;
 class UActiveSkillDataAsset;
 class UWeaponSkillDataAsset;
 class UCampaignDataAsset;
+class UCombatItemDataAsset;
 
 // =========================================================
 // 局内跑局状态快照（切关时写入，新关卡加载后恢复）
@@ -121,9 +122,13 @@ struct FRunState
 	UPROPERTY()
 	TArray<FDevourRunEntry> Devours;
 
-	// Devoured corpses, temp and matured; UDevourComponent::RestoreFromRunState re-runs their Lua phases.
+	// Held combat items. bCombatItemsCaptured separates "held nothing" from "never captured"
+	// (a state rebuilt from a save), so the latter keeps the component's default loadout.
 	UPROPERTY()
-	TArray<FDevourRunEntry> Devours;
+	TArray<TObjectPtr<UCombatItemDataAsset>> CombatItems;
+
+	UPROPERTY()
+	bool bCombatItemsCaptured = false;
 
 	UPROPERTY()
 	TArray<FSacrificeOfferingCostState> SacrificeOfferingCosts;
