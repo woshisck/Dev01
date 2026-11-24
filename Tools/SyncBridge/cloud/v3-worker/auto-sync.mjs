@@ -8,7 +8,7 @@ import {
 } from 'node:fs';
 import { dirname, isAbsolute, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { readChangedPaths, readGit, readOpened, readP4, parseP4Tags } from '../v2-readonly/read-live.mjs';
+import { readChangedPaths, readGit, readOpened, readP4, parseGitTree, parseP4Tags } from '../v2-readonly/read-live.mjs';
 import { classifyImpact, classifyV2, planTerminal, UHT_PROJECT } from '../v2-readonly/planner.mjs';
 import { textEncoding } from '../strict-mirror-planner/strict-plan.mjs';
 import { recoveryActionsDigest, validateRecoveryReview, validateApprovedOpenedOverlaps, gitNetworkArgs } from './recovery-evidence.mjs';
@@ -205,14 +205,20 @@ function safeLocal(path) {
   return target;
 }
 
-function rawBlob(sha, path, expected) {
-  const treeLine = gitText(['ls-tree', '-r', sha, '--', path]);
-  const match = /^100644 blob ([0-9a-f]{40})\t/.exec(treeLine);
-  assert(match && treeLine.endsWith(`\t${path}`), `GitBlobUnavailable:${path}`);
-  const bytes = git(['cat-file', 'blob', match[1]]).stdout;
+export function readRawGitBlob(gitCommand, sha, path, expected) {
+  // NUL-delimited names stay literal even with core.quotePath=true or CJK paths.
+  const tree = parseGitTree(gitCommand(['ls-tree', '-rz', sha, '--', path]).stdout);
+  const entry = tree.get(path);
+  assert(tree.size === 1 && entry?.mode === '100644' && entry.type === 'blob' &&
+    SHA.test(entry.oid) && (expected.oid === undefined || entry.oid === expected.oid), `GitBlobUnavailable:${path}`);
+  const bytes = gitCommand(['cat-file', 'blob', entry.oid]).stdout;
   assert(bytes.length === expected.size && sha256(bytes) === expected.sha256 &&
     md5(bytes) === expected.digest, `GitBlobDrift:${path}`);
   return bytes;
+}
+
+function rawBlob(sha, path, expected) {
+  return readRawGitBlob(git, sha, path, expected);
 }
 
 function archiveMeta() {

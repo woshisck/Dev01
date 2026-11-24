@@ -7,6 +7,7 @@ import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { classifyV2, classifyImpact, planTerminal } from './planner.mjs';
 import { parseGitTree, readGit } from './read-live.mjs';
+import { readRawGitBlob } from '../v3-worker/auto-sync.mjs';
 const policy=JSON.parse(readFileSync(new URL('./policy.v2.json',import.meta.url)));
 test('all 38 reviewed sources are eligible but vendor assets and unreviewed resources remain excluded',()=>{
   assert.equal(policy.reviewedExactTextPaths.length,38);
@@ -72,5 +73,32 @@ test('partial clone reads eligible source without fetching an unrelated missing 
     assert.equal(bounded.violations[0].reason,'git-object-or-size-invalid');
     assert.equal(objects().has(asset),false);
     assert.throws(()=>readGit(clone,target,{...policy,gitHttpProxy:'http://external.invalid:7890'}),/InvalidGitHttpProxyPolicy/);
+  } finally { rmSync(root,{recursive:true,force:true}); }
+});
+test('raw Git blob reads a CJK document with quotePath enabled and retains all identity guards',()=>{
+  const root=mkdtempSync(join(tmpdir(),'dev01-cjk-blob-'));
+  const git=(args)=>{
+    const result=spawnSync('git',['-C',root,...args],{encoding:null,windowsHide:true,env:{...process.env,GIT_TERMINAL_PROMPT:'0'}});
+    assert.equal(result.status,0,result.stderr?.toString('utf8'));
+    return result;
+  };
+  try {
+    git(['init','-b','main']);
+    git(['config','core.quotePath','true']);
+    mkdirSync(join(root,'Docs'),{recursive:true});
+    const path='Docs/同步修复 文档.md',bytes=Buffer.from('# 中文同步说明\n','utf8');
+    writeFileSync(join(root,...path.split('/')),bytes);
+    git(['-c','core.autocrlf=false','add','.']);
+    git(['-c','user.name=Sync Test','-c','user.email=sync@example.invalid','commit','-m','CJK fixture']);
+    const sha=git(['rev-parse','HEAD']).stdout.toString('ascii').trim();
+    assert.match(git(['ls-tree','-r',sha,'--',path]).stdout.toString('utf8'),/\t"/,'fixture must exercise the quoted path that previously failed');
+    const expected=readGit(root,sha,policy).entries.get(path);
+    assert.ok(expected);
+    assert.deepEqual(readRawGitBlob(git,sha,path,expected),bytes);
+    const {oid,...journalExpected}=expected;
+    assert.deepEqual(readRawGitBlob(git,sha,path,journalExpected),bytes,'older journals without an OID still use all byte hash guards');
+    assert.throws(()=>readRawGitBlob(git,sha,path,{...expected,oid:'f'.repeat(40)}),/GitBlobUnavailable/);
+    assert.throws(()=>readRawGitBlob(git,sha,path,{...expected,sha256:'f'.repeat(64)}),/GitBlobDrift/);
+    assert.throws(()=>readRawGitBlob(git,sha,'Docs',expected),/GitBlobUnavailable/);
   } finally { rmSync(root,{recursive:true,force:true}); }
 });
