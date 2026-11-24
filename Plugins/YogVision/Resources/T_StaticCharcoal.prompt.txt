@@ -1,0 +1,5 @@
+AI-generated charcoal density mask, used as an editable volume-material texture.
+Original: C:/Users/g/.codex/generated_images/01a14b6c-c83f-7ca1-b7e8-96f8dbf4ee37/exec-5455860d-70a5-434b-b4fd-04a86605e442.png
+Prompt direction: seamless monochrome coarse rubbed charcoal brush mask; densely crossing angular bristles and scraped dry pigment, mid-grey background, no circular or radial clusters, no objects, no lighting, no text. Preserve rough scumbled marks rather than soft cloudy noise.
+Import: linear TC_Masks, mirrored tiling, power-of-two mipmapped texture.
+Volume use: crossed XY/YZ/ZX world planes, explicitly filtered mip 3; strength modulates native extinction before light/shadow integration. Not a rendered engine result or a final screen overlay.

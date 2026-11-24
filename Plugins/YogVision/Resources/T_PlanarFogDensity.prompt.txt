@@ -1,0 +1,22 @@
+Generation mode: built-in image_gen, single generation, no reference images.
+Original retained: C:/Users/g/.codex/generated_images/01a15cde-b726-7d43-b349-d4c38c2fbc07/exec-307b1381-fb09-4994-94b3-2881d878eb78.png
+Project source: Plugins/YogVision/Resources/T_PlanarFogDensity.png
+Actual output: 1254 x 1254 pixels, RGB PNG, opaque. Copied byte-for-byte; no post-generation editing or resize.
+Shader data contract: sample R as scalar density; import without sRGB and use Wrap. RGB is near grayscale but not byte-identical.
+Measured R: min 14, max 245, mean 106.8603, std 57.4775 (0-255 scale).
+Measured opposite-edge mean absolute difference: left/right 5.0877; top/bottom 5.1946 (0-255 scale). This candidate is NOT claimed to be strictly seamless; actual volume appearance remains to be validated.
+Requested output was preferably 2048 square; built-in actual output is 1254 square and is retained unchanged by root direction.
+
+Exact generation prompt:
+
+Use case: scientific-educational.
+Asset type: a seamless tileable RAW SCALAR DENSITY DATA TEXTURE for world-XY volumetric fog in a game shader. Generate exactly one square image, preferably 2048 x 2048 pixels, with opaque grayscale RGB (R=G=B). This is a flat data map, not a picture of a scene, a material render, or lit smoke.
+
+Data interpretation: black = low or zero fog density; middle gray = medium density; pale gray to white = thick dense fog. Brightness must describe density ONLY. No lighting, directional shading, highlights, cast shadows, ambient occlusion, perspective, atmospheric background, or depth-of-field.
+
+Morphology: large, quiet, compact overlapping banks of thick fog, forming a connected fog wall. Broad rounded and interlocking masses are approximately one sixth to one third of the tile width, with a few smaller broken lobes at their edges. Their outlines are curved, blocky and cohesive. Several larger banks overlap into broad connected regions, rather than many isolated little clouds. Inside each bank, broad smooth density shoulders and folds create clear thick-to-thin variation. Dark low-density channels and clearings remain connected and meander between these banks. Keep a wide range of black, dark gray, medium gray, pale gray and white; do not make the map predominantly middle gray. The overall pattern is settled and almost stationary in character, neither wispy nor explosively turbulent.
+
+Tiling is essential: left and right edges connect continuously, top and bottom edges connect continuously, with masses naturally crossing all tile boundaries. Uniform distribution across the square; no vignette, borders, center spotlight, radial composition, obvious repeated grid or cut-off edge frame.
+
+Keep the design at medium-to-large spatial scales, with only a small amount of fine irregularity at mass boundaries. Avoid generic fine Perlin-cloud noise, countless speckles, cellular spots, cotton-ball clusters, spiral rings, streaky smoke, hairlike filaments, oil-paint strokes, pencil hatching, charcoal, canvas grain, embossed relief, terrain, rocks, objects, symbols, text and watermark. Brush texture is provided by a separate asset and MUST NOT be painted into this scalar density map.
+

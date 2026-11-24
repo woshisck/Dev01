@@ -1,0 +1,161 @@
+#include "/Engine/Public/Platform.ush"
+
+int3 GridSize;
+float3 DomainCenter;
+float3 DomainExtent;
+float3 ShapeScaleXYZ;
+float3 WindVelocity;
+float CurlStrength;
+float DeltaTime;
+float SimulationTime;
+float Replenishment;
+float VelocityDamping;
+float3 InvCellMetric;
+uint BodyCount;
+float4 BodyCenterRadius[8];
+float4 BodyVelocityHalfHeight[8];
+
+Texture3D<float4> InputDensity;
+Texture3D<float4> InputVelocity;
+Texture3D<float4> InputPressure;
+Texture3D<float4> InputDivergence;
+SamplerState LinearClampSampler;
+RWTexture3D<float4> OutputDensity;
+RWTexture3D<float4> OutputVelocity;
+RWTexture3D<float4> OutputPressure;
+RWTexture3D<float4> OutputDivergence;
+
+float Hash3(float3 p)
+{
+    p = frac(p * .1031);
+    p += dot(p, p.yzx + 33.33);
+    return frac((p.x + p.y) * p.z);
+}
+float Noise3(float3 p)
+{
+    float3 i = floor(p), f = frac(p);
+    f = f*f*(3-2*f);
+    return lerp(lerp(lerp(Hash3(i),Hash3(i+float3(1,0,0)),f.x),
+        lerp(Hash3(i+float3(0,1,0)),Hash3(i+float3(1,1,0)),f.x),f.y),
+        lerp(lerp(Hash3(i+float3(0,0,1)),Hash3(i+float3(1,0,1)),f.x),
+        lerp(Hash3(i+float3(0,1,1)),Hash3(i+float3(1,1,1)),f.x),f.y),f.z);
+}
+float SeedDensity(float3 world, float3 uvw)
+{
+    float3 p = (uvw*2-1)*3.2/max(ShapeScaleXYZ,.05);
+    float n = Noise3(p)*.65 + Noise3(p*2.03+13.7)*.25 + Noise3(p*4.1-7.1)*.1;
+    float body = smoothstep(.28,.72,n);
+    float edge = 1-smoothstep(.72,.99,max(abs(uvw.x*2-1),max(abs(uvw.y*2-1),abs(uvw.z*2-1))));
+    return (.08 + body*.92)*edge;
+}
+float3 Curl(float3 world, float time)
+{
+    float3 p = world*.0021;
+    // Each vector component is independent of its own axis: the analytic force is divergence-free.
+    return float3(sin(p.y+time*.37)-cos(p.z-time*.23),
+        sin(p.z+time*.29)-cos(p.x+time*.19),
+        sin(p.x-time*.17)-cos(p.y+time*.31));
+}
+float3 BoundVelocity(float3 velocity, uint3 cell)
+{
+    if(cell.x==0 || cell.x+1==GridSize.x) velocity.x=0;
+    if(cell.y==0 || cell.y+1==GridSize.y) velocity.y=0;
+    if(cell.z==0 || cell.z+1==GridSize.z) velocity.z=0;
+    return velocity*min(1,1500/max(length(velocity),.001));
+}
+int3 BoundCell(int3 cell) { return clamp(cell,int3(0,0,0),int3(GridSize)-1); }
+float3 LoadVelocity(int3 cell) { return InputVelocity.Load(int4(BoundCell(cell),0)).xyz; }
+float LoadPressure(int3 cell) { return InputPressure.Load(int4(BoundCell(cell),0)).x; }
+
+[numthreads(4,4,4)]
+void InitializeFogCS(uint3 cell : SV_DispatchThreadID)
+{
+    if(any(cell>=GridSize)) return;
+    float3 uvw=(float3(cell)+.5)/float3(GridSize);
+    float3 world=DomainCenter+(uvw*2-1)*DomainExtent;
+    OutputDensity[cell]=float4(SeedDensity(world,uvw),0,0,0);
+    OutputVelocity[cell]=float4(BoundVelocity(WindVelocity+Curl(world,0)*CurlStrength,cell),0);
+}
+
+[numthreads(4,4,4)]
+void AdvectFogCS(uint3 cell : SV_DispatchThreadID)
+{
+    if(any(cell>=GridSize)) return;
+    float3 uvw=(float3(cell)+.5)/float3(GridSize);
+    float3 world=DomainCenter+(uvw*2-1)*DomainExtent;
+    float3 prevVelocity=InputVelocity.SampleLevel(LinearClampSampler,uvw,0).xyz;
+    // Backtrace in centimetres, independently converting each world axis to its grid interval.
+    float3 back=clamp(uvw-prevVelocity*DeltaTime/(2*DomainExtent),.5/float3(GridSize),1-.5/float3(GridSize));
+    float2 previous=InputDensity.SampleLevel(LinearClampSampler,back,0).rg;
+    float baseDensity=lerp(previous.r-previous.g,SeedDensity(world,uvw),saturate(Replenishment*DeltaTime));
+    // G carries only the signed interaction wake. It decays in 2.5s while the bulk fog replenishes slowly.
+    float interaction=previous.g*exp(-DeltaTime*.4);
+    float3 velocity=InputVelocity.SampleLevel(LinearClampSampler,back,0).xyz;
+    velocity=lerp(velocity,WindVelocity,saturate(VelocityDamping*DeltaTime));
+    velocity+=Curl(world,SimulationTime)*CurlStrength*DeltaTime;
+    float clearBody=0;
+    [loop] for(uint b=0;b<BodyCount;b++)
+    {
+        float3 q=world-BodyCenterRadius[b].xyz;
+        float radius=BodyCenterRadius[b].w;
+        float3 bodyVelocity=BodyVelocityHalfHeight[b].xyz;
+        float segment=max(BodyVelocityHalfHeight[b].w-radius,0);
+        float3 closest=q;
+        closest.z-=clamp(q.z,-segment,segment);
+        float distanceToBody=length(closest)-radius;
+        float cellWidth=min(DomainExtent.x/GridSize.x,min(DomainExtent.y/GridSize.y,DomainExtent.z/GridSize.z))*2;
+        float bodyMask=1-smoothstep(-cellWidth*.75,cellWidth*1.5,distanceToBody);
+        clearBody=max(clearBody,bodyMask);
+        float shell=1-smoothstep(0,max(radius*1.5,cellWidth*1.5),max(distanceToBody,0));
+        velocity=lerp(velocity,bodyVelocity,saturate(shell*DeltaTime*8));
+        float speed=length(bodyVelocity);
+        if(speed>1)
+        {
+            float3 direction=bodyVelocity/speed;
+            float along=dot(q,-direction);
+            float radial=length(q+direction*along);
+            float wake=along>radius*.5 ? saturate(1-along/(radius*5))*exp(-radial*radial/(radius*radius*1.8)) : 0;
+            velocity+=bodyVelocity*wake*DeltaTime*1.5;
+            interaction+=wake*saturate(speed/250)*DeltaTime*.5;
+            velocity+=closest/max(length(closest),1)*shell*speed*.08*DeltaTime;
+        }
+    }
+    float density=clamp((baseDensity+interaction)*(1-saturate(clearBody*.94)),0,1.5);
+    OutputDensity[cell]=float4(density,density-baseDensity,0,0);
+    OutputVelocity[cell]=float4(BoundVelocity(velocity,cell),0);
+}
+
+[numthreads(4,4,4)]
+void DivergenceFogCS(uint3 cell : SV_DispatchThreadID)
+{
+    if(any(cell>=GridSize)) return;
+    int3 c=int3(cell);
+    float divergence=(LoadVelocity(c+int3(1,0,0)).x-LoadVelocity(c-int3(1,0,0)).x)*InvCellMetric.x*.5
+        +(LoadVelocity(c+int3(0,1,0)).y-LoadVelocity(c-int3(0,1,0)).y)*InvCellMetric.y*.5
+        +(LoadVelocity(c+int3(0,0,1)).z-LoadVelocity(c-int3(0,0,1)).z)*InvCellMetric.z*.5;
+    OutputDivergence[cell]=float4(divergence,0,0,0);
+}
+
+[numthreads(4,4,4)]
+void JacobiFogCS(uint3 cell : SV_DispatchThreadID)
+{
+    if(any(cell>=GridSize)) return;
+    int3 c=int3(cell);
+    float3 weight=InvCellMetric*InvCellMetric;
+    float sum=(LoadPressure(c+int3(1,0,0))+LoadPressure(c-int3(1,0,0)))*weight.x
+        +(LoadPressure(c+int3(0,1,0))+LoadPressure(c-int3(0,1,0)))*weight.y
+        +(LoadPressure(c+int3(0,0,1))+LoadPressure(c-int3(0,0,1)))*weight.z;
+    float p=(sum-InputDivergence.Load(int4(c,0)).x)/max(2*(weight.x+weight.y+weight.z),.00001);
+    OutputPressure[cell]=float4(clamp(p,-60000,60000),0,0,0);
+}
+
+[numthreads(4,4,4)]
+void ProjectFogCS(uint3 cell : SV_DispatchThreadID)
+{
+    if(any(cell>=GridSize)) return;
+    int3 c=int3(cell);
+    float3 gradient=float3(LoadPressure(c+int3(1,0,0))-LoadPressure(c-int3(1,0,0)),
+        LoadPressure(c+int3(0,1,0))-LoadPressure(c-int3(0,1,0)),
+        LoadPressure(c+int3(0,0,1))-LoadPressure(c-int3(0,0,1)))*InvCellMetric*.5;
+    OutputVelocity[cell]=float4(BoundVelocity(LoadVelocity(c)-gradient,cell),0);
+}

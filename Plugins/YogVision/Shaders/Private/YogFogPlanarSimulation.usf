@@ -1,0 +1,103 @@
+#include "/Engine/Public/Platform.ush"
+
+int2 GridSize;
+float3 DomainCenter;
+float2 DomainHalfExtent;
+float2 DensityTileSize;
+float2 ShapeOffsetUV;
+float SeedDensityScale;
+float SeedDensityBias;
+float UseDensityTexture;
+float2 WindVelocity;
+float CurlStrength;
+float DeltaTime;
+float SimulationTime;
+float Replenishment;
+float VelocityDamping;
+float WakeDecaySeconds;
+uint BodyCount;
+float4 BodyCenterRadius[8];
+float4 BodyVelocityUnused[8];
+Texture2D<float4> ArtDensity;
+Texture2D<float4> InputField;
+SamplerState LinearWrapSampler;
+SamplerState LinearClampSampler;
+RWTexture2D<float4> OutputField;
+
+float SeedDensity(float2 world)
+{
+    float2 uv = world / max(DensityTileSize, 1.) + ShapeOffsetUV;
+    // Author artwork supplies the mass distribution; no procedural noise density seed.
+    float art = UseDensityTexture > .5 ? ArtDensity.SampleLevel(LinearWrapSampler, uv, 0).r : .55;
+    return saturate(art * SeedDensityScale + SeedDensityBias);
+}
+
+float2 CurlVelocity(float2 world, float time)
+{
+    float2 p = world * .0015 + float2(time * .13, -time * .11);
+    float c = cos(dot(p, float2(.63, -.27)) + time * .07);
+    // Analytic perpendicular gradient of a scalar stream function, in world XY.
+    return float2(sin(p.x) * cos(p.y) - .135 * c, -cos(p.x) * sin(p.y) - .315 * c);
+}
+
+float2 BoundVelocity(float2 velocity, uint2 cell)
+{
+    if (cell.x == 0 || cell.x + 1 == GridSize.x) velocity.x = 0;
+    if (cell.y == 0 || cell.y + 1 == GridSize.y) velocity.y = 0;
+    return velocity * min(1., 1500. / max(length(velocity), .001));
+}
+
+[numthreads(8,8,1)]
+void InitializePlanarFogCS(uint3 dispatch : SV_DispatchThreadID)
+{
+    uint2 cell = dispatch.xy;
+    if (any(cell >= GridSize)) return;
+    float2 uv = (float2(cell) + .5) / float2(GridSize);
+    float2 world = DomainCenter.xy + (uv * 2 - 1) * DomainHalfExtent;
+    float2 velocity = WindVelocity + CurlVelocity(world, 0) * CurlStrength;
+    OutputField[cell] = float4(BoundVelocity(velocity, cell), SeedDensity(world), 0);
+}
+
+[numthreads(8,8,1)]
+void AdvectPlanarFogCS(uint3 dispatch : SV_DispatchThreadID)
+{
+    uint2 cell = dispatch.xy;
+    if (any(cell >= GridSize)) return;
+    float2 uv = (float2(cell) + .5) / float2(GridSize);
+    float2 world = DomainCenter.xy + (uv * 2 - 1) * DomainHalfExtent;
+    float2 previousVelocity = InputField.SampleLevel(LinearClampSampler, uv, 0).rg;
+    float2 back = clamp(uv - previousVelocity * DeltaTime / (2 * DomainHalfExtent),
+        .5 / float2(GridSize), 1 - .5 / float2(GridSize));
+    float4 previous = InputField.SampleLevel(LinearClampSampler, back, 0);
+    float baseDensity = lerp(previous.b - previous.a, SeedDensity(world), saturate(Replenishment * DeltaTime));
+    float interaction = previous.a * exp(-DeltaTime / max(WakeDecaySeconds, .1));
+    float2 velocity = lerp(previous.rg, WindVelocity, saturate(VelocityDamping * DeltaTime));
+    velocity += CurlVelocity(world, SimulationTime) * CurlStrength * DeltaTime;
+    float clearBody = 0;
+    float cellWidth = max(DomainHalfExtent.x / GridSize.x, DomainHalfExtent.y / GridSize.y) * 2;
+    [loop] for (uint b = 0; b < BodyCount; ++b)
+    {
+        float2 q = world - BodyCenterRadius[b].xy;
+        float radius = BodyCenterRadius[b].w;
+        float distanceToBody = length(q) - radius;
+        float body = 1 - smoothstep(-cellWidth * .5, cellWidth * 1.5, distanceToBody);
+        clearBody = max(clearBody, body);
+        float shell = 1 - smoothstep(0, max(radius * 1.5, cellWidth * 1.5), max(distanceToBody, 0));
+        float2 bodyVelocity = BodyVelocityUnused[b].xy;
+        velocity = lerp(velocity, bodyVelocity, saturate(shell * DeltaTime * 8));
+        float speed = length(bodyVelocity);
+        if (speed > 1)
+        {
+            float2 direction = bodyVelocity / speed;
+            float along = dot(q, -direction);
+            float radial = length(q + direction * along);
+            float wake = along > radius * .5 ? saturate(1 - along / (radius * 5))
+                * exp(-radial * radial / (radius * radius * 1.8)) : 0;
+            velocity += bodyVelocity * wake * DeltaTime * 1.5;
+            velocity += q / max(length(q), 1) * shell * speed * .08 * DeltaTime;
+            interaction += wake * saturate(speed / 250) * DeltaTime * .5;
+        }
+    }
+    float density = clamp((baseDensity + interaction) * (1 - saturate(clearBody * .94)), 0, 1.5);
+    OutputField[cell] = float4(BoundVelocity(velocity, cell), density, density - baseDensity);
+}

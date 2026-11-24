@@ -1,0 +1,222 @@
+// RGB = native pre-exposed accumulated scattering L; A = accumulated T.
+// Sample that same frame's texture; never reintegrate an approximate density mask.
+// AfterDOF material SceneColor is un-pre-exposed by its wrapper: its consumer
+// multiplies this RGB by View.OneOverPreExposure exactly once before comparison.
+#include "/Engine/Private/Common.ush"
+#include "/Engine/Private/Random.ush"
+
+Texture3D<float4> IntegratedLightScattering;
+SamplerState FogSampler;
+Texture2D SceneDepthTexture;
+SamplerState DepthSampler;
+float2 DepthInvExtent;
+float2 InputRectMin;
+float2 InputRectSize;
+float FogStartDistance;
+float UpsampleJitter;
+uint OnlyRenderedOpaque;
+uint FilteringQuality;
+
+#ifndef YOG_FOG_BRUSH_MAPPING
+#define YOG_FOG_BRUSH_MAPPING 0
+#endif
+#if YOG_FOG_BRUSH_MAPPING
+Texture2D BrushPattern;
+SamplerState BrushSampler;
+Texture2D PlanarField;
+SamplerState FieldSampler;
+float4x4 UnjitteredClipToTranslatedWorld;
+float4 SimulationDomain; // world XY center, world XY half extent (cm)
+float BrushStrength;
+float BrushCoverage;
+float BrushContrast;
+float BrushWorldSize;
+float FlowDisplacement;
+float FlowTime;
+uint BrushSamples;
+#endif
+
+Texture2D<float4> FogBrushLayer;
+Texture2D<float4> SceneColorCopy;
+float2 SceneColorInvExtent;
+float2 BrushExtent;
+
+float4 SampleFog(float3 uv)
+{
+    return Texture3DSampleLevel(IntegratedLightScattering, FogSampler, uv, 0);
+}
+
+float4 FilterFog(float3 uv)
+{
+    if (FilteringQuality == 0) return SampleFog(uv);
+    // Match HeightFogCommon.ush's native bicubic/tricubic B-spline filter.
+    float3 pixel = uv * View.VolumetricFogGridSize + .5;
+    float3 cell = floor(pixel), f = frac(pixel), o = 1-f;
+    float3 w0 = o*o*o/6;
+    float3 w1 = 2.0/3.0-.5*f*f*(2-f);
+    float3 w2 = 2.0/3.0-.5*o*o*(2-o);
+    float3 w3 = f*f*f/6;
+    float3 g = w0+w1;
+    float3 h0 = View.VolumetricFogInvGridSize*((w1/g)-1.5+cell);
+    float3 h1 = View.VolumetricFogInvGridSize*((w3/(w2+w3))+.5+cell);
+    h1.xy = min(h1.xy, View.VolumetricFogUVMax);
+    h0.z = uv.z;
+    float4 a = lerp(SampleFog(float3(h1.x,h0.y,h0.z)),SampleFog(h0),g.x);
+    float4 b = lerp(SampleFog(float3(h1.x,h1.y,h0.z)),SampleFog(float3(h0.x,h1.y,h0.z)),g.x);
+    float4 lower = lerp(b,a,g.y);
+    if (FilteringQuality == 1) return lower;
+    float4 c = lerp(SampleFog(float3(h1.x,h0.y,h1.z)),SampleFog(float3(h0.x,h0.y,h1.z)),g.x);
+    float4 d = lerp(SampleFog(h1),SampleFog(float3(h0.x,h1.y,h1.z)),g.x);
+    return lerp(lerp(d,c,g.y),lower,g.z);
+}
+
+#if YOG_FOG_BRUSH_MAPPING
+float FogLuminance(float3 value)
+{
+    return dot(value,float3(.2126,.7152,.0722));
+}
+
+float3 FogWorldPosition(float2 viewUV,float normalizedSlice)
+{
+    // Follow the same log-depth and no-AA transform as native froxel integration.
+    // SceneDepth only clips the ray; no scene-surface position or normal is used.
+    float depth=ComputeDepthFromZSlice(View.VolumetricFogGridZParams,
+        normalizedSlice*View.VolumetricFogGridSize.z);
+    float2 ndc=(viewUV*2-1)*float2(1,-1);
+    float4 p=mul(float4(ndc,ConvertToDeviceZ(depth),1),UnjitteredClipToTranslatedWorld);
+    return p.xyz/max(abs(p.w),.000001)*sign(p.w)-DFHackToFloat(PrimaryView.PreViewTranslation);
+}
+
+float FogInk(float3 world)
+{
+    float2 fieldUV=(world.xy-SimulationDomain.xy)/max(SimulationDomain.zw*2,1)+.5;
+    float fieldCoverage=1-smoothstep(.8,1,max(abs(fieldUV.x*2-1),abs(fieldUV.y*2-1)));
+    float2 velocity=Texture2DSampleLevel(PlanarField,FieldSampler,saturate(fieldUV),0).rg*fieldCoverage;
+    if(!all(IsFinite(velocity)))velocity=0;
+    float2 flow=velocity/max(25,length(velocity))*max(FlowDisplacement,0);
+    float phase=frac(FlowTime*.045);
+    float3 p0=world-float3(flow*(phase-.5),0);
+    float3 p1=world-float3(flow*(frac(phase+.5)-.5),0);
+    // A fixed oblique plane varies through all three world axes. Keeping one
+    // dominant brush pattern preserves coarse marks instead of averaging grain.
+    float2 uv0=(p0.xy+p0.z*float2(.37,-.23))/max(BrushWorldSize,10);
+    float2 uv1=(p1.xy+p1.z*float2(.37,-.23))/max(BrushWorldSize,10);
+    float raw=lerp(Texture2DSampleLevel(BrushPattern,BrushSampler,uv0,0).r,
+        Texture2DSampleLevel(BrushPattern,BrushSampler,uv1,0).r,abs(phase*2-1));
+    if(!IsFinite(raw))return 0;
+    float cutoff=lerp(.12,.62,saturate(BrushCoverage));
+    float sparse=1-smoothstep(cutoff-.035,cutoff+.035,raw);
+    return sparse*saturate((.5-raw)*max(BrushContrast,.1)+.5);
+}
+
+float3 MapFogBrush(float2 viewUV,float3 volumeUV,float4 endpoint)
+{
+    float signal=1.e-6*max(View.PreExposure,1.e-6);
+    if(endpoint.a>.9995||FogLuminance(endpoint.rgb)<signal)return 0;
+    uint count=clamp(BrushSamples,4u,24u);
+    float meanSource=FogLuminance(endpoint.rgb)/max(1-endpoint.a,.0001);
+    float3 removed=0;
+    // z=0 samples the first accumulated froxel, so it is not an empty prefix.
+    // Start from the actual transport identity to retain that first contribution.
+    float4 previous=float4(0,0,0,1);
+    float3 previousWorld=FogWorldPosition(viewUV,0);
+    [loop]for(uint i=0;i<count;i++)
+    {
+        float endZ=volumeUV.z*float(i+1)/float(count);
+        float4 next=i+1==count?endpoint:FilterFog(float3(volumeUV.xy,endZ));
+        if(!all(IsFinite(next)))continue;
+        float3 endWorld=FogWorldPosition(viewUV,endZ);
+        float segmentLength=max(length(endWorld-previousWorld),1.);
+        float3 contribution=max(next.rgb-previous.rgb,0);
+        float opacityDrop=max(previous.a-next.a,0);
+        // Compare optical thickness over a fixed two-metre world interval.
+        // This gate must not grow merely because quality uses fewer ray segments.
+        float nativeOpticalDepth=-log(clamp(next.a/max(previous.a,.000001),.000001,1.));
+        float localOpacity=1-exp(-nativeOpticalDepth*200./segmentLength);
+        // Thin air and a fully opaque segment keep a smooth veil/core. Real
+        // native scattering and extinction select the intervening fog shoulders.
+        float shoulder=smoothstep(.003,.025,localOpacity)*(1-smoothstep(.72,.96,localOpacity));
+        float source=FogLuminance(contribution)/max(opacityDrop,.0001);
+        float darkSide=.3+.7*(1-smoothstep(.85,2.2,source/max(meanSource,signal)));
+        float3 world=(previousWorld+endWorld)*.5;
+        if(all(IsFinite(world)))
+            removed+=contribution*FogInk(world)*shoulder*darkSide*saturate(BrushStrength)*.65;
+        previous=next;
+        previousWorld=endWorld;
+    }
+    // Only scattering changes. Never remove more light than native fog supplied,
+    // and leave its accumulated T, geometry and volume density unmodified.
+    return -min(max(removed,0),endpoint.rgb*.55);
+}
+#endif
+
+// FScreenPassVS exports TEXCOORD0 before SV_Position. Consume its UV varying
+// directly: a standalone SV_Position input can be assigned a different DXIL
+// hardware register and fails D3D12's VS/PS signature linkage validation.
+void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0,
+    in FStereoPSInput StereoInput, out float4 OutColor : SV_Target0
+#if YOG_FOG_BRUSH_MAPPING
+    ,out float4 OutBrush : SV_Target1
+#endif
+    )
+{
+    float2 viewUV = UVAndScreenPos.xy;
+    float2 inputPixel = InputRectMin+viewUV*InputRectSize;
+    float deviceZ = Texture2DSampleLevel(SceneDepthTexture,DepthSampler,inputPixel*DepthInvExtent,0).r;
+    float depth = ConvertFromDeviceZ(deviceZ);
+    float4 result = float4(0,0,0,1);
+#if YOG_FOG_BRUSH_MAPPING
+    OutBrush=0;
+#endif
+    if ((!OnlyRenderedOpaque || deviceZ != 0) && IsFinite(depth) && depth > FogStartDistance)
+    {
+        float z = log2(max(depth*View.VolumetricFogGridZParams.x+View.VolumetricFogGridZParams.y,.000001))
+            *View.VolumetricFogGridZParams.z*View.VolumetricFogInvGridSize.z;
+        uint3 bits = Rand3DPCG16(int3(inputPixel,View.StateFrameIndexMod8));
+        float2 jitter = ((float2(bits.xy)/65535.0)*2-1)*UpsampleJitter;
+        float2 uv = min((viewUV*InputRectSize+jitter)*View.VolumetricFogSVPosToVolumeUV,View.VolumetricFogUVMax);
+        result = FilterFog(float3(uv,saturate(z)));
+#if YOG_FOG_BRUSH_MAPPING
+        if(all(IsFinite(result)))
+            OutBrush=float4(MapFogBrush(viewUV,float3(uv,saturate(z)),float4(max(result.rgb,0),saturate(result.a))),min(depth*.01,65000.));
+#endif
+    }
+    OutColor = all(IsFinite(result)) ? float4(max(result.rgb,0),saturate(result.a)) : float4(0,0,0,1);
+}
+
+void CompositePS(noperspective float4 UVAndScreenPos : TEXCOORD0,
+    in FStereoPSInput StereoInput,out float4 OutColor : SV_Target0)
+{
+    float2 viewUV=UVAndScreenPos.xy;
+    float2 inputPixel=InputRectMin+viewUV*InputRectSize;
+    float4 scene=Texture2DSampleLevel(SceneColorCopy,DepthSampler,inputPixel*SceneColorInvExtent,0);
+    float deviceZ=Texture2DSampleLevel(SceneDepthTexture,DepthSampler,inputPixel*DepthInvExtent,0).r;
+    float depth=ConvertFromDeviceZ(deviceZ);
+    OutColor=scene;
+    if(!IsFinite(depth)||depth<=FogStartDistance)return;
+    float2 pixel=viewUV*BrushExtent-.5;
+    int2 base=int2(floor(pixel));
+    float2 f=frac(pixel);
+    float3 delta=0;
+    float weightSum=0;
+    // Use the same finite depth encoding as the layer, including sky pixels.
+    float compareDepth=min(depth,6500000.);
+    float tolerance=max(20.,compareDepth*.01);
+    [unroll]for(int y=0;y<2;y++)
+    [unroll]for(int x=0;x<2;x++)
+    {
+        int2 coord=clamp(base+int2(x,y),int2(0,0),int2(BrushExtent)-1);
+        float4 tap=FogBrushLayer.Load(int3(coord,0));
+        float weight=(x?f.x:1-f.x)*(y?f.y:1-f.y);
+        weight*=tap.a>0?saturate(1-abs(tap.a*100-compareDepth)/tolerance):0;
+        if(all(IsFinite(tap)))
+        {
+            delta+=tap.rgb*weight;
+            weightSum+=weight;
+        }
+    }
+    // No matching background depth means no brush on this foreground pixel.
+    // Copying and replacing RGB preserves SceneColor alpha and avoids negative
+    // source blending assumptions for R11G11B10 and other HDR render targets.
+    if(weightSum>.0001)OutColor.rgb=max(scene.rgb+min(delta/weightSum,0),0);
+}

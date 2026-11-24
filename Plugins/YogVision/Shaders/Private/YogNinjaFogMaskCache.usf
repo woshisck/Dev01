@@ -1,0 +1,168 @@
+// World-space environment factor cached at low rate, shared by view/light rays.
+#include "/Engine/Private/Common.ush"
+#define DISTANCE_FIELD_IN_VIEW_UB 1
+#include "/Engine/Private/DistanceField/GlobalDistanceFieldShared.ush"
+
+float3 DomainMin;
+float3 DomainSize;
+float3 TranslatedMin;
+uint Resolution;
+uint SliceCount;
+uint ColumnCount;
+uint GDFReady;
+float GroundHeight;
+float BodyHeight;
+float GroundAmount;
+float UpperAmount;
+float SurfaceFade;
+float SurfaceBand;
+float ContactBoost;
+uint HeightEnabled;
+float NearHeight;
+float FarHeight;
+float WallHeight;
+float HeightFeather;
+float WallRange;
+float PlayerStrength;
+float PlayerFeather;
+float PlayerHeight;
+float LightStrength;
+float LightFeather;
+float4 Observer;
+float4 Lights[4];
+float4 Directions[4];
+RWTexture2D<float4> OutputMask;
+RWTexture3D<float4> OutputVolumeMask;
+
+// Quintic interpolation keeps both slope and curvature continuous at the
+// clear-zone and height boundaries; no hard horizontal layer is introduced.
+float FogSmootherStep(float edge0,float edge1,float value)
+{
+    float t=saturate((value-edge0)/max(edge1-edge0,0.001));
+    return t*t*t*(t*(t*6.0-15.0)+10.0);
+}
+
+float FogSpotInfluence(float3 relative,float4 direction)
+{
+    if (direction.w<=-.99) return 1.0;
+    return FogSmootherStep(direction.w,min(direction.w+.12,1.0),
+        dot(relative/max(length(relative),.001),direction.xyz));
+}
+
+[numthreads(8,8,1)]
+void MainCS(uint3 DispatchThreadId:SV_DispatchThreadID)
+{
+    uint width=Resolution*ColumnCount;
+    uint height=Resolution*((SliceCount+ColumnCount-1)/ColumnCount);
+    uint2 pixel=DispatchThreadId.xy;
+    if (pixel.x>=width || pixel.y>=height) return;
+    uint slice=(pixel.y/Resolution)*ColumnCount+pixel.x/Resolution;
+    if (slice>=SliceCount)
+    {
+        OutputMask[pixel]=float4(1,1,0,0);
+        return;
+    }
+    // Atlas lookup uses endpoint-aligned XY: (uv*(R-1)+.5)/atlasSize.
+    // Z is quadratic so the important near-ground cells get more resolution.
+    float2 xy=float2(pixel%Resolution)/max(float(Resolution-1),1.0);
+    float z=float(slice)/max(float(SliceCount-1),1.0);
+    float3 uvw=float3(xy,z*z);
+    float3 world=DomainMin+DomainSize*uvw;
+    float ground=exp2(-max(world.z-GroundHeight,0.0)/max(BodyHeight,10.0));
+    float factor=lerp(max(UpperAmount,0.0),max(GroundAmount,0.0),ground);
+    float outside=1.0;
+    float valid=0.0;
+    float wallInfluence=0.0;
+    #if PLATFORM_SUPPORTS_DISTANCE_FIELDS
+    if (GDFReady>0 && NumGlobalSDFClipmaps>0)
+    {
+        valid=1.0;
+        float3 translatedWorld=TranslatedMin+DomainSize*uvw;
+        float distanceCm=GetDistanceToNearestSurfaceGlobal(translatedWorld);
+        float fade=max(SurfaceFade,1.0);
+        outside=smoothstep(-fade*.25,fade,distanceCm);
+        float contact=1.0-smoothstep(fade,fade+max(SurfaceBand,1.0),max(distanceCm,0.0));
+        factor*=outside*(1.0+max(ContactBoost,0.0)*contact);
+        if (HeightEnabled>0 && WallHeight>FarHeight)
+        {
+            // Sample above the ground instead of using this voxel's distance:
+            // a flat floor must not raise the entire fog bank like a wall.
+            float wallRange=max(WallRange,1.0);
+            float probeHeight=GroundHeight+max(wallRange*1.5,250.0);
+            float3 wallProbe=translatedWorld+float3(0,0,probeHeight-world.z);
+            float wallDistance=GetDistanceToNearestSurfaceGlobal(wallProbe);
+            wallInfluence=1.0-FogSmootherStep(0.0,wallRange,max(wallDistance,0.0));
+        }
+    }
+    #endif
+    float playerClear=0.0;
+    float playerNear=0.0;
+    if (Observer.w>0.0)
+    {
+        float3 relative=world-Observer.xyz;
+        float planar=1.0-FogSmootherStep(Observer.w,Observer.w+max(PlayerFeather,1.0),length(relative.xy));
+        playerClear=planar*(1.0-FogSmootherStep(max(PlayerHeight,1.0)*.2,
+            max(PlayerHeight,1.0),abs(relative.z)));
+        // Height is an XY shape shared by the whole column, independent of
+        // current voxel Z. Strength still controls density thinning separately.
+        if (PlayerStrength>0.0) playerNear=planar;
+    }
+    factor*=1.0-saturate(PlayerStrength)*playerClear;
+    float clear=0.0;
+    float lightNear=0.0;
+    [unroll] for (int index=0;index<4;index++)
+    {
+        float4 light=Lights[index];
+        if (light.w>0.0)
+        {
+            float3 relative=world-light.xyz;
+            float distanceCm=length(relative);
+            float influence=1.0-FogSmootherStep(light.w,light.w+max(LightFeather,1.0),distanceCm);
+            float4 direction=Directions[index];
+            influence*=FogSpotInfluence(relative,direction);
+            clear=max(clear,influence);
+            if (HeightEnabled>0 && LightStrength>0.0)
+            {
+                // Spot direction is evaluated once at a fixed low height so
+                // its planar height footprint cannot change across Z slices.
+                float3 lowRelative=float3(world.xy,GroundHeight+max(NearHeight,1.0))-light.xyz;
+                float planar=1.0-FogSmootherStep(light.w,light.w+max(LightFeather,1.0),length(lowRelative.xy));
+                lightNear=max(lightNear,planar*FogSpotInfluence(lowRelative,direction));
+            }
+        }
+    }
+    factor*=1.0-saturate(LightStrength)*clear;
+    float localFogHeight=0.0;
+    if (HeightEnabled>0)
+    {
+        // Height compression follows the same artist strength as thinning.
+        // Previously any nonzero strength imposed the FULL low-height cut,
+        // leaving an empty centre even when the density control was reduced.
+        float nearInfluence=saturate(max(saturate(PlayerStrength)*playerNear,
+            saturate(LightStrength)*lightNear));
+        float nearHeight=max(NearHeight,1.0);
+        float farHeight=max(FarHeight,nearHeight);
+        float wallHeight=max(WallHeight,farHeight);
+        float distantHeight=lerp(farHeight,wallHeight,saturate(wallInfluence));
+        // Near influence also suppresses wall growth: the player's clear zone
+        // remains low even when standing beside a tall wall.
+        localFogHeight=lerp(distantHeight,nearHeight,nearInfluence);
+        float distantFeather=max(HeightFeather,1.0);
+        float nearFeather=min(distantFeather,nearHeight*.7+20.0);
+        float feather=lerp(distantFeather,nearFeather,nearInfluence);
+        factor*=1.0-FogSmootherStep(localFogHeight-feather,
+            localFogHeight+feather,world.z-GroundHeight);
+    }
+    // Only the player's thinning transition drives visible density motion.
+    // The quiet interior and distant atmosphere remain static in world space.
+    // Reuse B instead of allocating another texture: 0 = no GDF, 1 = ready,
+    // 1..2 = ready plus the local transition weight. Old readers use only R.
+    float motionRim=4.0*playerClear*(1.0-playerClear)*saturate(PlayerStrength);
+    // R may exceed 1: it is a density multiplier, not normalized opacity.
+    // G isolates solids; A retains optional height diagnostics (0 = disabled).
+    float4 coefficients=float4(max(factor,0.0),outside,valid*(1.0+motionRim),localFogHeight);
+    OutputMask[pixel]=coefficients;
+    // The legacy atlas and production volume receive the exact same FP16
+    // values; this is a storage change, not another density simulation.
+    OutputVolumeMask[uint3(pixel%Resolution,slice)]=coefficients;
+}

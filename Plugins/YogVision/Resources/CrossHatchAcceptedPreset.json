@@ -1,0 +1,163 @@
+{
+  "reference_image": "XH_Final.png",
+  "reference_decoded_pixels_match_user_attachment": true,
+  "ground": {
+    "scalars": {
+      "MaxViewSteps": 40.0,
+      "ExtrudeSoften": 0.11999999731779099,
+      "Extrude": 0.2800000011920929,
+      "Density": 0.2800000011920929,
+      "ColorPow": 1.0,
+      "ColorMul": 1.0,
+      "ColorAdd": 0.0,
+      "Shadow": 0.30000001192092896,
+      "ShadowStepSize": 0.009999999776482582,
+      "LightAttenuationRadius": 5500.0,
+      "LightIntensity": 1.0,
+      "DensityPow": 0.5,
+      "FlowSpeed": 0.03999999910593033,
+      "NoiseDisplace": 1.0,
+      "NoiseTiling": 2.0,
+      "FlowStrength": 0.07999999821186066,
+      "XBackgroundDensity": 0.05999999865889549,
+      "DensityOffset": -0.07500000298023224,
+      "XBackgroundDensityNoise": 0.0,
+      "XBackgroundDensityFalloff": 1.0,
+      "FadeDistance": 1000.0,
+      "FadeDistanceFalloff": 500.0,
+      "SpatialCloudSize": 1400.0,
+      "SpatialCoverage": 0.41999998688697815,
+      "SpatialWarp": 0.6499999761581421,
+      "SpatialSpeed": 0.1599999964237213,
+      "SpatialDetail": 0.18000000715255737,
+      "SpatialTimeScale": 1.0,
+      "SpatialTimeOffset": 0.0,
+      "FogHatchStrength": 0.44999998807907104,
+      "FogHatchSpacing": 9.0,
+      "FogHatchFlowStrength": 1.0,
+      "FogHatchDebugMode": 0.0,
+      "WorldUnitsPerPixel": 2.0
+    },
+    "vectors": {
+      "Color1": [
+        0.02500000037252903,
+        0.03999999910593033,
+        0.052000001072883606,
+        1.0
+      ],
+      "Color2": [
+        0.10999999940395355,
+        0.15000000596046448,
+        0.17000000178813934,
+        1.0
+      ],
+      "LightPosition": [
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "PointLightColor": [
+        0.6499999761581421,
+        0.8500000238418579,
+        0.949999988079071,
+        1.0
+      ],
+      "PositionOffset": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "AnchorRight": [
+        0.6870874762535095,
+        0.726574718952179,
+        0.0,
+        0.0
+      ],
+      "AnchorUp": [
+        0.4167487919330597,
+        -0.39410150051116943,
+        0.8191519975662231,
+        0.0
+      ]
+    }
+  },
+  "finish": {
+    "scalars": {
+      "NormalStrength": 0.25,
+      "DebugMode": 0.0,
+      "EdgeWidth": 0.9038969874382019,
+      "FarFogBlend": 0.07000000029802322,
+      "FarFeather": 5644.26611328125,
+      "OuterBrushWidth": 1.899999976158142,
+      "OuterBrushDensity": 0.5600000023841858,
+      "OuterBrushDarkThreshold": 0.10000000149011612,
+      "OutlineStrength": 0.38933101296424866,
+      "FarStart": 2911.4375,
+      "OuterBrushStrength": 0.75,
+      "OuterBrushSpacing": 11.0,
+      "OuterBrushStart": 0.5799999833106995,
+      "WorldUnitsPerPixel": 1.6714680194854736
+    },
+    "vectors": {
+      "AnchorRight": [
+        0.6870874762535095,
+        0.726574718952179,
+        0.0,
+        0.0
+      ],
+      "FarFogColor": [
+        0.11060000211000443,
+        0.15049999952316284,
+        0.3499999940395355,
+        1.0
+      ],
+      "AnchorUp": [
+        0.4167487919330597,
+        -0.39410150051116943,
+        0.8191519975662231,
+        0.0
+      ]
+    }
+  },
+  "ground_actor": {
+    "location": [
+      1400,
+      -200,
+      240
+    ],
+    "rotation": [
+      0,
+      90,
+      0
+    ],
+    "scale": [
+      43.75,
+      43.75,
+      25
+    ],
+    "camera_facing": false
+  },
+  "camera": {
+    "location": {
+      "x": -425.34336016170647,
+      "y": 1471.52815228291,
+      "z": 1754.2050864302432
+    },
+    "rotation": {
+      "pitch": -34.99999901652336,
+      "yaw": -43.4000030606985,
+      "roll": -1.9413701433151542e-15
+    },
+    "scale": {
+      "x": 1,
+      "y": 1,
+      "z": 1
+    }
+  },
+  "ground_input": "/Game/Art/Rendering/Fog/Ninja/MI_Corridor_GroundMist_Input",
+  "ground_output": "/Game/Art/Rendering/Fog/Ninja/MI_Corridor_GroundMist",
+  "far_output": "/Game/Art/Rendering/Fog/Ninja/MI_Corridor_FogWall",
+  "finish_source_sha256": "bd44c741d74ced2e08fb38ff3a4a324b9891408292f70d942f0a17981d9c7d5a"
+}
