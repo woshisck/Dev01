@@ -1,0 +1,15 @@
+# Keep the reviewed YogVision/P4 text contract and sync tooling stable.
+/Plugins/YogVision/Source/** text eol=lf
+/Plugins/YogVision/Shaders/** text eol=lf
+/Plugins/YogVision/Resources/*.hlsl text eol=lf
+/Plugins/YogVision/Resources/*.py text eol=lf
+/Plugins/YogVision/Resources/*.json text eol=lf
+/Plugins/YogVision/Resources/*.txt text eol=lf
+/Tools/SyncBridge/**/*.py text eol=lf
+/Tools/SyncBridge/**/*.mjs text eol=lf
+/Tools/SyncBridge/**/*.ps1 text eol=lf
+/Tools/SyncBridge/**/*.json text eol=lf
+/Tools/SyncBridge/**/*.md text eol=lf
+/Tools/SyncBridge/**/*.txt text eol=lf
+/Tools/SyncBridge/**/*.cmd text eol=lf
+/Tools/SyncBridge/**/*.bat text eol=lf

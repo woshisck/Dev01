@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "host": "124.223.187.156",
+  "user": "Administrator",
+  "port": 22,
+  "identity_file": "~/.ssh/dev01_cloud_ed25519",
+  "worker_root": "C:\\Project\\Dev01-GitToP4-Auto-20261024\\v3-worker",
+  "node_executable": "C:\\Project\\Dev01-GitToP4-Tools-20261023\\node.exe",
+  "git_root": "C:\\Project\\Dev01-GitHub",
+  "git_http_proxy": "http://127.0.0.1:7890",
+  "state_root": "C:\\BuildAgent\\Dev01\\state\\git-to-p4-v3",
+  "timeout_seconds": 1800
+}
