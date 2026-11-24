@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { spawnSync } from 'node:child_process';
 import { classifyV2, classifyImpact, planTerminal } from './planner.mjs';
+import { parseGitTree, readGit } from './read-live.mjs';
 const policy=JSON.parse(readFileSync(new URL('./policy.v2.json',import.meta.url)));
 test('all 38 reviewed sources are eligible but vendor assets and unreviewed resources remain excluded',()=>{
   assert.equal(policy.reviewedExactTextPaths.length,38);
@@ -29,4 +34,43 @@ test('only the explicit Git-only maintenance source list is skipped',()=>{
   assert.equal(policy.exactGitOnlyPaths.length,24);
   const plan=planTerminal({gitEntries:{},p4Entries:{},changedPaths:policy.exactGitOnlyPaths});assert.equal(plan.status,'NO_OP');
   for(const path of ['Tools/SyncBridge/config.json','Tools/SyncBridge/sync_state.json','Tools/SyncBridge/sync_bridge.log','Tools/SyncBridge/cloud/unreviewed-new.mjs'])assert.equal(planTerminal({gitEntries:{},p4Entries:{},changedPaths:[path]}).status,'HOLD',path);
+});
+test('Git tree parser accepts name-only enumeration and preserves legacy size records',()=>{
+  const oid='a'.repeat(40);
+  assert.deepEqual(parseGitTree(Buffer.from(`100644 blob ${oid}\tSource/DevKit/Foo.cpp\0`)).get('Source/DevKit/Foo.cpp'),{mode:'100644',type:'blob',oid});
+  assert.equal(parseGitTree(Buffer.from(`100644 blob ${oid} 12\tSource/DevKit/Foo.cpp\0`)).get('Source/DevKit/Foo.cpp').size,12);
+  assert.throws(()=>parseGitTree(Buffer.from(`100644 blob ${oid} BAD\tSource/DevKit/Foo.cpp\0`)),/Invalid\/duplicate/);
+});
+test('partial clone reads eligible source without fetching an unrelated missing asset',()=>{
+  const root=mkdtempSync(join(tmpdir(),'dev01-partial-source-'));
+  const origin=join(root,'origin'),clone=join(root,'clone');
+  const run=(args,cwd=root)=>{
+    const result=spawnSync('git',args,{cwd,encoding:'utf8',windowsHide:true,env:{...process.env,GIT_TERMINAL_PROMPT:'0'}});
+    assert.equal(result.status,0,`${args.join(' ')}: ${result.stderr}`);
+    return result.stdout.trim();
+  };
+  try {
+    run(['init','-b','main',origin]);
+    run(['config','uploadpack.allowFilter','true'],origin);
+    mkdirSync(join(origin,'Source','DevKit'),{recursive:true});
+    mkdirSync(join(origin,'Content'),{recursive:true});
+    writeFileSync(join(origin,'Source','DevKit','Foo.cpp'),'int x = 1;\n');
+    writeFileSync(join(origin,'Content','Huge.uasset'),Buffer.alloc(2*1024*1024,0x61));
+    run(['-c','core.autocrlf=false','add','.'],origin);
+    run(['-c','user.name=Sync Test','-c','user.email=sync@example.invalid','commit','-m','partial clone fixture'],origin);
+    const target=run(['rev-parse','HEAD'],origin),asset=run(['rev-parse','HEAD:Content/Huge.uasset'],origin);
+    run(['clone','--filter=blob:none','--no-checkout',pathToFileURL(origin).href,clone]);
+    const objects=()=>new Set(run(['cat-file','--batch-all-objects','--batch-check=%(objectname)'],clone).split(/\r?\n/));
+    assert.equal(objects().has(asset),false,'fixture asset must initially be a missing promised blob');
+    const result=readGit(clone,target,policy);
+    assert.equal(result.violations.length,0);
+    assert.equal(result.entries.size,1);
+    assert.equal(result.entries.get('Source/DevKit/Foo.cpp').size,11);
+    assert.equal(objects().has(asset),false,'excluded blob must stay missing after source inspection');
+    const bounded=readGit(clone,target,{...policy,maxTextBytes:1});
+    assert.equal(bounded.entries.size,0);
+    assert.equal(bounded.violations[0].reason,'git-object-or-size-invalid');
+    assert.equal(objects().has(asset),false);
+    assert.throws(()=>readGit(clone,target,{...policy,gitHttpProxy:'http://external.invalid:7890'}),/InvalidGitHttpProxyPolicy/);
+  } finally { rmSync(root,{recursive:true,force:true}); }
 });

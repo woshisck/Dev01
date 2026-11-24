@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { GENESIS_GIT, GENESIS_P4, UHT_PROJECT, classifyV2, detectCommitState, planTerminal, assessProvenance } from './planner.mjs';
+import { gitNetworkArgs } from '../v3-worker/recovery-evidence.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const UTF8 = new TextDecoder('utf-8', { fatal: true });
@@ -63,30 +64,48 @@ export function parseGitTree(raw) {
     if (!record) continue;
     const tab = record.indexOf('\t');
     if (tab < 0) throw new Error('Malformed Git tree entry');
-    const [mode, type, oid, length] = record.slice(0, tab).trim().split(/\s+/);
+    const fields = record.slice(0, tab).trim().split(/\s+/);
+    const [mode, type, oid, length] = fields;
     const path = UTF8.decode(Buffer.from(record.slice(tab + 1), 'binary'));
-    if (!/^[0-9a-f]{40,64}$/.test(oid) || !Number.isSafeInteger(Number(length)) || entries.has(path)) {
+    if (![3, 4].includes(fields.length) || !/^[0-9a-f]{40,64}$/.test(oid) ||
+      (length !== undefined && (!/^\d+$/.test(length) || !Number.isSafeInteger(Number(length)))) || entries.has(path)) {
       throw new Error(`Invalid/duplicate Git tree entry ${path}`);
     }
-    entries.set(path, { mode, type, oid, size: Number(length) });
+    entries.set(path, { mode, type, oid, ...(length === undefined ? {} : { size: Number(length) }) });
   }
   return entries;
 }
 
 export function readGit(gitRepo, sha, policy) {
-  const raw = command('git', ['-C', gitRepo, 'ls-tree', '-rlz', sha, '--'], gitRepo).stdout;
+  const gitArgs = [...gitNetworkArgs(policy), '-C', gitRepo];
+  // Asking ls-tree for sizes (-l) can lazily fetch every blob in a partial clone,
+  // including excluded assets. Classify names before requesting any blob metadata.
+  const raw = command('git', [...gitArgs, 'ls-tree', '-rz', sha, '--'], gitRepo).stdout;
   const tree = parseGitTree(raw);
   const selected = [...tree].filter(([path]) => classifyV2(path).eligible);
   const violations = [];
   for (const [path, value] of selected) {
-    const max = classifyV2(path).kind === 'docs' ? policy.maxDocsBytes : policy.maxTextBytes;
-    if (value.type !== 'blob' || value.mode !== '100644' || value.size > max) {
+    if (value.type !== 'blob' || value.mode !== '100644') {
       violations.push({ path, reason: 'git-object-or-size-invalid', mode: value.mode, size: value.size });
     }
   }
   if (violations.length) return { entries: new Map(), tree, violations };
   const input = Buffer.from(selected.map(([, value]) => value.oid).join('\n') + '\n', 'ascii');
-  const output = selected.length ? command('git', ['-C', gitRepo, 'cat-file', '--batch'], gitRepo, { input }).stdout : Buffer.alloc(0);
+  if (selected.length) {
+    const metadata = command('git', [...gitArgs, 'cat-file', '--batch-check'], gitRepo, { input }).stdout.toString('ascii');
+    const lines = metadata.split('\n');
+    if (lines.pop() !== '' || lines.length !== selected.length) throw new Error('Malformed Git blob metadata');
+    for (let index = 0; index < selected.length; index++) {
+      const [path, value] = selected[index];
+      const match = /^([0-9a-f]{40,64}) blob (\d+)$/.exec(lines[index]);
+      if (!match || match[1] !== value.oid || !Number.isSafeInteger(Number(match[2]))) throw new Error(`Invalid Git blob metadata: ${path}`);
+      value.size = Number(match[2]);
+      const max = classifyV2(path).kind === 'docs' ? policy.maxDocsBytes : policy.maxTextBytes;
+      if (value.size > max) violations.push({ path, reason: 'git-object-or-size-invalid', mode: value.mode, size: value.size });
+    }
+  }
+  if (violations.length) return { entries: new Map(), tree, violations };
+  const output = selected.length ? command('git', [...gitArgs, 'cat-file', '--batch'], gitRepo, { input }).stdout : Buffer.alloc(0);
   const entries = new Map();
   let offset = 0;
   for (const [path, value] of selected) {
