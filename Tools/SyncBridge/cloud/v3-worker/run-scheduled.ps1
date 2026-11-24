@@ -60,7 +60,7 @@ if ($status.Status -eq 'Blocked') {
     $oldPreference = $ErrorActionPreference
     $ErrorActionPreference = 'Continue'
     try {
-        $remoteLine = & git -C C:\Project\Dev01-GitHub ls-remote origin refs/heads/main 2>$null
+        $remoteLine = & git -c http.proxy=http://127.0.0.1:7890 -C C:\Project\Dev01-GitHub ls-remote origin refs/heads/main 2>$null
         if ($LASTEXITCODE -eq 0 -and $remoteLine -match '^([0-9a-f]{40})\s+') { $remote = $Matches[1] }
     } finally { $ErrorActionPreference = $oldPreference }
 }
