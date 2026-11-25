@@ -12,8 +12,8 @@ public:
     AYogVisionMotionProbe();
     virtual void Tick(float DeltaSeconds) override;
     virtual bool ShouldTickIfViewportsOnly() const override { return true; }
-    UPROPERTY(VisibleAnywhere) TObjectPtr<class UStaticMeshComponent> Mesh;
-    UPROPERTY(VisibleAnywhere) TObjectPtr<class UYogVisionTargetComponent> VisionTarget;
+    UPROPERTY(VisibleAnywhere, Category="Review") TObjectPtr<class UStaticMeshComponent> Mesh;
+    UPROPERTY(VisibleAnywhere, Category="Review") TObjectPtr<class UYogVisionTargetComponent> VisionTarget;
     UPROPERTY(EditAnywhere, Category="Review") float TravelDistance = 180.f;
     UPROPERTY(EditAnywhere, Category="Review") float TravelSpeed = .9f;
 private:
