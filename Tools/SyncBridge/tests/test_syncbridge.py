@@ -164,6 +164,47 @@ class SyncBridgeTests(unittest.TestCase):
             self.assertEqual(syncbridge.CloudClient(self.config).call("check"), 255)
         self.assertEqual(run.call_count, 3)
 
+    def test_plain_transport_close_or_reset_retries_readonly_for_windows_and_openssh_codes(self):
+        for operation in ("check", "status"):
+            for returncode in (1, 255):
+                for failure in ("closed", "reset"):
+                    with self.subTest(operation=operation, returncode=returncode, failure=failure):
+                        failed = subprocess.CompletedProcess(
+                            [], returncode, "", f"Connection {failure} by {self.config.host} port {self.config.port}\r\n"
+                        )
+                        passed = subprocess.CompletedProcess([], 0, '{"Status":"ok"}\n', "")
+                        with patch.object(syncbridge.shutil, "which", return_value="ssh.exe"), patch.object(
+                            syncbridge.subprocess, "run", side_effect=[failed, passed]
+                        ) as run, patch.object(syncbridge.time, "sleep") as sleep, redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+                            self.assertEqual(syncbridge.CloudClient(self.config).call(operation), 0)
+                        self.assertEqual(run.call_count, 2)
+                        sleep.assert_called_once_with(2)
+
+    def test_plain_transport_close_never_retries_writes_partial_output_or_authentication_errors(self):
+        closed = f"Connection closed by {self.config.host} port {self.config.port}\n"
+        cases = [(operation, code, "", closed) for operation in ("once", "preview") for code in (1, 255)]
+        cases += [("status", code, '{"Status":"partial"}\n', closed) for code in (1, 255)]
+        cases += [("status", code, "\n", closed) for code in (1, 255)]
+        cases += [("status", 1, "", reason + "\n" + closed) for reason in (
+            "Permission denied (publickey).", "Authentication failed.",
+            "Too many authentication failures", "Host key verification failed.",
+            "WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!",
+        )]
+        cases += [
+            ("status", 1, "", "Unexpected application failure.\n"),
+            ("status", 1, "", "Connection closed by 192.0.2.1 port 22\n"),
+            ("status", 1, "", f"Connection closed by {self.config.host} port 2222\n"),
+        ]
+        for operation, returncode, stdout, stderr in cases:
+            with self.subTest(operation=operation, returncode=returncode, stdout=bool(stdout), stderr=stderr):
+                failed = subprocess.CompletedProcess([], returncode, stdout, stderr)
+                with patch.object(syncbridge.shutil, "which", return_value="ssh.exe"), patch.object(
+                    syncbridge.subprocess, "run", return_value=failed
+                ) as run, patch.object(syncbridge.time, "sleep") as sleep, redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+                    self.assertEqual(syncbridge.CloudClient(self.config).call(operation), returncode)
+                run.assert_called_once()
+                sleep.assert_not_called()
+
     def test_never_retries_writes_authentication_failure_or_unknown_disconnect(self):
         cases = [("once", "", "kex_exchange_identification: read: Connection reset by peer\n"),
                  ("preview", "", "banner exchange: Connection reset by peer\n"),

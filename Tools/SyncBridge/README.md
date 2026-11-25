@@ -22,7 +22,7 @@ python Tools/SyncBridge/syncbridge.py -c C:/LocalConfig/dev01-sync.json status
 
 `preview` 调用正式 `run-scheduled.ps1 -DryRun`。云端预检可能维护自身状态文件、锁和 Git fetch 缓存，但不应提交项目文件。`once` 直接调用既有 Node worker 的 `--apply`，绕过通知包装器，保留全部同步、来源、并发和发布 guard。它可能按照已通过的云端计划修改 Git/P4、提交代码并等待或验证 PCB；请先检查预检计划。工具没有 force 模式，没有自动更改规则、清 journal 或重设 checkpoint 的入口。
 
-远端退出码原样返回，包括 guard 阻塞和 SSH 的 255。只有 `check/status` 在 SSH 明确报告认证前的 banner/kex reset、连接拒绝或连接超时，且没有标准输出时，才最多尝试三次、间隔两秒。`once/preview` 不自动重试；无法判断发生阶段的进程超时也不重试，返回 124。超时后应先读取 `status`，避免在写操作结果未知时盲目重试。任务的 `LastResult=0` 只代表该任务最近一次退出状态，不能单独证明当前 Git/P4、构建、PCB 和 UGS 都已完成。
+远端退出码原样返回，包括 guard 阻塞和 SSH 的 255。只有只读的 `check/status` 在非零退出且完全没有标准输出，并明确报告 banner/kex reset、连接拒绝/连接超时，或已配置主机与端口的 `Connection closed/reset by ... port ...` 时，才最多尝试三次、间隔两秒。支持 Windows 返回 1 和 OpenSSH 返回 255；只读探针的明示传输关闭不要求确定认证阶段。认证失败、主机密钥错误、其他应用错误或已有部分标准输出（包括空白）都不重试。`once/preview` 始终不自动重试；无法判断发生阶段的进程超时也不重试，返回 124。超时后应先读取 `status`，避免在写操作结果未知时盲目重试。任务的 `LastResult=0` 只代表该任务最近一次退出状态，不能单独证明当前 Git/P4、构建、PCB 和 UGS 都已完成。
 
 源码、Shader、配置和批准的工具文本按云端归属规则收敛；场景、材质/纹理资产、FluidNinja 内容及发布产物仍由 P4 管理。此入口不会改变这些规则。
 

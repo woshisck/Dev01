@@ -246,13 +246,23 @@ class CloudClient:
             except OSError:
                 print("Unable to start the SSH client.", file=sys.stderr)
                 return 127
-            preauthentication_failure = (result.returncode == 255 and not result.stdout.strip()
-                and re.search(r"(?im)^(?:(?:kex_exchange_identification:|banner exchange:)[^\r\n]*"
-                              r"(?:Connection reset|Connection refused|Connection timed out|Exceeded MaxStartups)|"
-                              r"ssh: connect to host [^\r\n]+ port \d+: Connection (?:refused|timed out)"
-                              r"|Connection timed out during banner exchange)", result.stderr))
-            if attempt + 1 < attempts and preauthentication_failure:
-                print(f"SSH failed before authentication; retrying read-only probe ({attempt + 2}/{attempts}).",
+            authentication_failure = re.search(
+                r"(?i)Permission denied|Authentication failed|Too many authentication failures|"
+                r"Host key verification failed|REMOTE HOST IDENTIFICATION HAS CHANGED|POSSIBLE DNS SPOOFING",
+                result.stderr,
+            )
+            transport_failure = re.search(
+                r"(?im)^(?:(?:kex_exchange_identification:|banner exchange:)[^\r\n]*"
+                r"(?:Connection reset|Connection refused|Connection timed out|Exceeded MaxStartups)|"
+                r"ssh: connect to host [^\r\n]+ port \d+: Connection (?:refused|timed out)|"
+                r"Connection timed out during banner exchange|Connection (?:closed|reset) by "
+                + re.escape(self.config.host) + r" port " + str(self.config.port) + r"[ \t]*\r?$)",
+                result.stderr,
+            )
+            read_only_transport_failure = (result.returncode != 0 and not result.stdout
+                                           and not authentication_failure and transport_failure)
+            if attempt + 1 < attempts and read_only_transport_failure:
+                print(f"SSH transport failed; retrying read-only probe ({attempt + 2}/{attempts}).",
                       file=sys.stderr)
                 time.sleep(2)
                 continue
