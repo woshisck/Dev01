@@ -13,6 +13,8 @@
 #include "SceneView.h"
 #include "SceneViewExtension.h"
 #include "ShaderParameterStruct.h"
+#include "TextureResource.h"
+#include "RHIStaticStates.h"
 
 namespace YogNinjaFogMaskCache
 {
@@ -22,7 +24,14 @@ class FEnvironmentCacheCS : public FGlobalShader
 {
     DECLARE_GLOBAL_SHADER(FEnvironmentCacheCS);
     SHADER_USE_PARAMETER_STRUCT(FEnvironmentCacheCS,FGlobalShader);
+    class FPlayerWake : SHADER_PERMUTATION_BOOL("YOG_PLAYER_WAKE");
+    using FPermutationDomain = TShaderPermutationDomain<FPlayerWake>;
     BEGIN_SHADER_PARAMETER_STRUCT(FParameters,)
+        SHADER_PARAMETER_RDG_TEXTURE(Texture3D, WakeDensity)
+        SHADER_PARAMETER_SAMPLER(SamplerState, WakeSampler)
+        SHADER_PARAMETER(FVector3f, WakeMin)
+        SHADER_PARAMETER(FVector3f, WakeInvSize)
+        SHADER_PARAMETER(float, WakeStrength)
         SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters,View)
         SHADER_PARAMETER(FVector3f,DomainMin)
         SHADER_PARAMETER(FVector3f,DomainSize)
@@ -154,7 +163,18 @@ public:
             }
             Parameters->OutputMask=GraphBuilder.CreateUAV(Output);
             Parameters->OutputVolumeMask=GraphBuilder.CreateUAV(VolumeOutput);
-            TShaderMapRef<FEnvironmentCacheCS> Shader(GetGlobalShaderMap(InView.GetFeatureLevel()));
+            const bool bUseWake = Input.WakeStrength > 0.f && Input.WakeDensity.IsValid();
+            FEnvironmentCacheCS::FPermutationDomain Permutation;
+            Permutation.Set<FEnvironmentCacheCS::FPlayerWake>(bUseWake);
+            if (bUseWake)
+            {
+                Parameters->WakeDensity = RegisterExternalTexture(GraphBuilder, Input.WakeDensity.GetReference(), TEXT("YogNinjaFog.WakeDensity"));
+                Parameters->WakeSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+                Parameters->WakeMin = Input.WakeMin;
+                Parameters->WakeInvSize = Input.WakeInvSize;
+                Parameters->WakeStrength = Input.WakeStrength;
+            }
+            TShaderMapRef<FEnvironmentCacheCS> Shader(GetGlobalShaderMap(InView.GetFeatureLevel()), Permutation);
             FComputeShaderUtils::AddPass(GraphBuilder,RDG_EVENT_NAME("YogNinjaFog.CacheEnvironment %ux%ux%u",Resolution,Resolution,Slices),
                 Shader,Parameters,FComputeShaderUtils::GetGroupCount(Extent,FIntPoint(8,8)));
             // The later translucent material reads the external RHI texture,
@@ -194,18 +214,21 @@ void Shutdown()
     Extension.Reset();
 }
 
-void Submit(uint64 Key,const FInput& Input,TSharedRef<FState,ESPMode::ThreadSafe> State)
+void Submit(uint64 Key,const FInput& Input,TSharedRef<FState,ESPMode::ThreadSafe> State,
+    FTextureRenderTargetResource* WakeResource)
 {
     check(IsInGameThread());
     Startup();
     if (!Extension.IsValid() || !Input.Scene || !Input.Target.IsValid() || !Input.VolumeTarget.IsValid()) return;
     const auto Held=Extension;
-    ENQUEUE_RENDER_COMMAND(YogNinjaFogMaskSubmit)([Held,Key,Input,State](FRHICommandListImmediate&)
+    ENQUEUE_RENDER_COMMAND(YogNinjaFogMaskSubmit)([Held,Key,Input,State,WakeResource](FRHICommandListImmediate&)
     {
         FEntry& Entry=Held->Entries.FindOrAdd(Key);
         if (Entry.Input.Target!=Input.Target || Entry.Input.VolumeTarget!=Input.VolumeTarget || Entry.State!=State)
             Entry.LastRevision=MAX_uint64;
         Entry.Input=Input;
+        // Resolve after volume initialization, before any later GT release command.
+        if (WakeResource) Entry.Input.WakeDensity = WakeResource->GetRenderTargetTexture();
         Entry.State=State;
     });
 }

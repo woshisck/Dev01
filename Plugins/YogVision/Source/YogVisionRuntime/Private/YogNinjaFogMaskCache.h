@@ -6,6 +6,7 @@
 #include "RHIResources.h"
 
 class FSceneInterface;
+class FTextureRenderTargetResource;
 
 /** Low-rate, scene-view-owned environment field. No UObject is read on RT. */
 namespace YogNinjaFogMaskCache
@@ -17,6 +18,10 @@ struct FInput
     // Same RGBA16F coefficients as Target, stored as R x R x S for one
     // hardware-linear material lookup. Target remains the compatible atlas.
     FTextureRHIRef VolumeTarget;
+    FTextureRHIRef WakeDensity;
+    FVector3f WakeMin = FVector3f::ZeroVector;
+    FVector3f WakeInvSize = FVector3f::ZeroVector;
+    float WakeStrength = 0.f;
     FVector3f Min = FVector3f::ZeroVector;
     FVector3f Size = FVector3f(1.f);
     uint32 Resolution = 128;
@@ -66,6 +71,7 @@ struct FState
 
 void Startup();
 void Shutdown();
-void Submit(uint64 Key,const FInput& Input,TSharedRef<FState,ESPMode::ThreadSafe> State);
+void Submit(uint64 Key,const FInput& Input,TSharedRef<FState,ESPMode::ThreadSafe> State,
+    FTextureRenderTargetResource* WakeResource = nullptr);
 void Remove(uint64 Key);
 }

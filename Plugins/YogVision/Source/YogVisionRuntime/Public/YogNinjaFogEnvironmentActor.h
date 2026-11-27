@@ -5,6 +5,7 @@
 #include "YogNinjaFogEnvironmentActor.generated.h"
 
 class APlayerController;
+class UYogFogSimulationComponent;
 class ULocalLightComponent;
 class UTextureRenderTarget2D;
 class UTextureRenderTargetVolume;
@@ -85,6 +86,9 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="玩家清雾", meta=(DisplayName="清雾强度", ToolTip="0 至 1。雾体材质中的玩家稀薄权重，不授予 gameplay 视野。", ClampMin="0", ClampMax="1"))
     float PlayerStrength = .85f;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="玩家清雾", meta=(DisplayName="三维尾流强度", ToolTip="仅游戏中生效，乘以材质实例的 HybridBoundaryMotion。任一强度为 0 即关闭模拟。", ClampMin="0", ClampMax="4"))
+    float PlayerWakeStrength = 0.f;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="玩家清雾", meta=(DisplayName="清雾羽化", ToolTip="厘米。玩家清雾区域边缘的过渡宽度。", ClampMin="1", ClampMax="10000"))
     float PlayerFeather = 400.f;
 
@@ -156,7 +160,16 @@ private:
     void DisableEnvironmentOverride();
     void UpdateMaskCache(UMaterialInstanceDynamic* Material, const FVector& ObserverPosition, bool bHaveObserver, bool bForce);
     void ReleaseMaskCache();
+    void UpdatePlayerWake(const FVector& MaskMin, const FVector& MaskSize, float Strength);
+    void ReleasePlayerWake();
     float GroundHeight() const;
+
+    UPROPERTY(Transient, DuplicateTransient)
+    TObjectPtr<UYogFogSimulationComponent> PlayerWake;
+    TWeakObjectPtr<APawn> WakePawn;
+    FVector LastWakePosition = FVector::ZeroVector;
+    double LastWakeSample = -1.0;
+    double LastWakeMotion = -1.0;
 
     TWeakObjectPtr<UMaterialInstanceDynamic> LastMaterial;
     TWeakObjectPtr<APlayerController> CachedLocalPlayer;

@@ -1,7 +1,9 @@
 #include "YogNinjaFogEnvironmentActor.h"
 #include "YogNinjaFogMaskCache.h"
+#include "YogFogSimulationComponent.h"
 
 #include "CollisionQueryParams.h"
+#include "Components/CapsuleComponent.h"
 #include "Components/LocalLightComponent.h"
 #include "Components/SceneComponent.h"
 #include "Components/SpotLightComponent.h"
@@ -370,6 +372,14 @@ void AYogNinjaFogEnvironmentActor::UpdateMaskCache(UMaterialInstanceDynamic* Mat
     }
     MaskBakeCount=MaskRenderState->Executed.GetValue();
     const bool bReady=MaskBakeCount>0 && MaskRenderState->CompletedRevision.GetValue()>=static_cast<int32>(MaskDomainRevision);
+    float WakeStrength = YogNinjaEnvironment::Safe(PlayerWakeStrength, 0.f, 0.f, 4.f);
+    if (WakeStrength > 0.f)
+    {
+        float BoundaryMotion;
+        if (Material->GetScalarParameterValue(FMaterialParameterInfo(TEXT("HybridBoundaryMotion")), BoundaryMotion))
+            WakeStrength *= YogNinjaEnvironment::Safe(BoundaryMotion, 1.f, 0.f, 1.f);
+    }
+    UpdatePlayerWake(Minimum, Size, WakeStrength);
     Material->SetTextureParameterValue(TEXT("HybridEnvironmentMask"),EnvironmentMask);
     Material->SetTextureParameterValue(TEXT("HybridEnvironmentVolume"),EnvironmentMaskVolume);
     Material->SetVectorParameterValue(TEXT("HybridMaskMin"),FLinearColor(Minimum.X,Minimum.Y,Minimum.Z,0));
@@ -409,7 +419,117 @@ void AYogNinjaFogEnvironmentActor::UpdateMaskCache(UMaterialInstanceDynamic* Mat
         Input.Directions[Index]=FVector4f(Direction.R,Direction.G,Direction.B,Direction.A);
     }
     Input.Revision=++MaskRevision;
-    YogNinjaFogMaskCache::Submit(GetUniqueID(),Input,MaskRenderState.ToSharedRef());
+    FTextureRenderTargetResource* WakeResource = nullptr;
+    if (IsValid(PlayerWake) && PlayerWake->DensityField && PlayerWake->SubmittedStepCount > 0)
+    {
+        const FVector WakeSize = PlayerWake->ActualDomainExtent * 2.;
+        Input.WakeMin = FVector3f(PlayerWake->ActualDomainCenter - PlayerWake->ActualDomainExtent);
+        Input.WakeInvSize = FVector3f(FVector::OneVector / WakeSize);
+        // The solver's G decays exponentially. Fade its very last residual before retiring the grid.
+        const float Idle = float(GetWorld()->GetTimeSeconds() - LastWakeMotion);
+        Input.WakeStrength = WakeStrength * (1.f - FMath::SmoothStep(6.f, 8.f, Idle));
+        WakeResource = PlayerWake->DensityField->GameThread_GetRenderTargetResource();
+    }
+    YogNinjaFogMaskCache::Submit(GetUniqueID(),Input,MaskRenderState.ToSharedRef(),WakeResource);
+}
+
+void AYogNinjaFogEnvironmentActor::ReleasePlayerWake()
+{
+    if (IsValid(PlayerWake))
+    {
+        PlayerWake->DestroyComponent();
+        NextMaskUpdateTime = 0.;
+    }
+    PlayerWake = nullptr;
+    WakePawn.Reset();
+    LastWakeSample = LastWakeMotion = -1.;
+}
+
+void AYogNinjaFogEnvironmentActor::UpdatePlayerWake(const FVector& MaskMin, const FVector& MaskSize, float Strength)
+{
+    UWorld* World = GetWorld();
+    if (Strength <= 0.f || !World || !World->IsGameWorld()
+        || !HasActorBegunPlay() || !IsValid(FogCarrier) || !FApp::CanEverRender())
+    {
+        if (PlayerWake || LastWakeSample >= 0.) ReleasePlayerWake();
+        return;
+    }
+    APlayerController* Controller = CachedLocalPlayer.Get();
+    APawn* Pawn = Controller && Controller->IsLocalController() ? Controller->GetPawn() : nullptr;
+    if (!IsValid(Pawn) || Pawn->GetWorld() != World || !YogNinjaEnvironment::FinitePosition(Pawn->GetActorLocation()))
+    {
+        ReleasePlayerWake();
+        return;
+    }
+
+    const FVector Position = Pawn->GetActorLocation();
+    const double Now = World->GetTimeSeconds();
+    const double Step = Now - LastWakeSample;
+    const FVector Travel = Position - LastWakePosition;
+    // A respawn, teleport or long discontinuity starts a new trail without joining positions.
+    if (WakePawn.Get() != Pawn || Step < 0. || Step > .5 || Travel.SizeSquared() > FMath::Square(350.))
+    {
+        ReleasePlayerWake();
+        WakePawn = Pawn;
+        LastWakePosition = Position;
+        LastWakeSample = Now;
+        return;
+    }
+    if (Step < UE_SMALL_NUMBER) return;
+    const bool bHadBody = LastWakeMotion == LastWakeSample;
+    LastWakePosition = Position;
+    LastWakeSample = Now;
+
+    // A fixed grid in carrier space covers the low bank. Never recenter on the player or camera.
+    constexpr double Voxel = 36.;
+    const double Bottom = FMath::Max(MaskMin.Z, double(GroundHeight()) - Voxel);
+    const double Top = FMath::Min(MaskMin.Z + MaskSize.Z, double(GroundHeight()) + 10. * Voxel);
+    if (Top <= Bottom + 1.)
+    {
+        ReleasePlayerWake();
+        return;
+    }
+    const FVector Size(FMath::Min(MaskSize.X, 128. * Voxel), FMath::Min(MaskSize.Y, 128. * Voxel), Top - Bottom);
+    const FVector Center(MaskMin.X + MaskSize.X * .5, MaskMin.Y + MaskSize.Y * .5, (Top + Bottom) * .5);
+    const FVector Extent = Size * .5;
+    if (PlayerWake && (!PlayerWake->ActualDomainCenter.Equals(Center, .1) || !PlayerWake->ActualDomainExtent.Equals(Extent, .1)))
+    {
+        ReleasePlayerWake();
+        return;
+    }
+
+    const FVector MeasuredVelocity = Travel / Step;
+    const bool bMoved = FBox(Center - Extent, Center + Extent).IsInsideOrOn(Position)
+        && MeasuredVelocity.SizeSquared() > FMath::Square(8.);
+    if (bMoved)
+    {
+        if (!PlayerWake)
+        {
+            PlayerWake = NewObject<UYogFogSimulationComponent>(this, NAME_None, RF_Transient);
+            PlayerWake->bSimulateInEditor = false;
+            PlayerWake->GridResolution = FIntVector(FMath::Clamp(FMath::RoundToInt(Size.X / Voxel), 8, 128),
+                FMath::Clamp(FMath::RoundToInt(Size.Y / Voxel), 8, 128),
+                FMath::Clamp(FMath::RoundToInt(Size.Z / Voxel), 8, 128));
+            PlayerWake->SetDomain(Center, Extent);
+            PlayerWake->AddTickPrerequisiteActor(this);
+            PlayerWake->RegisterComponent();
+        }
+        FYogFogSimBody Body;
+        Body.Center = Position;
+        const FVector MovementVelocity = Pawn->GetVelocity();
+        Body.Velocity = (!MovementVelocity.ContainsNaN() && MovementVelocity.SizeSquared() > FMath::Square(8.)
+            ? MovementVelocity : MeasuredVelocity).GetClampedToMaxSize(1500.);
+        const UCapsuleComponent* Capsule = Cast<UCapsuleComponent>(Pawn->GetRootComponent());
+        Body.Radius = FMath::Max(float(2. * Voxel), Capsule ? Capsule->GetScaledCapsuleRadius() : 0.f);
+        Body.HalfHeight = FMath::Max(Body.Radius, Capsule ? Capsule->GetScaledCapsuleHalfHeight() : 90.f);
+        PlayerWake->SetBodies({Body});
+        LastWakeMotion = Now;
+    }
+    else if (PlayerWake)
+    {
+        if (Now - LastWakeMotion >= 8.) ReleasePlayerWake();
+        else if (bHadBody) PlayerWake->SetBodies({});
+    }
 }
 
 bool AYogNinjaFogEnvironmentActor::ResolveMaskDomain(UMaterialInstanceDynamic* Material,
@@ -439,6 +559,7 @@ bool AYogNinjaFogEnvironmentActor::ResolveMaskDomain(UMaterialInstanceDynamic* M
 
 void AYogNinjaFogEnvironmentActor::ReleaseMaskCache()
 {
+    ReleasePlayerWake();
     if (MaskRenderState.IsValid()) YogNinjaFogMaskCache::Remove(GetUniqueID());
     MaskRenderState.Reset();MaskBakeCount=0;NextMaskUpdateTime=0.0;
 }

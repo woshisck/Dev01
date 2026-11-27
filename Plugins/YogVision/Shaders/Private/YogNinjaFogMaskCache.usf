@@ -31,6 +31,13 @@ float LightFeather;
 float4 Observer;
 float4 Lights[4];
 float4 Directions[4];
+#if YOG_PLAYER_WAKE
+Texture3D<float4> WakeDensity;
+SamplerState WakeSampler;
+float3 WakeMin;
+float3 WakeInvSize;
+float WakeStrength;
+#endif
 RWTexture2D<float4> OutputMask;
 RWTexture3D<float4> OutputVolumeMask;
 
@@ -158,6 +165,22 @@ void MainCS(uint3 DispatchThreadId:SV_DispatchThreadID)
     // Reuse B instead of allocating another texture: 0 = no GDF, 1 = ready,
     // 1..2 = ready plus the local transition weight. Old readers use only R.
     float motionRim=4.0*playerClear*(1.0-playerClear)*saturate(PlayerStrength);
+#if YOG_PLAYER_WAKE
+    float3 wakeUV=(world-WakeMin)*WakeInvSize;
+    if (all(wakeUV>0) && all(wakeUV<1))
+    {
+        uint3 dims;
+        WakeDensity.GetDimensions(dims.x,dims.y,dims.z);
+        float3 edge=min(wakeUV,1.0-wakeUV)*float3(dims);
+        float feather=smoothstep(0.0,1.0,min(edge.x,min(edge.y,edge.z)));
+        float g=WakeDensity.SampleLevel(WakeSampler,wakeUV,0).g;
+        float gather=smoothstep(.003,.045,g);
+        float clearWake=smoothstep(.003,.20,-g);
+        float delta=feather*saturate(WakeStrength*.25)
+            *(.75*gather*(1.0-saturate(PlayerStrength)*playerClear)-.90*clearWake);
+        factor*=1.0+delta;
+    }
+#endif
     // R may exceed 1: it is a density multiplier, not normalized opacity.
     // G isolates solids; A retains optional height diagnostics (0 = disabled).
     float4 coefficients=float4(max(factor,0.0),outside,valid*(1.0+motionRim),localFogHeight);
